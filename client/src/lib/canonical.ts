@@ -50,7 +50,60 @@ function currentOrderWindowStart() { const parts = new Intl.DateTimeFormat("en-C
 function normalizeItem(item: CanonicalItem): CanonicalItem { const master = item.product_master && typeof item.product_master === "object" ? item.product_master : {}; const display = item.display_for_packer_with_qty || item.display_for_packer_master || item.display_for_packer_exact || master.display_for_packer || item.display_for_packer || item.label || item.label_display || master.label_display || item.product_name || item.th_name || master.th_name || item.sku || null; const mapping = item.mapping_status || (item.sku_match_status === "MATCHED_PRODUCT_MASTER" ? "MATCHED" : null); return { ...item, ...master, quantity: num(item.quantity), unit_price: num(item.unit_price_order ?? item.unit_price), expected_cod: num(item.expected_cod), stock_qty: num(item.stock_qty ?? item.inventory?.stock_qty), mapping_status: mapping, display_for_packer: display, label: item.label || item.label_display || master.label_display || display, label_display: item.label_display || item.label || master.label_display || display }; }
 function parseJsonArray(value: unknown): CanonicalItem[] { if (Array.isArray(value)) return value as CanonicalItem[]; if (typeof value !== "string") return []; try { const parsed = JSON.parse(value); return Array.isArray(parsed) ? parsed : []; } catch { return []; } }
 function normalizeOrder(row: any, items: CanonicalItem[]): CanonicalOrder { const normalized = items.map(normalizeItem); const cod = num(row.web_cod_amount) ?? num(row.cod_amount) ?? num(row.raw_cod_amount) ?? num(row.expected_cod); const mapping = row.web_mapping_status || row.mapping_status || (normalized.length > 0 && normalized.every(item => item.mapping_status === "MATCHED") ? "MATCHED" : "CHECK_DATA"); const address = row.web_address_primary || row.address_display_primary || row.full_address || row.address_display_fallback || row.web_address_fallback || row.web_address_short || row.address_line_1 || ""; const productDisplay = normalized.map(i => i.display_for_packer || i.sku || "").filter(Boolean).join("\n") || row.web_product_display || row.product_display_final || row.product_display_primary || row.product_display_fallback || row.product_display_raw || row.display_for_packer || null; return { ...row, full_address: address, address_display_primary: row.web_address_primary || row.address_display_primary || address, address_display_fallback: row.web_address_fallback || row.address_display_fallback || address, items: normalized, mapping_status: mapping, order_number: row.order_number || `#${row.id}`, order_time: row.order_time || row.created_at || null, cod_amount: cod, is_ready_to_pack: row.is_ready_to_pack ?? (mapping === "MATCHED"), cod_check_status: row.cod_check_status ?? (cod == null ? "CHECK" : "PASS"), audit_status: row.audit_status ?? mapping, telegram_status: row.telegram_status ?? null, items_text: productDisplay || "", display_for_packer: productDisplay }; }
-export async function readCanonicalOrders(search = "", since: string | null = null) { const api = getSupabase(); if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" }); let queryBuilder = api.from("canonical_orders").select("*"); if (since) queryBuilder = queryBuilder.gte("order_time", since).lte("order_time", new Date().toISOString()); const { data: rows, error } = await queryBuilder.order("order_time", { ascending: false, nullsFirst: false }).limit(3000); if (error) fail(error); const query = search.trim().toLowerCase(); const orders = (rows ?? []).map((row: any) => { const items = parseJsonArray(row.product_items).length ? parseJsonArray(row.product_items) : parseJsonArray(row.web_items_clean).length ? parseJsonArray(row.web_items_clean) : parseJsonArray(row.web_items_all_fields); return normalizeOrder(row, items); }).filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query)); return { orders, itemError: null, fetchedAt: new Date().toISOString(), since }; }
+export async function readCanonicalOrders(search = "", since: string | null = null) {
+  const api = getSupabase();
+  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
+
+  let queryBuilder = api.from("canonical_orders").select("*");
+  if (since) queryBuilder = queryBuilder.gte("order_time", since).lte("order_time", new Date().toISOString());
+
+  const { data: rows, error } = await queryBuilder
+    .order("order_time", { ascending: false, nullsFirst: false })
+    .limit(3000);
+  if (error) fail(error);
+
+  const orderRows = rows ?? [];
+  const orderIds = orderRows.map((row: any) => Number(row.id)).filter(Number.isFinite);
+  const itemsByOrder = new Map<number, CanonicalItem[]>();
+  let itemError: unknown = null;
+
+  // canonical_orders คือหัวบิล ส่วนสินค้าจริงอยู่ใน canonical_order_items
+  // รวมกลับมาเป็นแถวออเดอร์เดียวสำหรับหน้าเว็บ โดยไม่อ่านสินค้าเฉพาะจาก JSON ในหัวบิล
+  if (orderIds.length) {
+    const { data: itemRows, error: itemsError } = await api
+      .from("canonical_order_items")
+      .select("*")
+      .in("order_id", orderIds)
+      .order("line_no", { ascending: true });
+
+    itemError = itemsError;
+    if (!itemsError) {
+      for (const item of itemRows ?? []) {
+        const orderId = Number((item as any).order_id);
+        if (!Number.isFinite(orderId)) continue;
+        itemsByOrder.set(orderId, [...(itemsByOrder.get(orderId) ?? []), item as CanonicalItem]);
+      }
+    }
+  }
+
+  const query = search.trim().toLowerCase();
+  const orders = orderRows
+    .map((row: any) => {
+      const linkedItems = itemsByOrder.get(Number(row.id));
+
+      // Fallback รองรับข้อมูลเก่าที่ยังไม่ได้แตกลง canonical_order_items
+      const fallbackItems = parseJsonArray(row.product_items).length
+        ? parseJsonArray(row.product_items)
+        : parseJsonArray(row.web_items_clean).length
+          ? parseJsonArray(row.web_items_clean)
+          : parseJsonArray(row.web_items_all_fields);
+
+      return normalizeOrder(row, linkedItems?.length ? linkedItems : fallbackItems);
+    })
+    .filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query));
+
+  return { orders, itemError, fetchedAt: new Date().toISOString(), since };
+}
 export type StockProduct = { id: number; sku: string; label: string; thName: string; emoji: string; price: number | null; stockQty: number; stockStatus: string | null; aliases: string; inventoryId: number | string | null };
 export type ProductMapAlias = { id: string; alias: string; canonicalSku: string; canonicalLabel: string; isActive: boolean };
 
