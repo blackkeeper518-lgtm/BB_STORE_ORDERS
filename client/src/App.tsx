@@ -17,6 +17,7 @@ import OrderHistory from "./pages/OrderHistory";
 import ConnectSupabase from "./pages/ConnectSupabase";
 import AlienRoom from "./pages/AlienRoom";
 import SecretGallery from "./pages/SecretGallery";
+import ParcelMapping from "./pages/ParcelMapping";
 
 function Shell({ children }: { children: React.ReactNode }) { return <DashboardLayout>{children}</DashboardLayout>; }
 function Router() {
@@ -24,6 +25,7 @@ function Router() {
     <Route path="/connect"><ConnectSupabase /></Route>
     <Route path="/secret-gallery"><SecretGallery /></Route>
     <Route path="/orders"><Shell><OrderControl /></Shell></Route>
+    <Route path="/parcel-mapping"><Shell><ParcelMapping /></Shell></Route>
     <Route path="/chats"><Shell><ChatHub /></Shell></Route>
     <Route path="/alien-room"><Shell><AlienRoom /></Shell></Route>
     <Route path="/aliases"><Shell><ProductAliases /></Shell></Route>
