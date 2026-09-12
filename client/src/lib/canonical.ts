@@ -1,13 +1,26 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 const CONFIG_KEY = "manus3-supabase-config";
+const ACTIVE_CAMP_KEY = "manus3-active-camp";
+export type Camp = "BB" | "ST";
 export type SupabaseConfig = { url: string; anonKey: string; orderTable?: string };
 let client: SupabaseClient | null = null;
 let clientSignature = "";
-export function getSupabaseConfig(): SupabaseConfig | null { try { const raw = localStorage.getItem(CONFIG_KEY); if (!raw) return null; const value = JSON.parse(raw) as Partial<SupabaseConfig>; if (!value.url || !value.anonKey) return null; return { url: value.url.replace(/\/$/, ""), anonKey: value.anonKey, orderTable: value.orderTable || "canonical_orders" }; } catch { return null; } }
-export function saveSupabaseConfig(config: SupabaseConfig) { const clean = { url: config.url.trim().replace(/\/$/, ""), anonKey: config.anonKey.trim(), orderTable: config.orderTable?.trim() || "canonical_orders" }; localStorage.setItem(CONFIG_KEY, JSON.stringify(clean)); client = null; clientSignature = ""; }
-export function clearSupabaseConfig() { localStorage.removeItem(CONFIG_KEY); client = null; clientSignature = ""; }
-export function getSupabase() { const config = getSupabaseConfig(); if (!config) return null; const signature = `${config.url}|${config.anonKey}`; if (!client || signature !== clientSignature) { client = createClient(config.url, config.anonKey); clientSignature = signature; } return client; }
+export function getActiveCamp(): Camp { try { return localStorage.getItem(ACTIVE_CAMP_KEY) === "ST" ? "ST" : "BB"; } catch { return "BB"; } }
+export function setActiveCamp(camp: Camp) { localStorage.setItem(ACTIVE_CAMP_KEY, camp); client = null; clientSignature = ""; window.dispatchEvent(new CustomEvent("camp-change", { detail: camp })); }
+function profileKey(camp: Camp) { return `${CONFIG_KEY}:${camp}`; }
+export function getSupabaseConfig(camp: Camp = getActiveCamp()): SupabaseConfig | null {
+  try {
+    const raw = localStorage.getItem(profileKey(camp)) ?? (camp === "BB" ? localStorage.getItem(CONFIG_KEY) : null);
+    if (!raw) return null;
+    const value = JSON.parse(raw) as Partial<SupabaseConfig>;
+    if (!value.url || !value.anonKey) return null;
+    return { url: value.url.replace(/\/$/, ""), anonKey: value.anonKey, orderTable: value.orderTable || "canonical_orders" };
+  } catch { return null; }
+}
+export function saveSupabaseConfig(config: SupabaseConfig, camp: Camp = getActiveCamp()) { const clean = { url: config.url.trim().replace(/\/$/, ""), anonKey: config.anonKey.trim(), orderTable: config.orderTable?.trim() || "canonical_orders" }; localStorage.setItem(profileKey(camp), JSON.stringify(clean)); if (camp === "BB") localStorage.setItem(CONFIG_KEY, JSON.stringify(clean)); client = null; clientSignature = ""; }
+export function clearSupabaseConfig(camp: Camp = getActiveCamp()) { localStorage.removeItem(profileKey(camp)); if (camp === "BB") localStorage.removeItem(CONFIG_KEY); client = null; clientSignature = ""; }
+export function getSupabase() { const config = getSupabaseConfig(); if (!config) return null; const signature = `${getActiveCamp()}|${config.url}|${config.anonKey}`; if (!client || signature !== clientSignature) { client = createClient(config.url, config.anonKey); clientSignature = signature; } return client; }
 export const supabase = { from: (table: string) => { const api = getSupabase(); if (!api) throw new Error("ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key"); return api.from(table); } } as any;
 function fail(error: any): never { throw new Error(error?.message || "Supabase connection failed"); }
 function num(v: any) { const n = Number(v); return v == null || v === "" || !Number.isFinite(n) ? null : n; }
