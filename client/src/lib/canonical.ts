@@ -235,9 +235,9 @@ export async function readAlienReview(search = ''): Promise<AlienReviewItem[]> {
   const api = getSupabase();
   if (!api) fail({ message: 'ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key' });
   const [itemsResult, masterResult, aliasResult] = await Promise.all([
-    api.from('canonical_order_items').select('*').order('created_at', { ascending: false }).limit(3000),
-    api.from('product_master').select('*').limit(5000),
-    api.from('product_map_master').select('*').limit(10000),
+    api.from('canonical_order_items').select('id,order_id,line_no,raw_item_text,raw_product_text,raw_text,sku,product_id,quantity,qty,extracted_qty,unit_price,unit_price_order,line_total,cod_amount,mapping_status,match_status,display_for_packer,master_display_for_packer,label_display,stock_qty,available_qty,stock_status,store_code,created_at').order('created_at', { ascending: false }).limit(800),
+    api.from('product_master').select('id,sku,th_name,name_standard,display_for_packer,master_display_for_packer,label_display,unit_price,stock_qty,available_qty,stock_status,store_code').limit(1500),
+    api.from('product_map_master').select('sku,alias,alias_text,alias_norm,store_code').limit(3000),
   ]);
   if (itemsResult.error) fail(itemsResult.error);
   if (masterResult.error) fail(masterResult.error);
