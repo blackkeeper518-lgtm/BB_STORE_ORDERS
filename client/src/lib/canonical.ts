@@ -6,7 +6,11 @@ export type Camp = "BB" | "ST";
 export type SupabaseConfig = { url: string; anonKey: string; orderTable?: string };
 let client: SupabaseClient | null = null;
 let clientSignature = "";
-export function getActiveCamp(): Camp { try { return localStorage.getItem(ACTIVE_CAMP_KEY) === "ST" ? "ST" : "BB"; } catch { return "BB"; } }
+function defaultCampForHost(): Camp {
+  if (typeof window !== "undefined" && /(^|\.)ststore\.onrender\.com$/i.test(window.location.hostname)) return "ST";
+  return "BB";
+}
+export function getActiveCamp(): Camp { try { const saved = localStorage.getItem(ACTIVE_CAMP_KEY); return saved === "ST" || saved === "BB" ? saved : defaultCampForHost(); } catch { return defaultCampForHost(); } }
 export function setActiveCamp(camp: Camp) { localStorage.setItem(ACTIVE_CAMP_KEY, camp); client = null; clientSignature = ""; window.dispatchEvent(new CustomEvent("camp-change", { detail: camp })); }
 function profileKey(camp: Camp) { return `${CONFIG_KEY}:${camp}`; }
 export function getSupabaseConfig(camp: Camp = getActiveCamp()): SupabaseConfig | null {
