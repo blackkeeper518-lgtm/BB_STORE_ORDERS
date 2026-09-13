@@ -6,11 +6,9 @@ export type Camp = "BB" | "ST";
 export type SupabaseConfig = { url: string; anonKey: string; orderTable?: string };
 let client: SupabaseClient | null = null;
 let clientSignature = "";
-function defaultCampForHost(): Camp {
-  if (typeof window !== "undefined" && /(^|\.)ststore\.onrender\.com$/i.test(window.location.hostname)) return "ST";
-  return "BB";
-}
-export function getActiveCamp(): Camp { try { const saved = localStorage.getItem(ACTIVE_CAMP_KEY); return saved === "ST" || saved === "BB" ? saved : defaultCampForHost(); } catch { return defaultCampForHost(); } }
+function isSingtoHost() { return typeof window !== "undefined" && /(^|\.)ststore\.onrender\.com$/i.test(window.location.hostname); }
+function defaultCampForHost(): Camp { return isSingtoHost() ? "ST" : "BB"; }
+export function getActiveCamp(): Camp { try { if (isSingtoHost()) return "ST"; const saved = localStorage.getItem(ACTIVE_CAMP_KEY); return saved === "ST" || saved === "BB" ? saved : defaultCampForHost(); } catch { return defaultCampForHost(); } }
 export function setActiveCamp(camp: Camp) { localStorage.setItem(ACTIVE_CAMP_KEY, camp); client = null; clientSignature = ""; window.dispatchEvent(new CustomEvent("camp-change", { detail: camp })); }
 function profileKey(camp: Camp) { return `${CONFIG_KEY}:${camp}`; }
 export function getSupabaseConfig(camp: Camp = getActiveCamp()): SupabaseConfig | null {
@@ -25,6 +23,16 @@ export function getSupabaseConfig(camp: Camp = getActiveCamp()): SupabaseConfig 
 export function saveSupabaseConfig(config: SupabaseConfig, camp: Camp = getActiveCamp()) { const clean = { url: config.url.trim().replace(/\/$/, ""), anonKey: config.anonKey.trim(), orderTable: config.orderTable?.trim() || "canonical_orders" }; localStorage.setItem(profileKey(camp), JSON.stringify(clean)); if (camp === "BB") localStorage.setItem(CONFIG_KEY, JSON.stringify(clean)); client = null; clientSignature = ""; }
 export function clearSupabaseConfig(camp: Camp = getActiveCamp()) { localStorage.removeItem(profileKey(camp)); if (camp === "BB") localStorage.removeItem(CONFIG_KEY); client = null; clientSignature = ""; }
 export function getSupabase() { const config = getSupabaseConfig(); if (!config) return null; const signature = `${getActiveCamp()}|${config.url}|${config.anonKey}`; if (!client || signature !== clientSignature) { client = createClient(config.url, config.anonKey); clientSignature = signature; } return client; }
+export function subscribeToChatMessages(onChange: () => void) {
+  const api = getSupabase();
+  if (!api) return () => undefined;
+  const channel = api
+    .channel(`chat-live-${getActiveCamp().toLowerCase()}`)
+    .on("postgres_changes", { event: "*", schema: "public", table: "chat_customer_messages" }, onChange)
+    .on("postgres_changes", { event: "*", schema: "public", table: "chat_page_messages" }, onChange)
+    .subscribe();
+  return () => { void api.removeChannel(channel); };
+}
 export const supabase = { from: (table: string) => { const api = getSupabase(); if (!api) throw new Error("ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key"); return api.from(table); } } as any;
 function fail(error: any): never { throw new Error(error?.message || "Supabase connection failed"); }
 function num(v: any) { const n = Number(v); return v == null || v === "" || !Number.isFinite(n) ? null : n; }
@@ -63,20 +71,23 @@ function scoreDailyOrderSignal(text: string, latestCod: number | null) {
   return { score, qualified, qualifiedCod, reasons: Array.from(new Set(reasons)), coreCount: core.length, flowCount: flow.length };
 }export type CanonicalItem = Record<string, any>;
 export type CanonicalOrder = Record<string, any> & { items: CanonicalItem[]; items_text: string; display_for_packer: string | null; is_ready_to_pack: boolean; cod_check_status: string | null; audit_status: string | null; order_status: string | null; telegram_status: string | null };
+const ORDER_OPERATIONAL_VIEW = "vw_orders_web_chat";
+const ORDER_OPERATIONAL_LIMIT = 200;
 function currentOrderWindowStart() { const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date()); const values = Object.fromEntries(parts.filter(part => part.type !== "literal").map(part => [part.type, Number(part.value)])); return new Date(Date.UTC(values.year, values.month - 1, values.day - 1, 7, 0, 0)).toISOString(); }
 function normalizeItem(item: CanonicalItem): CanonicalItem { const master = item.product_master && typeof item.product_master === "object" ? item.product_master : {}; const display = item.display_for_packer_with_qty || item.display_for_packer_master || item.display_for_packer_exact || master.display_for_packer || item.display_for_packer || item.label || item.label_display || master.label_display || item.product_name || item.th_name || master.th_name || item.sku || null; const mapping = item.mapping_status || (item.sku_match_status === "MATCHED_PRODUCT_MASTER" ? "MATCHED" : null); return { ...item, ...master, quantity: num(item.quantity), unit_price: num(item.unit_price_order ?? item.unit_price), expected_cod: num(item.expected_cod), stock_qty: num(item.stock_qty ?? item.inventory?.stock_qty), mapping_status: mapping, display_for_packer: display, label: item.label || item.label_display || master.label_display || display, label_display: item.label_display || item.label || master.label_display || display }; }
 function parseJsonArray(value: unknown): CanonicalItem[] { if (Array.isArray(value)) return value as CanonicalItem[]; if (typeof value !== "string") return []; try { const parsed = JSON.parse(value); return Array.isArray(parsed) ? parsed : []; } catch { return []; } }
 function normalizeOrder(row: any, items: CanonicalItem[]): CanonicalOrder { const normalized = items.map(normalizeItem); const cod = num(row.web_cod_amount) ?? num(row.cod_amount) ?? num(row.raw_cod_amount) ?? num(row.expected_cod); const mapping = row.web_mapping_status || row.mapping_status || (normalized.length > 0 && normalized.every(item => item.mapping_status === "MATCHED") ? "MATCHED" : "CHECK_DATA"); const address = row.web_address_primary || row.address_display_primary || row.full_address || row.address_display_fallback || row.web_address_fallback || row.web_address_short || row.address_line_1 || ""; const productDisplay = normalized.map(i => i.display_for_packer || i.sku || "").filter(Boolean).join("\n") || row.web_product_display || row.product_display_final || row.product_display_primary || row.product_display_fallback || row.product_display_raw || row.display_for_packer || null; return { ...row, full_address: address, address_display_primary: row.web_address_primary || row.address_display_primary || address, address_display_fallback: row.web_address_fallback || row.address_display_fallback || address, items: normalized, mapping_status: mapping, order_number: row.order_number || `#${row.id}`, order_time: row.order_time || row.created_at || null, cod_amount: cod, is_ready_to_pack: row.is_ready_to_pack ?? (mapping === "MATCHED"), cod_check_status: row.cod_check_status ?? (cod == null ? "CHECK" : "PASS"), audit_status: row.audit_status ?? mapping, telegram_status: row.telegram_status ?? null, items_text: productDisplay || "", display_for_packer: productDisplay }; }
-export async function readCanonicalOrders(search = "", since: string | null = null) {
+export async function readCanonicalOrders(search = "", since: string | null = null, until: string | null = null) {
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
 
-  let queryBuilder = api.from("canonical_orders").select("*");
-  if (since) queryBuilder = queryBuilder.gte("order_time", since).lte("order_time", new Date().toISOString());
+  let queryBuilder = api.from(ORDER_OPERATIONAL_VIEW).select("*");
+  if (since) queryBuilder = queryBuilder.gte("order_time", since);
+  if (until) queryBuilder = queryBuilder.lte("order_time", until);
 
   const { data: rows, error } = await queryBuilder
     .order("order_time", { ascending: false, nullsFirst: false })
-    .limit(3000);
+    .limit(search.trim() || since || until ? 1000 : ORDER_OPERATIONAL_LIMIT);
   if (error) fail(error);
 
   const orderRows = rows ?? [];
