@@ -242,7 +242,8 @@ export async function readAlienReview(search = ''): Promise<AlienReviewItem[]> {
   if (itemsResult.error) fail(itemsResult.error);
   if (masterResult.error) fail(masterResult.error);
   if (aliasResult.error) fail(aliasResult.error);
-  const masters = masterResult.data ?? [];
+  const camp = getActiveCamp();
+  const masters = (masterResult.data ?? []).filter((master: any) => !master.store_code || String(master.store_code).toUpperCase() === camp);
   const byId = new Map(masters.map((master: any) => [String(master.id), master]));
   const bySku = new Map(masters.map((master: any) => [String(master.sku ?? '').trim().toLowerCase(), master]));
   const normalizeAlias = (value: any) => String(value ?? '').toLowerCase().normalize('NFKC').replace(/[\s_\-.,:;|()[\]{}]+/g, '').trim();
@@ -258,11 +259,17 @@ export async function readAlienReview(search = ''): Promise<AlienReviewItem[]> {
     const aliasSku = aliasToSku.get(normalizeAlias(raw)) ?? Array.from(aliasToSku.entries()).find(([alias]) => alias.length >= 3 && normalizeAlias(raw).includes(alias))?.[1];
     const resolvedSku = String(item.sku ?? '').trim() || aliasSku || '';
     const master = (item.product_id != null ? byId.get(String(item.product_id)) : undefined) ?? bySku.get(resolvedSku.toLowerCase());
-    const mapped = String(item.display_for_packer ?? item.label_display ?? master?.display_for_packer ?? master?.label_display ?? master?.name_standard ?? master?.th_name ?? master?.product_name ?? item.product_name ?? item.sku ?? '').trim();
+    const mapped = String(item.master_display_for_packer ?? master?.master_display_for_packer ?? item.display_for_packer ?? item.label_display ?? master?.display_for_packer ?? master?.label_display ?? master?.name_standard ?? master?.th_name ?? master?.product_name ?? item.product_name ?? item.sku ?? '').trim();
     const sku = String(item.sku ?? master?.sku ?? aliasSku ?? '').trim();
     const rawIsSku = Boolean(raw && sku && raw.toLowerCase() === sku.toLowerCase());
     const aliasMatched = Boolean(aliasSku && master);
+    const stockQty = item.stock_qty ?? master?.stock_qty ?? null;
+    const availableQty = item.available_qty ?? master?.available_qty ?? null;
+    const stockStatus = item.stock_status ?? master?.stock_status ?? (availableQty != null ? (Number(availableQty) > 0 ? 'IN_STOCK' : 'OUT_OF_STOCK') : stockQty != null ? (Number(stockQty) > 0 ? 'IN_STOCK' : 'OUT_OF_STOCK') : 'STOCK_UNKNOWN');
+    const unitPrice = item.unit_price ?? master?.unit_price ?? null;
+    const expectedLine = item.line_total ?? (unitPrice != null && item.quantity != null ? Number(unitPrice) * Number(item.quantity) : null);
+    const priceMismatch = item.cod_amount != null && expectedLine != null && Number(item.cod_amount) !== Number(expectedLine);
     const audit_status = !raw ? 'RAW_MISSING' : rawIsSku ? 'RAW_EQUALS_SKU' : aliasMatched ? 'MATCHED' : (item.mapping_status ?? item.match_status ?? 'REVIEW');
-    return { ...item, sku: sku || item.sku, product_master: master ?? null, alias_match: aliasMatched, alias_match_sku: aliasSku || null, alias_match_method: aliasMatched ? 'product_map_master' : null, audit_status, raw_display: raw || 'ไม่มีคำดิบ', mapped_display: mapped || 'ยังไม่มีชื่อมาตรฐาน' };
+    return { ...item, sku: sku || item.sku, product_master: master ?? null, alias_match: aliasMatched, alias_match_sku: aliasSku || null, alias_match_method: aliasMatched ? 'product_map_master' : null, audit_status, raw_display: raw || 'ไม่มีคำดิบ', mapped_display: mapped || 'ยังไม่มีชื่อมาตรฐาน', stock_qty: stockQty, available_qty: availableQty, stock_status: stockStatus, unit_price: unitPrice, price_mismatch: priceMismatch, store_code: item.store_code ?? master?.store_code ?? camp };
   }).filter((item: AlienReviewItem) => !query || JSON.stringify(item).toLowerCase().includes(query));
 }
