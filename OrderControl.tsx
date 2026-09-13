@@ -96,7 +96,9 @@ export default function OrderControl() {
   const [generatedSummary, setGeneratedSummary] = useState<GeneratedSummary | null>(null);
   const [flashBusinessCode, setFlashBusinessCode] = useState(() => localStorage.getItem("flash-business-code") || "");
   const [flashSaved, setFlashSaved] = useState(false);
-  const liveQuery = useQuery({ queryKey: ["canonical-orders", search], queryFn: () => readCanonicalOrders(search), refetchInterval: 30_000 });
+  const querySince = dateFrom ? new Date(`${dateFrom}T00:00:00+07:00`).toISOString() : null;
+  const queryUntil = dateTo ? new Date(`${dateTo}T23:59:59+07:00`).toISOString() : null;
+  const liveQuery = useQuery({ queryKey: ["canonical-orders", search, querySince, queryUntil], queryFn: () => readCanonicalOrders(search, querySince, queryUntil), refetchInterval: 30_000 });
   const orders = liveQuery.data?.orders ?? [];
   const stats = { total: orders.length, mapped: orders.filter((o: any) => o.mapping_status === "MATCHED" || o.mapping_status === "APPROVED").length, review: orders.filter((o: any) => o.mapping_status !== "MATCHED" && o.mapping_status !== "APPROVED").length, codCheck: orders.filter((o: any) => !o.cod_amount && !o.expected_cod).length, sent: 0, pages: new Set(orders.map((o: any) => o.page_id).filter(Boolean)).size };
   const summaryMutation = trpc.orders.generateSummary.useMutation({ onSuccess: setGeneratedSummary });
