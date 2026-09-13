@@ -33,6 +33,8 @@ export function subscribeToChatMessages(onChange: () => void) {
     .subscribe();
   return () => { void api.removeChannel(channel); };
 }
+const CHAT_HISTORY_DAYS = 2;
+function chatHistoryCutoff() { return new Date(Date.now() - CHAT_HISTORY_DAYS * 24 * 60 * 60 * 1000).toISOString(); }
 export const supabase = { from: (table: string) => { const api = getSupabase(); if (!api) throw new Error("ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key"); return api.from(table); } } as any;
 function fail(error: any): never { throw new Error(error?.message || "Supabase connection failed"); }
 function num(v: any) { const n = Number(v); return v == null || v === "" || !Number.isFinite(n) ? null : n; }
@@ -203,9 +205,10 @@ async function readChatRows() {
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
   // Read the newest window first. Ascending + limit would permanently return
   // the oldest rows once a chat table grows beyond the limit.
-  const customerResult = await api.from("chat_customer_messages").select("*").order("occurred_at", { ascending: false }).limit(10000);
+  const cutoff = chatHistoryCutoff();
+  const customerResult = await api.from("chat_customer_messages").select("*").gte("occurred_at", cutoff).order("occurred_at", { ascending: false }).limit(10000);
   if (customerResult.error) fail(customerResult.error);
-  const pageResult = await api.from("chat_page_messages").select("*").order("occurred_at", { ascending: false }).limit(10000);
+  const pageResult = await api.from("chat_page_messages").select("*").gte("occurred_at", cutoff).order("occurred_at", { ascending: false }).limit(10000);
   const customers = customerResult.data ?? [];
   const pages = pageResult.error ? [] : (pageResult.data ?? []);
   const rows = [
