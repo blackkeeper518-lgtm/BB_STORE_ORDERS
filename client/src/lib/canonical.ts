@@ -201,9 +201,11 @@ export async function readDailyOrders(date: string, search = "") { const start =
 async function readChatRows() {
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  const customerResult = await api.from("chat_customer_messages").select("*").order("occurred_at", { ascending: true }).limit(10000);
+  // Read the newest window first. Ascending + limit would permanently return
+  // the oldest rows once a chat table grows beyond the limit.
+  const customerResult = await api.from("chat_customer_messages").select("*").order("occurred_at", { ascending: false }).limit(10000);
   if (customerResult.error) fail(customerResult.error);
-  const pageResult = await api.from("chat_page_messages").select("*").order("occurred_at", { ascending: true }).limit(10000);
+  const pageResult = await api.from("chat_page_messages").select("*").order("occurred_at", { ascending: false }).limit(10000);
   const customers = customerResult.data ?? [];
   const pages = pageResult.error ? [] : (pageResult.data ?? []);
   const rows = [
