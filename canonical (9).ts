@@ -23,6 +23,16 @@ export function getSupabaseConfig(camp: Camp = getActiveCamp()): SupabaseConfig 
 export function saveSupabaseConfig(config: SupabaseConfig, camp: Camp = getActiveCamp()) { const clean = { url: config.url.trim().replace(/\/$/, ""), anonKey: config.anonKey.trim(), orderTable: config.orderTable?.trim() || "canonical_orders" }; localStorage.setItem(profileKey(camp), JSON.stringify(clean)); if (camp === "BB") localStorage.setItem(CONFIG_KEY, JSON.stringify(clean)); client = null; clientSignature = ""; }
 export function clearSupabaseConfig(camp: Camp = getActiveCamp()) { localStorage.removeItem(profileKey(camp)); if (camp === "BB") localStorage.removeItem(CONFIG_KEY); client = null; clientSignature = ""; }
 export function getSupabase() { const config = getSupabaseConfig(); if (!config) return null; const signature = `${getActiveCamp()}|${config.url}|${config.anonKey}`; if (!client || signature !== clientSignature) { client = createClient(config.url, config.anonKey); clientSignature = signature; } return client; }
+export function subscribeToChatMessages(onChange: () => void) {
+  const api = getSupabase();
+  if (!api) return () => undefined;
+  const channel = api
+    .channel(`chat-live-${getActiveCamp().toLowerCase()}`)
+    .on("postgres_changes", { event: "*", schema: "public", table: "chat_customer_messages" }, onChange)
+    .on("postgres_changes", { event: "*", schema: "public", table: "chat_page_messages" }, onChange)
+    .subscribe();
+  return () => { void api.removeChannel(channel); };
+}
 export const supabase = { from: (table: string) => { const api = getSupabase(); if (!api) throw new Error("ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key"); return api.from(table); } } as any;
 function fail(error: any): never { throw new Error(error?.message || "Supabase connection failed"); }
 function num(v: any) { const n = Number(v); return v == null || v === "" || !Number.isFinite(n) ? null : n; }
