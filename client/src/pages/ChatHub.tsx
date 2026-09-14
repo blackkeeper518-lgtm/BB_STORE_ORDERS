@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useIsMobile } from "@/hooks/useMobile";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { readChatMessages, readChatThreads, subscribeToChatMessages } from "@/lib/canonical";
 import { useQuery } from "@tanstack/react-query";
 import { trpc } from "@/lib/trpc";
