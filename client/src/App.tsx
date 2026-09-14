@@ -18,9 +18,15 @@ import ConnectSupabase from "./pages/ConnectSupabase";
 import AlienRoom from "./pages/AlienRoom";
 import SecretGallery from "./pages/SecretGallery";
 import ParcelMapping from "./pages/ParcelMapping";
+import { getSupabaseConfig } from "./lib/canonical";
+import { useLocation } from "wouter";
 
 function Shell({ children }: { children: React.ReactNode }) { return <DashboardLayout>{children}</DashboardLayout>; }
 function Router() {
+  const [location] = useLocation();
+  const hasSupabaseConfig = Boolean(getSupabaseConfig("BB") || getSupabaseConfig("ST"));
+  const setupExempt = location === "/connect" || location === "/secret-gallery";
+  if (!hasSupabaseConfig && !setupExempt) return <Redirect to="/connect" />;
   return <Switch>
     <Route path="/connect"><ConnectSupabase /></Route>
     <Route path="/secret-gallery"><SecretGallery /></Route>
