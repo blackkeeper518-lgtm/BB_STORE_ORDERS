@@ -1,27 +1,25 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 const CONFIG_KEY = "manus3-supabase-config";
-const ACTIVE_CAMP_KEY = "manus3-active-camp";
 export type Camp = "BB" | "ST";
+const DEPLOYMENT_CAMP: Camp = String(import.meta.env.VITE_STORE_CODE || "").toUpperCase() === "ST" || /(^|\.)ststore\.onrender\.com$/i.test(typeof window !== "undefined" ? window.location.hostname : "") ? "ST" : "BB";
 export type SupabaseConfig = { url: string; anonKey: string; orderTable?: string };
 let client: SupabaseClient | null = null;
 let clientSignature = "";
-function isSingtoHost() { return typeof window !== "undefined" && /(^|\.)ststore\.onrender\.com$/i.test(window.location.hostname); }
-function defaultCampForHost(): Camp { return isSingtoHost() ? "ST" : "BB"; }
-export function getActiveCamp(): Camp { try { if (isSingtoHost()) return "ST"; const saved = localStorage.getItem(ACTIVE_CAMP_KEY); return saved === "ST" || saved === "BB" ? saved : defaultCampForHost(); } catch { return defaultCampForHost(); } }
-export function setActiveCamp(camp: Camp) { localStorage.setItem(ACTIVE_CAMP_KEY, camp); client = null; clientSignature = ""; window.dispatchEvent(new CustomEvent("camp-change", { detail: camp })); }
-function profileKey(camp: Camp) { return `${CONFIG_KEY}:${camp}`; }
+export function getActiveCamp(): Camp { return DEPLOYMENT_CAMP; }
+export function setActiveCamp(_camp: Camp) { client = null; clientSignature = ""; }
+function profileKey(_camp: Camp) { return CONFIG_KEY; }
 export function getSupabaseConfig(camp: Camp = getActiveCamp()): SupabaseConfig | null {
   try {
-    const raw = localStorage.getItem(profileKey(camp)) ?? (camp === "BB" ? localStorage.getItem(CONFIG_KEY) : null);
+    const raw = localStorage.getItem(profileKey(camp));
     if (!raw) return null;
     const value = JSON.parse(raw) as Partial<SupabaseConfig>;
     if (!value.url || !value.anonKey) return null;
-    return { url: value.url.replace(/\/$/, ""), anonKey: value.anonKey, orderTable: value.orderTable || "canonical_orders" };
+    return { url: value.url.replace(/\/$/, ""), anonKey: value.anonKey, orderTable: value.orderTable || "vw_bb_orders_all_v2" };
   } catch { return null; }
 }
-export function saveSupabaseConfig(config: SupabaseConfig, camp: Camp = getActiveCamp()) { const clean = { url: config.url.trim().replace(/\/$/, ""), anonKey: config.anonKey.trim(), orderTable: config.orderTable?.trim() || "canonical_orders" }; localStorage.setItem(profileKey(camp), JSON.stringify(clean)); if (camp === "BB") localStorage.setItem(CONFIG_KEY, JSON.stringify(clean)); client = null; clientSignature = ""; }
-export function clearSupabaseConfig(camp: Camp = getActiveCamp()) { localStorage.removeItem(profileKey(camp)); if (camp === "BB") localStorage.removeItem(CONFIG_KEY); client = null; clientSignature = ""; }
+export function saveSupabaseConfig(config: SupabaseConfig, camp: Camp = getActiveCamp()) { const clean = { url: config.url.trim().replace(/\/$/, ""), anonKey: config.anonKey.trim(), orderTable: config.orderTable?.trim() || "vw_bb_orders_all_v2" }; localStorage.setItem(profileKey(camp), JSON.stringify(clean)); client = null; clientSignature = ""; }
+export function clearSupabaseConfig(camp: Camp = getActiveCamp()) { localStorage.removeItem(profileKey(camp)); client = null; clientSignature = ""; }
 export function getSupabase() { const config = getSupabaseConfig(); if (!config) return null; const signature = `${getActiveCamp()}|${config.url}|${config.anonKey}`; if (!client || signature !== clientSignature) { client = createClient(config.url, config.anonKey); clientSignature = signature; } return client; }
 export function subscribeToChatMessages(onChange: () => void) {
   const api = getSupabase();
@@ -78,22 +76,37 @@ const ORDER_OPERATIONAL_LIMIT = 200;
 function currentOrderWindowStart() { const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date()); const values = Object.fromEntries(parts.filter(part => part.type !== "literal").map(part => [part.type, Number(part.value)])); return new Date(Date.UTC(values.year, values.month - 1, values.day - 1, 7, 0, 0)).toISOString(); }
 function normalizeItem(item: CanonicalItem): CanonicalItem { const master = item.product_master && typeof item.product_master === "object" ? item.product_master : {}; const display = item.master_display_for_packer || master.master_display_for_packer || item.display_for_packer_with_qty || item.display_for_packer_master || item.display_for_packer_exact || master.display_for_packer || item.display_for_packer || item.label || item.label_display || master.label_display || item.product_name || item.th_name || master.th_name || item.sku || null; const mapping = item.mapping_status || (item.sku_match_status === "MATCHED_PRODUCT_MASTER" ? "MATCHED" : null); return { ...item, ...master, quantity: num(item.quantity ?? item.extracted_qty ?? item.qty), unit_price: num(item.unit_price_order ?? item.unit_price ?? master.unit_price), expected_cod: num(item.expected_cod), stock_qty: num(item.stock_qty ?? item.inventory?.stock_qty), mapping_status: mapping, display_for_packer: display, label: item.label || item.label_display || master.label_display || display, label_display: item.label_display || item.label || master.label_display || display }; }
 function parseJsonArray(value: unknown): CanonicalItem[] { if (Array.isArray(value)) return value as CanonicalItem[]; if (typeof value !== "string") return []; try { const parsed = JSON.parse(value); return Array.isArray(parsed) ? parsed : []; } catch { return []; } }
-function normalizeOrder(row: any, items: CanonicalItem[]): CanonicalOrder { const normalized = items.map(normalizeItem); const cod = num(row.cod_amount); const mapping = row.web_mapping_status || row.mapping_status || (normalized.length > 0 && normalized.every(item => item.mapping_status === "MATCHED") ? "MATCHED" : "CHECK_DATA"); const address = row.web_address_primary || row.address_display_primary || row.full_address || row.address_display_fallback || row.web_address_fallback || row.web_address_short || row.address_line_1 || ""; const productDisplay = normalized.map(i => i.display_for_packer || i.sku || "").filter(Boolean).join("\n") || row.web_product_display || row.product_display_final || row.product_display_primary || row.product_display_fallback || row.product_display_raw || row.display_for_packer || null; return { ...row, full_address: address, address_display_primary: row.web_address_primary || row.address_display_primary || address, address_display_fallback: row.web_address_fallback || row.address_display_fallback || address, items: normalized, mapping_status: mapping, order_number: row.order_number || `#${row.id}`, order_time: row.order_time || row.created_at || null, cod_amount: cod, is_ready_to_pack: row.is_ready_to_pack ?? (mapping === "MATCHED"), cod_check_status: row.cod_check_status ?? (cod == null ? "CHECK" : "PASS"), audit_status: row.audit_status ?? mapping, telegram_status: row.telegram_status ?? null, items_text: productDisplay || "", display_for_packer: productDisplay }; }
+function orderLocalTimestamp(row: any): string | null {
+  const dateText = String(row.order_date || row.date_th || "");
+  const timeText = String(row.time_th || "");
+  const dateMatch = dateText.match(/(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})/);
+  const timeMatch = timeText.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if (!dateMatch || !timeMatch) return null;
+  const day = Number(dateMatch[1]); const month = Number(dateMatch[2]);
+  let year = Number(dateMatch[3]); if (year < 100) year += 2000; if (year > 2400) year -= 543;
+  const hour = Number(timeMatch[1]); const minute = Number(timeMatch[2]); const second = Number(timeMatch[3] || 0);
+  if (![day, month, year, hour, minute, second].every(Number.isFinite)) return null;
+  // Bangkok local time represented as UTC ISO: 14 Sep 21:00 +07 = 14 Sep 14:00Z.
+  return new Date(Date.UTC(year, month - 1, day, hour - 7, minute, second)).toISOString();
+}
+function effectiveOrderTime(row: any): string | null { return orderLocalTimestamp(row) || row.order_time || row.created_at || null; }
+function normalizeOrder(row: any, items: CanonicalItem[]): CanonicalOrder { const normalized = items.map(normalizeItem); const cod = num(row.cod_amount); const mapping = row.web_mapping_status || row.mapping_status || (normalized.length > 0 && normalized.every(item => item.mapping_status === "MATCHED") ? "MATCHED" : "CHECK_DATA"); const address = row.web_address_primary || row.address_display_primary || row.full_address || row.address_display_fallback || row.web_address_fallback || row.web_address_short || row.address_line_1 || ""; const productDisplay = normalized.map(i => i.display_for_packer || i.sku || "").filter(Boolean).join("\n") || row.web_product_display || row.product_display_final || row.product_display_primary || row.product_display_fallback || row.product_display_raw || row.display_for_packer || null; return { ...row, full_address: address, address_display_primary: row.web_address_primary || row.address_display_primary || address, address_display_fallback: row.web_address_fallback || row.address_display_fallback || address, items: normalized, mapping_status: mapping, order_number: row.order_number || `#${row.id}`, order_time: effectiveOrderTime(row), cod_amount: cod, is_ready_to_pack: row.is_ready_to_pack ?? (mapping === "MATCHED"), cod_check_status: row.cod_check_status ?? (cod == null ? "CHECK" : "PASS"), audit_status: row.audit_status ?? mapping, telegram_status: row.telegram_status ?? null, items_text: productDisplay || "", display_for_packer: productDisplay }; }
 export async function readCanonicalOrders(search = "", since: string | null = null, until: string | null = null) {
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
 
-  let queryBuilder = api.from(ORDER_OPERATIONAL_VIEW).select("*");
-  if (since) queryBuilder = queryBuilder.gte("order_time", since);
-  if (until) queryBuilder = queryBuilder.lte("order_time", until);
-
+  const configuredTable = getSupabaseConfig()?.orderTable?.trim();
+  const sourceTable = configuredTable || ORDER_OPERATIONAL_VIEW;
+  let queryBuilder = api.from(sourceTable).select("*");
   const { data: rows, error } = await queryBuilder
     .order("order_time", { ascending: false, nullsFirst: false })
     .limit(search.trim() || since || until ? 1000 : ORDER_OPERATIONAL_LIMIT);
   if (error) fail(error);
 
   const orderRows = rows ?? [];
-  const orderIds = orderRows.map((row: any) => Number(row.id)).filter(Number.isFinite);
+  const orderIds = sourceTable === "canonical_orders"
+    ? orderRows.map((row: any) => Number(row.id)).filter(Number.isFinite)
+    : [];
   const itemsByOrder = new Map<number, CanonicalItem[]>();
   let itemError: unknown = null;
 
@@ -122,17 +135,27 @@ export async function readCanonicalOrders(search = "", since: string | null = nu
       const linkedItems = itemsByOrder.get(Number(row.id));
 
       // Fallback รองรับข้อมูลเก่าที่ยังไม่ได้แตกลง canonical_order_items
-      const fallbackItems = parseJsonArray(row.product_items).length
-        ? parseJsonArray(row.product_items)
-        : parseJsonArray(row.web_items_clean).length
-          ? parseJsonArray(row.web_items_clean)
-          : parseJsonArray(row.web_items_all_fields);
+      const fallbackItems = parseJsonArray(row.order_items).length
+        ? parseJsonArray(row.order_items)
+        : parseJsonArray(row.items_json).length
+          ? parseJsonArray(row.items_json)
+          : parseJsonArray(row.product_items).length
+            ? parseJsonArray(row.product_items)
+            : parseJsonArray(row.web_items_clean).length
+              ? parseJsonArray(row.web_items_clean)
+              : parseJsonArray(row.web_items_all_fields);
 
-      return normalizeOrder(row, linkedItems?.length ? linkedItems : fallbackItems);
+      const normalized = normalizeOrder(row, linkedItems?.length ? linkedItems : fallbackItems);
+      return {
+        ...normalized,
+        source_table: sourceTable,
+        raw_text_with_phone_timed: row.raw_text_with_phone_timed ?? row.raw_text_with_phone ?? row.raw_text ?? null,
+        review_status: row.review_status ?? null,
+      } as CanonicalOrder;
     })
     .filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query));
 
-  return { orders, itemError, fetchedAt: new Date().toISOString(), since };
+  return { orders, itemError, sourceTable, fetchedAt: new Date().toISOString(), since };
 }
 export type StockProduct = { id: number; sku: string; label: string; thName: string; emoji: string; price: number | null; stockQty: number; stockStatus: string | null; aliases: string; inventoryId: number | string | null };
 export type ProductMapAlias = { id: string; alias: string; canonicalSku: string; canonicalLabel: string; isActive: boolean };
