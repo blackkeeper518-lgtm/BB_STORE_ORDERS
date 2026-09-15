@@ -25,9 +25,9 @@ function freshChecks(): RoomCheck[] {
 }
 
 export default function ConnectSupabase() {
-const camp = "BB";
-const orderView = "vw_bb_orders_all_v2";
-const orderTable = "bb_orders";
+  const camp: Camp = getActiveCamp();
+  const orderView = "vw_bb_orders_all_v2";
+  const orderTable = "bb_orders";
   const existing = getSupabaseConfig(camp);
   const [url, setUrl] = useState(existing?.url || "");
   const [anonKey, setAnonKey] = useState(existing?.anonKey || "");
