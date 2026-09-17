@@ -260,46 +260,84 @@ export async function readDailyChatSummary(date: string) {
   const threads = Array.from(map.values()).map(row => { const order = ordersByRoom.get(String(row.pageId ?? "") + ":" + String(row.threadId ?? "")) as any; return { ...row, sourceText: order?.source_text || order?.source_payload?.source_text || "", productDisplay: order?.display_for_packer || order?.items_text || "", snippets: row.snippets.slice(-8), signalReasons: Array.from(new Set(row.signalReasons)).slice(-12), orderSignalsText: row.latestCod != null ? "COD ล่าสุด " + row.latestCod.toLocaleString("th-TH") + " บาท" : "ไม่พบ COD" }; });
   return { date, threads, totalMessages: dayRows.length, customerMessages: dayRows.filter(r => r._speaker === "customer").length, pageMessages: dayRows.filter(r => r._speaker === "page").length, threadCount: threads.length, orderSignalThreads: threads.filter(r => r.orderSignals > 0).length };
 }
-export type AlienReviewItem = Record<string, any> & { audit_status: string; raw_display: string; mapped_display: string; };
+export type AlienReviewItem = Record<string, any> & { audit_status: string; raw_display: string; mapped_display: string; customer_history: string[] };
 export async function readAlienReview(search = ''): Promise<AlienReviewItem[]> {
   const api = getSupabase();
   if (!api) fail({ message: 'ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key' });
-  const [itemsResult, masterResult, aliasResult] = await Promise.all([
-    api.from('canonical_order_items').select('id,order_id,line_no,raw_item_text,raw_product_text,raw_text,sku,product_id,quantity,qty,extracted_qty,unit_price,unit_price_order,line_total,cod_amount,mapping_status,match_status,display_for_packer,master_display_for_packer,label_display,stock_qty,available_qty,stock_status,store_code,created_at').order('created_at', { ascending: false }).limit(800),
-    api.from('product_master').select('id,sku,th_name,name_standard,display_for_packer,master_display_for_packer,label_display,unit_price,stock_qty,available_qty,stock_status,store_code').limit(1500),
+  const camp = getActiveCamp();
+  const orderTable = camp === 'ST' ? 'st_orders' : camp === 'SB' ? 'sb_orders' : 'bb_orders';
+  const [ordersResult, masterResult, aliasResult] = await Promise.all([
+    api.from(orderTable).select('*').order('updated_at', { ascending: false }).limit(1000),
+    api.from('product_master').select('id,sku,th_name,name_standard,master_display_for_packer,store_code,unit_price,stock_qty,available_qty,stock_status').limit(1500),
     api.from('product_map_master').select('sku,alias,alias_text,alias_norm,store_code').limit(3000),
   ]);
-  if (itemsResult.error) fail(itemsResult.error);
+  if (ordersResult.error) fail(ordersResult.error);
   if (masterResult.error) fail(masterResult.error);
   if (aliasResult.error) fail(aliasResult.error);
-  const camp = getActiveCamp();
+
   const masters = (masterResult.data ?? []).filter((master: any) => !master.store_code || String(master.store_code).toUpperCase() === camp);
-  const byId = new Map(masters.map((master: any) => [String(master.id), master]));
   const bySku = new Map(masters.map((master: any) => [String(master.sku ?? '').trim().toLowerCase(), master]));
-  const normalizeAlias = (value: any) => String(value ?? '').toLowerCase().normalize('NFKC').replace(/[\s_\-.,:;|()[\]{}]+/g, '').trim();
+  const normalize = (value: any) => String(value ?? '').toLowerCase().normalize('NFKC').replace(/[\s_\-.,:;|()[\]{}]+/g, '').trim();
   const aliasToSku = new Map<string, string>();
   for (const row of aliasResult.data ?? []) {
     const sku = String(row.sku ?? '').trim();
     if (!sku) continue;
-    for (const value of [row.alias, row.alias_text, row.alias_norm].flatMap((v: any) => String(v ?? '').split(/[,\n|]+/)).map((v: string) => v.trim()).filter(Boolean)) aliasToSku.set(normalizeAlias(value), sku);
+    for (const value of [row.alias, row.alias_text, row.alias_norm].flatMap((v: any) => String(v ?? '').split(/[,\n|]+/)).map((v: string) => v.trim()).filter(Boolean)) {
+      const key = normalize(value);
+      if (key) aliasToSku.set(key, sku);
+    }
   }
+
   const query = search.trim().toLowerCase();
-  return (itemsResult.data ?? []).map((item: any) => {
-    const raw = [item.raw_item_text, item.raw_product_text, item.raw_text].filter((value) => value != null && String(value) !== '').map((value) => String(value)).join('\n');
-    const aliasSku = aliasToSku.get(normalizeAlias(raw)) ?? Array.from(aliasToSku.entries()).find(([alias]) => alias.length >= 3 && normalizeAlias(raw).includes(alias))?.[1];
-    const resolvedSku = String(item.sku ?? '').trim() || aliasSku || '';
-    const master = (item.product_id != null ? byId.get(String(item.product_id)) : undefined) ?? bySku.get(resolvedSku.toLowerCase());
-    const mapped = String(item.master_display_for_packer ?? master?.master_display_for_packer ?? item.display_for_packer ?? item.label_display ?? master?.display_for_packer ?? master?.label_display ?? master?.name_standard ?? master?.th_name ?? master?.product_name ?? item.product_name ?? item.sku ?? '').trim();
-    const sku = String(item.sku ?? master?.sku ?? aliasSku ?? '').trim();
-    const rawIsSku = Boolean(raw && sku && raw.toLowerCase() === sku.toLowerCase());
-    const aliasMatched = Boolean(aliasSku && master);
-    const stockQty = item.stock_qty ?? master?.stock_qty ?? null;
-    const availableQty = item.available_qty ?? master?.available_qty ?? null;
-    const stockStatus = item.stock_status ?? master?.stock_status ?? (availableQty != null ? (Number(availableQty) > 0 ? 'IN_STOCK' : 'OUT_OF_STOCK') : stockQty != null ? (Number(stockQty) > 0 ? 'IN_STOCK' : 'OUT_OF_STOCK') : 'STOCK_UNKNOWN');
-    const unitPrice = item.unit_price ?? master?.unit_price ?? null;
-    const expectedLine = item.line_total ?? (unitPrice != null && item.quantity != null ? Number(unitPrice) * Number(item.quantity) : null);
-    const priceMismatch = item.cod_amount != null && expectedLine != null && Number(item.cod_amount) !== Number(expectedLine);
-    const audit_status = !raw ? 'RAW_MISSING' : rawIsSku ? 'RAW_EQUALS_SKU' : aliasMatched ? 'MATCHED' : (item.mapping_status ?? item.match_status ?? 'REVIEW');
-    return { ...item, sku: sku || item.sku, product_master: master ?? null, alias_match: aliasMatched, alias_match_sku: aliasSku || null, alias_match_method: aliasMatched ? 'product_map_master' : null, audit_status, raw_display: raw || 'ไม่มีคำดิบ', mapped_display: mapped || 'ยังไม่มีชื่อมาตรฐาน', stock_qty: stockQty, available_qty: availableQty, stock_status: stockStatus, unit_price: unitPrice, price_mismatch: priceMismatch, store_code: item.store_code ?? master?.store_code ?? camp };
-  }).filter((item: AlienReviewItem) => !query || JSON.stringify(item).toLowerCase().includes(query));
+  return (ordersResult.data ?? []).map((order: any) => {
+    const history = [
+      ...(Array.isArray(order.normalized_chat_timeline) ? order.normalized_chat_timeline : []),
+      ...(Array.isArray(order.chat_timeline) ? order.chat_timeline : []),
+    ].map((value: any) => String(value)).filter(Boolean);
+    const rawCandidates = [
+      order.raw_text,
+      order.raw_item_text,
+      order.raw_product_text,
+      order.extracted_product_raw,
+      order.product_lines,
+      order.sniper_x_text_clean,
+    ].map((value: any) => String(value ?? '').trim()).filter(Boolean);
+    const raw = rawCandidates.find((value: string) => !/CHECK_SKU|ระบุสินค้าไม่ได้/i.test(value)) || rawCandidates[0] || '';
+    const evidenceText = [raw, ...history].join('\n');
+    const rawNormalized = normalize(evidenceText);
+    const aliasSku = Array.from(aliasToSku.entries()).find(([alias]) => alias.length >= 3 && rawNormalized.includes(alias))?.[1] ?? '';
+    const sourceSku = String(order.sku ?? order.extracted_sku ?? '').trim();
+    const resolvedSku = sourceSku || aliasSku;
+    const master = bySku.get(resolvedSku.toLowerCase());
+    const masterDisplay = String(master?.master_display_for_packer ?? order.master_display_for_packer ?? '').trim();
+    const hasRawEvidence = Boolean(raw && !/CHECK_SKU|ระบุสินค้าไม่ได้/i.test(raw));
+    const mappingStatus = String(order.mapping_status ?? order.match_status ?? '').toUpperCase();
+    const matched = Boolean(hasRawEvidence && master && masterDisplay && (mappingStatus === 'MATCHED' || mappingStatus === 'RESOLVED' || Boolean(aliasSku)));
+    const audit_status = matched ? 'MATCHED' : hasRawEvidence ? 'REVIEW' : 'RAW_MISSING';
+    const customerHistory = Array.from(new Set(history));
+    const row = {
+      ...order,
+      store_code: order.store_code ?? camp,
+      sku: resolvedSku || null,
+      raw_display: raw || 'ไม่มีคำดิบ',
+      mapped_display: matched ? masterDisplay : '',
+      master_display_for_packer: masterDisplay || null,
+      audit_status,
+      mapping_status: mappingStatus || 'REVIEW',
+      alias_match: Boolean(aliasSku),
+      alias_match_sku: aliasSku || null,
+      alias_match_method: aliasSku ? 'product_map_master' : null,
+      customer_history: customerHistory,
+      customer_history_count: order.chat_timeline_count ?? customerHistory.length,
+      product_source: order.product_source ?? null,
+      product_evidence: order.product_evidence ?? null,
+      address_completeness: order.address_completeness ?? null,
+      stock_status: order.stock_status ?? master?.stock_status ?? 'STOCK_UNKNOWN',
+      stock_qty: order.stock_qty ?? master?.stock_qty ?? null,
+      available_qty: order.available_qty ?? master?.available_qty ?? null,
+      unit_price: order.unit_price ?? master?.unit_price ?? null,
+      price_mismatch: false,
+    };
+    return row;
+  }).filter((row: AlienReviewItem) => !query || JSON.stringify(row).toLowerCase().includes(query));
 }
