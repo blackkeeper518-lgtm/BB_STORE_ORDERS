@@ -2,7 +2,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 const CONFIG_KEY = "bb-supabase-config";
 export type Camp = "BB" | "ST" | "SB";
-const DEPLOYMENT_CAMP: Camp = "ST";
+const DEPLOYMENT_CAMP: Camp = "BB";
 export type SupabaseConfig = { url: string; anonKey: string; orderTable?: string };
 let client: SupabaseClient | null = null;
 let clientSignature = "";

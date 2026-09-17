@@ -1,9 +1,12 @@
-# Alien patch — BB
+# BB STORE — Alien package
 
-ชุดนี้คัดลอกจากแพตช์ ST ที่ตรวจ build ผ่าน แล้วเปลี่ยนค่ายเป็น BB
+- client/src/pages/AlienRoom.tsx
+- client/src/lib/canonical.ts
+- n8n/SINGTO_V4_3_3_PRODUCT_PARSER.js
+- sql/BB_ORDERS_FULL_REFERENCE_COLUMNS.sql
 
-- ตารางออเดอร์: `public.bb_orders`
-- ค่ายใน `canonical.ts`: `BB`
-- Customer History: `normalized_chat_timeline`
-- สินค้าแสดงจาก: `product_master.master_display_for_packer` เท่านั้น
-- จับได้จริงเท่านั้นเป็น `MATCHED`; จับไม่ได้เป็น `REVIEW`/`RAW_MISSING` และไม่ทิ้งออเดอร์
+DEPLOYMENT_CAMP: BB
+Order table: public.bb_orders
+Customer History: normalized_chat_timeline
+Product display: product_master.master_display_for_packer
+Rule: MATCHED only with evidence + Master Display; otherwise REVIEW/RAW_MISSING, never drop orders.
