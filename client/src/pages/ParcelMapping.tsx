@@ -11,7 +11,7 @@ import * as XLSX from "xlsx";
 const MAP_KEY = "parcel-mapping-drafts";
 const IMPORT_KEY = "parcel-import-rows";
 const money = new Intl.NumberFormat("th-TH");
-const TRACKING_LINKS = { BB: "https://bbstorefullv-1.vercel.app/", ST: "https://singto-one.vercel.app/" } as const;
+const TRACKING_LINKS: Record<ReturnType<typeof getActiveCamp>, string> = { BB: "https://bbstorefullv-1.vercel.app/", ST: "https://singto-one.vercel.app/", SB: "https://suphabass.vercel.app/" };
 
 function normalizePhone(value: string) {
   return value.replace(/\D/g, "").replace(/^66/, "0");

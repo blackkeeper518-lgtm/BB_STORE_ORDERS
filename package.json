@@ -11,7 +11,8 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "test:live": "vitest run server/supabase.live.test.ts server/vault-access.test.ts",
-    "db:push": "drizzle-kit generate && drizzle-kit migrate"
+    "db:push": "drizzle-kit generate && drizzle-kit migrate",
+    "check:layout": "grep -q 'html, body, #root' client/src/index.css"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.693.0",
