@@ -71,9 +71,9 @@ function scoreDailyOrderSignal(text: string, latestCod: number | null) {
   return { score, qualified, qualifiedCod, reasons: Array.from(new Set(reasons)), coreCount: core.length, flowCount: flow.length };
 }export type CanonicalItem = Record<string, any>;
 export type CanonicalOrder = Record<string, any> & { items: CanonicalItem[]; items_text: string; display_for_packer: string | null; is_ready_to_pack: boolean; cod_check_status: string | null; audit_status: string | null; order_status: string | null; telegram_status: string | null };
-const ORDER_OPERATIONAL_VIEW_BY_CAMP: Record<Camp, string> = { BB: "vw_bb_orders_all_v2", ST: "vw_st_orders_all_v2", SB: "vw_sb_orders_all_v2" };
+const ORDER_SOURCE_TABLE_BY_CAMP: Record<Camp, string> = { BB: "bb_orders", ST: "st_orders", SB: "sb_orders" };
 const ORDER_OPERATIONAL_LIMIT = 200;
-function defaultOrderView(camp: Camp) { return ORDER_OPERATIONAL_VIEW_BY_CAMP[camp]; }
+function defaultOrderView(camp: Camp) { return ORDER_SOURCE_TABLE_BY_CAMP[camp]; }
 function currentOrderWindowStart() { const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date()); const values = Object.fromEntries(parts.filter(part => part.type !== "literal").map(part => [part.type, Number(part.value)])); return new Date(Date.UTC(values.year, values.month - 1, values.day - 1, 7, 0, 0)).toISOString(); }
 function normalizeItem(item: CanonicalItem): CanonicalItem { const master = item.product_master && typeof item.product_master === "object" ? item.product_master : {}; const display = item.master_display_for_packer || master.master_display_for_packer || item.display_for_packer_with_qty || item.display_for_packer_master || item.display_for_packer_exact || master.display_for_packer || item.display_for_packer || item.label || item.label_display || master.label_display || item.product_name || item.th_name || master.th_name || item.sku || null; const mapping = item.mapping_status || (item.sku_match_status === "MATCHED_PRODUCT_MASTER" ? "MATCHED" : null); return { ...item, ...master, quantity: num(item.quantity ?? item.extracted_qty ?? item.qty), unit_price: num(item.unit_price_order ?? item.unit_price ?? master.unit_price), expected_cod: num(item.expected_cod), stock_qty: num(item.stock_qty ?? item.inventory?.stock_qty), mapping_status: mapping, display_for_packer: display, label: item.label || item.label_display || master.label_display || display, label_display: item.label_display || item.label || master.label_display || display }; }
 function parseJsonArray(value: unknown): CanonicalItem[] { if (Array.isArray(value)) return value as CanonicalItem[]; if (typeof value !== "string") return []; try { const parsed = JSON.parse(value); return Array.isArray(parsed) ? parsed : []; } catch { return []; } }
@@ -103,7 +103,6 @@ export async function readCanonicalOrders(search = "", since: string | null = nu
   const sourceTable = getSupabaseConfig()?.orderTable || defaultOrderView(getActiveCamp());
   let queryBuilder = api.from(sourceTable).select("*");
   const { data: rows, error } = await queryBuilder
-    .order("order_time", { ascending: false, nullsFirst: false })
     .limit(search.trim() || since || until ? 1000 : ORDER_OPERATIONAL_LIMIT);
   if (error) fail(error);
 
@@ -157,6 +156,7 @@ export async function readCanonicalOrders(search = "", since: string | null = nu
     })
     .filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query));
 
+  orders.sort((a, b) => new Date(b.order_time || 0).getTime() - new Date(a.order_time || 0).getTime());
   return { orders, itemError, sourceTable, fetchedAt: new Date().toISOString(), since };
 }
 export type StockProduct = { id: number; sku: string; label: string; thName: string; emoji: string; price: number | null; stockQty: number; stockStatus: string | null; aliases: string; inventoryId: number | string | null };
@@ -285,7 +285,7 @@ export async function readAlienReview(search = ''): Promise<AlienReviewItem[]> {
   }
   const query = search.trim().toLowerCase();
   return (itemsResult.data ?? []).map((item: any) => {
-    const raw = String(item.raw_item_text ?? item.raw_product_text ?? item.raw_text ?? '').trim();
+    const raw = [item.raw_item_text, item.raw_product_text, item.raw_text].filter((value) => value != null && String(value) !== '').map((value) => String(value)).join('\n');
     const aliasSku = aliasToSku.get(normalizeAlias(raw)) ?? Array.from(aliasToSku.entries()).find(([alias]) => alias.length >= 3 && normalizeAlias(raw).includes(alias))?.[1];
     const resolvedSku = String(item.sku ?? '').trim() || aliasSku || '';
     const master = (item.product_id != null ? byId.get(String(item.product_id)) : undefined) ?? bySku.get(resolvedSku.toLowerCase());
