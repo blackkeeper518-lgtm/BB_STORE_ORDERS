@@ -32,7 +32,7 @@ function displayTime(row: OrderRow) {
 }
 
 function productOf(row: OrderRow) {
-  return String(row.alien_display_with_quantity || row.master_display_for_packer || row.display_for_packer || row.items_text || row.product_name || row.sku || "ยังไม่มีข้อมูลสินค้า").trim();
+  return evidenceText(row.alien_display_with_quantity) || evidenceText(row.master_display_for_packer) || evidenceText(row.product_backup_1) || evidenceText(row.display_for_packer) || evidenceText(row.items_text) || evidenceText(row.product_name) || evidenceText(row.sku) || "ยังไม่มีข้อมูลสินค้า";
 }
 
 function evidenceText(value: unknown): string {
@@ -55,7 +55,7 @@ function laneOf(row: OrderRow) {
 }
 
 function addressOf(row: OrderRow) {
-  return String(row.master_delivery_address || row.address_display_packer || row.addressclean || row.full_address || row.address_display_primary || "ยังไม่มีที่อยู่").trim();
+  return evidenceText(row.master_delivery_address) || evidenceText(row.address_display_packer) || evidenceText(row.full_address_backup_1) || evidenceText(row.full_address_backup_2) || evidenceText(row.addressclean) || evidenceText(row.full_address) || evidenceText(row.address_display_primary) || "ยังไม่มีที่อยู่";
 }
 
 function provinceOf(row: OrderRow) {
@@ -162,7 +162,7 @@ export default function TelegramDeliveryRoom() {
   function sendCurrentOrder() {
     if (!order || selectedWarnings.length > 0 || selectedIssues.length > 0) { setSendMessage("ยังส่งไม่ได้: กรุณาแก้คำเตือน/จุดต้องตรวจก่อน"); return; }
     setSendMessage("กำลังส่ง Telegram...");
-    sendTelegram.mutate({ orderId: Number(order.id), orderNumber: String(order.order_number || ""), chatId: String(order.telegram_chat_id || order.chat_id || ""), message, camp: "ST" });
+    sendTelegram.mutate({ orderId: Number(order.id), orderNumber: String(order.order_number || ""), chatId: String(order.telegram_chat_id || order.chat_id || ""), message, camp: "BB" });
   }
 
   return (
