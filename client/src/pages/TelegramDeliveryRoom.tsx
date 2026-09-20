@@ -2,10 +2,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { getActiveCamp, readCanonicalOrders } from "@/lib/canonical";
-import { trpc } from "@/lib/trpc";
 import { AlertTriangle, CheckCircle2, Clipboard, Clock3, Eye, FileWarning, MessageSquareText, RefreshCw, Send, ShieldAlert, Sparkles, Zap } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { getTelegramBody, sendTelegramFromN8n } from "@/lib/telegramDelivery";
 
 const DEFAULT_HEADER = "🚀 [บิลสมบูรณ์ - READY]";
 
@@ -24,7 +24,7 @@ function deliveryStatus(row: OrderRow) {
 }
 
 function realTime(row: OrderRow) {
-  return row.order_time || row.order_message_created_at || row.order_close_time_from_chat || row.created_at || null;
+  return row.order_time || row.order_message_created_at || row.facebook_message_created_at || row.facebook_created_at || row.fb_created_at || row.order_close_time_from_chat || null;
 }
 
 function displayTime(row: OrderRow) {
@@ -32,7 +32,9 @@ function displayTime(row: OrderRow) {
 }
 
 function productOf(row: OrderRow) {
-  return evidenceText(row.alien_display_with_quantity) || evidenceText(row.master_display_for_packer) || evidenceText(row.product_backup_1) || evidenceText(row.display_for_packer) || evidenceText(row.items_text) || evidenceText(row.product_name) || evidenceText(row.sku) || "ยังไม่มีข้อมูลสินค้า";
+  const canonicalItems = Array.isArray(row.items) ? row.items : [];
+  const canonicalDisplay = canonicalItems.map((item: OrderRow) => item.display_for_packer || item.label_display || item.master_sku || item.sku).filter(Boolean).join("\n");
+  return evidenceText(canonicalDisplay) || evidenceText(row.n8n_product_display) || evidenceText(row.single_cleaned_products) || evidenceText(row.items_text) || evidenceText(row.display_for_packer) || evidenceText(row.product_name) || evidenceText(row.sku) || "ยังไม่มีข้อมูลสินค้า";
 }
 
 function evidenceText(value: unknown): string {
@@ -63,27 +65,15 @@ function provinceOf(row: OrderRow) {
 }
 
 function telegramText(row: OrderRow, header: string) {
+  // Use the SQL-built canonical message when available; do not rebuild over it.
+  const dynamic = evidenceText(row.telegram_message_dynamic);
+  if (dynamic) return dynamic;
   const customer = row.master_customer_name || row.customer_name || row.facebook_name || "";
   const phone = row.master_customer_phone || row.phone || row.extracted_phone || "";
   const cod = row.cod_amount ?? row.expected_cod ?? row.total_cod;
   const orderNumber = row.order_number_display || row.order_number || "";
   const time = row.order_time_display || "";
-  return [
-    row.telegram_header || row.product_header || row.bill_header || header,
-    "━━━━━━━━━━━━━━━━━━━━",
-    time && `⏰ วันที่สั่งซื้อ : ${time}`,
-    orderNumber && `🆔 เลขออเดอร์ : ${orderNumber}`,
-    row.page_name && `📢 PAGE : ${row.page_name}`,
-    customer && `👤 FB : ${customer}`,
-    cod !== null && cod !== undefined && cod !== "" && `💰 ยอด COD : ${cod} บาท`,
-    "━━━━━━━━━━━━━━━━━━━━",
-    customer,
-    phone,
-    addressOf(row),
-    "━━━━━━━━━━━━━━━━━━━━",
-    "📦 รายการสินค้าสำหรับจัดของ",
-    productOf(row),
-  ].filter(Boolean).join("\n");
+  return [row.telegram_header || row.product_header || row.bill_header || header, "━━━━━━━━━━━━━━━━━━━━", time && `⏰ วันที่สั่งซื้อ : ${time}`, orderNumber && `🆔 เลขออเดอร์ : ${orderNumber}`, row.page_name && `📢 PAGE : ${row.page_name}`, customer && `👤 FB : ${customer}`, cod !== null && cod !== undefined && cod !== "" && `💰 ยอด COD : ${cod} บาท`, "━━━━━━━━━━━━━━━━━━━━", customer, phone, addressOf(row), "━━━━━━━━━━━━━━━━━━━━", "📦 รายการสินค้าสำหรับจัดของ", productOf(row)].filter(Boolean).join("\n");
 }
 
 function issueOf(row: OrderRow) {
@@ -99,7 +89,7 @@ function warningOf(row: OrderRow) {
   const warnings: string[] = [];
   const stock = String(row.stock_status || row.stock_state || row.inventory_status || "").toLowerCase();
   const cod = Number(row.cod_amount);
-  const qty = Number(row.master_quantity ?? row.quantity ?? row.qty ?? row.extracted_qty);
+  const qty = Number(row.total_quantity ?? row.quantity ?? row.extracted_qty ?? row.qty);
   const address = addressOf(row);
   const phone = String(row.master_customer_phone || row.phone || row.extracted_phone || "").replace(/\D/g, "");
   const raw = String(row.raw_text_with_phone_timed || row.raw_text || row.source_text || "");
@@ -131,12 +121,12 @@ export default function TelegramDeliveryRoom() {
     queryFn: () => readCanonicalOrders(search),
     refetchInterval: 180_000,
   });
-  const sendTelegram = trpc.delivery.sendTelegram.useMutation({ onSuccess: () => { setSendMessage("ส่ง Telegram สำเร็จและบันทึกสถานะแล้ว"); void query.refetch(); }, onError: error => setSendMessage(`ส่งไม่สำเร็จ: ${error.message}`) });
 
   const allOrders = (query.data?.orders ?? []) as OrderRow[];
   const waiting = useMemo(() => allOrders.filter((row) => !isSent(row)).sort((a, b) => new Date(realTime(b) || 0).getTime() - new Date(realTime(a) || 0).getTime()), [allOrders]);
   const order = waiting[selected];
   const message = useMemo(() => order ? telegramText(order, header || DEFAULT_HEADER) : "คิวว่าง — ไม่มีออเดอร์รอส่ง", [order, header]);
+  const telegramSelection = useMemo(() => order ? ({ text: message, source: "CANONICAL_DYNAMIC" as const, dirty: false, body: getTelegramBody(order) }) : null, [order, message]);
   const selectedIssues = order ? issueOf(order) : [];
   const selectedWarnings = order ? warningOf(order) : [];
   const warningCount = waiting.reduce((sum, row) => sum + warningOf(row).length, 0);
@@ -159,10 +149,16 @@ export default function TelegramDeliveryRoom() {
     window.setTimeout(() => setCopied(false), 1500);
   }
 
-  function sendCurrentOrder() {
-    if (!order || selectedWarnings.length > 0 || selectedIssues.length > 0) { setSendMessage("ยังส่งไม่ได้: กรุณาแก้คำเตือน/จุดต้องตรวจก่อน"); return; }
+  async function sendCurrentOrder() {
+    if (!order || !telegramSelection || selectedWarnings.length > 0 || selectedIssues.length > 0) { setSendMessage("ยังส่งไม่ได้: กรุณาแก้คำเตือน/จุดต้องตรวจก่อน"); return; }
     setSendMessage("กำลังส่ง Telegram...");
-    sendTelegram.mutate({ orderId: Number(order.id), orderNumber: String(order.order_number || ""), chatId: String(order.telegram_chat_id || order.chat_id || ""), message, camp: "BB" });
+    try {
+      await sendTelegramFromN8n(order, telegramSelection);
+      setSendMessage("ส่ง Telegram สำเร็จ — รอระบบบันทึกสถานะ SENT");
+      void query.refetch();
+    } catch (error) {
+      setSendMessage(`ส่งไม่สำเร็จ: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   return (
@@ -219,7 +215,7 @@ export default function TelegramDeliveryRoom() {
         </Card>
 
         <div className="space-y-5">
-          <Card className="rounded-3xl border-orange-400/15 bg-[#100d0b]"><CardHeader><div className="flex flex-wrap items-center justify-between gap-3"><CardTitle className="flex items-center gap-2 text-base text-orange-100"><Eye className="h-4 w-4 text-orange-300" />ข้อมูลแต่งหล่อสำหรับส่ง</CardTitle><div className="flex flex-wrap gap-2"><Button onClick={sendCurrentOrder} disabled={!order || sendTelegram.isPending} className="bg-emerald-600 text-white hover:bg-emerald-500"><Send className="mr-2 h-4 w-4" />{sendTelegram.isPending ? "กำลังส่ง..." : "กดส่ง Telegram"}</Button><Button onClick={copyMessage} disabled={!order} variant="outline" className="border-orange-400/20 text-orange-200"><Clipboard className="mr-2 h-4 w-4" />{copied ? "คัดลอกแล้ว" : "คัดลอกทั้งบิล"}</Button><Button variant="outline" onClick={() => setShowEvidence((value) => !value)} disabled={!order} className="border-cyan-400/20 text-cyan-200"><MessageSquareText className="mr-2 h-4 w-4" />{showEvidence ? "ซ่อนแชท" : "ดูแชท"}</Button></div></div>{sendMessage && <p className={`mt-3 rounded-xl border p-3 text-xs ${sendMessage.includes("สำเร็จ") ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-200" : "border-red-400/25 bg-red-400/10 text-red-200"}`}>{sendMessage}</p>}</CardHeader><CardContent>
+          <Card className="rounded-3xl border-orange-400/15 bg-[#100d0b]"><CardHeader><div className="flex flex-wrap items-center justify-between gap-3"><CardTitle className="flex items-center gap-2 text-base text-orange-100"><Eye className="h-4 w-4 text-orange-300" />ข้อมูลแต่งหล่อสำหรับส่ง</CardTitle><div className="flex flex-wrap gap-2"><Button onClick={sendCurrentOrder} disabled={!order || sendMessage === "กำลังส่ง Telegram..."} className="bg-emerald-600 text-white hover:bg-emerald-500"><Send className="mr-2 h-4 w-4" />{sendMessage === "กำลังส่ง Telegram..." ? "กำลังส่ง..." : "กดส่ง Telegram"}</Button><Button onClick={copyMessage} disabled={!order} variant="outline" className="border-orange-400/20 text-orange-200"><Clipboard className="mr-2 h-4 w-4" />{copied ? "คัดลอกแล้ว" : "คัดลอกทั้งบิล"}</Button><Button variant="outline" onClick={() => setShowEvidence((value) => !value)} disabled={!order} className="border-cyan-400/20 text-cyan-200"><MessageSquareText className="mr-2 h-4 w-4" />{showEvidence ? "ซ่อนแชท" : "ดูแชท"}</Button></div></div>{sendMessage && <p className={`mt-3 rounded-xl border p-3 text-xs ${sendMessage.includes("สำเร็จ") ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-200" : "border-red-400/25 bg-red-400/10 text-red-200"}`}>{sendMessage}</p>}</CardHeader><CardContent>
             {order ? <div className="grid gap-4 lg:grid-cols-2"><pre className="min-h-[480px] whitespace-pre-wrap rounded-2xl border border-orange-400/15 bg-black/55 p-5 text-sm leading-7 text-orange-50">{message}</pre><div className="space-y-3"><div className="rounded-2xl border border-orange-400/15 bg-black/25 p-4 text-sm"><p className="text-[10px] uppercase tracking-[0.18em] text-orange-200/45">จุดตรวจ</p><div className="mt-3 space-y-2"><p className="flex items-center gap-2 text-xs text-emerald-200"><CheckCircle2 className="h-4 w-4" />เวลาจริง: {displayTime(order)}</p><p className="flex items-center gap-2 text-xs text-cyan-200"><Sparkles className="h-4 w-4" />สินค้า: {productOf(order)}</p><p className="flex items-center gap-2 text-xs text-orange-100/70"><ShieldAlert className="h-4 w-4" />สถานะข้อมูล: {order.mapping_status || order.web_mapping_status || "ยังไม่ระบุ"}</p>{selectedWarnings.length > 0 && <div className="rounded-xl border border-red-300/30 bg-red-400/10 p-3 text-xs text-red-100"><p className="mb-1 flex items-center gap-2 font-semibold"><AlertTriangle className="h-4 w-4" />คำเตือนระบบ</p>{selectedWarnings.map((warning) => <p key={warning}>• {warning}</p>)}</div>}{selectedIssues.length > 0 ? <div className="rounded-xl border border-amber-300/20 bg-amber-400/10 p-3 text-xs text-amber-100"><p className="mb-1 flex items-center gap-2 font-semibold"><FileWarning className="h-4 w-4" />พบจุดต้องตรวจ</p>{selectedIssues.map((issue) => <p key={issue}>• {issue}</p>)}</div> : selectedWarnings.length === 0 && <p className="text-xs text-emerald-200">ไม่พบคำเตือนพื้นฐาน</p>}</div></div><div className="rounded-2xl border border-white/10 bg-black/25 p-4 text-xs leading-6 text-orange-100/65"><b className="text-orange-200">สถานะการส่ง</b><br /><span className={`inline-flex rounded-full border px-2.5 py-1 text-sm font-semibold ${deliveryStatus(order).tone}`}>{deliveryStatus(order).label}</span><p className="mt-2">{deliveryStatus(order).slogan}</p><p className="mt-1">{isSent(order) ? "รายการนี้ถูกทำเครื่องหมายส่งแล้ว" : "ยังไม่ควรทำเครื่องหมาย SENT ก่อนตัวส่งตอบกลับ"}</p></div></div></div> : <div className="rounded-2xl border border-dashed border-orange-400/20 p-10 text-center text-sm text-orange-100/55">เลือกออเดอร์จากคิวเพื่อดูรายละเอียด</div>}
           </CardContent></Card>
 
