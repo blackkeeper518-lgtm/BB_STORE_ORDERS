@@ -1,376 +1,229 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { getActiveCamp, readCanonicalOrders } from "@/lib/canonical";
+import { AlertTriangle, CheckCircle2, Clipboard, Clock3, Eye, FileWarning, MessageSquareText, RefreshCw, Send, ShieldAlert, Sparkles, Zap } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { getTelegramBody, sendTelegramFromN8n } from "@/lib/telegramDelivery";
 
-const CONFIG_KEY = "bb-supabase-config";
-export type Camp = "BB" | "ST" | "SB";
-const DEPLOYMENT_CAMP: Camp = "BB";
-export type SupabaseConfig = { url: string; anonKey: string; orderTable?: string };
-let client: SupabaseClient | null = null;
-let clientSignature = "";
-export function getActiveCamp(): Camp { return DEPLOYMENT_CAMP; }
-export function setActiveCamp(_camp: Camp) { client = null; clientSignature = ""; }
-function profileKey(_camp: Camp) { return CONFIG_KEY; }
-export function getSupabaseConfig(camp: Camp = getActiveCamp()): SupabaseConfig | null {
-  try {
-    const raw = localStorage.getItem(profileKey(camp));
-    if (!raw) return null;
-    const value = JSON.parse(raw) as Partial<SupabaseConfig>;
-    if (!value.url || !value.anonKey) return null;
-    return { url: value.url.replace(/\/$/, ""), anonKey: value.anonKey, orderTable: value.orderTable || "vw_bb_orders_all_v2" };
-  } catch { return null; }
+const DEFAULT_HEADER = "🚀 [บิลสมบูรณ์ - READY]";
+
+type OrderRow = Record<string, any>;
+
+function isSent(row: OrderRow) {
+  const status = String(row.telegram_status ?? "").trim().toLowerCase();
+  const sent = String(row.telegram_sent ?? "").trim().toLowerCase();
+  return ["1", "true", "t", "sent", "delivered", "ไปแล้วไปลับ"].includes(status) || ["1", "true", "t", "sent"].includes(sent);
 }
-export function saveSupabaseConfig(config: SupabaseConfig, camp: Camp = getActiveCamp()) { const clean = { url: config.url.trim().replace(/\/$/, ""), anonKey: config.anonKey.trim(), orderTable: config.orderTable?.trim() || defaultOrderView(camp) }; localStorage.setItem(profileKey(camp), JSON.stringify(clean)); client = null; clientSignature = ""; }
-export function clearSupabaseConfig(camp: Camp = getActiveCamp()) { localStorage.removeItem(profileKey(camp)); client = null; clientSignature = ""; }
-export function getSupabase() { const config = getSupabaseConfig(); if (!config) return null; const signature = `${getActiveCamp()}|${config.url}|${config.anonKey}`; if (!client || signature !== clientSignature) { client = createClient(config.url, config.anonKey); clientSignature = signature; } return client; }
-export function subscribeToChatMessages(onChange: () => void) {
-  const api = getSupabase();
-  if (!api) return () => undefined;
-  const channel = api
-    .channel(`chat-live-${getActiveCamp().toLowerCase()}`)
-    .on("postgres_changes", { event: "*", schema: "public", table: "chat_customer_messages" }, onChange)
-    .on("postgres_changes", { event: "*", schema: "public", table: "chat_page_messages" }, onChange)
-    .subscribe();
-  return () => { void api.removeChannel(channel); };
+
+function deliveryStatus(row: OrderRow) {
+  return isSent(row)
+    ? { label: "ไปแล้วไปลับ", slogan: "ไปแล้วไม่กลับ — ค่อยแวะมาใหม่", tone: "border-orange-300/60 bg-orange-500/15 text-orange-200" }
+    : { label: "รอส่ง", slogan: "ยังอยู่ในห้องรอจัดส่ง", tone: "border-amber-300/40 bg-amber-500/10 text-amber-200" };
 }
-const CHAT_HISTORY_DAYS = 2;
-function chatHistoryCutoff() { return new Date(Date.now() - CHAT_HISTORY_DAYS * 24 * 60 * 60 * 1000).toISOString(); }
-export const supabase = { from: (table: string) => { const api = getSupabase(); if (!api) throw new Error("ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key"); return api.from(table); } } as any;
-function fail(error: any): never { throw new Error(error?.message || "Supabase connection failed"); }
-function num(v: any) { const n = Number(v); return v == null || v === "" || !Number.isFinite(n) ? null : n; }
-function asText(v: any) { return typeof v === "string" ? v : v == null ? "" : JSON.stringify(v); }
-function parseCod(text: string) { const matches = text.match(/(?:ยอดรวม\s*)?cod\s*[:=]?\s*\[?\s*([\d,]+(?:\.\d+)?)\s*\]?|เก็บปลายทาง[^\d]{0,20}([\d,]+(?:\.\d+)?)/gi) || []; const last = matches[matches.length - 1] || ""; const numberMatch = last.match(/[\d,]+(?:\.\d+)?/); return numberMatch ? Number(numberMatch[0].replace(/,/g, "")) : null; }
-const CORE_SIGNATURE = ["🚨 [สถานะ: ปิดยอดสำเร็จ!]", "[สรุปรายการสั่งซื้อ]", "⚡FLASH EXPRESS", "COD", "📍ที่อยู่จัดส่ง:", "✅:", "🟡MOND GOLD:", "🆔เลขที่ออเดอร์: ORD-2606:", "📱 เบอร์:", "📮 รหัสไปรษณีย์:", "👤 ชื่อ:", "💰 COD:", "เขียว:", "สรุปรายการสั่งซื้อ", "เลขที่ออเดอร์", "ที่อยู่จัดส่ง", "ORD-", "📦 รายการสินค้า:", "คอต.", "ยอดรวม"];
-const FLOW_SIGNATURES = [
-  "🚨[สถานะ:ปิดยอดสำเร็จ]",
-  "🦁[สรุปรายการสั่งซื้อ]สิงโตสโตร์ ↠",
-  "🆔 เลขที่ออเดอร์: ORD-2606",
-  "⏰ เวลาสั่งซื้อ:",
-  "💰 ยอดรวมCOD:",
-  "━━━━━━━━━━━━━━━━",
-  "👤ชื่อ:",
-  "📱เบอร์โทรศัพท์:",
-  "📍ที่อยู่จัดส่ง:",
-  "📮รหัสไปรษณีย์:",
-  "📦 รายการสินค้า:",
-  "🚚 ขนส่ง: ⚡FLASH EXPRESS💨",
-  "#BellaAgent",
-  "#SINGTO_ORDER"
-];
-const FLOW_SIGNALS = ["เบลล่า", "Bella", "#MilaAgent", "#BellaAgent", "Agent", "#Agent", "BellaAgent", "MilaAgent", "Mila", "#GinaAgent", "Gina", "#LemonAgent", "Lemon", "จีน่า", "เลม่อน", "มิล่า", "สรุปโดย:🤖"];
-const PRODUCT_LINE_SIGNAL = /(?:📦\s*)?รายการสินค้า|(?:🟢|🟡|🔴|🟠|🟣|🔵|🟩|🟨|🟥|🟧|🟪|🟦|🍉|🥭)\s*[A-Z_ก-๙]+.*?คอต\.?/i;
-function normalizeFlowText(value: string) { return String(value || "").toLowerCase().replace(/[\s:：|]/g, ""); }
-function scoreDailyOrderSignal(text: string, latestCod: number | null) {
-  const value = String(text || ""); const reasons: string[] = [];
-  const lower = value.toLowerCase(); const flowText = normalizeFlowText(value); const core = CORE_SIGNATURE.filter(k => lower.includes(k.toLowerCase())); const flow = FLOW_SIGNALS.filter(k => lower.includes(k.toLowerCase())); const flowSignature = FLOW_SIGNATURES.filter(k => flowText.includes(normalizeFlowText(k))); const productLine = PRODUCT_LINE_SIGNAL.test(value);
-  const phone = /(?:เบอร์โทรศัพท์|เบอร์|โทร|tel)\s*[:：.]?\s*\d{9,10}|\b0\d{9}\b/i.test(value); const postal = /\b\d{5}\b/.test(value);
-  const address = /(?:ที่อยู่|จัดส่ง|ตำบล|ต\.|อำเภอ|อ\.|จังหวัด|จ\.)/i.test(value); const orderDate = /\b\d{1,2}[\/.-]\d{1,2}[\/.-]\d{2,4}\b/.test(value) || /order_date|เวลาสั่งซื้อ|วันที่สั่งซื้อ/i.test(value);
-  const cod = latestCod ?? parseCod(value); let score = 0;
-  if (cod != null) { score += 10; reasons.push("COD " + cod); } if (phone) { score += 3; reasons.push("เบอร์โทร"); } if (postal) { score += 4; reasons.push("รหัสไปรษณีย์"); }
-  if (address) { score += 4; reasons.push("ที่อยู่"); } if (orderDate) { score += 5; reasons.push("วันที่/เวลาสั่งซื้อ"); }
-  if (core.length) { score += Math.min(core.length * 3, 12); reasons.push("Core " + core.slice(0, 3).join(" | ")); } if (flow.length) { score += Math.min(flow.length * 3, 9); reasons.push("Flow " + flow.slice(0, 3).join(" | ")); } if (flowSignature.length) { score += Math.min(flowSignature.length * 4, 20); reasons.push("Singto " + flowSignature.slice(0, 3).join(" | ")); } if (productLine) { score += 3; reasons.push("บรรทัดสินค้า"); }
-  const qualifiedCod = cod != null && cod >= 200; const qualified = score >= 30 || qualifiedCod || core.length > 0 || flow.length > 0 || flowSignature.length > 0;
-  return { score, qualified, qualifiedCod, reasons: Array.from(new Set(reasons)), coreCount: core.length, flowCount: flow.length };
-}export type CanonicalItem = Record<string, any>;
-export type CanonicalOrder = Record<string, any> & { items: CanonicalItem[]; items_text: string; display_for_packer: string | null; is_ready_to_pack: boolean; cod_check_status: string | null; audit_status: string | null; order_status: string | null; telegram_status: string | null };
-const ORDER_SOURCE_TABLE_BY_CAMP: Record<Camp, string> = { BB: "vw_bb_orders_all_v2", ST: "vw_st_orders_all_v2", SB: "sb_orders" };
-const ORDER_OPERATIONAL_LIMIT = 400;
-function defaultOrderView(camp: Camp) { return ORDER_SOURCE_TABLE_BY_CAMP[camp]; }
-function currentOrderWindowStart() { const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date()); const values = Object.fromEntries(parts.filter(part => part.type !== "literal").map(part => [part.type, Number(part.value)])); return new Date(Date.UTC(values.year, values.month - 1, values.day - 1, 7, 0, 0)).toISOString(); }
-function normalizeItem(item: CanonicalItem): CanonicalItem { const master = item.product_master && typeof item.product_master === "object" ? item.product_master : {}; const display = item.display_for_packer || item.master_display_with_quantity || item.master_display_for_packer || master.display_for_packer || master.label_display || item.single_cleaned_products || item.product_name || item.th_name || master.th_name || item.sku || null; const mapping = item.mapping_status || (item.sku_match_status === "MATCHED_PRODUCT_MASTER" ? "MATCHED" : null); return { ...item, ...master, quantity: num(item.quantity ?? item.extracted_qty ?? item.qty ?? item.master_qty_display ?? item.master_quantity), unit_price: num(item.unit_price_order ?? item.unit_price ?? master.unit_price), expected_cod: num(item.expected_cod), stock_qty: num(item.stock_qty ?? item.inventory?.stock_qty), mapping_status: mapping, display_for_packer: display, label: item.label || item.label_display || master.label_display || display, label_display: item.label_display || item.label || master.label_display || display }; }
-function parseJsonArray(value: unknown): CanonicalItem[] { if (Array.isArray(value)) return value as CanonicalItem[]; if (typeof value !== "string") return []; try { const parsed = JSON.parse(value); return Array.isArray(parsed) ? parsed : []; } catch { return []; } }
-function orderLocalTimestamp(row: any): string | null {
-  const dateText = String(row.order_date || row.date_th || "");
-  const timeText = String(row.time_th || "");
-  const dateMatch = dateText.match(/(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})/);
-  const timeMatch = timeText.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
-  if (!dateMatch || !timeMatch) return null;
-  const day = Number(dateMatch[1]); const month = Number(dateMatch[2]);
-  let year = Number(dateMatch[3]); if (year < 100) year += 2000; if (year > 2400) year -= 543;
-  const hour = Number(timeMatch[1]); const minute = Number(timeMatch[2]); const second = Number(timeMatch[3] || 0);
-  if (![day, month, year, hour, minute, second].every(Number.isFinite)) return null;
-  // Bangkok local time represented as UTC ISO: 14 Sep 21:00 +07 = 14 Sep 14:00Z.
-  return new Date(Date.UTC(year, month - 1, day, hour - 7, minute, second)).toISOString();
+
+function realTime(row: OrderRow) {
+  return row.order_time || row.order_message_created_at || row.facebook_message_created_at || row.facebook_created_at || row.fb_created_at || row.order_close_time_from_chat || null;
 }
-function effectiveOrderTime(row: any): string | null {
-  // Facebook order_time is authoritative. Other timestamps are audit fallbacks only.
-  return row.order_time || row.order_message_created_at || row.facebook_message_created_at || row.facebook_created_at || row.fb_created_at || row.order_close_time_from_chat || orderLocalTimestamp(row) || null;
+
+function displayTime(row: OrderRow) {
+  return row.order_time_display || (realTime(row) ? new Date(realTime(row)).toLocaleString("th-TH", { timeZone: "Asia/Bangkok", hour12: false }) : "ไม่พบเวลาจริง");
 }
-function normalizeOrder(row: any, items: CanonicalItem[]): CanonicalOrder { const normalized = items.map(normalizeItem); const cod = num(row.cod_amount); const mapping = row.alien_mapping_status || row.web_mapping_status || row.mapping_status || (normalized.length > 0 && normalized.every(item => item.mapping_status === "MATCHED") ? "MATCHED" : "CHECK_DATA"); const address = row.master_delivery_address || row.address_complete_web || row.web_address_primary || row.address_display_primary || row.full_address || row.address_display_packer || row.addressclean || row.address_display_fallback || row.web_address_fallback || row.web_address_short || [row.address_line_1, row.address_line_2, row.district, row.amphoe, row.province, row.zipcode].filter(Boolean).join(" ") || ""; const productDisplay = normalized.map(i => i.display_for_packer || i.sku || "").filter(Boolean).join("\n") || row.n8n_product_display || row.single_cleaned_products || row.product_lines || row.raw_text || row.web_product_display || row.product_display_final || row.product_display_primary || row.product_display_fallback || row.product_display_raw || row.display_for_packer || null; return { ...row, full_address: address, customer_name: row.master_customer_name || row.customer_name, phone: row.master_customer_phone || row.phone, address_display_primary: row.web_address_primary || row.address_display_primary || address, address_display_fallback: row.web_address_fallback || row.address_display_fallback || address, items: normalized, mapping_status: mapping, order_number: row.order_number || `#${row.id}`, order_time: effectiveOrderTime(row), cod_amount: cod, is_ready_to_pack: row.is_ready_to_pack ?? (mapping === "MATCHED"), cod_check_status: row.cod_check_status || (cod == null ? "CHECK" : "PASS"), audit_status: row.alien_audit_status || row.audit_status || mapping, telegram_status: row.telegram_status ?? null, items_text: productDisplay || "", display_for_packer: productDisplay }; }
-export async function readCanonicalOrders(search = "", since: string | null = null, until: string | null = null) {
-  const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
 
-  const sourceTable = defaultOrderView(getActiveCamp());
-  let queryBuilder = api.from(sourceTable).select("*");
-  const { data: rows, error } = await queryBuilder
-    .limit(search.trim() || since || until ? 1000 : ORDER_OPERATIONAL_LIMIT);
-  if (error) fail(error);
+function productOf(row: OrderRow) {
+  const canonicalItems = Array.isArray(row.items) ? row.items : [];
+  const canonicalDisplay = canonicalItems.map((item: OrderRow) => item.display_for_packer || item.label_display || item.master_sku || item.sku).filter(Boolean).join("\n");
+  return evidenceText(canonicalDisplay) || evidenceText(row.n8n_product_display) || evidenceText(row.single_cleaned_products) || evidenceText(row.items_text) || evidenceText(row.display_for_packer) || evidenceText(row.product_name) || evidenceText(row.sku) || "ยังไม่มีข้อมูลสินค้า";
+}
 
-  const orderRows = rows ?? [];
-  const orderIds = orderRows.map((row: any) => Number(row.id)).filter((id: number) => Number.isFinite(id));
-  const itemsByOrder = new Map<number, CanonicalItem[]>();
-  let itemError: unknown = null;
+function evidenceText(value: unknown): string {
+  if (value == null || value === "") return "";
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value.map(evidenceText).filter(Boolean).join("\n");
+  if (typeof value === "object") return Object.entries(value as Record<string, unknown>).map(([key, item]) => `${key}: ${evidenceText(item)}`).join("\n");
+  return String(value);
+}
 
-  // canonical_orders คือหัวบิล ส่วนสินค้าจริงอยู่ใน canonical_order_items
-  // รวมกลับมาเป็นแถวออเดอร์เดียวสำหรับหน้าเว็บ โดยไม่อ่านสินค้าเฉพาะจาก JSON ในหัวบิล
-  if (orderIds.length) {
-    const { data: itemRows, error: itemsError } = await api
-      .from("canonical_order_items")
-      .select("*")
-      .in("order_id", orderIds)
-      .order("line_no", { ascending: true });
+function cleanEvidence(row: OrderRow) {
+  return evidenceText(row.normalized_chat_timeline) || evidenceText(row.product_evidence) || evidenceText(row.raw_product_evidence) || evidenceText(row.raw_text_with_phone_timed) || evidenceText(row.raw_text_with_phone) || evidenceText(row.raw_text) || evidenceText(row.source_text) || evidenceText(row.single_cleaned_block) || "ไม่พบแชทต้นทางในแถวนี้";
+}
 
-    itemError = itemsError;
-    if (!itemsError) {
-      for (const item of itemRows ?? []) {
-        const orderId = Number((item as any).order_id);
-        if (!Number.isFinite(orderId)) continue;
-        itemsByOrder.set(orderId, [...(itemsByOrder.get(orderId) ?? []), item as CanonicalItem]);
-      }
+function laneOf(row: OrderRow) {
+  const text = `${row.sku || ""} ${row.product_name || ""} ${row.th_name || ""} ${productOf(row)}`.toLowerCase();
+  if (/green|เขียว|cool|เย็น|mond_green/.test(text)) return { label: "โซนเย็น", mark: "ICE", tone: "border-cyan-300/70 bg-cyan-400/15 text-cyan-100 shadow-[0_0_24px_rgba(40,220,255,.28)]" };
+  if (/red|ร้อน|hot|เผ็ด|mond_red/.test(text)) return { label: "โซนร้อน", mark: "HEAT", tone: "border-amber-300/70 bg-amber-400/15 text-amber-100 shadow-[0_0_24px_rgba(255,170,40,.3)]" };
+  return { label: "โซนผลไม้", mark: "FRESH", tone: "border-fuchsia-300/70 bg-fuchsia-500/15 text-fuchsia-100 shadow-[0_0_24px_rgba(255,70,180,.28)]" };
+}
+
+function addressOf(row: OrderRow) {
+  return evidenceText(row.master_delivery_address) || evidenceText(row.address_display_packer) || evidenceText(row.full_address_backup_1) || evidenceText(row.full_address_backup_2) || evidenceText(row.addressclean) || evidenceText(row.full_address) || evidenceText(row.address_display_primary) || "ยังไม่มีที่อยู่";
+}
+
+function provinceOf(row: OrderRow) {
+  return String(row.province || row.master_province || "ไม่ระบุจังหวัด").trim();
+}
+
+function telegramText(row: OrderRow, header: string) {
+  // Use the SQL-built canonical message when available; do not rebuild over it.
+  const dynamic = evidenceText(row.telegram_message_dynamic);
+  if (dynamic) return dynamic;
+  const customer = row.master_customer_name || row.customer_name || row.facebook_name || "";
+  const phone = row.master_customer_phone || row.phone || row.extracted_phone || "";
+  const cod = row.cod_amount ?? row.expected_cod ?? row.total_cod;
+  const orderNumber = row.order_number_display || row.order_number || "";
+  const time = row.order_time_display || "";
+  return [row.telegram_header || row.product_header || row.bill_header || header, "━━━━━━━━━━━━━━━━━━━━", time && `⏰ วันที่สั่งซื้อ : ${time}`, orderNumber && `🆔 เลขออเดอร์ : ${orderNumber}`, row.page_name && `📢 PAGE : ${row.page_name}`, customer && `👤 FB : ${customer}`, cod !== null && cod !== undefined && cod !== "" && `💰 ยอด COD : ${cod} บาท`, "━━━━━━━━━━━━━━━━━━━━", customer, phone, addressOf(row), "━━━━━━━━━━━━━━━━━━━━", "📦 รายการสินค้าสำหรับจัดของ", productOf(row)].filter(Boolean).join("\n");
+}
+
+function issueOf(row: OrderRow) {
+  const issues: string[] = [];
+  if (!row.upsert_key) issues.push("ไม่มี upsert_key");
+  if (!productOf(row) || productOf(row).includes("ยังไม่มี")) issues.push("ไม่พบสินค้า");
+  if (!addressOf(row) || addressOf(row).includes("ยังไม่มี")) issues.push("ไม่พบที่อยู่");
+  if (!row.mapping_status && !row.web_mapping_status) issues.push("ยังไม่ระบุผลแมป");
+  return issues;
+}
+
+function warningOf(row: OrderRow) {
+  const warnings: string[] = [];
+  const stock = String(row.stock_status || row.stock_state || row.inventory_status || "").toLowerCase();
+  const cod = Number(row.cod_amount);
+  const qty = Number(row.total_quantity ?? row.quantity ?? row.extracted_qty ?? row.qty);
+  const address = addressOf(row);
+  const phone = String(row.master_customer_phone || row.phone || row.extracted_phone || "").replace(/\D/g, "");
+  const raw = String(row.raw_text_with_phone_timed || row.raw_text || row.source_text || "");
+  const outOfStock = stock.includes("out") || stock.includes("หมด") || row.is_out_of_stock === true || Number(row.stock_qty) === 0;
+  if (outOfStock) warnings.push("❌ป้ายสินค้าหมด❌ เวสบอกบาย ไปเที่ยวทะเล ไม่กลับแล้ว ให้แอดเฝ้าร้านไปคนเดียว!");
+  if (row.change_order_24h === true || row.order_change_detected === true || /CHANGE ORDER|แก้ไขออเดอร์/i.test(String(row.warning_tag || row.audit_flags || ""))) warnings.push("🔄 [CHANGE ORDER] ตรวจพบการแก้ไขออเดอร์ใน 24 ชม.");
+  if (row.duplicate_order_15m === true || row.duplicate_detected === true || /DUPLICATE|ยิงออเดอร์ซ้ำ/i.test(String(row.warning_tag || row.audit_flags || ""))) warnings.push("🔁 [DUPLICATE] ตรวจพบการยิงออเดอร์ซ้ำภายใน 15 นาที");
+  if (row.blacklist === true || row.blacklisted === true || /BLACKLIST|แบล็กลิสต์/i.test(String(row.warning_tag || row.audit_flags || ""))) warnings.push("⛔ [BLACKLIST] ลูกค้ามีประวัติแบล็กลิสต์ไม่รับของ");
+  if (!String(row.master_customer_name || row.customer_name || row.facebook_name || "").trim()) warnings.push("👥 ชื่อผู้รับไม่มี");
+  if (!Number.isFinite(cod) || row.cod_amount == null || String(row.cod_amount).trim() === "") warnings.push("💰 ยอด COD ไม่ครบ");
+  else { if (cod < 200 && cod > 0) warnings.push("⚠️ ยอด COD ต่ำกว่าเกณฑ์ (< 200 บาท)"); if (qty === 1 && cod > 500) warnings.push("🧂 ยอด COD สูงเกินราคา 1 คอต"); if (cod < 0 || cod > 10000) warnings.push("🚨 [ANOMALY COD] ยอด COD ผิดปกติ"); }
+  if (!address || address.includes("ยังไม่มี") || !String(row.zipcode || "").match(/^[0-9]{5}$/)) warnings.push("📍 ข้อมูลที่อยู่ไม่สมบูรณ์ (รหัสไปรษณีย์ไม่ถูกต้อง)");
+  if (address.length < 15 || !/[0-9]/.test(address)) warnings.push("📝 ที่อยู่สั้นผิดปกติ/ขาดบ้านเลขที่");
+  if (phone.length !== 10) warnings.push("📱 เบอร์โทรศัพท์ไม่ถูกต้อง/ไม่ครบ 10 หลัก");
+  if (row.high_risk_area === true || /พื้นที่เสี่ยงสูง|RISK AREA/i.test(String(row.warning_tag || row.audit_flags || raw))) warnings.push("พื้นที่เสี่ยงสูงสินค้าโดนขโมย");
+  if (row.order_summary_status === "ERROR" || row.summary_status === "ERROR" || row.bot_summary_status === "ERROR") warnings.push("🤖 บอทสรุปออเดอร์มีปัญหา");
+  return warnings;
+}
+
+export default function TelegramDeliveryRoom() {
+  const [header, setHeader] = useState(DEFAULT_HEADER);
+  const [selected, setSelected] = useState(0);
+  const [copied, setCopied] = useState(false);
+  const [showEvidence, setShowEvidence] = useState(true);
+  const [search, setSearch] = useState("");
+  const [sendMessage, setSendMessage] = useState("");
+  const query = useQuery({
+    queryKey: ["telegram-delivery-room", getActiveCamp()],
+    queryFn: () => readCanonicalOrders(search),
+    refetchInterval: 180_000,
+  });
+
+  const allOrders = (query.data?.orders ?? []) as OrderRow[];
+  const waiting = useMemo(() => allOrders.filter((row) => !isSent(row)).sort((a, b) => new Date(realTime(b) || 0).getTime() - new Date(realTime(a) || 0).getTime()), [allOrders]);
+  const order = waiting[selected];
+  const message = useMemo(() => order ? telegramText(order, header || DEFAULT_HEADER) : "คิวว่าง — ไม่มีออเดอร์รอส่ง", [order, header]);
+  const telegramSelection = useMemo(() => order ? ({ text: message, source: "CANONICAL_DYNAMIC" as const, dirty: false, body: getTelegramBody(order) }) : null, [order, message]);
+  const selectedIssues = order ? issueOf(order) : [];
+  const selectedWarnings = order ? warningOf(order) : [];
+  const warningCount = waiting.reduce((sum, row) => sum + warningOf(row).length, 0);
+  const lane = order ? laneOf(order) : { label: "ยังไม่เลือกโซน", mark: "WAIT", tone: "border-cyan-300/50 bg-cyan-400/10 text-cyan-200" };
+
+  const provinceSummary = useMemo(() => {
+    const map = new Map<string, number>();
+    waiting.forEach((row) => map.set(provinceOf(row), (map.get(provinceOf(row)) ?? 0) + 1));
+    return Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
+  }, [waiting]);
+
+  useEffect(() => {
+    if (selected >= waiting.length) setSelected(Math.max(0, waiting.length - 1));
+  }, [selected, waiting.length]);
+
+  async function copyMessage() {
+    if (!order) return;
+    await navigator.clipboard?.writeText(message);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1500);
+  }
+
+  async function sendCurrentOrder() {
+    if (!order || !telegramSelection || selectedWarnings.length > 0 || selectedIssues.length > 0) { setSendMessage("ยังส่งไม่ได้: กรุณาแก้คำเตือน/จุดต้องตรวจก่อน"); return; }
+    setSendMessage("กำลังส่ง Telegram...");
+    try {
+      await sendTelegramFromN8n(order, telegramSelection);
+      setSendMessage("ส่ง Telegram สำเร็จ — รอระบบบันทึกสถานะ SENT");
+      void query.refetch();
+    } catch (error) {
+      setSendMessage(`ส่งไม่สำเร็จ: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
-  const query = search.trim().toLowerCase();
-  const orders = orderRows
-    .map((row: any) => {
-      const linkedItems = itemsByOrder.get(Number(row.id));
+  return (
+    <div className="min-h-full space-y-5 text-white">
+      <header className="relative overflow-hidden rounded-3xl border border-orange-400/25 bg-[#100b08] p-6 shadow-2xl shadow-orange-950/30">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-orange-300 to-transparent" />
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-orange-300"><Send className="mr-2 inline h-4 w-4" />TELEGRAM DELIVERY · {getActiveCamp()}</p>
+            <h1 className="cyber-title mt-3 text-3xl font-semibold">ห้องตรวจและส่ง Telegram</h1>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-orange-100/60">ป้ายหัวบิลชัดเจน · สถานะส่งเด่น · เตือนสินค้าหมด ยอดไม่ครบ และที่อยู่ไม่ครบก่อนส่ง</p>
+          </div>
+          <div className="flex items-center gap-2 rounded-2xl border border-emerald-400/25 bg-emerald-400/10 px-3 py-2 text-xs text-emerald-200"><span className="h-2 w-2 animate-pulse rounded-full bg-emerald-300" />ระบบทำงานปกติ · Live</div>
+        </div>
+        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-2xl border border-orange-400/15 bg-black/25 p-3"><p className="text-[10px] uppercase tracking-[0.18em] text-orange-200/50">รอส่ง</p><p className="mt-1 text-2xl font-semibold text-orange-200">{waiting.length}</p></div>
+          <div className="rounded-2xl border border-cyan-400/15 bg-cyan-400/5 p-3"><p className="text-[10px] uppercase tracking-[0.18em] text-cyan-200/50">ส่งแล้วในข้อมูลที่อ่าน</p><p className="mt-1 text-2xl font-semibold text-cyan-200">{allOrders.filter(isSent).length}</p></div>
+          <div className="rounded-2xl border border-fuchsia-400/15 bg-fuchsia-400/5 p-3"><p className="text-[10px] uppercase tracking-[0.18em] text-fuchsia-200/50">อัปเดตล่าสุด</p><p className="mt-1 text-sm font-medium text-fuchsia-100">{query.data?.fetchedAt ? new Date(query.data.fetchedAt).toLocaleTimeString("th-TH") : "ยังไม่อ่าน"}</p></div>
+        </div>
+      </header>
 
-      // Fallback รองรับข้อมูลเก่าที่ยังไม่ได้แตกลง canonical_order_items
-      const fallbackItems = parseJsonArray(row.order_items).length
-        ? parseJsonArray(row.order_items)
-        : parseJsonArray(row.items_json).length
-          ? parseJsonArray(row.items_json)
-          : parseJsonArray(row.product_items).length
-            ? parseJsonArray(row.product_items)
-            : parseJsonArray(row.web_items_clean).length
-              ? parseJsonArray(row.web_items_clean)
-              : parseJsonArray(row.web_items_all_fields);
+      <div className="grid gap-3 md:grid-cols-[1.2fr_1fr]">
+        <div className="rounded-2xl border border-orange-300/25 bg-orange-400/10 p-4 text-xs leading-6 text-orange-50/80"><p className="mb-1 flex items-center gap-2 font-semibold text-orange-200"><Zap className="h-4 w-4" />ลำดับสำคัญของห้องนี้</p><b className="text-white">ป้ายหัวบิล → สถานะส่ง → คำเตือน → ข้อมูลสินค้า/ที่อยู่</b><p className="mt-1 text-orange-100/55">พบคำเตือนในคิว {warningCount} จุด · ปุ่มคัดลอกไม่เปลี่ยนสถานะ</p></div>
+        <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/5 p-4 text-xs leading-6 text-cyan-50/75"><p className="mb-1 flex items-center gap-2 font-semibold text-cyan-200"><AlertTriangle className="h-4 w-4" />กติกาความปลอดภัย</p>ส่งสำเร็จต้องมาจากตัวส่งภายนอกเท่านั้น · ข้อมูลดิบจากแชทไม่ถูกเขียนทับ</div>
+      </div>
 
-      const normalized = normalizeOrder(row, linkedItems?.length ? linkedItems : fallbackItems);
-      return {
-        ...normalized,
-        source_table: sourceTable,
-        raw_text_with_phone_timed: row.raw_text_with_phone_timed ?? row.raw_text_with_phone ?? row.raw_text ?? null,
-        review_status: row.review_status ?? null,
-      } as CanonicalOrder;
-    })
-    .filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query));
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className={`rounded-2xl border-2 px-4 py-3 text-center ${lane.tone}`}><p className="text-[10px] uppercase tracking-[0.22em] opacity-70">PACKING ZONE</p><p className="mt-1 text-xl font-black">▣ {lane.label}</p><p className="mt-1 text-[10px] font-bold tracking-[0.28em] opacity-70">{lane.mark}</p></div>
+        <div className={`rounded-2xl border-2 px-4 py-3 text-center ${order ? deliveryStatus(order).tone : "border-amber-300/40 bg-amber-400/10 text-amber-200"}`}><p className="text-[10px] uppercase tracking-[0.22em] opacity-70">DELIVERY STATUS</p><p className="mt-1 text-xl font-black">{order ? deliveryStatus(order).label : "รอเลือกออเดอร์"}</p></div>
+        <div className="rounded-2xl border-2 border-cyan-300/50 bg-cyan-400/10 px-4 py-3 text-center text-cyan-100 shadow-[0_0_24px_rgba(40,220,255,.2)]"><p className="text-[10px] uppercase tracking-[0.22em] opacity-70">COD</p><p className="mt-1 text-xl font-black">{order?.cod_amount != null ? `${order.cod_amount} บาท` : "ไม่ระบุ"}</p></div>
+      </div>
 
-  orders.sort((a, b) => new Date(b.order_time || 0).getTime() - new Date(a.order_time || 0).getTime());
-  return { orders, itemError, sourceTable, fetchedAt: new Date().toISOString(), since };
-}
-export type StockProduct = { id: number; sku: string; label: string; thName: string; emoji: string; price: number | null; stockQty: number; stockStatus: string | null; outOfStockJoke: string | null; stockNotice: string | null; aliases: string; inventoryId: number | string | null };
-export type ProductMapAlias = { id: string; alias: string; canonicalSku: string; canonicalLabel: string; isActive: boolean };
+      <div className="grid gap-5 xl:grid-cols-[350px_1fr]">
+        <Card className="rounded-3xl border-orange-400/15 bg-[#100d0b]">
+          <CardHeader className="space-y-3">
+            <div className="flex items-center justify-between"><CardTitle className="flex items-center gap-2 text-base text-orange-100"><Clock3 className="h-4 w-4 text-orange-300" />คิวตามเวลาจริง</CardTitle><Button size="sm" variant="outline" onClick={() => query.refetch()} className="border-orange-400/20 text-orange-200"><RefreshCw className="mr-1 h-3.5 w-3.5" />รีเฟรช</Button></div>
+            <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ค้นหาเลขออเดอร์ / ลูกค้า / สินค้า" className="border-orange-400/20 bg-black/40 text-orange-100 placeholder:text-orange-100/30" />
+            <div className="flex items-center justify-between text-xs text-orange-100/55"><span>แสดง {waiting.length} รายการ</span><span className="font-mono">ใหม่สุดอยู่บน</span></div>
+          </CardHeader>
+          <CardContent><div className="max-h-[640px] space-y-2 overflow-auto pr-1">
+            {query.isLoading && <div className="rounded-2xl border border-dashed border-orange-400/20 p-6 text-center text-sm text-orange-100/55">กำลังอ่านห้อง...</div>}
+            {query.error && <div className="rounded-2xl border border-red-400/25 bg-red-400/10 p-4 text-sm text-red-200">อ่านข้อมูลไม่สำเร็จ: {String(query.error.message)}</div>}
+            {!query.isLoading && !query.error && waiting.length === 0 && <div className="rounded-2xl border border-dashed border-emerald-400/20 p-6 text-center text-sm text-emerald-200/70">คิวว่างแล้ว</div>}
+            {waiting.map((item, index) => {
+              const issues = issueOf(item);
+              const warnings = warningOf(item);
+              return <button type="button" key={item.upsert_key || item.order_number || item.id || index} onClick={() => setSelected(index)} className={`w-full rounded-2xl border p-3 text-left ${index === selected ? "border-orange-300/70 bg-orange-500/15 shadow-lg shadow-orange-950/20" : "border-white/10 bg-black/20 hover:border-orange-400/30"}`}>
+                <div className="flex items-center justify-between gap-2"><span className="font-mono text-xs text-orange-100">{item.order_number || item.upsert_key || `#${item.id ?? "?"}`}</span><span className="text-[10px] text-orange-100/45">{displayTime(item)}</span></div>
+                <p className="mt-2 truncate text-xs text-orange-100/70">{productOf(item)}</p>
+                <div className="mt-2 flex flex-wrap items-center gap-1.5"><span className={`rounded-full border px-2 py-0.5 text-[10px] ${deliveryStatus(item).tone}`}>{deliveryStatus(item).label}</span>{warnings.length > 0 && <span className="rounded-full border border-red-300/30 bg-red-400/10 px-2 py-0.5 text-[10px] text-red-200">เตือน {warnings.length}</span>}{issues.length > 0 && <span className="rounded-full bg-amber-400/10 px-2 py-0.5 text-[10px] text-amber-200">ตรวจ {issues.length}</span>}</div><p className="mt-1 text-[10px] text-orange-100/40">{deliveryStatus(item).slogan}</p>
+              </button>;
+            })}
+          </div></CardContent>
+        </Card>
 
-export async function readProductMapAliases(): Promise<ProductMapAlias[]> {
-  const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  const [{ data: rows, error }, { data: products, error: productError }] = await Promise.all([
-    api.from("product_map_master").select("*").order("sku"),
-    api.from("product_master").select("sku,label_display,display_for_packer,name_standard,th_name,product_name,emoji,unit_price").order("sku")
-  ]);
-  if (error) fail(error);
-  if (productError) fail(productError);
-  const masters = new Map((products ?? []).map((p: any) => [String(p.sku ?? '').trim().toLowerCase(), p]));
-  const output: ProductMapAlias[] = [];
-  for (const row of rows ?? []) {
-    const sku = String(row.sku ?? '').trim();
-    const master = masters.get(sku.toLowerCase()) ?? {};
-    const aliases = [row.alias, row.alias_text].flatMap((v: any) => String(v ?? '').split(/[,\n|]+/)).map((v: string) => v.trim()).filter(Boolean);
-    for (const alias of Array.from(new Set(aliases))) output.push({ id: String(row.id ?? sku + ':' + alias), alias, canonicalSku: sku, canonicalLabel: master.label_display ?? master.display_for_packer ?? master.name_standard ?? master.th_name ?? master.product_name ?? sku, isActive: row.is_active !== false });
-  }
-  return output;
-}
+        <div className="space-y-5">
+          <Card className="rounded-3xl border-orange-400/15 bg-[#100d0b]"><CardHeader><div className="flex flex-wrap items-center justify-between gap-3"><CardTitle className="flex items-center gap-2 text-base text-orange-100"><Eye className="h-4 w-4 text-orange-300" />ข้อมูลแต่งหล่อสำหรับส่ง</CardTitle><div className="flex flex-wrap gap-2"><Button onClick={sendCurrentOrder} disabled={!order || sendMessage === "กำลังส่ง Telegram..."} className="bg-emerald-600 text-white hover:bg-emerald-500"><Send className="mr-2 h-4 w-4" />{sendMessage === "กำลังส่ง Telegram..." ? "กำลังส่ง..." : "กดส่ง Telegram"}</Button><Button onClick={copyMessage} disabled={!order} variant="outline" className="border-orange-400/20 text-orange-200"><Clipboard className="mr-2 h-4 w-4" />{copied ? "คัดลอกแล้ว" : "คัดลอกทั้งบิล"}</Button><Button variant="outline" onClick={() => setShowEvidence((value) => !value)} disabled={!order} className="border-cyan-400/20 text-cyan-200"><MessageSquareText className="mr-2 h-4 w-4" />{showEvidence ? "ซ่อนแชท" : "ดูแชท"}</Button></div></div>{sendMessage && <p className={`mt-3 rounded-xl border p-3 text-xs ${sendMessage.includes("สำเร็จ") ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-200" : "border-red-400/25 bg-red-400/10 text-red-200"}`}>{sendMessage}</p>}</CardHeader><CardContent>
+            {order ? <div className="grid gap-4 lg:grid-cols-2"><pre className="min-h-[480px] whitespace-pre-wrap rounded-2xl border border-orange-400/15 bg-black/55 p-5 text-sm leading-7 text-orange-50">{message}</pre><div className="space-y-3"><div className="rounded-2xl border border-orange-400/15 bg-black/25 p-4 text-sm"><p className="text-[10px] uppercase tracking-[0.18em] text-orange-200/45">จุดตรวจ</p><div className="mt-3 space-y-2"><p className="flex items-center gap-2 text-xs text-emerald-200"><CheckCircle2 className="h-4 w-4" />เวลาจริง: {displayTime(order)}</p><p className="flex items-center gap-2 text-xs text-cyan-200"><Sparkles className="h-4 w-4" />สินค้า: {productOf(order)}</p><p className="flex items-center gap-2 text-xs text-orange-100/70"><ShieldAlert className="h-4 w-4" />สถานะข้อมูล: {order.mapping_status || order.web_mapping_status || "ยังไม่ระบุ"}</p>{selectedWarnings.length > 0 && <div className="rounded-xl border border-red-300/30 bg-red-400/10 p-3 text-xs text-red-100"><p className="mb-1 flex items-center gap-2 font-semibold"><AlertTriangle className="h-4 w-4" />คำเตือนระบบ</p>{selectedWarnings.map((warning) => <p key={warning}>• {warning}</p>)}</div>}{selectedIssues.length > 0 ? <div className="rounded-xl border border-amber-300/20 bg-amber-400/10 p-3 text-xs text-amber-100"><p className="mb-1 flex items-center gap-2 font-semibold"><FileWarning className="h-4 w-4" />พบจุดต้องตรวจ</p>{selectedIssues.map((issue) => <p key={issue}>• {issue}</p>)}</div> : selectedWarnings.length === 0 && <p className="text-xs text-emerald-200">ไม่พบคำเตือนพื้นฐาน</p>}</div></div><div className="rounded-2xl border border-white/10 bg-black/25 p-4 text-xs leading-6 text-orange-100/65"><b className="text-orange-200">สถานะการส่ง</b><br /><span className={`inline-flex rounded-full border px-2.5 py-1 text-sm font-semibold ${deliveryStatus(order).tone}`}>{deliveryStatus(order).label}</span><p className="mt-2">{deliveryStatus(order).slogan}</p><p className="mt-1">{isSent(order) ? "รายการนี้ถูกทำเครื่องหมายส่งแล้ว" : "ยังไม่ควรทำเครื่องหมาย SENT ก่อนตัวส่งตอบกลับ"}</p></div></div></div> : <div className="rounded-2xl border border-dashed border-orange-400/20 p-10 text-center text-sm text-orange-100/55">เลือกออเดอร์จากคิวเพื่อดูรายละเอียด</div>}
+          </CardContent></Card>
 
-export async function readProductMapCatalog() {
-  const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  const { data, error } = await api.from("product_master").select("sku,label_display,display_for_packer,name_standard,th_name,product_name,emoji,unit_price").order("sku");
-  if (error) fail(error);
-  return (data ?? []).map((p: any) => ({ sku: String(p.sku ?? ''), label: p.label_display ?? p.display_for_packer ?? p.name_standard ?? p.th_name ?? p.product_name ?? p.sku ?? '', emoji: p.emoji ?? '📦', price: num(p.unit_price) }));
-}
+          {order && showEvidence && <Card className="rounded-3xl border-cyan-400/15 bg-[#0d1015]"><CardHeader><CardTitle className="flex items-center gap-2 text-base text-cyan-100"><MessageSquareText className="h-4 w-4 text-cyan-300" />หลักฐานแชทต้นทาง</CardTitle></CardHeader><CardContent><pre className="max-h-[340px] overflow-auto whitespace-pre-wrap rounded-2xl border border-cyan-400/15 bg-black/45 p-5 text-xs leading-6 text-cyan-50/80">{cleanEvidence(order)}</pre><p className="mt-3 text-xs text-cyan-100/45">ใช้ส่วนนี้เทียบกับข้อมูลแต่งหล่อก่อนคัดลอกหรือส่ง ไม่เขียนทับหลักฐานต้นทาง</p></CardContent></Card>}
+        </div>
+      </div>
 
-export async function saveProductMapAlias(input: { alias: string; canonicalSku: string }) {
-  const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  const alias = input.alias.trim(); const sku = input.canonicalSku.trim();
-  if (!alias || !sku) throw new Error('ต้องมี Alias และ SKU');
-  const { data: existing, error: readError } = await api.from('product_map_master').select('*').eq('sku', sku).maybeSingle();
-  if (readError) fail(readError);
-  const old = [existing?.alias, existing?.alias_text].flatMap((v: any) => String(v ?? '').split(/[,\n|]+/)).map((v: string) => v.trim()).filter(Boolean);
-  const aliases = Array.from(new Set([...old, alias]));
-  const payload: any = { sku, alias: aliases.join(', '), alias_text: aliases.join(', '), alias_norm: aliases.map(v => v.toLowerCase().replace(/\s+/g, '')).join(', ') };
-  const result = existing?.id != null ? await api.from('product_map_master').update(payload).eq('id', existing.id) : await api.from('product_map_master').insert(payload);
-  if (result.error) fail(result.error);
-  return { sku, alias, aliases };
-}
-
-export async function readStockProducts(): Promise<StockProduct[]> {
-  const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  const [{ data: products, error }, { data: inventory, error: inventoryError }, { data: mapRows, error: mapError }] = await Promise.all([
-    api.from("product_master").select("*").order("sku"),
-    api.from("inventory").select("*"),
-    api.from("product_map_master").select("sku,alias,alias_text,alias_norm")
-  ]);
-  if (error) fail(error);
-  if (inventoryError) fail(inventoryError);
-  const aliasBySku = new Map<string, string[]>();
-  if (!mapError) for (const row of mapRows ?? []) { const sku = String(row.sku ?? "").trim().toLowerCase(); const values = [row.alias, row.alias_text, row.alias_norm].flatMap(value => String(value ?? "").split(/[,\n|]+/)).map(value => value.trim()).filter(Boolean); if (sku && values.length) aliasBySku.set(sku, Array.from(new Set([...(aliasBySku.get(sku) ?? []), ...values]))); }
-  const entries: Array<[string, any]> = [];
-  for (const row of inventory ?? []) { if (row.product_id != null) entries.push([String(row.product_id), row]); if (row.sku) entries.push([String(row.sku).trim().toLowerCase(), row]); }
-  const inv = new Map<string, any>(entries);
-  return (products ?? []).map((p: any) => { const sku = String(p.sku ?? "").trim(); const i = inv.get(String(p.id)) ?? inv.get(sku.toLowerCase()); const aliases = aliasBySku.get(sku.toLowerCase()) ?? String(p.aliases ?? p.alias ?? "").split(/[,\n|]+/).map(value => value.trim()).filter(Boolean); return { id: Number(p.id), sku, label: p.label_display ?? p.display_for_packer ?? p.name_standard ?? sku ?? "", thName: p.th_name ?? p.product_name ?? p.name_standard ?? "", emoji: p.emoji ?? "📦", price: num(p.unit_price ?? p.price ?? p.cod_default), stockQty: num(i?.stock_qty ?? i?.quantity ?? p.stock_qty) ?? 0, stockStatus: i?.stock_status ?? p.stock_status ?? null, outOfStockJoke: p.out_of_stock_joke ?? null, stockNotice: p.stock_notice ?? null, aliases: Array.from(new Set(aliases)).join(", "), inventoryId: i?.id ?? null }; });
-}
-export async function updateInventoryStock(input: { productId: number; sku: string; stockQty: number; stockStatus?: "IN_STOCK" | "OUT_OF_STOCK" }) { const api = getSupabase(); if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" }); const stockQty = Math.max(0, Math.trunc(Number(input.stockQty) || 0)); const stockStatus = input.stockStatus ?? (stockQty > 0 ? "IN_STOCK" : "OUT_OF_STOCK"); const payload = { product_id: input.productId, sku: input.sku, stock_qty: stockQty, stock_status: stockStatus, updated_at: new Date().toISOString() }; const { data: existing, error: findError } = await api.from("inventory").select("id").eq("product_id", input.productId).maybeSingle(); if (findError) fail(findError); if (existing?.id != null) { const { error } = await api.from("inventory").update(payload).eq("id", existing.id); if (error) fail(error); } else { const { error } = await api.from("inventory").insert(payload); if (error) fail(error); } return { ...input, stockQty, stockStatus }; }
-export async function setInventoryAvailability(input: { productId: number; sku: string; available: boolean; currentQty: number }) { return updateInventoryStock({ ...input, stockQty: input.available ? Math.max(1, input.currentQty || 1) : 0, stockStatus: input.available ? "IN_STOCK" : "OUT_OF_STOCK" }); }
-export async function readDailyOrders(date: string, search = "") { const start = new Date(`${date}T00:00:00+07:00`).toISOString(); const result = await readCanonicalOrders(search, start); const orders = result.orders.filter((o: any) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok" }).format(new Date(o.order_time ?? o.created_at ?? "")) === date); return { date, orders, total: orders.length }; }
-async function readChatRows() {
-  const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  // Read the newest window first. Ascending + limit would permanently return
-  // the oldest rows once a chat table grows beyond the limit.
-  const cutoff = chatHistoryCutoff();
-  const customerResult = await api.from("chat_customer_messages").select("*").gte("occurred_at", cutoff).order("occurred_at", { ascending: false }).limit(10000);
-  if (customerResult.error) fail(customerResult.error);
-  const pageResult = await api.from("chat_page_messages").select("*").gte("occurred_at", cutoff).order("occurred_at", { ascending: false }).limit(10000);
-  const customers = customerResult.data ?? [];
-  const pages = pageResult.error ? [] : (pageResult.data ?? []);
-  const rows = [
-    ...customers.map((r: any) => ({ ...r, _speaker: r.speaker_type || r.speaker || "customer", _side: r.side || "left", _name: r.customer_name || r.sender_name, _text: asText(r.message_text ?? r.message_raw), _thread: r.thread_id || r.conversation_key || r.conversation_id, _occurred: r.occurred_at || r.time || r.created_at, _hasAttachment: Boolean(r.has_attachment || r.attachments?.length || r.attachments_json?.length) })),
-    ...pages.map((r: any) => ({ ...r, _speaker: r.speaker_type || r.speaker || "page", _side: r.side || "right", _name: r.page_sender_name || r.sender_name, _text: asText(r.message_text ?? r.message_raw), _thread: r.thread_id || r.conversation_key || r.conversation_id, _occurred: r.occurred_at || r.time || r.created_at, _hasAttachment: Boolean(r.has_attachment || r.attachments?.length || r.attachments_json?.length) })),
-  ];
-  return rows.sort((a, b) => new Date(a._occurred || a.occurred_at || a.synced_at || 0).getTime() - new Date(b._occurred || b.occurred_at || b.synced_at || 0).getTime());
-}
-export async function readChatThreads() { const rows = await readChatRows(); const map = new Map<string, any>(); for (const row of rows) { const key = `${row.page_id ?? ""}:${row._thread ?? ""}`; const current = map.get(key) ?? { key, pageId: row.page_id, threadId: row._thread, customerId: row.customer_id, pageName: row.page_name || "ไม่ระบุเพจ", customerName: row.customer_name || row._name || "ลูกค้า", latestAt: row._occurred || row.occurred_at || row.synced_at, latestOrderNumber: null, preview: row._text || (row._hasAttachment ? "[ไฟล์แนบ]" : ""), orderCount: 0, unread: false, messageCount: 0, orders: [], chatTimeline: [] as string[] }; current.latestAt = row._occurred || row.occurred_at || row.synced_at || current.latestAt; current.preview = row._text || (row._hasAttachment ? "[ไฟล์แนบ]" : current.preview); current.customerId ||= row.customer_id; current.customerName = current.customerName === "ลูกค้า" ? row.customer_name || row._name || current.customerName : current.customerName; current.messageCount += 1; current.chatTimeline.push(`${row._speaker === "page" ? "[เพจ]" : "[ลูกค้า]"} ${row._text || (row._hasAttachment ? "[ไฟล์แนบ]" : "")}`); map.set(key, current); } try { const orders = await readCanonicalOrders(); for (const order of orders.orders) { const key = `${order.page_id ?? ""}:${order.thread_id || order.threadId || ""}`; const current = map.get(key); if (current) { current.orders.push(order); current.orderCount += 1; current.latestOrderNumber = order.order_number; } } } catch { /* ห้องแชทต้องไม่หายเพราะ View ออเดอร์อ่านไม่ได้ */ } return Array.from(map.values()).sort((a, b) => new Date(b.latestAt || 0).getTime() - new Date(a.latestAt || 0).getTime()); }
-export async function readChatMessages(pageId: string, threadId: string) { const rows = await readChatRows(); return rows.filter(row => String(row.page_id) === String(pageId) && String(row._thread) === String(threadId)).map((row: any) => ({ id: row.id, text: row._text || (row._hasAttachment ? "ส่งรูปภาพ" : ""), message_text: row._text, direction: row._speaker === "page" ? "outbound" : "inbound", senderType: row._speaker, senderName: row._name, side: row._side, occurredAt: row._occurred || row.occurred_at || row.synced_at, attachmentsJson: JSON.stringify(row.attachments_json || []), imageUrls: row.image_urls || [] })); }
-export async function readDailyChatSummary(date: string) {
-  const rows = await readChatRows(); let orders: any[] = [];
-  try { const orderResult = await readCanonicalOrders("", new Date(date + "T00:00:00+07:00").toISOString()); orders = orderResult.orders; } catch { /* keep chat summary usable when canonical view is unavailable */ }
-  const ordersByRoom = new Map(orders.map((order: any) => [String(order.page_id ?? "") + ":" + String(order.thread_id ?? ""), order]));
-  const dayRows = rows.filter(row => { const value = row._occurred || row.occurred_at || row.synced_at; return value && new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok" }).format(new Date(value)) === date; });
-  const map = new Map<string, any>();
-  for (const row of dayRows) {
-    const key = String(row.page_id ?? "") + ":" + String(row._thread ?? ""); const current = map.get(key) ?? { customerName: row.customer_name || row._name || "ไม่ระบุชื่อ", customerId: row.customer_id || "", pageName: row.page_name || "ไม่ระบุเพจ", pageId: row.page_id, threadId: row._thread, customerMessages: 0, pageMessages: 0, orderSignals: 0, signalScore: 0, signalReasons: [], coreSignalCount: 0, flowSignalCount: 0, qualifiedSignal: false, snippets: [], latestAt: row._occurred || row.occurred_at || row.synced_at, customerText: [], pageText: [], latestCod: null };
-    const text = row._text || (row._hasAttachment ? "[ไฟล์แนบ]" : ""); if (row._speaker === "customer") { current.customerMessages += 1; current.customerText.push(text); } else { current.pageMessages += 1; current.pageText.push(text); }
-    current.latestAt = row._occurred || row.occurred_at || row.synced_at || current.latestAt; const cod = parseCod(text); if (cod != null) current.latestCod = cod;
-    const signal = scoreDailyOrderSignal(text, cod); if (signal.qualified) current.orderSignals += 1; current.signalScore += signal.score; current.coreSignalCount += signal.coreCount; current.flowSignalCount += signal.flowCount; current.qualifiedSignal ||= signal.qualified; current.signalReasons.push(...signal.reasons);
-    if (text.trim()) current.snippets.push(text.slice(0, 300)); map.set(key, current);
-  }
-  const threads = Array.from(map.values()).map(row => { const order = ordersByRoom.get(String(row.pageId ?? "") + ":" + String(row.threadId ?? "")) as any; return { ...row, sourceText: order?.source_text || order?.source_payload?.source_text || "", productDisplay: order?.display_for_packer || order?.items_text || "", snippets: row.snippets.slice(-8), signalReasons: Array.from(new Set(row.signalReasons)).slice(-12), orderSignalsText: row.latestCod != null ? "COD ล่าสุด " + row.latestCod.toLocaleString("th-TH") + " บาท" : "ไม่พบ COD" }; });
-  return { date, threads, totalMessages: dayRows.length, customerMessages: dayRows.filter(r => r._speaker === "customer").length, pageMessages: dayRows.filter(r => r._speaker === "page").length, threadCount: threads.length, orderSignalThreads: threads.filter(r => r.orderSignals > 0).length };
-}
-export type AlienReviewItem = Record<string, any> & { audit_status: string; raw_display: string; mapped_display: string; customer_history: string[] };
-export async function readAlienReview(search = ''): Promise<AlienReviewItem[]> {
-  const api = getSupabase();
-  if (!api) fail({ message: 'ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key' });
-  const camp = getActiveCamp();
-  const orderTable = camp === 'ST' ? 'st_orders' : camp === 'SB' ? 'sb_orders' : 'bb_orders';
-  const inspectorView = camp === 'BB' ? 'vw_bb_alien_master_center' : 'vw_product_alien_inspector';
-  const [ordersResult, masterResult, aliasResult, inventoryResult, inspectorResult] = await Promise.all([
-    api.from(orderTable).select('*').order('updated_at', { ascending: false }).limit(1000),
-    // Read the existing tables without assuming a particular SKU column name.
-    // Some Supabase projects use master_sku/product_code instead of sku.
-    api.from('product_master').select('*').limit(1500),
-    api.from('product_map_master').select('*').limit(3000),
-    api.from('inventory').select('*'),
-    api.from(inspectorView).select('*').limit(2000),
-  ]);
-  if (ordersResult.error) fail(ordersResult.error);
-  if (masterResult.error) fail(masterResult.error);
-  if (aliasResult.error) fail(aliasResult.error);
-  // Inventory is supplementary. If the table is not connected yet or RLS
-  // hides it, keep the raw/master inspection alive and report STOCK_UNKNOWN.
-
-  const productKey = (row: any) => String(row.sku ?? row.master_sku ?? row.product_sku ?? row.product_code ?? row.code ?? '').trim();
-  // product_master is shared by BB and has no store_code column. Do not
-  // filter by a non-existent column, otherwise the Master/stock lookup is
-  // coupled to an unsupported schema.
-  const masters: any[] = masterResult.data ?? [];
-  const bySku = new Map<string, any>(masters
-    .map((master: any): [string, any] => [productKey(master).toLowerCase(), master])
-    .filter(([key]) => Boolean(key)));
-  const inventoryByKey = new Map<string, any>();
-  for (const stock of inventoryResult.data ?? []) {
-    if (stock.product_id != null) inventoryByKey.set(`id:${String(stock.product_id)}`, stock);
-    const stockSku = productKey(stock).toLowerCase();
-    if (stockSku) inventoryByKey.set(`sku:${stockSku}`, stock);
-  }
-  const normalize = (value: any) => String(value ?? '').toLowerCase().normalize('NFKC').replace(/[\s_\-.,:;|()[\]{}]+/g, '').trim();
-  const aliasToSku = new Map<string, string>();
-  for (const row of aliasResult.data ?? []) {
-    const sku = productKey(row);
-    if (!sku) continue;
-    for (const value of [row.alias, row.alias_text, row.alias_norm].flatMap((v: any) => String(v ?? '').split(/[,\n|]+/)).map((v: string) => v.trim()).filter(Boolean)) {
-      const key = normalize(value);
-      if (key) aliasToSku.set(key, sku);
-    }
-  }
-
-  const query = search.trim().toLowerCase();
-  const inspectorByKey = new Map<string, any>();
-  for (const item of inspectorResult.data ?? []) {
-    const key = String(item.upsert_key ?? item.order_number ?? '').trim();
-    if (key) inspectorByKey.set(key, item);
-  }
-  return (ordersResult.data ?? []).map((sourceOrder: any) => {
-    // The order table remains the no-drop source. The inspector view only
-    // enriches it with verified Master/quantity/inventory fields.
-    const order = { ...sourceOrder, ...(inspectorByKey.get(String(sourceOrder.upsert_key ?? sourceOrder.order_number ?? '').trim()) ?? {}) };
-    const history = [
-      ...(Array.isArray(order.normalized_chat_timeline) ? order.normalized_chat_timeline : []),
-      ...(Array.isArray(order.chat_timeline) ? order.chat_timeline : []),
-    ].map((value: any) => String(value)).filter(Boolean);
-    const rawCandidates = [
-      order.raw_text,
-      order.raw_item_text,
-      order.raw_product_text,
-      order.extracted_product_raw,
-      order.product_lines,
-      order.sniper_x_text_clean,
-    ].map((value: any) => String(value ?? '').trim()).filter(Boolean);
-    const raw = rawCandidates.find((value: string) => !/CHECK_SKU|ระบุสินค้าไม่ได้/i.test(value)) || rawCandidates[0] || '';
-    const evidenceText = [raw, ...history].join('\n');
-    const rawNormalized = normalize(evidenceText);
-    const aliasSku = Array.from(aliasToSku.entries()).find(([alias]) => alias.length >= 3 && rawNormalized.includes(alias))?.[1] ?? '';
-    const sourceSku = String(order.sku ?? order.extracted_sku ?? '').trim();
-    const resolvedSku = sourceSku || aliasSku;
-    const master: any = bySku.get(resolvedSku.toLowerCase());
-    const inventory: any = master?.id != null
-      ? inventoryByKey.get(`id:${String(master.id)}`) ?? inventoryByKey.get(`sku:${resolvedSku.toLowerCase()}`)
-      : inventoryByKey.get(`sku:${resolvedSku.toLowerCase()}`);
-    // A matched display must be the prebuilt value from product_master only.
-    // Never fall back to an order field or compose/modify a display in Alien.
-    const masterDisplay = String(master?.master_display_for_packer ?? '').trim();
-    const hasRawEvidence = Boolean(raw && !/CHECK_SKU|ระบุสินค้าไม่ได้/i.test(raw));
-    const mappingStatus = String(order.mapping_status ?? order.match_status ?? '').toUpperCase();
-    const matched = Boolean(hasRawEvidence && master && masterDisplay && (mappingStatus === 'MATCHED' || mappingStatus === 'RESOLVED' || Boolean(aliasSku)));
-    const audit_status = matched ? 'MATCHED' : hasRawEvidence ? 'REVIEW' : 'RAW_MISSING';
-    const customerHistory = Array.from(new Set(history));
-    const row = {
-      ...order,
-      store_code: order.store_code ?? camp,
-      sku: resolvedSku || null,
-      raw_display: raw || 'ไม่มีคำดิบ',
-      mapped_display: matched ? masterDisplay : '',
-      master_display_for_packer: masterDisplay || null,
-      audit_status,
-      mapping_status: mappingStatus || 'REVIEW',
-      alias_match: Boolean(aliasSku),
-      alias_match_sku: aliasSku || null,
-      alias_match_method: aliasSku ? 'product_map_master' : null,
-      customer_history: customerHistory,
-      customer_history_count: order.chat_timeline_count ?? customerHistory.length,
-      product_source: order.product_source ?? null,
-      product_evidence: order.product_evidence ?? null,
-      address_completeness: order.address_completeness ?? null,
-      // Inventory is the stock truth; product_master is only the product
-      // catalogue and display source.
-      stock_status: inventory?.stock_status ?? 'STOCK_UNKNOWN',
-      stock_qty: inventory?.stock_qty ?? inventory?.quantity ?? null,
-      available_qty: inventory?.stock_qty ?? inventory?.quantity ?? null,
-      unit_price: order.unit_price ?? master?.unit_price ?? null,
-      price_mismatch: false,
-    };
-    return row;
-  }).filter((row: AlienReviewItem) => !query || JSON.stringify(row).toLowerCase().includes(query));
+      <Card className="rounded-3xl border-fuchsia-400/15 bg-[#100b15]"><CardHeader><CardTitle className="flex items-center gap-2 text-base text-fuchsia-100"><ShieldAlert className="h-4 w-4 text-fuchsia-300" />สรุปคิวตามจังหวัด</CardTitle></CardHeader><CardContent><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{provinceSummary.length === 0 ? <p className="text-sm text-fuchsia-100/55">ยังไม่มีจังหวัดในคิว</p> : provinceSummary.map(([province, count]) => <div key={province} className="flex items-center justify-between rounded-2xl border border-fuchsia-400/10 bg-black/25 px-4 py-3"><span className="text-sm text-fuchsia-100/75">{province}</span><span className="font-mono text-lg text-fuchsia-200">{count}</span></div>)}</div><p className="mt-4 text-xs text-fuchsia-100/40">จังหวัดอยู่ด้านล่างเพื่อไม่แย่งความสำคัญจากงานตรวจและส่งออเดอร์</p></CardContent></Card>
+    </div>
+  );
 }
