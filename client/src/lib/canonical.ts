@@ -176,6 +176,13 @@ export async function updateBbOrder(id: string | number, patch: Record<string, u
   if (error) fail(error);
   return data;
 }
+export async function updateBbOrderByKey(upsertKey: string, patch: Record<string, unknown>) {
+  const api = getSupabase();
+  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
+  const { data, error } = await api.from("bb_orders").update(patch).eq("upsert_key", upsertKey).select("*").single();
+  if (error) fail(error);
+  return data;
+}
 
 export type StockProduct = { id: number; sku: string; label: string; thName: string; emoji: string; price: number | null; stockQty: number; stockStatus: string | null; outOfStockJoke: string | null; stockNotice: string | null; aliases: string; inventoryId: number | string | null };
 export type ProductMapAlias = { id: string; alias: string; canonicalSku: string; canonicalLabel: string; isActive: boolean };
