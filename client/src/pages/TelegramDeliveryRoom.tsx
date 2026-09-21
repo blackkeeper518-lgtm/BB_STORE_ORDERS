@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { getActiveCamp, readTelegramDeliveryOrders, updateBbOrder } from "@/lib/canonical";
+import { getActiveCamp, readTelegramDeliveryOrders, updateBbOrder, updateBbOrderByKey } from "@/lib/canonical";
 import { AlertTriangle, CheckCircle2, Clipboard, Clock3, Eye, FileWarning, MessageSquareText, RefreshCw, Send, ShieldAlert, Sparkles, Zap } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -194,16 +194,28 @@ export default function TelegramDeliveryRoom() {
   }
 
   async function saveOrderEdit() {
-    if (!order?.id) { setSendMessage("บันทึกไม่ได้: ไม่พบ id ของแถวออเดอร์"); return; }
+    if (!order?.id && !order?.upsert_key) { setSendMessage("บันทึกไม่ได้: ไม่พบ id หรือ upsert_key ของออเดอร์"); return; }
     setEditSaving(true);
     try {
-      await updateBbOrder(order.id, { ...editForm, shipping_method: editForm.shipping_method.trim() || "⚡FLASH EXPRESS" });
+      const patch = { ...editForm, shipping_method: editForm.shipping_method.trim() || "⚡FLASH EXPRESS" };
+      if (order.id) await updateBbOrder(order.id, patch); else await updateBbOrderByKey(String(order.upsert_key), patch);
       setEditMode(false);
       setSendMessage("แก้ไขแล้ว — บันทึกลง bb_orders เรียบร้อย");
       await query.refetch();
     } catch (error) {
       setSendMessage(`บันทึกไม่สำเร็จ: ${error instanceof Error ? error.message : String(error)}`);
     } finally { setEditSaving(false); }
+  }
+
+  async function recallCurrentOrder() {
+    if (!order?.id || room !== "sent") return;
+    if (!window.confirm("เรียกออเดอร์นี้กลับเข้าคิวรอส่งหรือไม่?")) return;
+    try {
+      await updateBbOrder(order.id, { telegram_sent: "false", telegram_status: "RECALLED", delivery_state: "RECALLED", recalled_at: new Date().toISOString(), recall_count: Number(order.recall_count ?? 0) + 1, last_delivery_note: "เรียกกลับจากหน้าเว็บ" });
+      setSendMessage("เรียกกลับแล้ว — ออเดอร์กลับเข้าคิวรอส่ง");
+      setRoom("queue");
+      await query.refetch();
+    } catch (error) { setSendMessage(`เรียกกลับไม่สำเร็จ: ${error instanceof Error ? error.message : String(error)}`); }
   }
 
   return (
@@ -232,15 +244,15 @@ export default function TelegramDeliveryRoom() {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <div className={`rounded-2xl border-2 px-4 py-3 text-center ${lane.tone}`}><p className="text-[10px] uppercase tracking-[0.22em] opacity-70">PACKING ZONE</p><p className="mt-1 text-xl font-black">▣ {lane.label}</p><p className="mt-1 text-[10px] font-bold tracking-[0.28em] opacity-70">{lane.mark}</p></div>
-        <div className={`rounded-2xl border-2 px-4 py-3 text-center ${order ? deliveryStatus(order).tone : "border-amber-300/40 bg-amber-400/10 text-amber-200"}`}><p className="text-[10px] uppercase tracking-[0.22em] opacity-70">DELIVERY STATUS</p><p className="mt-1 text-xl font-black">{order ? deliveryStatus(order).label : "รอเลือกออเดอร์"}</p></div>
-        <div className="rounded-2xl border-2 border-cyan-300/50 bg-cyan-400/10 px-4 py-3 text-center text-cyan-100 shadow-[0_0_24px_rgba(40,220,255,.2)]"><p className="text-[10px] uppercase tracking-[0.22em] opacity-70">COD</p><p className="mt-1 text-xl font-black">{order?.cod_amount != null ? `${order.cod_amount} บาท` : "ไม่ระบุ"}</p></div>
+        <div className={`relative overflow-hidden rounded-2xl border border-fuchsia-300/35 bg-[#0b0715]/90 px-4 py-4 text-center text-fuchsia-100 shadow-[inset_0_0_30px_rgba(168,85,247,.12),0_0_28px_rgba(168,85,247,.12)] ${lane.tone}`}><div className="pointer-events-none absolute inset-0 opacity-20 [background-image:linear-gradient(rgba(255,255,255,.12)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.12)_1px,transparent_1px)] [background-size:18px_18px]" /><div className="bb-running-line absolute inset-x-0 top-0 h-px" /><p className="relative text-[10px] font-bold tracking-[0.28em] opacity-70">PACKING ZONE</p><div className="relative mx-auto mt-2 flex h-16 w-16 items-center justify-center rounded-full border-2 border-fuchsia-300/70 text-3xl shadow-[0_0_24px_rgba(217,70,239,.55)] animate-pulse">▣</div><p className="relative mt-2 text-2xl font-black tracking-tight">{lane.label}</p><p className="relative text-[10px] font-bold tracking-[0.35em] opacity-70">{lane.mark}</p></div>
+        <div className={`relative overflow-hidden rounded-2xl border border-fuchsia-300/45 bg-[#0b0715]/90 px-4 py-4 text-center text-fuchsia-100 shadow-[inset_0_0_34px_rgba(217,70,239,.18),0_0_34px_rgba(217,70,239,.22)] ${order ? deliveryStatus(order).tone : ""}`}><div className="pointer-events-none absolute inset-0 opacity-20 [background-image:linear-gradient(rgba(255,255,255,.12)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.12)_1px,transparent_1px)] [background-size:18px_18px]" /><div className="bb-running-line absolute inset-x-0 top-0 h-px" /><p className="relative text-[10px] font-bold tracking-[0.28em] opacity-70">DELIVERY STATUS</p><div className="relative mx-auto mt-2 flex h-20 w-20 items-center justify-center rounded-full border-2 border-fuchsia-200 text-4xl font-black shadow-[0_0_18px_rgba(244,114,182,.7),inset_0_0_18px_rgba(217,70,239,.45)] animate-pulse">{order ? (isSent(order) ? "✦" : "◉") : "—"}</div><p className="relative mt-2 text-3xl font-black tracking-tight text-fuchsia-50">{order ? deliveryStatus(order).label : "รอเลือก"}</p><p className="relative text-[10px] font-bold tracking-[0.22em] text-fuchsia-200/65">{order ? (isSent(order) ? "MISSION COMPLETE" : "QUEUE · READY TO LAUNCH") : "STANDBY"}</p></div>
+        <div className="relative overflow-hidden rounded-2xl border border-fuchsia-300/35 bg-[#0b0715]/90 px-4 py-4 text-center text-fuchsia-100 shadow-[inset_0_0_30px_rgba(168,85,247,.12),0_0_28px_rgba(168,85,247,.12)]"><div className="pointer-events-none absolute inset-0 opacity-20 [background-image:linear-gradient(rgba(255,255,255,.12)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.12)_1px,transparent_1px)] [background-size:18px_18px]" /><div className="bb-running-line absolute inset-x-0 top-0 h-px" /><p className="relative text-[10px] font-bold tracking-[0.28em] opacity-70">COD VALUE</p><div className="relative mx-auto mt-2 flex h-16 w-16 items-center justify-center rounded-full border-2 border-fuchsia-300/70 text-2xl shadow-[0_0_24px_rgba(217,70,239,.55)]">฿</div><p className="relative mt-2 text-3xl font-black tracking-tight">{order?.cod_amount != null ? `${order.cod_amount}` : "—"}</p><p className="relative text-[10px] font-bold tracking-[0.28em] opacity-70">BAHT</p></div>
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[350px_1fr]">
         <Card className="rounded-3xl border-fuchsia-400/20 bg-[#10091c]">
           <CardHeader className="space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2"><CardTitle className="flex items-center gap-2 text-base text-fuchsia-100"><Clock3 className="h-4 w-4 text-fuchsia-300" />{room === "sent" ? "ประวัติส่งแล้ว" : "คิวตามเวลาจริง"}</CardTitle><div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => setRoom(room === "sent" ? "queue" : "sent")} className="border-cyan-400/20 text-cyan-200">{room === "sent" ? "กลับคิวรอส่ง" : "ประวัติส่งแล้ว"}</Button><Button size="sm" variant="outline" onClick={() => query.refetch()} className="border-orange-400/20 text-orange-200"><RefreshCw className={`mr-1 h-3.5 w-3.5 ${query.isFetching ? "animate-spin" : ""}`} />รีเฟรช</Button></div></div>
+            <div className="flex flex-wrap items-center justify-between gap-2"><CardTitle className="flex items-center gap-2 text-base text-fuchsia-100"><Clock3 className="h-4 w-4 text-fuchsia-300" />{room === "sent" ? "ประวัติส่งแล้ว" : "คิวตามเวลาจริง"}</CardTitle><div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => setRoom(room === "sent" ? "queue" : "sent")} className="border-cyan-400/20 text-cyan-200">{room === "sent" ? "กลับคิวรอส่ง" : "ประวัติส่งแล้ว"}</Button>{room === "sent" && <Button size="sm" variant="outline" onClick={recallCurrentOrder} disabled={!order} className="border-amber-300/40 bg-amber-400/10 text-amber-200">↩️ เรียกกลับ</Button>}<Button size="sm" variant="outline" onClick={() => query.refetch()} className="border-orange-400/20 text-orange-200"><RefreshCw className={`mr-1 h-3.5 w-3.5 ${query.isFetching ? "animate-spin" : ""}`} />รีเฟรช</Button></div></div>
             <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ค้นหาเลขออเดอร์ / ลูกค้า / สินค้า" className="border-orange-400/20 bg-black/40 text-orange-100 placeholder:text-orange-100/30" />
             <div className="flex items-center justify-between text-xs text-orange-100/55"><span>แสดง {waiting.length} รายการ</span><span className="font-mono">ใหม่สุดอยู่บน</span></div>
           </CardHeader>
