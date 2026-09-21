@@ -40,3 +40,19 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 [class*="text-emerald-"] { color:#6fffe0 !important; } [class*="border-emerald-"] { border-color:rgba(82,255,211,.3) !important; } [class*="bg-emerald-"] { background-color:rgba(62,227,181,.11) !important; }
 [class*="focus\\:ring-orange-"]:focus { --tw-ring-color:#f254d0 !important; }
 @media (prefers-reduced-motion:reduce) { .singto-cyber-edge::before { animation:none; } }
+
+
+/* BB Telegram delivery room: pink-violet identity, moving light, no orange UI */
+.bb-telegram-room { background: radial-gradient(circle at 15% 0%, rgba(184, 70, 255, .14), transparent 28rem), radial-gradient(circle at 90% 10%, rgba(255, 55, 192, .12), transparent 26rem); }
+.bb-telegram-room .bb-running-line { background: linear-gradient(90deg, transparent, #ff4fc8, #9b5cff, #57e9ff, transparent); background-size: 220% 100%; animation: bb-running-light 2.8s linear infinite; box-shadow: 0 0 18px rgba(255, 79, 200, .7); }
+.bb-running-light { background: #ff55c9; box-shadow: 0 0 12px #ff55c9; animation: bb-pulse-light 1.3s ease-in-out infinite; }
+.bb-clock-panel { border-color: rgba(255, 91, 207, .35); background: rgba(109, 31, 136, .2); color: #ffd2f4; box-shadow: 0 0 20px rgba(255, 64, 194, .12); }
+.bb-status-button { border-color: rgba(224, 93, 255, .35) !important; color: #f4c5ff !important; background: rgba(149, 53, 199, .13) !important; }
+.bb-status-button:hover { background: rgba(244, 76, 199, .22) !important; border-color: #ff74d4 !important; }
+.bb-send-button, .bb-save-button { background: linear-gradient(90deg, #d52dc8, #884bff) !important; color: white !important; box-shadow: 0 0 20px rgba(220, 48, 218, .28); }
+.bb-send-button:not(:disabled) { animation: bb-send-glow 1.8s ease-in-out infinite; }
+.bb-edit-panel { border: 1px solid rgba(255, 92, 207, .32); border-radius: 1rem; padding: 1rem; background: rgba(29, 10, 48, .8); box-shadow: 0 0 24px rgba(193, 60, 255, .14); }
+.bb-message { border-color: rgba(255, 92, 207, .3); background: rgba(151, 44, 169, .16); color: #ffd3f3; }
+@keyframes bb-running-light { from { background-position: 0 50%; } to { background-position: 220% 50%; } }
+@keyframes bb-pulse-light { 0%, 100% { opacity: .55; transform: scale(.8); } 50% { opacity: 1; transform: scale(1.25); } }
+@keyframes bb-send-glow { 0%, 100% { box-shadow: 0 0 12px rgba(255, 62, 207, .28); } 50% { box-shadow: 0 0 28px rgba(255, 62, 207, .62); } }
