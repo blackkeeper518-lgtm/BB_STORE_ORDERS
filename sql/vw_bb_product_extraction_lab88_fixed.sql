@@ -1,11 +1,10 @@
 -- BB ONLY · PRODUCT EXTRACTION LAB 88 · FIXED + EXPLODED LINES
--- Keeps the original bottom-product-block logic.
+-- Keeps the original bottom-product-block logic and supports admin-person orders.
 -- Raw evidence is read-only and never overwritten.
 
-DROP VIEW IF EXISTS public.vw_bb_product_extraction_lab88_lines;
-DROP VIEW IF EXISTS public.vw_bb_product_extraction_lab88;
-
-CREATE VIEW public.vw_bb_product_extraction_lab88 AS
+-- Do not DROP: web views depend on lab88_lines.
+-- CREATE OR REPLACE preserves those dependencies and updates the logic in place.
+CREATE OR REPLACE VIEW public.vw_bb_product_extraction_lab88 AS
 WITH order_source AS (
   SELECT
     o.upsert_key,
@@ -14,6 +13,21 @@ WITH order_source AS (
     COALESCE(NULLIF(BTRIM(o.sniper_x_text_clean), ''), NULLIF(BTRIM(o.clean_text), ''), '') AS source_text,
     COALESCE(NULLIF(BTRIM(o.for_packer_bb_display), ''), NULLIF(BTRIM(o.single_cleaned_products), ''), '') AS stamped_product_text
   FROM public.bb_orders AS o
+), master_names AS (
+  SELECT
+    p.master_sku,
+    p.th_name AS master_th_name,
+    p.master_display_for_packer,
+    p.display_for_packer,
+    p.alias,
+    lower(
+      regexp_replace(
+        regexp_replace(COALESCE(p.th_name, ''), '[[:space:]]+', '', 'g'),
+        '[^[:alnum:]ก-๙]+', '', 'g'
+      )
+    ) AS master_th_name_clean
+  FROM public.product_master AS p
+  WHERE COALESCE(BTRIM(p.th_name), '') <> ''
 ), raw_lines AS (
   SELECT
     s.*,
@@ -53,7 +67,29 @@ WITH order_source AS (
   CROSS JOIN LATERAL unnest(string_to_array(s.line_text, '+')) AS y(token)
   WHERE BTRIM(y.token) <> ''
     AND BTRIM(y.token) !~* '(รายการสินค้า|ขนส่ง|สถานะ|เลขออเดอร์|เวลาสั่งซื้อ|ยอดรวม|จัดส่ง|ขอบคุณ|พร้อมส่ง|COD|LINE\s*:|ไลน์\s*:|https?://|www\.|@[A-Za-z0-9_]+|หนูได้ส่งข้อมูลออเดอร์|ทีมงานจะตรวจสอบ|เก็บเงินปลายทาง|ที่อยู่จัดส่ง)'
-    AND BTRIM(y.token) ~* '(คอต|🍉|🫐|🥭|🍇|🍊|🍍|🟥|🟧|🟨|🟩|🟦|🟪|🟫|🟣|🔴|🟢|🟡)'
+    AND (
+      BTRIM(y.token) ~* '(คอต|ห่อ|ชิ้น|กล่อง|ลัง|🍉|🫐|🥭|🍇|🍊|🍍|🟥|🟧|🟨|🟩|🟦|🟪|🟫|🟣|🔴|🟢|🟡)'
+      -- Keep an unknown human-admin product line as raw evidence, e.g. "คาเขียว 1".
+      OR BTRIM(y.token) ~* '(^|\s)[0-9]{1,2}\s*(คอต|ห่อ|ชิ้น|กล่อง|ลัง)?$'
+      OR EXISTS (
+        SELECT 1
+        FROM public.product_master AS p
+        WHERE (
+          (NULLIF(BTRIM(p.master_sku), '') IS NOT NULL AND BTRIM(y.token) ILIKE '%' || p.master_sku || '%')
+          OR (NULLIF(BTRIM(p.alias), '') IS NOT NULL AND BTRIM(y.token) ILIKE '%' || p.alias || '%')
+          OR (NULLIF(BTRIM(p.th_name), '') IS NOT NULL AND BTRIM(y.token) ILIKE '%' || p.th_name || '%')
+          OR replace(lower(regexp_replace(regexp_replace(COALESCE(p.th_name, ''), '[[:space:]]+', '', 'g'), '[^[:alnum:]ก-๙]+', '', 'g')), 'os', 'โอเอส')
+             = replace(lower(regexp_replace(regexp_replace(BTRIM(y.token), '[0-9]+[[:space:]]*(คอต|ห่อ|ชิ้น|กล่อง|ลัง)?', '', 'gi'), '[^[:alnum:]ก-๙]+', '', 'g')), 'os', 'โอเอส')
+        )
+        AND BTRIM(y.token) ~ '[0-9]'
+      )
+      OR EXISTS (
+        SELECT 1
+        FROM public.product_alias_dictionary AS d
+        WHERE BTRIM(y.token) ILIKE '%' || d.alias || '%'
+          AND BTRIM(y.token) ~ '[0-9]'
+      )
+    )
 ), enriched AS (
   SELECT
     c.upsert_key,
@@ -63,8 +99,25 @@ WITH order_source AS (
     c.stamped_product_text,
     c.source_line_no,
     c.candidate_text,
-    COALESCE((regexp_match(c.candidate_text, '([0-9]+(?:\.[0-9]+)?)\s*คอต'))[1]::numeric, 1::numeric) AS cot_quantity,
+    BTRIM(
+      regexp_replace(
+        regexp_replace(
+          regexp_replace(COALESCE(c.candidate_text, ''),
+            '[0-9]+[[:space:]]*(คอต|ห่อ|ชิ้น|กล่อง|ลัง)?', '', 'gi'
+          ),
+          '[[:space:]]+', '', 'g'
+        ),
+        '[^[:alnum:]ก-๙]+', '', 'g'
+      )
+    ) AS view_th_name_clean,
+    COALESCE(
+      (regexp_match(c.candidate_text, '([0-9]+(?:\.[0-9]+)?)\s*(?:คอต|ห่อ|ชิ้น|กล่อง|ลัง)'))[1]::numeric,
+      (regexp_match(c.candidate_text, '[^0-9]([0-9]+(?:\.[0-9]+)?)\s*$'))[1]::numeric,
+      (regexp_match(c.candidate_text, '^\s*([0-9]+(?:\.[0-9]+)?)\s+'))[1]::numeric,
+      1::numeric
+    ) AS cot_quantity,
     pm.master_sku,
+    pm.th_name AS master_th_name,
     pm.th_name,
     COALESCE(
       NULLIF(BTRIM(pm.master_display_for_packer), ''),
@@ -76,15 +129,60 @@ WITH order_source AS (
   LEFT JOIN LATERAL (
     SELECT
       p.master_sku,
+      p.th_name AS master_th_name,
       p.th_name,
       p.master_display_for_packer,
       p.display_for_packer,
-      p.alias
-    FROM public.product_master AS p
-    WHERE c.candidate_text ILIKE '%' || p.master_sku || '%'
-       OR (NULLIF(BTRIM(p.alias), '') IS NOT NULL AND c.candidate_text ILIKE '%' || p.alias || '%')
-       OR (NULLIF(BTRIM(p.th_name), '') IS NOT NULL AND c.candidate_text ILIKE '%' || p.th_name || '%')
-    ORDER BY CASE WHEN c.candidate_text ILIKE '%' || p.master_sku || '%' THEN 0 ELSE 1 END,
+      p.alias,
+      p.match_name,
+      p.match_priority
+    FROM (
+      SELECT
+        pm.master_sku,
+        pm.th_name,
+        pm.master_display_for_packer,
+        pm.display_for_packer,
+        pm.alias,
+        pm.th_name AS match_name,
+        0 AS match_priority
+      FROM public.product_master AS pm
+      UNION ALL
+      SELECT
+        pm.master_sku,
+        pm.th_name,
+        pm.master_display_for_packer,
+        pm.display_for_packer,
+        pm.alias,
+        BTRIM(a.alias_part) AS match_name,
+        1 AS match_priority
+      FROM public.product_master AS pm
+      CROSS JOIN LATERAL regexp_split_to_table(COALESCE(pm.alias, ''), ',') AS a(alias_part)
+      WHERE BTRIM(a.alias_part) <> ''
+      UNION ALL
+      SELECT
+        d.sku AS master_sku,
+        COALESCE(d.th_name, pm.th_name) AS th_name,
+        COALESCE(d.display_for_packer, pm.master_display_for_packer) AS master_display_for_packer,
+        COALESCE(d.display_for_packer, pm.display_for_packer) AS display_for_packer,
+        d.alias,
+        BTRIM(a.alias_part) AS match_name,
+        2 AS match_priority
+      FROM public.product_alias_dictionary AS d
+      LEFT JOIN public.product_master AS pm ON pm.master_sku = d.sku
+      CROSS JOIN LATERAL regexp_split_to_table(COALESCE(d.alias, ''), ',') AS a(alias_part)
+      WHERE BTRIM(a.alias_part) <> ''
+    ) AS p
+    WHERE (
+         replace(lower(regexp_replace(regexp_replace(COALESCE(p.match_name, ''), '[[:space:]]+', '', 'g'), '[^[:alnum:]ก-๙]+', '', 'g')), 'os', 'โอเอส')
+           = replace(lower(regexp_replace(regexp_replace(COALESCE(c.candidate_text, ''), '[0-9]+[[:space:]]*(คอต|ห่อ|ชิ้น|กล่อง|ลัง)?', '', 'gi'), '[^[:alnum:]ก-๙]+', '', 'g')), 'os', 'โอเอส')
+         OR c.candidate_text ILIKE '%' || p.master_sku || '%'
+       OR (NULLIF(BTRIM(p.match_name), '') IS NOT NULL AND c.candidate_text ILIKE '%' || p.match_name || '%')
+    )
+    ORDER BY CASE WHEN replace(lower(regexp_replace(regexp_replace(COALESCE(p.match_name, ''), '[[:space:]]+', '', 'g'), '[^[:alnum:]ก-๙]+', '', 'g')), 'os', 'โอเอส')
+                       = replace(lower(regexp_replace(regexp_replace(COALESCE(c.candidate_text, ''), '[0-9]+[[:space:]]*(คอต|ห่อ|ชิ้น|กล่อง|ลัง)?', '', 'gi'), '[^[:alnum:]ก-๙]+', '', 'g')), 'os', 'โอเอส') THEN 0
+                  WHEN c.candidate_text ILIKE '%' || p.master_sku || '%' THEN 1 ELSE 2 END,
+             p.match_priority,
+             LENGTH(p.match_name) DESC,
              LENGTH(p.master_sku) DESC
     LIMIT 1
   ) AS pm ON TRUE
@@ -97,8 +195,10 @@ WITH order_source AS (
     s.stamped_product_text,
     NULL::integer AS source_line_no,
     NULL::text AS candidate_text,
+    NULL::text AS view_th_name_clean,
     NULL::numeric AS cot_quantity,
     NULL::text AS master_sku,
+    NULL::text AS master_th_name,
     NULL::text AS th_name,
     NULL::text AS master_display,
     'NO_CANDIDATES'::text AS line_mapping_status
@@ -107,7 +207,22 @@ WITH order_source AS (
     SELECT 1 FROM enriched AS e WHERE e.upsert_key = s.upsert_key
   )
   UNION ALL
-  SELECT * FROM enriched
+  SELECT
+    upsert_key,
+    order_number,
+    order_time_display,
+    source_text,
+    stamped_product_text,
+    source_line_no,
+    candidate_text,
+    view_th_name_clean,
+    cot_quantity,
+    master_sku,
+    master_th_name,
+    th_name,
+    master_display,
+    line_mapping_status
+  FROM enriched
 )
 SELECT
   upsert_key,
@@ -119,10 +234,13 @@ SELECT
   COALESCE(jsonb_agg(jsonb_build_object(
     'source_line_no', source_line_no,
     'raw_text', candidate_text,
+    'view_th_name_clean', view_th_name_clean,
     'cot_quantity', cot_quantity,
     'master_sku', master_sku,
+    'master_th_name', master_th_name,
     'th_name', th_name,
     'master_display', master_display,
+    'bb_pack', master_display,
     'line_mapping_status', line_mapping_status
   ) ORDER BY source_line_no) FILTER (WHERE candidate_text IS NOT NULL), '[]'::jsonb) AS lab_product_candidates,
   COUNT(candidate_text)::integer AS lab_product_line_count,
@@ -148,7 +266,7 @@ GROUP BY
   stamped_product_text;
 
 -- Exploded form: one mapped/raw product line per row for the web and inspection room.
-CREATE VIEW public.vw_bb_product_extraction_lab88_lines AS
+CREATE OR REPLACE VIEW public.vw_bb_product_extraction_lab88_lines AS
 SELECT
   l.upsert_key,
   l.order_number,
@@ -163,7 +281,10 @@ SELECT
   candidate->>'master_sku' AS master_sku,
   candidate->>'th_name' AS th_name,
   candidate->>'master_display' AS master_display,
-  candidate->>'line_mapping_status' AS line_mapping_status
+  candidate->>'line_mapping_status' AS line_mapping_status,
+  candidate->>'view_th_name_clean' AS view_th_name_clean,
+  candidate->>'master_th_name' AS master_th_name,
+  candidate->>'bb_pack' AS bb_pack
 FROM public.vw_bb_product_extraction_lab88 AS l
 CROSS JOIN LATERAL jsonb_array_elements(l.lab_product_candidates) AS e(candidate);
 
