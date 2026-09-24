@@ -18,14 +18,15 @@ with base as (
     coalesce(nullif(btrim(j->>'order_number_display'), ''), nullif(btrim(j->>'order_number'), ''), nullif(btrim(j->>'upsert_key'), ''), 'NO_ORDER_NUMBER') as order_number_final,
     coalesce(nullif(btrim(j->>'address_display_packer'), ''), nullif(btrim(j->>'address_display_primary'), ''), nullif(btrim(j->>'final_address_for_bill'), ''), nullif(btrim(j->>'full_address'), ''), nullif(btrim(j->>'addressclean'), ''), nullif(btrim(j->>'full_address_backup_1'), ''), nullif(btrim(j->>'full_address_backup_2'), ''), nullif(concat_ws(' ', j->>'short_address', j->>'district', j->>'amphoe', j->>'province', j->>'zipcode'), '')) as address_final,
     coalesce(
-      nullif(btrim(j->>'final_display_for_packer'), ''),
+      nullif(btrim(j->>'for_packer_bb_display'), ''),
       nullif(btrim(j->>'single_cleaned_products'), ''),
+      nullif(btrim(j->>'final_display_for_packer'), ''),
       nullif(btrim(j->>'single_cleaned_block'), ''), nullif(btrim(j->>'master_display_for_packer'), ''), nullif(btrim(j->>'product_display_for_packer'), ''), nullif(btrim(j->>'product_lines'), ''), nullif(btrim(j->>'telegram_final_mapped'), ''), nullif(btrim(j->>'product_copy_text'), ''), nullif(btrim(j->>'extracted_product_raw'), ''), nullif(btrim(j->>'display_for_packer'), ''), nullif(btrim(j->>'product_name'), ''), nullif(btrim(j->>'th_name'), ''), nullif(btrim(j->>'sku'), ''), nullif(btrim(j->>'master_sku'), '')
     ) as product_text_final,
     coalesce(nullif(btrim(j->>'master_qty_display'), ''), nullif(btrim(j->>'quantity'), ''), nullif(btrim(j->>'qty'), ''), nullif(btrim(j->>'extracted_qty'), ''), nullif(btrim(j->>'master_extracted_qty'), '')) as quantity_final,
     coalesce(nullif(btrim(j->>'sku'), ''), nullif(btrim(j->>'master_sku'), ''), nullif(btrim(j->>'extracted_sku'), '')) as sku_final,
     coalesce(nullif(btrim(j->>'telegram_status'), ''), nullif(btrim(j->>'telegram_body_status'), ''), nullif(btrim(j->>'delivery_status'), ''), 'PENDING') as telegram_status_final,
-    coalesce(nullif(btrim(j->>'facebook_time_display'), ''), nullif(btrim(j->>'facebook_message_created_at'), ''), nullif(btrim(j->>'facebook_created_at'), ''), nullif(btrim(j->>'fb_created_at'), ''), nullif(btrim(j->>'order_time_display'), ''), nullif(btrim(j->>'order_time'), ''), nullif(btrim(j->>'order_message_created_at'), ''), nullif(btrim(j->>'order_close_time_from_chat'), ''), nullif(btrim(j->>'occurred_at'), ''), nullif(btrim(j->>'created_at'), '')) as source_time_text
+    nullif(btrim(j->>'order_time_display'), '') as source_time_text
   from base
 ), classified as (
   select p.*, case when nullif(btrim(p.product_text_final), '') is null then false when p.product_text_final ~* '^(📦|รูปกล่อง|รูปภาพ|image|photo|attachment|sticker)([[:space:]]|$)' then false when p.product_text_final ~* '(เอเลี่ยน|alien_raw)' then false else true end as is_mapped
@@ -89,7 +90,7 @@ with base as (
 select
   d.j->>'id' as id, d.j->>'upsert_key' as upsert_key, d.order_number_final as order_number, d.j->>'order_number_display' as order_number_display,
   d.source_time_iso::timestamptz as source_time, (d.source_time_iso::timestamptz at time zone 'Asia/Bangkok')::date as source_date_bkk,
-  coalesce(d.j->>'order_time_display', d.j->>'facebook_time_display', d.j->>'facebook_message_created_at', d.j->>'facebook_created_at', d.j->>'fb_created_at', d.j->>'order_time', '') as order_time_display, d.j->>'order_time' as facebook_order_time,
+  nullif(btrim(d.j->>'order_time_display'), '') as order_time_display, d.j->>'order_time' as facebook_order_time,
   d.j->>'page_name' as page_name, coalesce(nullif(btrim(d.j->>'facebook_name'), ''), nullif(btrim(d.j->>'customer_name'), '')) as facebook_name, coalesce(nullif(btrim(d.j->>'customer_name'), ''), nullif(btrim(d.j->>'facebook_name'), '')) as customer_name,
   coalesce(nullif(btrim(d.j->>'extracted_phone'), ''), nullif(btrim(d.j->>'phone'), '')) as extracted_phone, d.j->>'cod_amount' as cod_amount, d.address_final as address_for_delivery,
   d.j->>'address_display_packer' as address_display_packer, d.j->>'addressclean' as addressclean, d.j->>'full_address' as full_address, d.j->>'province' as province, d.j->>'zipcode' as zipcode,

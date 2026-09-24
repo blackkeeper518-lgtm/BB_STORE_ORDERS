@@ -72,7 +72,8 @@ function scoreDailyOrderSignal(text: string, latestCod: number | null) {
 }export type CanonicalItem = Record<string, any>;
 export type CanonicalOrder = Record<string, any> & { items: CanonicalItem[]; items_text: string; display_for_packer: string | null; is_ready_to_pack: boolean; cod_check_status: string | null; audit_status: string | null; order_status: string | null; telegram_status: string | null };
 const ORDER_SOURCE_TABLE_BY_CAMP: Record<Camp, string> = { BB: "vw_bb_orders_all_v2", ST: "vw_st_orders_all_v2", SB: "sb_orders" };
-const ORDER_OPERATIONAL_LIMIT = 400;
+// BB main room currently has 700+ orders; avoid truncating the operational queue.
+const ORDER_OPERATIONAL_LIMIT = 1000;
 function defaultOrderView(camp: Camp) { return ORDER_SOURCE_TABLE_BY_CAMP[camp]; }
 function currentOrderWindowStart() { const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date()); const values = Object.fromEntries(parts.filter(part => part.type !== "literal").map(part => [part.type, Number(part.value)])); return new Date(Date.UTC(values.year, values.month - 1, values.day - 1, 7, 0, 0)).toISOString(); }
 function normalizeItem(item: CanonicalItem): CanonicalItem { const master = item.product_master && typeof item.product_master === "object" ? item.product_master : {}; const display = item.for_packer_bb_display || item.single_cleaned_products || null; const mapping = item.mapping_status || (item.sku_match_status === "MATCHED_PRODUCT_MASTER" ? "MATCHED" : null); return { ...item, ...master, quantity: num(item.quantity ?? item.extracted_qty ?? item.qty ?? item.master_qty_display ?? item.master_quantity), unit_price: num(item.unit_price_order ?? item.unit_price ?? master.unit_price), expected_cod: num(item.expected_cod), stock_qty: num(item.stock_qty ?? item.inventory?.stock_qty), mapping_status: mapping, display_for_packer: display, label: display, label_display: display }; }
@@ -161,7 +162,9 @@ export async function readCanonicalOrders(search = "", since: string | null = nu
 export async function readTelegramDeliveryOrders(search = "", room: "queue" | "today" | "yesterday_after_14" | "sent" = "queue") {
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  const sourceTable = room === "sent" ? "vw_bb_telegram_delivery_source_fast" : room === "today" ? "vw_bb_telegram_delivery_today_fast" : room === "yesterday_after_14" ? "vw_bb_telegram_delivery_yesterday_after_14_fast" : "vw_bb_telegram_delivery_queue_fast";
+  // Manual room: read every BB bill. The UI separates waiting/sent locally
+  // from the explicit sent fields; no time cutoff or mapping gate applies.
+  const sourceTable = "vw_bb_telegram_manual_room_v1";
   const { data, error } = await api.from(sourceTable).select("*").limit(1000);
   if (error) fail(error);
   const query = search.trim().toLowerCase();
@@ -169,19 +172,34 @@ export async function readTelegramDeliveryOrders(search = "", room: "queue" | "t
   return { orders, itemError: null, sourceTable, fetchedAt: new Date().toISOString(), room };
 }
 
+export async function readBbAlertRoom(search = "") {
+  const api = getSupabase();
+  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
+  const { data, error } = await api.from("vw_bb_order_alert_room_v1").select("*").limit(2000);
+  if (error) fail(error);
+  const query = search.trim().toLowerCase();
+  return (data ?? [])
+    .filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query))
+    .sort((a: any, b: any) => String(b.order_time_display ?? "").localeCompare(String(a.order_time_display ?? "")));
+}
+
 export async function updateBbOrder(id: string | number, patch: Record<string, unknown>) {
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  const { data, error } = await api.from("bb_orders").update(patch).eq("id", id).select("*").single();
+  const { data, error } = await api.from("bb_orders").update(patch).eq("id", id).select("*");
   if (error) fail(error);
-  return data;
+  if (!data?.length) fail({ message: `ไม่พบออเดอร์ id=${id} หรือสิทธิ์ RLS ไม่อนุญาตให้อัปเดต` });
+  if (data.length > 1) fail({ message: `พบออเดอร์ซ้ำ ${data.length} แถวด้วย id=${id}` });
+  return data[0];
 }
 export async function updateBbOrderByKey(upsertKey: string, patch: Record<string, unknown>) {
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  const { data, error } = await api.from("bb_orders").update(patch).eq("upsert_key", upsertKey).select("*").single();
+  const { data, error } = await api.from("bb_orders").update(patch).eq("upsert_key", upsertKey).select("*");
   if (error) fail(error);
-  return data;
+  if (!data?.length) fail({ message: `ไม่พบออเดอร์ upsert_key=${upsertKey} หรือสิทธิ์ RLS ไม่อนุญาตให้อัปเดต` });
+  if (data.length > 1) fail({ message: `พบ upsert_key ซ้ำ ${data.length} แถว ต้องตรวจข้อมูลก่อนแก้ไข` });
+  return data[0];
 }
 
 export type StockProduct = { id: number; sku: string; label: string; thName: string; emoji: string; price: number | null; stockQty: number; stockStatus: string | null; outOfStockJoke: string | null; stockNotice: string | null; aliases: string; inventoryId: number | string | null };
@@ -233,22 +251,48 @@ export async function saveProductMapAlias(input: { alias: string; canonicalSku: 
 export async function readStockProducts(): Promise<StockProduct[]> {
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  const [{ data: products, error }, { data: inventory, error: inventoryError }, { data: mapRows, error: mapError }] = await Promise.all([
-    api.from("product_master").select("*").order("sku"),
-    api.from("inventory").select("*"),
-    api.from("product_map_master").select("sku,alias,alias_text,alias_norm")
-  ]);
+  // Stock Room is intentionally a Product Master room for now.
+  // It does not read inventory and it never deducts stock from orders.
+  const { data: products, error } = await api.from("product_master").select("*").order("master_sku");
   if (error) fail(error);
-  if (inventoryError) fail(inventoryError);
-  const aliasBySku = new Map<string, string[]>();
-  if (!mapError) for (const row of mapRows ?? []) { const sku = String(row.sku ?? "").trim().toLowerCase(); const values = [row.alias, row.alias_text, row.alias_norm].flatMap(value => String(value ?? "").split(/[,\n|]+/)).map(value => value.trim()).filter(Boolean); if (sku && values.length) aliasBySku.set(sku, Array.from(new Set([...(aliasBySku.get(sku) ?? []), ...values]))); }
-  const entries: Array<[string, any]> = [];
-  for (const row of inventory ?? []) { if (row.product_id != null) entries.push([String(row.product_id), row]); if (row.sku) entries.push([String(row.sku).trim().toLowerCase(), row]); }
-  const inv = new Map<string, any>(entries);
-  return (products ?? []).map((p: any) => { const sku = String(p.sku ?? "").trim(); const i = inv.get(String(p.id)) ?? inv.get(sku.toLowerCase()); const aliases = aliasBySku.get(sku.toLowerCase()) ?? String(p.aliases ?? p.alias ?? "").split(/[,\n|]+/).map(value => value.trim()).filter(Boolean); return { id: Number(p.id), sku, label: p.label_display ?? p.display_for_packer ?? p.name_standard ?? sku ?? "", thName: p.th_name ?? p.product_name ?? p.name_standard ?? "", emoji: p.emoji ?? "📦", price: num(p.unit_price ?? p.price ?? p.cod_default), stockQty: num(i?.stock_qty ?? i?.quantity ?? p.stock_qty) ?? 0, stockStatus: i?.stock_status ?? p.stock_status ?? null, outOfStockJoke: p.out_of_stock_joke ?? null, stockNotice: p.stock_notice ?? null, aliases: Array.from(new Set(aliases)).join(", "), inventoryId: i?.id ?? null }; });
+  return (products ?? []).map((p: any) => {
+    const sku = String(p.master_sku ?? p.sku ?? "").trim();
+    const stockQty = num(p.stock_qty) ?? 0;
+    return {
+      id: Number(p.id),
+      sku,
+      label: p.master_display_for_packer ?? p.display_for_packer ?? p.name_standard ?? p.th_name ?? sku,
+      thName: p.th_name ?? p.name_standard ?? "",
+      emoji: p.emoji ?? "📦",
+      price: num(p.unit_price),
+      stockQty,
+      stockStatus: p.stock_status ?? (stockQty > 0 ? "IN_STOCK" : "OUT_OF_STOCK"),
+      outOfStockJoke: null,
+      stockNotice: p.stock_notice ?? null,
+      aliases: String(p.alias ?? ""),
+      inventoryId: null,
+    };
+  });
 }
-export async function updateInventoryStock(input: { productId: number; sku: string; stockQty: number; stockStatus?: "IN_STOCK" | "OUT_OF_STOCK" }) { const api = getSupabase(); if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" }); const stockQty = Math.max(0, Math.trunc(Number(input.stockQty) || 0)); const stockStatus = input.stockStatus ?? (stockQty > 0 ? "IN_STOCK" : "OUT_OF_STOCK"); const payload = { product_id: input.productId, sku: input.sku, stock_qty: stockQty, stock_status: stockStatus, updated_at: new Date().toISOString() }; const { data: existing, error: findError } = await api.from("inventory").select("id").eq("product_id", input.productId).maybeSingle(); if (findError) fail(findError); if (existing?.id != null) { const { error } = await api.from("inventory").update(payload).eq("id", existing.id); if (error) fail(error); } else { const { error } = await api.from("inventory").insert(payload); if (error) fail(error); } return { ...input, stockQty, stockStatus }; }
-export async function setInventoryAvailability(input: { productId: number; sku: string; available: boolean; currentQty: number }) { return updateInventoryStock({ ...input, stockQty: input.available ? Math.max(1, input.currentQty || 1) : 0, stockStatus: input.available ? "IN_STOCK" : "OUT_OF_STOCK" }); }
+
+export async function updateInventoryStock(input: { productId: number; sku: string; stockQty: number; stockStatus?: "IN_STOCK" | "OUT_OF_STOCK" }) {
+  const api = getSupabase();
+  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
+  const stockQty = Math.max(0, Math.trunc(Number(input.stockQty) || 0));
+  const stockStatus = input.stockStatus ?? (stockQty > 0 ? "IN_STOCK" : "OUT_OF_STOCK");
+  const { error } = await api.from("product_master").update({ stock_qty: stockQty, stock_status: stockStatus, updated_at: new Date().toISOString() }).eq("id", input.productId);
+  if (error) fail(error);
+  return { ...input, stockQty, stockStatus };
+}
+
+export async function setInventoryAvailability(input: { productId: number; sku: string; available: boolean; currentQty: number }) {
+  return updateInventoryStock({
+    ...input,
+    stockQty: input.available ? Math.max(1, input.currentQty || 1) : 0,
+    stockStatus: input.available ? "IN_STOCK" : "OUT_OF_STOCK",
+  });
+}
+
 export async function readDailyOrders(date: string, search = "") { const start = new Date(`${date}T00:00:00+07:00`).toISOString(); const result = await readCanonicalOrders(search, start); const orders = result.orders.filter((o: any) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok" }).format(new Date(o.order_time ?? o.created_at ?? "")) === date); return { date, orders, total: orders.length }; }
 async function readChatRows() {
   const api = getSupabase();

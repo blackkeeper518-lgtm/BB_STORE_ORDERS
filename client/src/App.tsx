@@ -19,6 +19,7 @@ import AlienRoom from "./pages/AlienRoom";
 import ProductAlienStore from "./pages/ProductAlienStore";
 import ProductAlienMap from "./pages/ProductAlienMap";
 import TelegramDeliveryRoom from "./pages/TelegramDeliveryRoom";
+import AlertRoom from "./pages/AlertRoom";
 import SecretGallery from "./pages/SecretGallery";
 import ParcelMapping from "./pages/ParcelMapping";
 import { getSupabaseConfig } from "./lib/canonical";
@@ -40,15 +41,16 @@ function Router() {
     <Route path="/product-alien-store"><Shell><ProductAlienStore /></Shell></Route>
     <Route path="/product-alien-map"><Shell><ProductAlienMap /></Shell></Route>
     <Route path="/telegram-delivery"><Shell><TelegramDeliveryRoom /></Shell></Route>
+    <Route path="/alert-room"><Shell><AlertRoom /></Shell></Route>
     <Route path="/aliases"><Shell><ProductAliases /></Shell></Route>
     <Route path="/order-performance"><Shell><OrderPerformance /></Shell></Route>
     <Route path="/stock-room"><Shell><StockRoom /></Shell></Route>
     <Route path="/mapping-dashboard"><Shell><MappingDashboard /></Shell></Route>
     <Route path="/order-buckets"><Shell><OrderBuckets /></Shell></Route>
-	  <Route path="/daily-chat-summary"><Shell><DailyChatSummary /></Shell></Route>
-	  <Route path="/order-history"><Shell><OrderHistory /></Shell></Route>
-	  <Route path="/"><Redirect to="/orders" /></Route>
-	  <Route path="/404" component={NotFound} />
+    <Route path="/daily-chat-summary"><Shell><DailyChatSummary /></Shell></Route>
+    <Route path="/order-history"><Shell><OrderHistory /></Shell></Route>
+    <Route path="/"><Redirect to="/chats" /></Route>
+    <Route path="/404" component={NotFound} />
     <Route component={NotFound} />
   </Switch>;
 }
