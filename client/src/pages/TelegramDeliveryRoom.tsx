@@ -6,7 +6,6 @@ import { AlertTriangle, CheckCircle2, Clipboard, Clock3, Eye, MessageSquareText,
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getTelegramBody, sendTelegramFromN8n } from "@/lib/telegramDelivery";
-import { Link } from "wouter";
 
 const DEFAULT_HEADER = "🚀 [บิลสมบูรณ์ - 🎯ORDER_SNIPER_X]";
 
@@ -26,11 +25,6 @@ function orderKey(row: OrderRow) {
   return String(row.upsert_key ?? row.id ?? row.order_number ?? "");
 }
 
-function alertHref(row?: OrderRow | null) {
-  const target = row ? String(row.order_number_display || row.order_number || row.upsert_key || row.id || "") : "";
-  return target ? `/alert-room?search=${encodeURIComponent(target)}` : "/alert-room";
-}
-
 function deliveryStatus(row: OrderRow) {
   return isSent(row)
     ? { label: "ไปแล้วไปลับ", slogan: "ไปแล้วไม่กลับ — ค่อยแวะมาใหม่", tone: "border-orange-300/60 bg-orange-500/15 text-orange-200" }
@@ -43,33 +37,9 @@ function realTime(row: OrderRow) {
 
 function displayTime(row: OrderRow) { return String(row.order_time_display || "ไม่พบ order_time_display"); }
 
-function orderDisplaySortValue(value: unknown) {
-  const text = String(value ?? "").trim();
-  const match = text.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
-  if (!match) return Number.MAX_SAFE_INTEGER;
-  let year = Number(match[3]);
-  if (year < 100) year += 2000;
-  if (year > 2400) year -= 543;
-  return Date.UTC(year, Number(match[2]) - 1, Number(match[1]), Number(match[4] ?? 0) - 7, Number(match[5] ?? 0), Number(match[6] ?? 0));
-}
-
 function productOf(row: OrderRow) {
-  // n8n has already mapped and formatted BB products. Do not remap or
-  // replace this with another product column in the delivery room.
-  const value = evidenceText(row.for_packer_bb_display);
-  if (!value.trim()) return "ยังไม่มีข้อมูลสินค้า — ตรวจห้อง Alert";
-  // Remove only byte-for-byte duplicate lines caused by repeated source/join
-  // rows. Distinct product lines and their quantities remain untouched.
-  const seen = new Set<string>();
-  return value
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => {
-      if (!line || seen.has(line)) return false;
-      seen.add(line);
-      return true;
-    })
-    .join("\n");
+  // ห้อง Telegram ใช้ฟิวสินค้ากลางของ BB เท่านั้น; single_cleaned_products เป็นสำรองทันที
+  return evidenceText(row.for_packer_bb_display) || evidenceText(row.single_cleaned_products) || "ยังไม่มีข้อมูลสินค้า";
 }
 
 function evidenceText(value: unknown): string {
@@ -169,7 +139,7 @@ export default function TelegramDeliveryRoom() {
   });
 
   const allOrders = (query.data?.orders ?? []) as OrderRow[];
-  const waiting = useMemo(() => allOrders.filter((row) => room === "sent" ? isSent(row) : !isSent(row)).sort((a, b) => orderDisplaySortValue(a.order_time_display) - orderDisplaySortValue(b.order_time_display)), [allOrders, room]);
+  const waiting = useMemo(() => allOrders.filter((row) => room === "sent" ? isSent(row) : !isSent(row)).sort((a, b) => new Date(realTime(b) || 0).getTime() - new Date(realTime(a) || 0).getTime()), [allOrders, room]);
   const order = waiting[selected];
   const selectedOrders = useMemo(() => waiting.filter((row) => selectedKeys.has(orderKey(row))), [selectedKeys, waiting]);
   const message = useMemo(() => order ? telegramText(order, header || DEFAULT_HEADER) : "คิวว่าง — ไม่มีออเดอร์รอส่ง", [order, header]);
@@ -206,7 +176,7 @@ export default function TelegramDeliveryRoom() {
       phone: String(order.phone ?? order.extracted_phone ?? ""),
       address_display_packer: addressOf(order),
       cod_amount: String(order.cod_amount ?? ""),
-      for_packer_bb_display: String(order.for_packer_bb_display ?? ""),
+      for_packer_bb_display: String(order.for_packer_bb_display ?? order.single_cleaned_products ?? ""),
       shipping_method: String(order.shipping_method ?? "⚡FLASH EXPRESS"),
     });
     setEditMode(false);
@@ -324,7 +294,7 @@ export default function TelegramDeliveryRoom() {
             <p className="mt-2 max-w-3xl text-sm leading-6 text-orange-100/60">ป้ายหัวบิลชัดเจน · สถานะส่งเด่น · เตือนสินค้าหมด ยอดไม่ครบ และที่อยู่ไม่ครบก่อนส่ง</p>
             <div className="mt-4 flex max-w-2xl flex-col gap-2 sm:flex-row sm:items-center"><span className="whitespace-nowrap text-xs font-semibold text-fuchsia-200">หัวบิล standby</span><Input value={header} onChange={(event) => setHeader(event.target.value)} aria-label="หัวบิล standby" className="border-fuchsia-400/30 bg-black/30 text-fuchsia-50 placeholder:text-fuchsia-200/30" /><span className="whitespace-nowrap text-[10px] text-fuchsia-200/50">หัวจาก SB ในแถวจะใช้ก่อน</span></div>
           </div>
-          <div className="flex flex-wrap items-center gap-2"><Link href={alertHref(order)}><Button size="sm" variant="outline" className="border-amber-300/40 bg-amber-400/10 text-amber-100"><ShieldAlert className="mr-2 h-4 w-4" />ตรวจ Alert ก่อนส่ง</Button></Link><div className="bb-clock-panel flex items-center gap-2 rounded-2xl border px-3 py-2 text-xs"><span className="bb-running-light h-2 w-2 rounded-full" />{liveClockLabel(now)}</div></div>
+          <div className="bb-clock-panel flex items-center gap-2 rounded-2xl border px-3 py-2 text-xs"><span className="bb-running-light h-2 w-2 rounded-full" />{liveClockLabel(now)}</div>
         </div>
         <div className="mt-5 grid gap-3 sm:grid-cols-3">
           <div className="rounded-2xl border border-orange-400/15 bg-black/25 p-3"><p className="text-[10px] uppercase tracking-[0.18em] text-orange-200/50">รอส่ง</p><p className="mt-1 text-2xl font-semibold text-orange-200">{waiting.length}</p></div>
