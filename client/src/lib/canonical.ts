@@ -162,13 +162,12 @@ export async function readCanonicalOrders(search = "", since: string | null = nu
 export async function readTelegramDeliveryOrders(search = "", room: "queue" | "today" | "yesterday_after_14" | "sent" = "queue") {
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  // Manual room: read every BB bill. The UI separates waiting/sent locally
-  // from the explicit sent fields; no time cutoff or mapping gate applies.
-  const sourceTable = "vw_bb_telegram_manual_room_v1";
+  // Database views own Queue/Sent membership; the UI only displays returned rows.
+  const sourceTable = room === "sent" ? "vw_bb_telegram_sent_room_v1" : "vw_bb_telegram_queue_room_v1";
   const { data, error } = await api.from(sourceTable).select("*").limit(1000);
   if (error) fail(error);
   const query = search.trim().toLowerCase();
-  const orders = (data ?? []).filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query)).sort((a: any, b: any) => new Date(b.source_time ?? b.order_time ?? 0).getTime() - new Date(a.source_time ?? a.order_time ?? 0).getTime());
+  const orders = (data ?? []).filter((row: any) => row && typeof row === "object" && !Array.isArray(row)).filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query)).sort((a: any, b: any) => new Date(b.source_time ?? b.order_time ?? 0).getTime() - new Date(a.source_time ?? a.order_time ?? 0).getTime());
   return { orders, itemError: null, sourceTable, fetchedAt: new Date().toISOString(), room };
 }
 

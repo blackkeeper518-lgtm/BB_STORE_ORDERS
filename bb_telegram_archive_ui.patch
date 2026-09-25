@@ -1,0 +1,154 @@
+--- a/client/src/lib/canonical.ts
++++ b/client/src/lib/canonical.ts
+@@ -162,13 +162,12 @@
+ export async function readTelegramDeliveryOrders(search = "", room: "queue" | "today" | "yesterday_after_14" | "sent" = "queue") {
+   const api = getSupabase();
+   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
+-  // Manual room: read every BB bill. The UI separates waiting/sent locally
+-  // from the explicit sent fields; no time cutoff or mapping gate applies.
+-  const sourceTable = "vw_bb_telegram_manual_room_v1";
++  // Database views own Queue/Sent membership; the UI only displays returned rows.
++  const sourceTable = room === "sent" ? "vw_bb_telegram_sent_room_v1" : "vw_bb_telegram_queue_room_v1";
+   const { data, error } = await api.from(sourceTable).select("*").limit(1000);
+   if (error) fail(error);
+   const query = search.trim().toLowerCase();
+-  const orders = (data ?? []).filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query)).sort((a: any, b: any) => new Date(b.source_time ?? b.order_time ?? 0).getTime() - new Date(a.source_time ?? a.order_time ?? 0).getTime());
++  const orders = (data ?? []).filter((row: any) => row && typeof row === "object" && !Array.isArray(row)).filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query)).sort((a: any, b: any) => new Date(b.source_time ?? b.order_time ?? 0).getTime() - new Date(a.source_time ?? a.order_time ?? 0).getTime());
+   return { orders, itemError: null, sourceTable, fetchedAt: new Date().toISOString(), room };
+ }
+ 
+--- a/client/src/lib/TelegramDeliveryRoom.tsx
++++ b/client/src/lib/TelegramDeliveryRoom.tsx
+@@ -18,6 +18,7 @@
+ function isSent(row: OrderRow) {
+   const status = String(row.telegram_status ?? "").trim().toLowerCase();
+   const sent = String(row.telegram_sent ?? "").trim().toLowerCase();
++  if (["recalled", "recall"].includes(status) || String(row.delivery_state ?? "").trim().toLowerCase() === "recalled") return false;
+   return ["1", "true", "t", "sent", "delivered", "ไปแล้วไปลับ"].includes(status) || ["1", "true", "t", "sent"].includes(sent);
+ }
+ 
+@@ -26,6 +27,8 @@
+ }
+ 
+ function deliveryStatus(row: OrderRow) {
++  if (String(row.delivery_status ?? row.telegram_status ?? row.delivery_state ?? "").trim().toUpperCase() === "RECALLED")
++    return { label: "เรียกกลับแล้ว", slogan: "รายการถูกเรียกกลับจากประวัติ", tone: "border-amber-300/60 bg-amber-500/15 text-amber-200" };
+   return isSent(row)
+     ? { label: "ไปแล้วไปลับ", slogan: "ไปแล้วไม่กลับ — ค่อยแวะมาใหม่", tone: "border-orange-300/60 bg-orange-500/15 text-orange-200" }
+     : { label: "รอส่ง", slogan: "ยังอยู่ในห้องรอจัดส่ง", tone: "border-amber-300/40 bg-amber-500/10 text-amber-200" };
+@@ -132,7 +135,6 @@
+   const [editSaving, setEditSaving] = useState(false);
+   const [editForm, setEditForm] = useState({ customer_name: "", phone: "", address_display_packer: "", cod_amount: "", for_packer_bb_display: "", shipping_method: "⚡FLASH EXPRESS" });
+   const [room, setRoom] = useState<"queue" | "sent">(() => new URLSearchParams(window.location.search).get("room") === "sent" ? "sent" : "queue");
+-  const [optimisticallySentKeys, setOptimisticallySentKeys] = useState<Set<string>>(new Set());
+   const query = useQuery({
+     queryKey: ["telegram-delivery-room", getActiveCamp(), room],
+     queryFn: () => readTelegramDeliveryOrders(search, room),
+@@ -140,12 +142,8 @@
+   });
+ 
+   const allOrders = (query.data?.orders ?? []) as OrderRow[];
+-  const waiting = useMemo(() => allOrders.filter((row) => {
+-    const key = orderKey(row);
+-    return room === "sent"
+-      ? isSent(row) || optimisticallySentKeys.has(key)
+-      : !isSent(row) && !optimisticallySentKeys.has(key);
+-  }).sort((a, b) => new Date(realTime(b) || 0).getTime() - new Date(realTime(a) || 0).getTime()), [allOrders, optimisticallySentKeys, room]);
++  // Queue/Sent membership is decided by the corresponding SQL view.
++  const waiting = useMemo(() => allOrders.slice().sort((a, b) => new Date(realTime(b) || 0).getTime() - new Date(realTime(a) || 0).getTime()), [allOrders]);
+   const order = waiting[selected];
+   const selectedOrders = useMemo(() => waiting.filter((row) => selectedKeys.has(orderKey(row))), [selectedKeys, waiting]);
+   const message = useMemo(() => order ? telegramText(order, header || DEFAULT_HEADER) : "คิวว่าง — ไม่มีออเดอร์รอส่ง", [order, header]);
+@@ -200,7 +198,7 @@
+     setSendMessage("กำลังส่ง Telegram...");
+     try {
+       await sendTelegramFromN8n(order, telegramSelection);
+-      setSendMessage("ส่ง Telegram สำเร็จ — กด ‘ติ๊กส่งแล้ว’ เมื่อตรวจว่าปลายทางได้รับแล้ว");
++      setSendMessage("ส่ง Telegram สำเร็จ — ถ้าจะปิดคิว กด “ย้ายเข้าห้องประวัติ” แยกต่างหาก");
+       void query.refetch();
+     } catch (error) {
+       setSendMessage(`ส่งไม่สำเร็จ: ${error instanceof Error ? error.message : String(error)}`);
+@@ -230,7 +228,7 @@
+         const text = telegramText(row, header || DEFAULT_HEADER);
+         await sendTelegramFromN8n(row, { text, source: "CANONICAL_DYNAMIC", dirty: false, body: getTelegramBody(row) });
+       }
+-      setSendMessage(`ปล่อยรันสำเร็จ ${selectedOrders.length} ออเดอร์ — ยังไม่ติ๊ก SENT อัตโนมัติ`);
++      setSendMessage(`ปล่อยรันสำเร็จ ${selectedOrders.length} ออเดอร์ — ยังอยู่ในคิวจนกดย้ายเข้าห้องประวัติ`);
+       await query.refetch();
+     } catch (error) {
+       setSendMessage(`ปล่อยรันหยุดที่รายการหนึ่ง: ${error instanceof Error ? error.message : String(error)}`);
+@@ -240,29 +238,27 @@
+   async function markSelectedOrdersSent() {
+     if (!selectedOrders.length) { setSendMessage("ยังไม่ได้ติ๊กเลือกออเดอร์"); return; }
+     try {
+-      const patch = { telegram_sent: true, telegram_status: "SENT", delivery_state: "SENT", sent_at: new Date().toISOString(), last_delivery_note: "ผู้ใช้งานยืนยันส่งแล้วจากภายนอก/หน้า Telegram" };
++      const patch = { telegram_status: "SENT", delivery_state: "SENT", sent_at: new Date().toISOString(), last_delivery_note: "ผู้ใช้งานย้ายเข้าห้องประวัติจากหน้าเว็บ" };
+       for (const row of selectedOrders) {
+         if (row.id) await updateBbOrder(row.id, patch); else if (row.upsert_key) await updateBbOrderByKey(String(row.upsert_key), patch);
+       }
+-      setOptimisticallySentKeys((current) => new Set([...current, ...selectedOrders.map(orderKey).filter(Boolean)]));
+-      setSendMessage(`ติ๊ก SENT แล้ว ${selectedOrders.length} ออเดอร์`);
++      setSendMessage(`ย้ายเข้าห้องประวัติแล้ว ${selectedOrders.length} ออเดอร์`);
+       setSelectedKeys(new Set());
+-      await query.refetch();
++      setRoom("sent");
+     } catch (error) {
+-      setSendMessage(`บันทึก SENT ไม่สำเร็จ: ${error instanceof Error ? error.message : String(error)}`);
++      setSendMessage(`ย้ายเข้าห้องประวัติไม่สำเร็จ: ${error instanceof Error ? error.message : String(error)}`);
+     }
+   }
+ 
+   async function markCurrentOrderSent() {
+     if (!order?.id && !order?.upsert_key) { setSendMessage("ติ๊กส่งแล้วไม่ได้: ไม่พบ id หรือ upsert_key"); return; }
+     try {
+-      const patch = { telegram_sent: true, telegram_status: "SENT", delivery_state: "SENT", sent_at: new Date().toISOString(), last_delivery_note: "ผู้ใช้งานกดยืนยันส่งแล้วจากห้อง Telegram" };
++      const patch = { telegram_status: "SENT", delivery_state: "SENT", sent_at: new Date().toISOString(), last_delivery_note: "ผู้ใช้งานย้ายเข้าห้องประวัติจากห้อง Telegram" };
+       if (order.id) await updateBbOrder(order.id, patch); else await updateBbOrderByKey(String(order.upsert_key), patch);
+-      setOptimisticallySentKeys((current) => new Set(current).add(orderKey(order)));
+-      setSendMessage("บันทึกแล้ว — รายการนี้ถูกติ๊กเป็นส่งแล้ว");
+-      await query.refetch();
++      setSendMessage("ย้ายเข้าห้องประวัติแล้ว");
++      setRoom("sent");
+     } catch (error) {
+-      setSendMessage(`ติ๊กส่งแล้วไม่สำเร็จ: ${error instanceof Error ? error.message : String(error)}`);
++      setSendMessage(`ย้ายเข้าห้องประวัติไม่สำเร็จ: ${error instanceof Error ? error.message : String(error)}`);
+     }
+   }
+ 
+@@ -284,8 +280,7 @@
+     if (!order?.id || room !== "sent") return;
+     if (!window.confirm("เรียกออเดอร์นี้กลับเข้าคิวรอส่งหรือไม่?")) return;
+     try {
+-      await updateBbOrder(order.id, { telegram_sent: false, telegram_status: "RECALLED", delivery_state: "RECALLED", recalled_at: new Date().toISOString(), recall_count: Number(order.recall_count ?? 0) + 1, last_delivery_note: "เรียกกลับจากหน้าเว็บ" });
+-      setOptimisticallySentKeys((current) => { const next = new Set(current); next.delete(orderKey(order)); return next; });
++      await updateBbOrder(order.id, { telegram_status: "RECALLED", delivery_state: "RECALLED", recalled_at: new Date().toISOString(), recall_count: Number(order.recall_count ?? 0) + 1, last_delivery_note: "เรียกกลับจากหน้าเว็บ" });
+       setSendMessage("เรียกกลับแล้ว — ออเดอร์กลับเข้าคิวรอส่ง");
+       setRoom("queue");
+       await query.refetch();
+@@ -314,7 +309,7 @@
+ 
+       <div className="grid gap-3 md:grid-cols-[1.2fr_1fr]">
+         <div className="rounded-2xl border border-orange-300/25 bg-orange-400/10 p-4 text-xs leading-6 text-orange-50/80"><p className="mb-1 flex items-center gap-2 font-semibold text-orange-200"><Zap className="h-4 w-4" />ลำดับสำคัญของห้องนี้</p><b className="text-white">ป้ายหัวบิล → สถานะส่ง → คำเตือน → ข้อมูลสินค้า/ที่อยู่</b><p className="mt-1 text-orange-100/55">พบคำเตือนในคิว {warningCount} จุด · ปุ่มคัดลอกไม่เปลี่ยนสถานะ</p></div>
+-        <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/5 p-4 text-xs leading-6 text-cyan-50/75"><p className="mb-1 flex items-center gap-2 font-semibold text-cyan-200"><AlertTriangle className="h-4 w-4" />กติกาความปลอดภัย</p>ส่งจากเว็บหรือภายนอกก็ได้ · กดติ๊ก SENT เมื่อส่งจริงแล้ว · ข้อมูลดิบจากแชทไม่ถูกเขียนทับ</div>
++        <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/5 p-4 text-xs leading-6 text-cyan-50/75"><p className="mb-1 flex items-center gap-2 font-semibold text-cyan-200"><AlertTriangle className="h-4 w-4" />กติกาห้อง Telegram</p>ปุ่มส่ง Telegram แยกจากปุ่มย้ายเข้าห้องประวัติ · Queue/ประวัติยึดสถานะจากฐานข้อมูล · ข้อมูลดิบจากแชทไม่ถูกเขียนทับ</div>
+       </div>
+ 
+       <div className="grid gap-3 sm:grid-cols-3">
+@@ -328,7 +323,7 @@
+           <CardHeader className="space-y-3">
+             <div className="flex flex-wrap items-center justify-between gap-2"><CardTitle className="flex items-center gap-2 text-base text-fuchsia-100"><Clock3 className="h-4 w-4 text-fuchsia-300" />{room === "sent" ? "ประวัติส่งแล้ว" : "คิวตามเวลาจริง"}</CardTitle><div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => setRoom(room === "sent" ? "queue" : "sent")} className={room === "sent" ? "border-cyan-400/30 text-cyan-200" : "border-fuchsia-300/70 bg-fuchsia-600/25 text-fuchsia-50 shadow-[0_0_18px_rgba(217,70,239,.45)]"}>{room === "sent" ? "กลับคิวรอส่ง" : "รอส่ง · คิวเวลาจริง"}</Button>{room === "sent" && <Button size="sm" variant="outline" onClick={recallCurrentOrder} disabled={!order} className="border-amber-300/40 bg-amber-400/10 text-amber-200">↩️ เรียกกลับ</Button>}<Button size="sm" variant="outline" onClick={() => query.refetch()} className="border-orange-400/20 text-orange-200"><RefreshCw className={`mr-1 h-3.5 w-3.5 ${query.isFetching ? "animate-spin" : ""}`} />รีเฟรช</Button></div></div>
+             <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ค้นหาเลขออเดอร์ / ลูกค้า / สินค้า" className="border-orange-400/20 bg-black/40 text-orange-100 placeholder:text-orange-100/30" />
+-            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-orange-100/55"><span>แสดง {waiting.length} รายการ · เลือกแล้ว {selectedOrders.length}</span><div className="flex flex-wrap items-center gap-2"><Button size="sm" variant="outline" onClick={toggleAllVisible} className="h-7 border-cyan-400/30 px-2 text-[10px] text-cyan-200">{waiting.length > 0 && waiting.every((row) => selectedKeys.has(orderKey(row))) ? "ปิดเลือกทั้งหมด" : "เปิดเลือกทั้งหมด"}</Button><Button size="sm" onClick={sendSelectedOrders} disabled={!selectedOrders.length || sendMessage.startsWith("กำลังปล่อยรัน")} className="h-7 border-fuchsia-300/50 bg-fuchsia-500/20 px-2 text-[10px] text-fuchsia-100">ปล่อยรัน ({selectedOrders.length})</Button><Button size="sm" onClick={markSelectedOrdersSent} disabled={!selectedOrders.length} className="h-7 border-emerald-300/50 bg-emerald-500/20 px-2 text-[10px] text-emerald-100">ติ๊ก SENT</Button><span className="font-mono">ใหม่สุดอยู่บน</span></div></div>
++            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-orange-100/55"><span>แสดง {waiting.length} รายการ · เลือกแล้ว {selectedOrders.length}</span><div className="flex flex-wrap items-center gap-2"><Button size="sm" variant="outline" onClick={toggleAllVisible} className="h-7 border-cyan-400/30 px-2 text-[10px] text-cyan-200">{waiting.length > 0 && waiting.every((row) => selectedKeys.has(orderKey(row))) ? "ปิดเลือกทั้งหมด" : "เปิดเลือกทั้งหมด"}</Button><Button size="sm" onClick={sendSelectedOrders} disabled={!selectedOrders.length || sendMessage.startsWith("กำลังปล่อยรัน")} className="h-7 border-fuchsia-300/50 bg-fuchsia-500/20 px-2 text-[10px] text-fuchsia-100">ปล่อยรัน ({selectedOrders.length})</Button><Button size="sm" onClick={markSelectedOrdersSent} disabled={!selectedOrders.length} className="h-7 border-emerald-300/50 bg-emerald-500/20 px-2 text-[10px] text-emerald-100">ย้ายเข้าห้องประวัติ</Button><span className="font-mono">ใหม่สุดอยู่บน</span></div></div>
+           </CardHeader>
+           <CardContent><div className="max-h-[640px] space-y-2 overflow-auto pr-1">
+             {query.isLoading && <div className="rounded-2xl border border-dashed border-orange-400/20 p-6 text-center text-sm text-orange-100/55">กำลังอ่านห้อง...</div>}
+@@ -347,7 +342,7 @@
+         </Card>
+ 
+         <div className="space-y-5">
+-          <Card className="rounded-3xl border-fuchsia-400/20 bg-[#10091c]"><CardHeader><div className="flex flex-wrap items-center justify-between gap-3"><CardTitle className="flex items-center gap-2 text-base text-fuchsia-100"><Eye className="h-4 w-4 text-fuchsia-300" />ข้อมูลแต่งหล่อสำหรับส่ง</CardTitle><div className="flex flex-wrap gap-2"><Button onClick={sendCurrentOrder} disabled={!order || sendMessage === "กำลังส่ง Telegram..."} className="bb-send-button"><Send className="mr-2 h-4 w-4" />{sendMessage === "กำลังส่ง Telegram..." ? "กำลังส่ง..." : "กดส่ง Telegram"}</Button><Button onClick={markCurrentOrderSent} disabled={!order || isSent(order)} className="border border-emerald-300/50 bg-emerald-500/20 text-emerald-100 hover:bg-emerald-500/30"><CheckCircle2 className="mr-2 h-4 w-4" />{isSent(order) ? "ส่งแล้ว" : "ติ๊กว่าส่งแล้ว"}</Button><Button onClick={() => setEditMode((value) => !value)} disabled={!order} variant="outline" className="bb-status-button">{editMode ? "ปิดแก้ไข" : "แก้ไขออเดอร์"}</Button><Button onClick={copyMessage} disabled={!order} variant="outline" className="bb-status-button"><Clipboard className="mr-2 h-4 w-4" />{copied ? "คัดลอกแล้ว" : "คัดลอกทั้งบิล"}</Button><Button variant="outline" onClick={() => setShowEvidence((value) => !value)} disabled={!order} className="border-cyan-400/20 text-cyan-200"><MessageSquareText className="mr-2 h-4 w-4" />{showEvidence ? "ซ่อนแชท" : "ดูแชท"}</Button></div></div>{sendMessage && <p className={`mt-3 rounded-xl border p-3 text-xs ${sendMessage.includes("สำเร็จ") ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-200" : "border-red-400/25 bg-red-400/10 text-red-200"}`}>{sendMessage}</p>}</CardHeader><CardContent>
++          <Card className="rounded-3xl border-fuchsia-400/20 bg-[#10091c]"><CardHeader><div className="flex flex-wrap items-center justify-between gap-3"><CardTitle className="flex items-center gap-2 text-base text-fuchsia-100"><Eye className="h-4 w-4 text-fuchsia-300" />ข้อมูลแต่งหล่อสำหรับส่ง</CardTitle><div className="flex flex-wrap gap-2"><Button onClick={sendCurrentOrder} disabled={!order || sendMessage === "กำลังส่ง Telegram..."} className="bb-send-button"><Send className="mr-2 h-4 w-4" />{sendMessage === "กำลังส่ง Telegram..." ? "กำลังส่ง..." : "กดส่ง Telegram"}</Button><Button onClick={markCurrentOrderSent} disabled={!order || isSent(order)} className="border border-emerald-300/50 bg-emerald-500/20 text-emerald-100 hover:bg-emerald-500/30"><CheckCircle2 className="mr-2 h-4 w-4" />{isSent(order) ? "อยู่ในประวัติแล้ว" : "ย้ายเข้าห้องประวัติ"}</Button><Button onClick={() => setEditMode((value) => !value)} disabled={!order} variant="outline" className="bb-status-button">{editMode ? "ปิดแก้ไข" : "แก้ไขออเดอร์"}</Button><Button onClick={copyMessage} disabled={!order} variant="outline" className="bb-status-button"><Clipboard className="mr-2 h-4 w-4" />{copied ? "คัดลอกแล้ว" : "คัดลอกทั้งบิล"}</Button><Button variant="outline" onClick={() => setShowEvidence((value) => !value)} disabled={!order} className="border-cyan-400/20 text-cyan-200"><MessageSquareText className="mr-2 h-4 w-4" />{showEvidence ? "ซ่อนแชท" : "ดูแชท"}</Button></div></div>{sendMessage && <p className={`mt-3 rounded-xl border p-3 text-xs ${sendMessage.includes("สำเร็จ") ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-200" : "border-red-400/25 bg-red-400/10 text-red-200"}`}>{sendMessage}</p>}</CardHeader><CardContent>
+             {order ? <div className="grid gap-4 lg:grid-cols-2"><pre className="min-h-[480px] whitespace-pre-wrap rounded-2xl border border-fuchsia-400/20 bg-black/55 p-5 text-sm leading-7 text-fuchsia-50">{message}</pre>{editMode && order && <div className="bb-edit-panel lg:col-span-2"><p className="mb-3 font-semibold text-fuchsia-100">แก้ไขออเดอร์แล้วบันทึกลง bb_orders</p><div className="grid gap-3 md:grid-cols-2"><Input value={editForm.customer_name} onChange={e => setEditForm(v => ({ ...v, customer_name: e.target.value }))} placeholder="ชื่อลูกค้า" /><Input value={editForm.phone} onChange={e => setEditForm(v => ({ ...v, phone: e.target.value }))} placeholder="เบอร์โทร" /><Input value={editForm.cod_amount} onChange={e => setEditForm(v => ({ ...v, cod_amount: e.target.value }))} placeholder="COD" /><Input value={editForm.shipping_method} onChange={e => setEditForm(v => ({ ...v, shipping_method: e.target.value }))} placeholder="ขนส่ง" /><Input value={editForm.for_packer_bb_display} onChange={e => setEditForm(v => ({ ...v, for_packer_bb_display: e.target.value }))} placeholder="สินค้า BB" /><textarea value={editForm.address_display_packer} onChange={e => setEditForm(v => ({ ...v, address_display_packer: e.target.value }))} placeholder="ที่อยู่" className="min-h-24 rounded-xl border border-fuchsia-400/20 bg-black/30 px-3 py-2 text-sm text-white outline-none md:col-span-2" /></div><Button onClick={saveOrderEdit} disabled={editSaving} className="bb-save-button mt-3">{editSaving ? "กำลังบันทึก..." : "บันทึกลงโต๊ะ"}</Button></div>}<div className="space-y-3"><div className="rounded-2xl border relative overflow-hidden border-cyan-300/45 bg-cyan-400/10 p-4 text-sm shadow-[inset_0_0_28px_rgba(34,211,238,.14),0_0_24px_rgba(34,211,238,.18)]"><p className="text-[10px] uppercase tracking-[0.18em] text-cyan-200/80">จุดตรวจ</p><div className="mt-3 space-y-2"><p className="flex items-center gap-2 text-xs text-emerald-200"><CheckCircle2 className="h-4 w-4" />เวลาจริง: {displayTime(order)}</p><p className="flex items-center gap-2 text-xs text-cyan-200"><Sparkles className="h-4 w-4" />สินค้า: {productOf(order)}</p><p className="flex items-center gap-2 text-xs text-orange-100/70"><ShieldAlert className="h-4 w-4" />สถานะข้อมูล: {mappingLabel(order)}</p>{selectedWarnings.length > 0 && <div className="rounded-xl border border-red-300/30 bg-red-400/10 p-3 text-xs text-red-100"><p className="mb-1 flex items-center gap-2 font-semibold"><AlertTriangle className="h-4 w-4" />คำเตือนระบบ</p>{selectedWarnings.map((warning) => <p key={warning}>• {warning}</p>)}</div>}{selectedIssues.length > 0 ? <div className="rounded-xl border border-amber-300/20 bg-amber-400/10 p-3 text-xs text-amber-100"><p className="mb-1 flex items-center gap-2 font-semibold"><AlertTriangle className="h-4 w-4" />พบจุดต้องตรวจ</p>{selectedIssues.map((issue) => <p key={issue}>• {issue}</p>)}</div> : selectedWarnings.length === 0 && <p className="text-xs text-emerald-200">ไม่พบคำเตือนพื้นฐาน</p>}</div></div><div className="rounded-2xl border border-white/10 bg-black/25 p-4 text-xs leading-6 text-orange-100/65"><b className="text-orange-200">สถานะการส่ง</b><br /><span className={`inline-flex rounded-full border px-2.5 py-1 text-sm font-semibold ${deliveryStatus(order).tone}`}>{deliveryStatus(order).label}</span><p className="mt-2">{deliveryStatus(order).slogan}</p><p className="mt-1">{isSent(order) ? "รายการนี้ถูกทำเครื่องหมายส่งแล้ว" : "ยังไม่ควรทำเครื่องหมาย SENT ก่อนตัวส่งตอบกลับ"}</p></div></div></div> : <div className="rounded-2xl border border-dashed border-orange-400/20 p-10 text-center text-sm text-orange-100/55">เลือกออเดอร์จากคิวเพื่อดูรายละเอียด</div>}
+           </CardContent></Card>
+ 

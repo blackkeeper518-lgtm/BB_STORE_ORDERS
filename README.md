@@ -1,55 +1,44 @@
-# BB Telegram Delivery Room Package
+# BB Telegram Queue / History patch
 
-แพ็กเกจนี้สำหรับโปรเจกต์ BB เท่านั้น ห้ามนำ SQL ไปใช้ในฐานข้อมูล ST
+แพ็กเกจนี้ปรับห้อง BB ให้ปุ่ม **กดส่ง Telegram** คงเดิม และเปลี่ยนปุ่มสถานะเป็น **ย้ายเข้าห้องประวัติ** โดยให้สถานะในฐานข้อมูลและ SQL views เป็นตัวกำหนดว่ารายการอยู่ Queue หรือ History ไม่มีการแก้ workflow ใน n8n
 
-## หน้าเว็บ
+## ไฟล์ในแพ็กเกจ
 
-วางไฟล์ตามโครงสร้างเดิม:
+- `patch/bb_telegram_archive_ui.patch` — แพตช์สองไฟล์ ใช้กับ source ปัจจุบันใน repository
+- `client/src/lib/TelegramDeliveryRoom.tsx` — ไฟล์หน้าเว็บฉบับแก้แล้ว
+- `client/src/lib/canonical.ts` — ไฟล์อ่าน Queue/History จาก SQL views แยกกัน
+- `sql/bb_telegram_manual_sent_queue_fix.sql` — migration สำหรับบันทึกสถานะและแยก SQL views
 
-```text
-client/src/pages/TelegramDeliveryRoom.tsx
-client/src/lib/canonical.ts
-client/src/lib/telegramDelivery.ts
+## วิธีแนะนำ: ใช้ patch กับสำเนา repository
+
+จากโฟลเดอร์หลักของ repository ให้รัน:
+
+```bash
+git apply /path/to/bb_telegram_archive_ui.patch
 ```
 
-Route เดิมยังใช้:
+จากนั้นตรวจ diff ก่อน commit/push:
 
-```text
-/telegram-delivery
+```bash
+git diff -- client/src/lib/TelegramDeliveryRoom.tsx client/src/lib/canonical.ts
 ```
 
-หน้า BB รองรับการติ๊กเลือกออเดอร์หลายรายการ, เปิด/ปิดเลือกทั้งหมด, ปล่อยรันเฉพาะรายการที่เลือก, คัดลอกบิล, แก้ไข, ส่งจากเว็บ, ส่งจากภายนอก และกด `ติ๊ก SENT` ภายหลังได้ โดยการปล่อยรันไม่เปลี่ยน SENT อัตโนมัติ
+หากไม่มี Git/terminal และทำผ่าน GitHub เว็บไซต์ ให้เปิดไฟล์เดิมทีละไฟล์ กดปุ่มแก้ไข (ดินสอ) แล้วแทนเนื้อหาด้วยไฟล์ชื่อเดียวกันในโฟลเดอร์ `client/src/lib/` ของแพ็กเกจ จากนั้น commit การเปลี่ยนแปลง โดย **อย่าอัปโหลด `.patch` เป็นไฟล์ธรรมดา** เพราะ GitHub จะเก็บเป็นเอกสาร แต่ไม่ได้ใช้แพตช์กับโค้ด
 
-## SQL ที่ให้มา
+## ขั้นตอนฐานข้อมูล
 
-รันใน Supabase BB เท่านั้น:
+เปิด Supabase **โปรเจกต์ BB เท่านั้น** แล้วรัน `sql/bb_telegram_manual_sent_queue_fix.sql` หลังจากมีตาราง `bb_orders_sent_history` และวิว `vw_bb_telegram_manual_room_v1` แล้ว สคริปต์นี้ไม่ลบออเดอร์ และมี backfill แบบหลีกเลี่ยงประวัติซ้ำสำหรับออเดอร์ที่มีสถานะ SENT อยู่แล้ว
 
-1. `vw_bb_orders_all_v2.sql` หรือ `vw_bb_orders_all_v2_slim.sql` ตาม View ที่หน้าเว็บใช้อยู่
-2. `vw_bb_product_extraction_lab88_fixed.sql`
-3. `vw_bb_product_extraction_lab88_candidates_lines.sql`
-4. `bb_stamp_telegram_header_by_product_lane.sql`
-5. `bb_manual_delivery_and_alert_room_v1.sql`
+หลังจาก migration สำเร็จ ให้อ่าน schema cache ใหม่ถ้าหน้าเว็บยังไม่เห็นวิว:
 
-`vw_bb_product_extraction_lab88_fixed.sql` ใช้ `CREATE OR REPLACE VIEW` ไม่ใช้ `DROP VIEW` เพื่อไม่ทำลาย View เว็บที่พึ่งพา Lab 88
-
-`vw_bb_product_extraction_lab88_candidates_lines.sql` แตก `lab_product_candidates` เป็น 1 สินค้า = 1 แถว โดยรักษา:
-
-```text
-raw_text
-view_th_name_clean
-master_sku
-master_th_name
-bb_pack
-cot_quantity
-line_mapping_status
+```sql
+NOTIFY pgrst, 'reload schema';
 ```
 
-## กฎข้อมูล
+## ผลที่คาดหวัง
 
-- BB ใช้ `vw_bb_product_extraction_lab88` เป็นก้อน Lab หลัก
-- ใช้ `vw_bb_product_extraction_lab88_candidates_lines` สำหรับอ่านรายสินค้า
-- `bb_pack` ใช้สำหรับคนแพ็ก เช่น `🟥 CAVALLO_RED(คาวาโร่แดง)`
-- ถ้าแมปไม่ได้ ให้เก็บ raw evidence และขึ้นป้ายตรวจ ห้ามเดา SKU
-- หัวบิลใช้ค่าจากฐานข้อมูลเมื่อมีค่า
-- ส่งจากเว็บหรือส่งจากภายนอกได้ แล้วกลับมากด `ติ๊ก SENT`
-- ห้ามรัน SQL ชุดนี้ใน ST
+เมื่อกด **ย้ายเข้าห้องประวัติ** ระบบตั้ง `telegram_status = 'SENT'`, trigger บันทึกรายการลง `bb_orders_sent_history`, SQL Queue view เอารายการออกจากคิว และ SQL Sent view แสดงรายการในประวัติ การกด **กดส่ง Telegram** เป็นคนละการกระทำ และไม่ถูกเปลี่ยนหรือเรียกอัตโนมัติ
+
+การตรวจใน sandbox: SQL ผ่าน PostgreSQL parser และ Vite production build ผ่าน ส่วน `pnpm check` ยังรายงาน TypeScript errors เดิม 5 จุดใน `DashboardLayout.tsx`, `canonical.ts` (Camp types) และ `ParcelMapping.tsx` ซึ่งไม่เกี่ยวกับการเปลี่ยนปุ่ม/queue นี้
+
+ไฟล์เหล่านี้เป็นชุดเตรียมไว้ ยังไม่ได้ commit/push ไป GitHub หรือ execute SQL ใน Supabase
