@@ -75,6 +75,15 @@ const ORDER_SOURCE_TABLE_BY_CAMP: Record<Camp, string> = { BB: "vw_bb_orders_all
 // BB main room currently has 700+ orders; avoid truncating the operational queue.
 const ORDER_OPERATIONAL_LIMIT = 1000;
 function defaultOrderView(camp: Camp) { return ORDER_SOURCE_TABLE_BY_CAMP[camp]; }
+function orderDisplaySortValue(value: unknown) {
+  const text = String(value ?? "").trim();
+  const match = text.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  if (!match) return Number.MAX_SAFE_INTEGER;
+  let year = Number(match[3]);
+  if (year < 100) year += 2000;
+  if (year > 2400) year -= 543;
+  return Date.UTC(year, Number(match[2]) - 1, Number(match[1]), Number(match[4] ?? 0) - 7, Number(match[5] ?? 0), Number(match[6] ?? 0));
+}
 function currentOrderWindowStart() { const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date()); const values = Object.fromEntries(parts.filter(part => part.type !== "literal").map(part => [part.type, Number(part.value)])); return new Date(Date.UTC(values.year, values.month - 1, values.day - 1, 7, 0, 0)).toISOString(); }
 function normalizeItem(item: CanonicalItem): CanonicalItem { const master = item.product_master && typeof item.product_master === "object" ? item.product_master : {}; const display = item.for_packer_bb_display || item.single_cleaned_products || null; const mapping = item.mapping_status || (item.sku_match_status === "MATCHED_PRODUCT_MASTER" ? "MATCHED" : null); return { ...item, ...master, quantity: num(item.quantity ?? item.extracted_qty ?? item.qty ?? item.master_qty_display ?? item.master_quantity), unit_price: num(item.unit_price_order ?? item.unit_price ?? master.unit_price), expected_cod: num(item.expected_cod), stock_qty: num(item.stock_qty ?? item.inventory?.stock_qty), mapping_status: mapping, display_for_packer: display, label: display, label_display: display }; }
 function parseJsonArray(value: unknown): CanonicalItem[] { if (Array.isArray(value)) return value as CanonicalItem[]; if (typeof value !== "string") return []; try { const parsed = JSON.parse(value); return Array.isArray(parsed) ? parsed : []; } catch { return []; } }
@@ -162,13 +171,22 @@ export async function readCanonicalOrders(search = "", since: string | null = nu
 export async function readTelegramDeliveryOrders(search = "", room: "queue" | "today" | "yesterday_after_14" | "sent" = "queue") {
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  // Manual room: read every BB bill. The UI separates waiting/sent locally
-  // from the explicit sent fields; no time cutoff or mapping gate applies.
+  // BB manual room is the source of truth. The UI separates queue/history
+  // from explicit delivery flags; no time cutoff or mapping gate applies.
   const sourceTable = "vw_bb_telegram_manual_room_v1";
   const { data, error } = await api.from(sourceTable).select("*").limit(1000);
   if (error) fail(error);
   const query = search.trim().toLowerCase();
-  const orders = (data ?? []).filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query)).sort((a: any, b: any) => new Date(b.source_time ?? b.order_time ?? 0).getTime() - new Date(a.source_time ?? a.order_time ?? 0).getTime());
+  const orders = (data ?? [])
+    .map((row: any) => ({
+      ...row,
+      // n8n's already-built BB packer string is kept exactly as delivered.
+      for_packer_bb_display: row.for_packer_bb_display ?? "",
+      normalized_chat_timeline: row.normalized_chat_timeline ?? row.normalized_chat_timeline_text ?? "",
+    }))
+    .filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query))
+    // Facebook order time is authoritative: oldest first.
+    .sort((a: any, b: any) => orderDisplaySortValue(a.order_time_display) - orderDisplaySortValue(b.order_time_display));
   return { orders, itemError: null, sourceTable, fetchedAt: new Date().toISOString(), room };
 }
 
