@@ -56,3 +56,42 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 @keyframes bb-running-light { from { background-position: 0 50%; } to { background-position: 220% 50%; } }
 @keyframes bb-pulse-light { 0%, 100% { opacity: .55; transform: scale(.8); } 50% { opacity: 1; transform: scale(1.25); } }
 @keyframes bb-send-glow { 0%, 100% { box-shadow: 0 0 12px rgba(255, 62, 207, .28); } 50% { box-shadow: 0 0 28px rgba(255, 62, 207, .62); } }
+
+
+/* Secret Gallery: internal page scrolling and VS Code-like Prism tokens. */
+.secret-gallery-page { scrollbar-gutter: stable; }
+.code-editor { overscroll-behavior: contain; }
+.code-highlight { width: max-content; min-width: 100%; color: #d4d4d4; tab-size: 2; }
+.code-highlight code { font: inherit; }
+.code-input { color: transparent; -webkit-text-fill-color: transparent; caret-color: #72eaff; tab-size: 2; }
+.code-input::selection { background: rgba(179, 92, 255, .42); color: #fff; -webkit-text-fill-color: #fff; }
+.code-highlight .token.comment,
+.code-highlight .token.prolog,
+.code-highlight .token.doctype,
+.code-highlight .token.cdata { color: #6a9955; font-style: italic; }
+.code-highlight .token.keyword,
+.code-highlight .token.atrule,
+.code-highlight .token.selector,
+.code-highlight .token.important { color: #c586c0; }
+.code-highlight .token.string,
+.code-highlight .token.char,
+.code-highlight .token.attr-value,
+.code-highlight .token.inserted { color: #ce9178; }
+.code-highlight .token.function,
+.code-highlight .token.function-variable { color: #dcdcaa; }
+.code-highlight .token.class-name,
+.code-highlight .token.maybe-class-name,
+.code-highlight .token.builtin { color: #4ec9b0; }
+.code-highlight .token.number,
+.code-highlight .token.boolean,
+.code-highlight .token.constant,
+.code-highlight .token.symbol { color: #b5cea8; }
+.code-highlight .token.operator,
+.code-highlight .token.punctuation { color: #d4d4d4; }
+.code-highlight .token.property,
+.code-highlight .token.tag,
+.code-highlight .token.attr-name,
+.code-highlight .token.parameter { color: #9cdcfe; }
+.code-highlight .token.title,
+.code-highlight .token.heading { color: #569cd6; font-weight: 700; }
+.code-highlight .token.deleted { color: #f48771; }

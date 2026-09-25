@@ -1,20 +1,20 @@
-From f8910bb4162e18cb287dfc8416a6e44dc09390b0 Mon Sep 17 00:00:00 2001
+From ad0253118377341a37bd690a80ce3bb2ba00d3f9 Mon Sep 17 00:00:00 2001
 From: suriya123zz1-ops
  <3.33624806e+08+suriya123zz1-ops@users.noreply.github.com>
 Date: Fri, 25 Sep 2026 18:24:21 +0000
 Subject: [PATCH] Fix Telegram sent status persistence
 
 ---
- client/src/lib/canonical.ts               |   8 +-
- client/src/pages/TelegramDeliveryRoom.tsx |  51 ++++---
+ client/src/lib/canonical.ts               |  15 +-
+ client/src/pages/TelegramDeliveryRoom.tsx |  50 ++++--
  server/supabase.test.ts                   |  31 ++++
  server/supabase.ts                        |   7 +-
- sql/bb_telegram_manual_sent_queue_fix.sql | 163 +++++++++++++---------
- 5 files changed, 170 insertions(+), 90 deletions(-)
+ sql/bb_telegram_manual_sent_queue_fix.sql | 210 +++++++++++-----------
+ 5 files changed, 177 insertions(+), 136 deletions(-)
  create mode 100644 server/supabase.test.ts
 
 diff --git a/client/src/lib/canonical.ts b/client/src/lib/canonical.ts
-index b0c6f02..e53f1f3 100644
+index b0c6f02..ec6e7a0 100644
 --- a/client/src/lib/canonical.ts
 +++ b/client/src/lib/canonical.ts
 @@ -1,7 +1,7 @@
@@ -39,11 +39,28 @@ index b0c6f02..e53f1f3 100644
    const orderIds = orderRows.map((row: any) => Number(row.id)).filter((id: number) => Number.isFinite(id));
    const itemsByOrder = new Map<number, CanonicalItem[]>();
    let itemError: unknown = null;
+@@ -162,12 +166,13 @@ export async function readCanonicalOrders(search = "", since: string | null = nu
+ export async function readTelegramDeliveryOrders(search = "", room: "queue" | "today" | "yesterday_after_14" | "sent" = "queue") {
+   const api = getSupabase();
+   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
+-  // Database views own Queue/Sent membership; the UI only displays returned rows.
+-  const sourceTable = room === "sent" ? "vw_bb_telegram_sent_room_v1" : "vw_bb_telegram_queue_room_v1";
++  // One stable view supplies every BB order; queue/history membership is
++  // filtered by the UI from its text-safe delivery flags.
++  const sourceTable = "drakside_telagram_delivery_pro";
+   const { data, error } = await api.from(sourceTable).select("*").limit(1000);
+   if (error) fail(error);
+   const query = search.trim().toLowerCase();
+-  const orders = (data ?? []).filter((row: any) => row && typeof row === "object" && !Array.isArray(row)).filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query)).sort((a: any, b: any) => new Date(b.source_time ?? b.order_time ?? 0).getTime() - new Date(a.source_time ?? a.order_time ?? 0).getTime());
++  const orders = (data ?? []).filter((row: any) => row && typeof row === "object" && !Array.isArray(row)).filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query)).sort((a: any, b: any) => new Date(b.drakside_source_time ?? b.order_time ?? b.created_at ?? 0).getTime() - new Date(a.drakside_source_time ?? a.order_time ?? a.created_at ?? 0).getTime());
+   return { orders, itemError: null, sourceTable, fetchedAt: new Date().toISOString(), room };
+ }
+ 
 diff --git a/client/src/pages/TelegramDeliveryRoom.tsx b/client/src/pages/TelegramDeliveryRoom.tsx
-index ab2bccd..786f68c 100644
+index ab2bccd..1df0695 100644
 --- a/client/src/pages/TelegramDeliveryRoom.tsx
 +++ b/client/src/pages/TelegramDeliveryRoom.tsx
-@@ -15,10 +15,27 @@ function liveClockLabel(value: Date) {
+@@ -15,10 +15,28 @@ function liveClockLabel(value: Date) {
  
  type OrderRow = Record<string, any>;
  
@@ -69,26 +86,25 @@ index ab2bccd..786f68c 100644
 +  const status = textValue(row.telegram_status).trim().toLowerCase();
 +  const deliveryStatus = textValue(row.delivery_status).trim().toLowerCase();
 +  const deliveryState = textValue(row.delivery_state).trim().toLowerCase();
++  const viewSentFlag = textValue(row.drakside_is_sent).trim().toLowerCase();
 +  const sent = textValue(row.telegram_sent).trim().toLowerCase();
 +  const sentValues = ["1", "true", "t", "sent", "delivered", "sent_to_telegram", "ไปแล้วไปลับ"];
-+  return sentValues.includes(status) || sentValues.includes(deliveryStatus) || sentValues.includes(deliveryState) || ["1", "true", "t", "sent"].includes(sent);
++  return sentValues.includes(status) || sentValues.includes(deliveryStatus) || sentValues.includes(deliveryState) || ["1", "true", "t"].includes(viewSentFlag) || ["1", "true", "t", "sent"].includes(sent);
  }
  
  function orderKey(row: OrderRow) {
-@@ -138,8 +155,10 @@ export default function TelegramDeliveryRoom() {
+@@ -138,7 +156,9 @@ export default function TelegramDeliveryRoom() {
      refetchInterval: 180_000,
    });
  
 -  const allOrders = (query.data?.orders ?? []) as OrderRow[];
--  const waiting = useMemo(() => allOrders.filter((row) => room === "sent" ? isSent(row) : !isSent(row)).sort((a, b) => new Date(realTime(b) || 0).getTime() - new Date(realTime(a) || 0).getTime()), [allOrders, room]);
 +  const allOrders: OrderRow[] = Array.isArray(query.data?.orders)
 +    ? query.data.orders.filter(isOrderRow)
 +    : [];
-+  const waiting = useMemo(() => allOrders.filter((row) => room === "sent" || !isSent(row)).sort((a, b) => new Date(realTime(b) || 0).getTime() - new Date(realTime(a) || 0).getTime()), [allOrders, room]);
+   const waiting = useMemo(() => allOrders.filter((row) => room === "sent" ? isSent(row) : !isSent(row)).sort((a, b) => new Date(realTime(b) || 0).getTime() - new Date(realTime(a) || 0).getTime()), [allOrders, room]);
    const order = waiting[selected];
    const selectedOrders = useMemo(() => waiting.filter((row) => selectedKeys.has(orderKey(row))), [selectedKeys, waiting]);
-   const message = useMemo(() => order ? telegramText(order, header || DEFAULT_HEADER) : "คิวว่าง — ไม่มีออเดอร์รอส่ง", [order, header]);
-@@ -234,11 +253,13 @@ export default function TelegramDeliveryRoom() {
+@@ -234,11 +254,13 @@ export default function TelegramDeliveryRoom() {
    async function markSelectedOrdersSent() {
      if (!selectedOrders.length) { setSendMessage("ยังไม่ได้ติ๊กเลือกออเดอร์"); return; }
      try {
@@ -104,7 +120,7 @@ index ab2bccd..786f68c 100644
        setSelectedKeys(new Set());
        await query.refetch();
      } catch (error) {
-@@ -247,6 +268,7 @@ export default function TelegramDeliveryRoom() {
+@@ -247,6 +269,7 @@ export default function TelegramDeliveryRoom() {
    }
  
    async function markCurrentOrderSent() {
@@ -112,7 +128,7 @@ index ab2bccd..786f68c 100644
      if (!order?.id && !order?.upsert_key) { setSendMessage("ติ๊กส่งแล้วไม่ได้: ไม่พบ id หรือ upsert_key"); return; }
      try {
        const patch = { telegram_sent: "true", telegram_status: "SENT", delivery_state: "SENT", sent_at: new Date().toISOString(), last_delivery_note: "ผู้ใช้งานกดยืนยันส่งแล้วจากห้อง Telegram" };
-@@ -272,17 +294,6 @@ export default function TelegramDeliveryRoom() {
+@@ -272,17 +295,6 @@ export default function TelegramDeliveryRoom() {
      } finally { setEditSaving(false); }
    }
  
@@ -130,7 +146,7 @@ index ab2bccd..786f68c 100644
    return (
      <div className="bb-telegram-room min-h-full space-y-5 text-white">
        <header className="relative overflow-hidden rounded-3xl border border-fuchsia-400/30 bg-[#10091c] p-6 shadow-2xl shadow-fuchsia-950/30">
-@@ -317,7 +328,7 @@ export default function TelegramDeliveryRoom() {
+@@ -317,7 +329,7 @@ export default function TelegramDeliveryRoom() {
        <div className="grid gap-5 xl:grid-cols-[350px_1fr]">
          <Card className="rounded-3xl border-fuchsia-400/20 bg-[#10091c]">
            <CardHeader className="space-y-3">
@@ -202,7 +218,7 @@ index 8143e2a..55c417d 100644
  export async function fetchExternalChatMessages(pageId: string, threadId: string): Promise<ExternalChatMessage[]> { const orders = (await fetchLiveOrders()).filter(o => o.page_id === pageId && o.thread_id === threadId); return orders.flatMap(o => o.chat_timeline.map((line, i) => { const outbound = /เพจ|admin|แอดมิน/i.test(line); return { id: o.id * 10000 + i, providerMessageId: null, pageId, pageName: o.page_name, threadId, senderId: o.recipient_id ?? "", senderName: o.customer_name, customerName: o.customer_name, sender_name: o.customer_name, customer_name: o.customer_name, speaker_type: outbound ? "page" : "customer", senderType: outbound ? "page" : "customer", side: outbound ? "right" : "left", direction: outbound ? "outbound" : "inbound", text: line, message_text: line, attachmentsJson: null, occurredAt: o.order_time, occurred_at: o.order_time, source_created_at: o.created_at, createdAt: o.created_at, source_message_id: null, dedupe_key: `:` }; })); }
  export async function fetchConversationEvidence(pageId: string, threadId: string) { return fetchExternalChatMessages(pageId, threadId); }
 diff --git a/sql/bb_telegram_manual_sent_queue_fix.sql b/sql/bb_telegram_manual_sent_queue_fix.sql
-index 32c407b..6020559 100644
+index 32c407b..85d8575 100644
 --- a/sql/bb_telegram_manual_sent_queue_fix.sql
 +++ b/sql/bb_telegram_manual_sent_queue_fix.sql
 @@ -1,8 +1,7 @@
@@ -211,14 +227,14 @@ index 32c407b..6020559 100644
 --- No n8n workflow is changed. No order rows are deleted.
 --- Requires the existing bb_orders, vw_bb_telegram_manual_room_v1, and
 --- bb_orders_sent_history objects.
-+-- BB ONLY · PERMANENT SENT ARCHIVE + TEXT DELIVERY STATUSES
-+-- Run in the BB Supabase project only, after the existing history/manual-room
-+-- objects have been created. This migration never deletes or bulk-updates orders.
-+-- The trigger only normalizes future INSERT/UPDATE writes to bb_orders.
++-- BB ONLY · PERMANENT SENT STATUS + ONE DRAKSIDE DELIVERY VIEW
++-- Uses the existing vw_bb_orders_all_v2 only. Bill-builder routing is deferred.
++-- Creates/updates only public.drakside_telagram_delivery_pro; no existing view,
++-- room, lab object, or bb_orders row is dropped or bulk-updated.
  
  BEGIN;
  
-@@ -17,66 +16,90 @@ ALTER TABLE public.bb_orders
+@@ -17,66 +16,87 @@ ALTER TABLE public.bb_orders
  ALTER TABLE public.bb_orders_sent_history
    ADD COLUMN IF NOT EXISTS upsert_key text,
    ADD COLUMN IF NOT EXISTS page_name text,
@@ -228,13 +244,8 @@ index 32c407b..6020559 100644
  
 --- The manual archive button sets telegram_status='SENT'. Parse values through
 --- JSON so this remains safe with boolean/text legacy telegram_sent columns.
-+-- Human-readable delivery states are text. Keep legacy telegram_sent's
-+-- existing type unchanged because vw_bb_orders_all_v2 and n8n may depend on it;
-+-- the API/view layer serializes that legacy flag as text for UI comparisons.
-+
-+-- A sent-history match is authoritative. Re-imports/upserts of the same order
-+-- cannot clear SENT or make it eligible for the queue again. Existing history
-+-- rows are retained as auditable records, including legacy recalled_at metadata.
++-- Keep the legacy telegram_sent storage type intact for existing rooms and n8n.
++-- Text status fields remain text; the frontend also safely normalizes old values.
  CREATE OR REPLACE FUNCTION public.bb_record_sent_history()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -250,6 +261,7 @@ index 32c407b..6020559 100644
 +  new_sent_flag boolean := lower(COALESCE(to_jsonb(NEW)->>'telegram_sent', '')) IN ('true', '1', 't', 'sent', 'delivered', 'sent_to_telegram', 'ไปแล้วไปลับ');
 +  history_sent_at timestamptz;
  BEGIN
++  -- Once an order has an archive record, later imports cannot unset its SENT state.
 +  SELECT h.sent_at
 +    INTO history_sent_at
 +    FROM public.bb_orders_sent_history AS h
@@ -310,7 +322,7 @@ index 32c407b..6020559 100644
 -     WHERE order_key = NEW.upsert_key
 -       AND delivery_status = 'SENT';
 +        AND old_status IN ('SENT', 'DELIVERED', 'SENT_TO_TELEGRAM', 'ไปแล้วไปลับ') THEN
-+    -- Legacy recall writes cannot undo an archived send event.
++    -- Keep old recall writes from moving a sent order back into the queue.
 +    NEW.telegram_status := 'SENT';
 +    NEW.delivery_state := 'SENT';
    END IF;
@@ -329,7 +341,8 @@ index 32c407b..6020559 100644
 --- One-time idempotent backfill for orders already marked SENT before this fix.
 --- Avoid creating another history entry when order_key/upsert_key or order number
 --- already exists. JSON extraction tolerates legacy boolean/text columns.
-+-- Idempotent backfill into the archive table only; bb_orders rows are not changed.
++-- Idempotent backfill into the archive table only. The source order rows are
++-- read-only here and are never deleted or bulk-updated.
  INSERT INTO public.bb_orders_sent_history (
 -  order_key, order_number, snapshot, upsert_key, page_name, facebook_name
 +  order_key, order_number, snapshot, upsert_key, page_name, facebook_name,
@@ -337,7 +350,7 @@ index 32c407b..6020559 100644
  )
  SELECT
    NULLIF(j->>'upsert_key', ''),
-@@ -84,46 +107,55 @@ SELECT
+@@ -84,99 +104,69 @@ SELECT
    j,
    NULLIF(j->>'upsert_key', ''),
    NULLIF(j->>'page_name', ''),
@@ -376,9 +389,7 @@ index 32c407b..6020559 100644
  
 --- Queue omits currently sent orders in SQL. A recalled row is explicitly
 --- allowed back in even if a legacy telegram_sent flag remains true.
-+-- Queue includes orders not archived and not currently marked sent. Sent history
-+-- is checked by stable key, order number, and finally the preserved source id.
- CREATE OR REPLACE VIEW public.vw_bb_telegram_queue_room_v1 AS
+-CREATE OR REPLACE VIEW public.vw_bb_telegram_queue_room_v1 AS
 -SELECT *
 -FROM public.vw_bb_telegram_manual_room_v1
 -WHERE CASE
@@ -389,70 +400,103 @@ index 32c407b..6020559 100644
 -END IS NOT TRUE;
 -
 --- Persistent history supplies the Sent room; recalled send events stay auditable.
-+SELECT q.*
-+FROM public.vw_bb_telegram_manual_room_v1 AS q
-+WHERE COALESCE(q.is_sent, false) IS NOT TRUE
-+  AND NOT EXISTS (
-+    SELECT 1
-+    FROM public.bb_orders_sent_history AS h
-+    WHERE (NULLIF(q.upsert_key::text, '') IS NOT NULL
-+           AND (h.upsert_key = q.upsert_key::text OR h.order_key = q.upsert_key::text
-+                OR h.snapshot->>'upsert_key' = q.upsert_key::text))
-+       OR (NULLIF(q.order_number::text, '') IS NOT NULL
-+           AND h.order_number = q.order_number::text)
-+       OR (NULLIF(q.id::text, '') IS NOT NULL AND h.snapshot->>'id' = q.id::text)
-+  );
-+
-+-- Show archive rows as text/SENT regardless of any legacy recall metadata. No
-+-- archived order is moved back to the operational queue by this view.
- CREATE OR REPLACE VIEW public.vw_bb_telegram_sent_room_v1 AS
+-CREATE OR REPLACE VIEW public.vw_bb_telegram_sent_room_v1 AS
++-- Single stable BB view for the queue and sent-history tab. This reads the
++-- existing order view only; bill-builder data can be routed later by the owner.
++CREATE OR REPLACE VIEW public.drakside_telagram_delivery_pro AS
++WITH source_orders AS (
++  SELECT o.*, to_jsonb(o) AS drakside_order_json
++  FROM public.vw_bb_orders_all_v2 AS o
++)
  SELECT
-   COALESCE(NULLIF(h.snapshot->>'id', ''), h.id::text) AS id,
-   COALESCE(NULLIF(h.upsert_key, ''), NULLIF(h.order_key, ''), NULLIF(h.snapshot->>'upsert_key', '')) AS upsert_key,
+-  COALESCE(NULLIF(h.snapshot->>'id', ''), h.id::text) AS id,
+-  COALESCE(NULLIF(h.upsert_key, ''), NULLIF(h.order_key, ''), NULLIF(h.snapshot->>'upsert_key', '')) AS upsert_key,
 -  COALESCE(NULLIF(h.snapshot->>'order_number', ''), h.order_number) AS order_number,
-+  COALESCE(NULLIF(h.snapshot->>'order_number', ''), NULLIF(h.snapshot->>'order_number_display', ''), h.order_number) AS order_number,
-   COALESCE(NULLIF(h.snapshot->>'order_number_display', ''), h.order_number) AS order_number_display,
-   h.snapshot->>'order_time_display' AS order_time_display,
-   h.snapshot->>'order_time' AS order_time,
-@@ -156,27 +188,26 @@ SELECT
-   h.snapshot->>'stock_notice' AS stock_notice,
-   h.snapshot->>'shipping_method' AS shipping_method,
-   'true'::text AS telegram_sent,
+-  COALESCE(NULLIF(h.snapshot->>'order_number_display', ''), h.order_number) AS order_number_display,
+-  h.snapshot->>'order_time_display' AS order_time_display,
+-  h.snapshot->>'order_time' AS order_time,
+-  h.sent_at AS source_time,
+-  h.snapshot->>'created_at' AS created_at,
+-  h.snapshot->>'updated_at' AS updated_at,
+-  COALESCE(NULLIF(h.page_name, ''), NULLIF(h.snapshot->>'page_name', '')) AS page_name,
+-  COALESCE(NULLIF(h.facebook_name, ''), NULLIF(h.snapshot->>'facebook_name', '')) AS facebook_name,
+-  h.snapshot->>'customer_name' AS customer_name,
+-  h.snapshot->>'phone' AS phone,
+-  h.snapshot->>'extracted_phone' AS extracted_phone,
+-  h.snapshot->>'cod_amount' AS cod_amount,
+-  h.snapshot->>'address_display_packer' AS address_display_packer,
+-  h.snapshot->>'addressclean' AS addressclean,
+-  h.snapshot->>'full_address' AS full_address,
+-  h.snapshot->>'province' AS province,
+-  h.snapshot->>'zipcode' AS zipcode,
+-  COALESCE(
+-    NULLIF(h.snapshot->>'for_packer_bb_display', ''),
+-    NULLIF(h.snapshot->>'product_display_for_packer', ''),
+-    NULLIF(h.snapshot->>'final_display_for_packer', ''),
+-    NULLIF(h.snapshot->>'master_display_for_packer', ''),
+-    NULLIF(h.snapshot->>'single_cleaned_products', ''),
+-    NULLIF(h.snapshot->>'extracted_product_raw', ''),
+-    NULLIF(h.snapshot->>'sniper_x_text_clean', '')
+-  ) AS for_packer_bb_display,
+-  h.snapshot->>'sniper_x_text_clean' AS sniper_x_text_clean,
+-  h.snapshot->>'normalized_chat_timeline' AS normalized_chat_timeline,
+-  h.snapshot->>'mapping_status' AS mapping_status,
+-  h.snapshot->>'stock_notice' AS stock_notice,
+-  h.snapshot->>'shipping_method' AS shipping_method,
+-  'true'::text AS telegram_sent,
 -  h.delivery_status AS telegram_status,
 -  h.delivery_status AS delivery_state,
-+  'SENT'::text AS telegram_status,
-+  'SENT'::text AS delivery_state,
-   h.sent_at,
-   h.recalled_at,
-   h.snapshot->>'last_delivery_note' AS last_delivery_note,
+-  h.sent_at,
+-  h.recalled_at,
+-  h.snapshot->>'last_delivery_note' AS last_delivery_note,
 -  (h.delivery_status = 'SENT') AS is_sent,
 -  h.delivery_status,
-+  true AS is_sent,
-+  'SENT'::text AS delivery_status,
-   h.recall_count
- FROM public.bb_orders_sent_history AS h;
+-  h.recall_count
+-FROM public.bb_orders_sent_history AS h;
++  o.*,
++  COALESCE(NULLIF(o.drakside_order_json->>'order_time', ''), NULLIF(o.drakside_order_json->>'created_at', '')) AS drakside_source_time,
++  (
++    lower(COALESCE(o.drakside_order_json->>'telegram_sent', '')) IN ('true', '1', 't', 'sent', 'delivered', 'sent_to_telegram', 'ไปแล้วไปลับ')
++    OR upper(COALESCE(o.drakside_order_json->>'telegram_status', '')) IN ('SENT', 'DELIVERED', 'SENT_TO_TELEGRAM', 'ไปแล้วไปลับ')
++    OR upper(COALESCE(o.drakside_order_json->>'delivery_state', '')) IN ('SENT', 'DELIVERED', 'SENT_TO_TELEGRAM', 'ไปแล้วไปลับ')
++    OR EXISTS (
++      SELECT 1
++      FROM public.bb_orders_sent_history AS h
++      WHERE (NULLIF(o.drakside_order_json->>'upsert_key', '') IS NOT NULL
++             AND (h.upsert_key = o.drakside_order_json->>'upsert_key'
++                  OR h.order_key = o.drakside_order_json->>'upsert_key'
++                  OR h.snapshot->>'upsert_key' = o.drakside_order_json->>'upsert_key'))
++         OR (NULLIF(o.drakside_order_json->>'order_number', '') IS NOT NULL
++             AND h.order_number = o.drakside_order_json->>'order_number')
++         OR (NULLIF(o.drakside_order_json->>'id', '') IS NOT NULL
++             AND h.snapshot->>'id' = o.drakside_order_json->>'id')
++    )
++  ) AS drakside_is_sent,
++  'BB'::text AS drakside_camp
++FROM source_orders AS o
++;
  
- COMMENT ON VIEW public.vw_bb_telegram_queue_room_v1 IS
+-COMMENT ON VIEW public.vw_bb_telegram_queue_room_v1 IS
 -  'BB queue room. SQL view excludes current SENT rows; RECALLED orders return to the queue.';
-+  'BB queue room. Any order with a sent-history record stays out of queue permanently.';
- COMMENT ON VIEW public.vw_bb_telegram_sent_room_v1 IS
+-COMMENT ON VIEW public.vw_bb_telegram_sent_room_v1 IS
 -  'BB persistent send-history room. SENT and RECALLED events remain auditable from bb_orders_sent_history.';
-+  'BB permanent text-status send archive. Rows are retained and never returned to queue.';
++COMMENT ON VIEW public.drakside_telagram_delivery_pro IS
++  'BB delivery/backup queue source; reads vw_bb_orders_all_v2 only. Bill-builder routing is deferred.';
  
  COMMIT;
  
 --- Read-only checks after running:
-+-- Read-only verification queries; execute manually after applying:
- -- SELECT count(*) AS queue_count FROM public.vw_bb_telegram_queue_room_v1;
+--- SELECT count(*) AS queue_count FROM public.vw_bb_telegram_queue_room_v1;
 --- SELECT count(*) AS history_count FROM public.vw_bb_telegram_sent_room_v1;
 --- SELECT upsert_key, order_number, sent_at, recalled_at, delivery_status, page_name, facebook_name
 --- FROM public.vw_bb_telegram_sent_room_v1 ORDER BY source_time DESC NULLS LAST LIMIT 20;
 --- NOTIFY pgrst, 'reload schema';
 --- No SQL is executed by preparing this file.
-+-- SELECT count(*) AS archive_count FROM public.vw_bb_telegram_sent_room_v1;
-+-- SELECT upsert_key, order_number, telegram_status, delivery_state, delivery_status
-+-- FROM public.vw_bb_telegram_sent_room_v1 ORDER BY source_time ASC LIMIT 20;
-+-- No DELETE or bulk UPDATE against bb_orders is performed by this file.
++-- Read-only checks to run after applying (does not modify data):
++-- SELECT count(*) FROM public.drakside_telagram_delivery_pro;
++-- SELECT order_number, telegram_status, drakside_is_sent, drakside_camp
++-- FROM public.drakside_telagram_delivery_pro ORDER BY drakside_source_time DESC LIMIT 20;
++-- This migration does not drop any view/table and does not delete or bulk-update orders.
 -- 
 2.43.0
 

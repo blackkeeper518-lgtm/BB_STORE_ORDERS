@@ -29,10 +29,11 @@ function Shell({ children }: { children: React.ReactNode }) { return <DashboardL
 function Router() {
   const [location] = useLocation();
   const hasSupabaseConfig = Boolean(getSupabaseConfig());
-  const setupExempt = location === "/connect" || location === "/secret-gallery";
+  const setupExempt = location === "/connect" || location === "/secret-gallery" || location === "/secret-gallery/images";
   if (!hasSupabaseConfig && !setupExempt) return <Redirect to="/connect" />;
   return <Switch>
     <Route path="/connect"><Redirect to="/secret-gallery" /></Route>
+    <Route path="/secret-gallery/images"><SecretGallery /></Route>
     <Route path="/secret-gallery"><SecretGallery /></Route>
     <Route path="/orders"><Shell><OrderControl /></Shell></Route>
     <Route path="/parcel-mapping"><Shell><ParcelMapping /></Shell></Route>

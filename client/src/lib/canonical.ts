@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 const CONFIG_KEY = "bb-supabase-config";
-export type Camp = "BB";
+export type Camp = "BB" | "ST" | "SB";
 const DEPLOYMENT_CAMP: Camp = "BB";
 export type SupabaseConfig = { url: string; anonKey: string; orderTable?: string };
 let client: SupabaseClient | null = null;
@@ -106,7 +106,11 @@ export async function readCanonicalOrders(search = "", since: string | null = nu
     .limit(search.trim() || since || until ? 1000 : ORDER_OPERATIONAL_LIMIT);
   if (error) fail(error);
 
-  const orderRows = rows ?? [];
+  // A malformed/null row from PostgREST must not reach normalizeOrder, which
+  // reads fields such as telegram_status. Keep every valid order unchanged.
+  const orderRows = Array.isArray(rows)
+    ? rows.filter((row: unknown): row is Record<string, any> => row !== null && typeof row === "object" && !Array.isArray(row))
+    : [];
   const orderIds = orderRows.map((row: any) => Number(row.id)).filter((id: number) => Number.isFinite(id));
   const itemsByOrder = new Map<number, CanonicalItem[]>();
   let itemError: unknown = null;
@@ -162,12 +166,13 @@ export async function readCanonicalOrders(search = "", since: string | null = nu
 export async function readTelegramDeliveryOrders(search = "", room: "queue" | "today" | "yesterday_after_14" | "sent" = "queue") {
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  // Database views own Queue/Sent membership; the UI only displays returned rows.
-  const sourceTable = room === "sent" ? "vw_bb_telegram_sent_room_v1" : "vw_bb_telegram_queue_room_v1";
+  // One stable view supplies every BB order; queue/history membership is
+  // filtered by the UI from its text-safe delivery flags.
+  const sourceTable = "drakside_telagram_delivery_pro";
   const { data, error } = await api.from(sourceTable).select("*").limit(1000);
   if (error) fail(error);
   const query = search.trim().toLowerCase();
-  const orders = (data ?? []).filter((row: any) => row && typeof row === "object" && !Array.isArray(row)).filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query)).sort((a: any, b: any) => new Date(b.source_time ?? b.order_time ?? 0).getTime() - new Date(a.source_time ?? a.order_time ?? 0).getTime());
+  const orders = (data ?? []).filter((row: any) => row && typeof row === "object" && !Array.isArray(row)).filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query)).sort((a: any, b: any) => new Date(b.drakside_source_time ?? b.order_time ?? b.created_at ?? 0).getTime() - new Date(a.drakside_source_time ?? a.order_time ?? a.created_at ?? 0).getTime());
   return { orders, itemError: null, sourceTable, fetchedAt: new Date().toISOString(), room };
 }
 
