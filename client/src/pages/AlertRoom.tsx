@@ -16,7 +16,7 @@ function statusTone(status: string) {
 }
 
 export default function AlertRoom() {
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => new URLSearchParams(window.location.search).get("search") ?? "");
   const query = useQuery({ queryKey: ["bb-alert-room", search], queryFn: () => readBbAlertRoom(search), refetchInterval: 30_000 });
   const rows = query.data ?? [];
   const botCount = rows.filter((r: any) => r.is_bot_summary).length;
