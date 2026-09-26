@@ -1,44 +1,30 @@
-# BB Telegram Queue / History patch
+# แพ็กเกจ BB / ST — ห้องกลาง Telegram + ห้องส่ง
 
-แพ็กเกจนี้ปรับห้อง BB ให้ปุ่ม **กดส่ง Telegram** คงเดิม และเปลี่ยนปุ่มสถานะเป็น **ย้ายเข้าห้องประวัติ** โดยให้สถานะในฐานข้อมูลและ SQL views เป็นตัวกำหนดว่ารายการอยู่ Queue หรือ History ไม่มีการแก้ workflow ใน n8n
+ไฟล์นี้รวม SQL ของแต่ละค่ายแยกกัน และ patch สำหรับโค้ดหน้าเว็บ BB ที่แก้หน้าแรก/แหล่งแสดงสินค้า
 
 ## ไฟล์ในแพ็กเกจ
 
-- `patch/bb_telegram_archive_ui.patch` — แพตช์สองไฟล์ ใช้กับ source ปัจจุบันใน repository
-- `client/src/lib/TelegramDeliveryRoom.tsx` — ไฟล์หน้าเว็บฉบับแก้แล้ว
-- `client/src/lib/canonical.ts` — ไฟล์อ่าน Queue/History จาก SQL views แยกกัน
-- `sql/bb_telegram_manual_sent_queue_fix.sql` — migration สำหรับบันทึกสถานะและแยก SQL views
+- `BB_telegram_rooms.sql` — SQL เต็มของ **BB เท่านั้น**
+- `ST_telegram_rooms.sql` — SQL เต็มของ **ST เท่านั้น**
+- `BB_STORE_ORDERS_home_orders_lab88.patch` — patch โค้ดเว็บ BB: `/` ไป `/orders` และใช้ `lab_product_candidates[*].master_display_for_packer` เป็นแหล่งแสดงสินค้า
 
-## วิธีแนะนำ: ใช้ patch กับสำเนา repository
+## สำคัญก่อนรัน SQL
 
-จากโฟลเดอร์หลักของ repository ให้รัน:
+1. ไฟล์ BB กับ ST เป็นคนละโปรเจกต์/ฐานข้อมูล **ห้ามรันสลับค่าย**
+2. รัน SQL ของค่ายนั้นใน Supabase SQL Editor ของค่ายเดียวกันเท่านั้น
+3. SQL ทั้งสองไฟล์อาศัย view ต้นทาง Lab 88 และ Lab 99 ที่มีอยู่แล้ว โดยจะไม่ลบหรือสร้างทับ Lab 88/Lab 99
+4. สคริปต์จะสร้าง/แทนที่ห้องกลางและห้องส่ง พร้อมคิวที่ตัดรายการที่ส่งแล้วออกจากห้องส่ง โดยตรวจสถานะในตารางหลักของค่าย (`bb_orders` หรือ `st_orders`)
+5. n8n ควรอัปเดตแถวด้วย `upsert_key` หลัง Telegram ส่งสำเร็จ แล้วตั้ง `telegram_status = 'SENT'` และ/หรือ `telegram_sent = true` เท่านั้น อย่าตั้ง SENT ก่อนส่งสำเร็จ
+6. ST มีเงื่อนไขเวลาตั้งแต่ 22:00 ของเมื่อวานตามเวลา Bangkok และเรียงจากเก่าไปใหม่ ส่วน BB ใช้เงื่อนไขตาม SQL BB
 
-```bash
-git apply /path/to/bb_telegram_archive_ui.patch
-```
+## การอัปโหลดขึ้น GitHub
 
-จากนั้นตรวจ diff ก่อน commit/push:
+หน้า GitHub `/upload/main` รับไฟล์ที่เลือก/ลากวาง แต่การอัปโหลด ZIP **ไม่แตกไฟล์ให้อัตโนมัติ** และการอัปโหลดไฟล์ `.patch` จะเก็บ patch ไว้เฉย ๆ ไม่ได้แก้ source code ให้อัตโนมัติ
 
-```bash
-git diff -- client/src/lib/TelegramDeliveryRoom.tsx client/src/lib/canonical.ts
-```
+- หากต้องการเก็บไฟล์ SQL ใน repository ให้แตก ZIP ในเครื่องก่อน แล้วอัปโหลด `BB_telegram_rooms.sql`, `ST_telegram_rooms.sql` และ `README.md` เข้าไป
+- หากต้องการใช้ patch เปลี่ยน source code เว็บ BB ให้ตรวจและ apply patch กับ clone ของ repository ด้วย `git apply BB_STORE_ORDERS_home_orders_lab88.patch` จากนั้นค่อย commit/push ตามขั้นตอนของคุณ หรือแก้/อัปโหลด source files ที่เปลี่ยนโดยตรง
+- การเก็บ SQL ไว้ใน GitHub ไม่ได้รัน SQL และไม่ได้ deploy เว็บไซต์โดยอัตโนมัติ
 
-หากไม่มี Git/terminal และทำผ่าน GitHub เว็บไซต์ ให้เปิดไฟล์เดิมทีละไฟล์ กดปุ่มแก้ไข (ดินสอ) แล้วแทนเนื้อหาด้วยไฟล์ชื่อเดียวกันในโฟลเดอร์ `client/src/lib/` ของแพ็กเกจ จากนั้น commit การเปลี่ยนแปลง โดย **อย่าอัปโหลด `.patch` เป็นไฟล์ธรรมดา** เพราะ GitHub จะเก็บเป็นเอกสาร แต่ไม่ได้ใช้แพตช์กับโค้ด
+## ขอบเขตการตรวจสอบ
 
-## ขั้นตอนฐานข้อมูล
-
-เปิด Supabase **โปรเจกต์ BB เท่านั้น** แล้วรัน `sql/bb_telegram_manual_sent_queue_fix.sql` หลังจากมีตาราง `bb_orders_sent_history` และวิว `vw_bb_telegram_manual_room_v1` แล้ว สคริปต์นี้ไม่ลบออเดอร์ และมี backfill แบบหลีกเลี่ยงประวัติซ้ำสำหรับออเดอร์ที่มีสถานะ SENT อยู่แล้ว
-
-หลังจาก migration สำเร็จ ให้อ่าน schema cache ใหม่ถ้าหน้าเว็บยังไม่เห็นวิว:
-
-```sql
-NOTIFY pgrst, 'reload schema';
-```
-
-## ผลที่คาดหวัง
-
-เมื่อกด **ย้ายเข้าห้องประวัติ** ระบบตั้ง `telegram_status = 'SENT'`, trigger บันทึกรายการลง `bb_orders_sent_history`, SQL Queue view เอารายการออกจากคิว และ SQL Sent view แสดงรายการในประวัติ การกด **กดส่ง Telegram** เป็นคนละการกระทำ และไม่ถูกเปลี่ยนหรือเรียกอัตโนมัติ
-
-การตรวจใน sandbox: SQL ผ่าน PostgreSQL parser และ Vite production build ผ่าน ส่วน `pnpm check` ยังรายงาน TypeScript errors เดิม 5 จุดใน `DashboardLayout.tsx`, `canonical.ts` (Camp types) และ `ParcelMapping.tsx` ซึ่งไม่เกี่ยวกับการเปลี่ยนปุ่ม/queue นี้
-
-ไฟล์เหล่านี้เป็นชุดเตรียมไว้ ยังไม่ได้ commit/push ไป GitHub หรือ execute SQL ใน Supabase
+เว็บแพตช์ผ่าน TypeScript check, production build และ unit tests ใน working copy ก่อนแพ็ก แต่ SQL ยังไม่ได้รันกับฐานข้อมูลจริง จึงควรตรวจชื่อ view ต้นทางและดูจำนวนแถวหลังติดตั้งด้วย read-only checks ที่ท้ายไฟล์ก่อนนำไปใช้จริง
