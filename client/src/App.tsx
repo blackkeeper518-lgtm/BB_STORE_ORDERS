@@ -29,7 +29,7 @@ function Shell({ children }: { children: React.ReactNode }) { return <DashboardL
 function Router() {
   const [location] = useLocation();
   const hasSupabaseConfig = Boolean(getSupabaseConfig());
-  const setupExempt = location === "/connect" || location === "/secret-gallery" || location === "/secret-gallery/images";
+  const setupExempt = location === "/" || location === "/orders" || location === "/connect" || location === "/secret-gallery" || location === "/secret-gallery/images";
   if (!hasSupabaseConfig && !setupExempt) return <Redirect to="/connect" />;
   return <Switch>
     <Route path="/connect"><Redirect to="/secret-gallery" /></Route>
@@ -50,7 +50,7 @@ function Router() {
     <Route path="/order-buckets"><Shell><OrderBuckets /></Shell></Route>
     <Route path="/daily-chat-summary"><Shell><DailyChatSummary /></Shell></Route>
     <Route path="/order-history"><Shell><OrderHistory /></Shell></Route>
-    <Route path="/"><Redirect to="/chats" /></Route>
+    <Route path="/"><Redirect to="/orders" /></Route>
     <Route path="/404" component={NotFound} />
     <Route component={NotFound} />
   </Switch>;

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { trpc } from "@/lib/trpc";
-import { getActiveCamp, readCanonicalOrders } from "@/lib/canonical";
+import { getActiveCamp, getLab88FallbackFieldName, readCanonicalOrders, saveLab88FallbackFieldName } from "@/lib/canonical";
 import {
   AlertTriangle,
   CalendarDays,
@@ -85,17 +85,17 @@ function customerHistoryText(order: any): string {
 }
 
 function itemDisplay(item: any) {
-  return item.for_packer_bb_display || item.single_cleaned_products || "📦 ต้องค้นจากประวัติแชท";
+  return item.master_display_for_packer || "📦 ยังไม่มี master_display_for_packer ใน Lab 88";
 }
 
 function orderProductPreview(order: any) {
   if (Array.isArray(order.items) && order.items.length) {
     return order.items.map((item: any) => {
       const quantity = item.quantity ?? item.qty;
-      return `${itemDisplay(item)}${quantity != null ? ` ×${quantity}` : ""}`;
+      return itemDisplay(item);
     }).join(" · ");
   }
-  return itemDisplay(order) || order.th_name || order.sku || "📦 ต้องค้นจากประวัติแชท";
+  return itemDisplay(order);
 }
 
 function orderProductQuantity(order: any) {
@@ -143,6 +143,7 @@ export default function OrderControl() {
   const [previewText, setPreviewText] = useState("");
   const [flashBusinessCode, setFlashBusinessCode] = useState(() => localStorage.getItem("flash-business-code") || "");
   const [flashSaved, setFlashSaved] = useState(false);
+  const [productFallbackField, setProductFallbackField] = useState(() => getLab88FallbackFieldName());
   const [reviewOverrides, setReviewOverrides] = useState<Record<string, "PASSED" | "FAILED">>(() => {
     try { return JSON.parse(localStorage.getItem(`order-review-${getActiveCamp()}`) || "{}"); } catch { return {}; }
   });
@@ -208,7 +209,7 @@ export default function OrderControl() {
     window.setTimeout(() => setCopied(false), 1800);
   };
   const previewSummary = (order: any) => {
-    const items = order.items?.length ? order.items.map((item: any) => `${itemDisplay(item)}${item.quantity != null ? ` ${item.quantity} คอต` : ""}`).join("\n") : itemDisplay(order);
+    const items = order.items?.length ? order.items.map((item: any) => itemDisplay(item)).join("\n") : itemDisplay(order);
     setPreviewText([order.order_number, order.customer_name || "ไม่ระบุชื่อ", order.phone || "ไม่ระบุเบอร์", orderAddress(order), `COD ${money(order.cod_amount)}`, items].join("\n"));
   };
 
@@ -225,10 +226,15 @@ export default function OrderControl() {
         <div className="pointer-events-none absolute -right-20 -top-32 h-72 w-72 rounded-full bg-orange-700/20 blur-3xl" />
         <div className="pointer-events-none absolute bottom-0 left-1/3 h-32 w-64 rounded-full bg-orange-500/10 blur-3xl" />
         <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-          <div><div className="mb-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.3em] text-orange-300"><Flame className="h-3.5 w-3.5" /> NIGHTOPS · ORDER CONTROL</div><h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">ห้องควบคุมออเดอร์</h1><p className="mt-2 max-w-xl text-sm leading-6 text-slate-400">ยึด <span className="font-mono text-fuchsia-300">bb_orders</span> เป็นฐานออเดอร์หลัก พร้อมรองรับรายการสินค้า 2–3 รายการในออเดอร์เดียว</p></div>
+          <div><div className="mb-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.3em] text-orange-300"><Flame className="h-3.5 w-3.5" /> NIGHTOPS · ORDER CONTROL</div><h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">ห้องควบคุมออเดอร์</h1><p className="mt-2 max-w-xl text-sm leading-6 text-slate-400">ข้อมูลสินค้าแสดงจาก <span className="font-mono text-fuchsia-300">lab_product_candidates[*].master_display_for_packer</span> เท่านั้น และรองรับหลายรายการต่อออเดอร์</p></div>
           <div className="flex flex-wrap items-center gap-2"><Badge className="border border-emerald-500/30 bg-emerald-500/10 text-emerald-300"><span className="mr-2 h-1.5 w-1.5 rounded-full bg-emerald-400" /> LIVE DATA</Badge><Badge variant="outline" className="border-orange-500/30 bg-orange-500/5 text-orange-300"><Database className="mr-1.5 h-3 w-3" /> Supabase</Badge><Button variant="outline" size="sm" onClick={exportOrders} disabled={!visibleOrders.length} className="border-emerald-400/20 bg-emerald-400/5 text-emerald-200"><Download className="mr-2 h-3.5 w-3.5" /> Export CSV</Button><Button variant="outline" size="sm" onClick={() => liveQuery.refetch()} className="border-white/10 bg-white/5 text-slate-200 hover:bg-white/10 hover:text-white"><RefreshCw className={`mr-2 h-3.5 w-3.5 ${liveQuery.isFetching ? "animate-spin" : ""}`} /> รีเฟรช</Button></div>
         </div>
       </header>
+
+      <label className="flex flex-col gap-2 rounded-2xl border border-orange-400/20 bg-[#111116] p-4 text-xs text-orange-100/70 sm:flex-row sm:items-center sm:justify-between">
+        <span><span className="font-semibold text-orange-200">ฟิลด์สำรองสินค้า (ยังไม่กำหนด)</span><span className="mt-1 block text-[11px] text-slate-500">เว้นว่างไว้ก่อน ระบบจะแสดงสินค้าเฉพาะ master_display_for_packer จาก Lab 88 เท่านั้น</span></span>
+        <Input value={productFallbackField} onChange={event => { setProductFallbackField(event.target.value); saveLab88FallbackFieldName(event.target.value); }} placeholder="ใส่ชื่อฟิลด์ภายหลัง" className="h-9 sm:max-w-xs border-orange-300/20 bg-black/30 font-mono text-white placeholder:text-slate-600" />
+      </label>
 
       <Card className="hidden rounded-2xl border-orange-400/20 bg-orange-400/[0.04]"><CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"><div><div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-orange-300 shadow-[0_0_12px_rgba(251,146,60,0.8)]" /><p className="text-sm font-semibold text-orange-100">FLASH BUSINESS · ศูนย์เช็คสถานะขนส่ง</p></div><p className="mt-1 text-xs text-slate-400">ใส่รหัสธุรกิจไว้เตรียมต่อ Flash API — ค่านี้เก็บใน Browser เครื่องนี้และยังไม่ส่งออกจากหน้าเว็บ</p></div><div className="flex w-full gap-2 sm:w-auto"><Input value={flashBusinessCode} onChange={event => { setFlashBusinessCode(event.target.value); setFlashSaved(false); }} placeholder="Flash Business Code" className="h-9 min-w-0 border-orange-300/20 bg-black/30 font-mono text-xs text-white placeholder:text-slate-600 sm:w-56" /><Button size="sm" variant="outline" onClick={() => { localStorage.setItem("flash-business-code", flashBusinessCode.trim()); setFlashSaved(true); }} className="border-orange-300/30 bg-orange-300/10 text-orange-100 hover:bg-orange-300/20">{flashSaved ? "บันทึกแล้ว" : "บันทึกรหัส"}</Button></div></CardContent></Card>
 

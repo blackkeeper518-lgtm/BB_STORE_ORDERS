@@ -24,7 +24,7 @@ function extractChange(row: any) {
   const from = row.changed_from || row.product_before || row.previous_product || row.original_product;
   const to = row.changed_to || row.product_after || row.new_product || row.replacement_product;
   if (from || to) return { from: text(from, "รอบแรก"), to: text(to, "รายการล่าสุด"), changed: true, decisionMinutes };
-  const raw = text(row.for_packer_bb_display || row.sniper_x_text_clean, "ยังไม่มีหลักฐานสินค้า");
+  const raw = text(row.lab_product_display_text, "ยังไม่มี master_display_for_packer ใน Lab 88");
   const match = raw.match(/(?:เปลี่ยนจาก|จาก)\s*(.+?)\s*(?:เป็น|ไปเป็น|→|ถัดไป)\s*(.+?)(?:\n|$)/i);
   if (match) return { from: match[1].trim(), to: match[2].trim(), changed: true, decisionMinutes };
   return { from: "รายการเดิม", to: raw, changed: false, decisionMinutes };

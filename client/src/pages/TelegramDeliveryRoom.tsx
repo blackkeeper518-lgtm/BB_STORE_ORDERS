@@ -56,8 +56,7 @@ function realTime(row: OrderRow) {
 function displayTime(row: OrderRow) { return String(row.order_time_display || "ไม่พบ order_time_display"); }
 
 function productOf(row: OrderRow) {
-  // ห้อง Telegram ใช้ฟิวสินค้ากลางของ BB เท่านั้น; single_cleaned_products เป็นสำรองทันที
-  return evidenceText(row.for_packer_bb_display) || evidenceText(row.single_cleaned_products) || "ยังไม่มีข้อมูลสินค้า";
+  return evidenceText(row.lab_product_display_text) || "ยังไม่มี master_display_for_packer ใน Lab 88";
 }
 
 function evidenceText(value: unknown): string {
@@ -196,7 +195,7 @@ export default function TelegramDeliveryRoom() {
       phone: String(order.phone ?? order.extracted_phone ?? ""),
       address_display_packer: addressOf(order),
       cod_amount: String(order.cod_amount ?? ""),
-      for_packer_bb_display: String(order.for_packer_bb_display ?? order.single_cleaned_products ?? ""),
+      for_packer_bb_display: String(order.lab_product_display_text ?? ""),
       shipping_method: String(order.shipping_method ?? "⚡FLASH EXPRESS"),
     });
     setEditMode(false);

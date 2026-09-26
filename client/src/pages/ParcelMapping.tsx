@@ -18,12 +18,12 @@ function normalizePhone(value: string) {
 }
 
 function itemText(item: any) {
-  return item.display_for_packer || item.label_display || item.th_name || item.product_name || item.sku || "สินค้า";
+  return item.master_display_for_packer || "ยังไม่มี master_display_for_packer ใน Lab 88";
 }
 
 function orderProducts(order: any) {
-  if (Array.isArray(order.items) && order.items.length) return order.items.map((item: any) => `${itemText(item)}${item.quantity != null ? ` ${item.quantity} คอต` : ""}`).join("\n");
-  return order.display_for_packer || order.th_name || order.sku || "ไม่ระบุสินค้า";
+  if (Array.isArray(order.items) && order.items.length) return order.items.map((item: any) => itemText(item)).join("\n");
+  return order.lab_product_display_text || "ยังไม่มี master_display_for_packer ใน Lab 88";
 }
 
 function loadDrafts(): Record<string, { tracking: string; carrier: string }> {
@@ -128,5 +128,5 @@ export default function ParcelMapping() {
 
 function orderProductPreview(order: any) {
   if (Array.isArray(order.items) && order.items.length) return order.items.map((item: any) => itemText(item)).join(" · ");
-  return order.display_for_packer || order.th_name || order.sku || "สินค้า";
+  return order.lab_product_display_text || "ยังไม่มี master_display_for_packer ใน Lab 88";
 }
