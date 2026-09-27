@@ -1,3 +1,12 @@
+// ⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘
+// 🎯 OrderControl : V1  BB-Darkside-WebMiddle-v2026.09.27.01
+// ⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘
+// Scope: BB only
+// เป็นหน้า Control สำหรับอ่านและตรวจออเดอร์เท่านั้น
+// สินค้า: bb_pack_center / items_json
+// หัวบิล: stock_notice
+// ประวัติแชท: normalized_chat_timeline
+// ห้ามเปลี่ยน Telegram status · ห้ามลบหลักฐาน · ห้ามเอา ST logic มาปน
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -84,7 +93,7 @@ function customerHistoryText(order: any): string {
 }
 
 function itemDisplay(item: any) {
-  return String(item.bb_pack_center ?? "").trim();
+  return String(item.bb_pack_center ?? item.for_packer_bb_display ?? item.single_cleaned_products ?? "").trim();
 }
 
 function orderProductPreview(order: any) {
