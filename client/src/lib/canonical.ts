@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 const CONFIG_KEY = "bb-supabase-config";
-export type Camp = "BB" | "ST" | "SB";
+export type Camp = "BB";
 const DEPLOYMENT_CAMP: Camp = "BB";
 export type SupabaseConfig = { url: string; anonKey: string; orderTable?: string };
 let client: SupabaseClient | null = null;
@@ -9,9 +9,6 @@ let clientSignature = "";
 export function getActiveCamp(): Camp { return DEPLOYMENT_CAMP; }
 export function setActiveCamp(_camp: Camp) { client = null; clientSignature = ""; }
 function profileKey(_camp: Camp) { return CONFIG_KEY; }
-const LAB88_FALLBACK_FIELD_KEY = "lab88-product-fallback-field";
-export function getLab88FallbackFieldName() { try { return localStorage.getItem(LAB88_FALLBACK_FIELD_KEY) || ""; } catch { return ""; } }
-export function saveLab88FallbackFieldName(value: string) { try { localStorage.setItem(LAB88_FALLBACK_FIELD_KEY, value.trim()); } catch { /* browser storage may be disabled */ } }
 export function getSupabaseConfig(camp: Camp = getActiveCamp()): SupabaseConfig | null {
   try {
     const raw = localStorage.getItem(profileKey(camp));
@@ -74,50 +71,13 @@ function scoreDailyOrderSignal(text: string, latestCod: number | null) {
   return { score, qualified, qualifiedCod, reasons: Array.from(new Set(reasons)), coreCount: core.length, flowCount: flow.length };
 }export type CanonicalItem = Record<string, any>;
 export type CanonicalOrder = Record<string, any> & { items: CanonicalItem[]; items_text: string; display_for_packer: string | null; is_ready_to_pack: boolean; cod_check_status: string | null; audit_status: string | null; order_status: string | null; telegram_status: string | null };
-const ORDER_SOURCE_TABLE_BY_CAMP: Record<Camp, string> = { BB: "vw_bb_orders_all_v2", ST: "vw_st_orders_all_v2", SB: "sb_orders" };
+const ORDER_SOURCE_TABLE_BY_CAMP: Record<Camp, string> = { BB: "vw_bb_orders_all_v2" };
 // BB main room currently has 700+ orders; avoid truncating the operational queue.
 const ORDER_OPERATIONAL_LIMIT = 1000;
 function defaultOrderView(camp: Camp) { return ORDER_SOURCE_TABLE_BY_CAMP[camp]; }
 function currentOrderWindowStart() { const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date()); const values = Object.fromEntries(parts.filter(part => part.type !== "literal").map(part => [part.type, Number(part.value)])); return new Date(Date.UTC(values.year, values.month - 1, values.day - 1, 7, 0, 0)).toISOString(); }
-function candidateProductDisplay(candidate: any): string {
-  const primary = String(candidate?.master_display_for_packer ?? "").trim();
-  if (primary) return primary;
-  const fallbackField = getLab88FallbackFieldName();
-  return fallbackField ? String(candidate?.[fallbackField] ?? "").trim() : "";
-}
+function normalizeItem(item: CanonicalItem): CanonicalItem { const master = item.product_master && typeof item.product_master === "object" ? item.product_master : {}; const display = String(item.bb_pack_center ?? item.for_packer_bb_display ?? item.single_cleaned_products ?? "").trim() || null; const mapping = item.mapping_status || (item.sku_match_status === "MATCHED_PRODUCT_MASTER" ? "MATCHED" : null); return { ...item, ...master, quantity: num(item.quantity ?? item.extracted_qty ?? item.qty ?? item.master_qty_display ?? item.master_quantity), unit_price: num(item.unit_price_order ?? item.unit_price ?? master.unit_price), expected_cod: num(item.expected_cod), stock_qty: num(item.stock_qty ?? item.inventory?.stock_qty), mapping_status: mapping, display_for_packer: display, label: display, label_display: display }; }
 function parseJsonArray(value: unknown): CanonicalItem[] { if (Array.isArray(value)) return value as CanonicalItem[]; if (typeof value !== "string") return []; try { const parsed = JSON.parse(value); return Array.isArray(parsed) ? parsed : []; } catch { return []; } }
-function lab88ViewForCamp(camp: Camp) { return camp === "BB" ? "vw_bb_product_extraction_lab88" : camp === "ST" ? "vw_st_product_extraction_lab88" : null; }
-function candidateLookupKeys(row: any): string[] { return [String(row.upsert_key ?? "").trim(), String(row.order_number ?? "").trim()].filter(Boolean); }
-export function decorateLab88Products(row: any) {
-  const candidates = parseJsonArray(row?.lab_product_candidates);
-  const items = candidates.map((candidate, index) => {
-    const display = candidateProductDisplay(candidate);
-    const quantity = num(candidate.cot_quantity);
-    return { ...candidate, id: candidate.id ?? candidate.source_line_no ?? index + 1, sku: candidate.master_sku ?? null, master_display_for_packer: display || null, display_for_packer: display || null, label_display: display || null, th_name: candidate.th_name ?? candidate.master_th_name ?? null, quantity, qty: quantity };
-  });
-  const productDisplay = items.map(item => item.display_for_packer).filter(Boolean).join("\n") || null;
-  return { ...row, lab_product_candidates: candidates, items, lab_product_display_text: productDisplay, items_text: productDisplay || "", master_display_for_packer: productDisplay, display_for_packer: productDisplay, for_packer_bb_display: productDisplay };
-}
-async function attachLab88Candidates(api: any, rows: any[]) {
-  const view = lab88ViewForCamp(getActiveCamp());
-  if (!view || !rows.length) return { rows, error: null as unknown };
-  const { data, error } = await api.from(view).select("upsert_key,order_number,lab_product_candidates").limit(5000);
-  if (error) return { rows: rows.map(row => ({ ...row, lab_product_candidates: parseJsonArray(row.lab_product_candidates) })), error };
-  const candidatesByKey = new Map<string, CanonicalItem[]>();
-  for (const labRow of data ?? []) {
-    const candidates = parseJsonArray(labRow.lab_product_candidates);
-    for (const key of candidateLookupKeys(labRow)) candidatesByKey.set(key, candidates);
-  }
-  return {
-    rows: rows.map(row => {
-      const candidates = candidateLookupKeys(row).map(key => candidatesByKey.get(key)).find(Boolean)
-        ?? parseJsonArray(row.lab_product_candidates);
-      return { ...row, lab_product_candidates: candidates };
-    }),
-    error: null as unknown,
-  };
-}
-function normalizeItem(item: CanonicalItem): CanonicalItem { const master = item.product_master && typeof item.product_master === "object" ? item.product_master : {}; const display = String(item.lab_master_display_for_packer ?? "").trim() || null; const mapping = item.mapping_status || (item.sku_match_status === "MATCHED_PRODUCT_MASTER" ? "MATCHED" : null); return { ...item, ...master, quantity: num(item.quantity ?? item.cot_quantity ?? item.extracted_qty ?? item.qty ?? item.master_qty_display ?? item.master_quantity), unit_price: num(item.unit_price_order ?? item.unit_price ?? master.unit_price), expected_cod: num(item.expected_cod), stock_qty: num(item.stock_qty ?? item.inventory?.stock_qty), mapping_status: mapping, master_display_for_packer: display, display_for_packer: display, label: display, label_display: display, telegram_final_mapped: display, sku: display ? item.sku : null }; }
 function orderLocalTimestamp(row: any): string | null {
   const dateText = String(row.order_date || row.date_th || "");
   const timeText = String(row.time_th || "");
@@ -135,18 +95,7 @@ function effectiveOrderTime(row: any): string | null {
   // Facebook order_time is authoritative. Other timestamps are audit fallbacks only.
   return row.order_time || row.order_message_created_at || row.facebook_message_created_at || row.facebook_created_at || row.fb_created_at || row.order_close_time_from_chat || orderLocalTimestamp(row) || null;
 }
-function normalizeOrder(row: any): CanonicalOrder {
-  const decorated = decorateLab88Products(row);
-  const normalized: CanonicalItem[] = decorated.items.map((item: CanonicalItem) => normalizeItem({
-    ...item,
-    lab_master_display_for_packer: item.display_for_packer,
-  }));
-  const productDisplay = decorated.lab_product_display_text;
-  const cod = num(row.cod_amount);
-  const mapping = row.alien_mapping_status || row.web_mapping_status || row.mapping_status || (normalized.length > 0 && normalized.every(item => item.mapping_status === "MATCHED") ? "MATCHED" : "CHECK_DATA");
-  const address = row.master_delivery_address || row.address_complete_web || row.web_address_primary || row.address_display_primary || row.full_address || row.address_display_packer || row.addressclean || row.address_display_fallback || row.web_address_fallback || row.web_address_short || [row.address_line_1, row.address_line_2, row.district, row.amphoe, row.province, row.zipcode].filter(Boolean).join(" ") || "";
-  return { ...decorated, full_address: address, customer_name: row.customer_name, phone: row.phone || row.extracted_phone, address_display_primary: row.web_address_primary || row.address_display_primary || address, address_display_fallback: row.web_address_fallback || row.address_display_fallback || address, items: normalized, mapping_status: mapping, order_number: row.order_number || `#${row.id}`, order_time: effectiveOrderTime(row), cod_amount: cod, is_ready_to_pack: row.is_ready_to_pack ?? (mapping === "MATCHED"), cod_check_status: row.cod_check_status || (cod == null ? "CHECK" : "PASS"), audit_status: row.alien_audit_status || row.audit_status || mapping, telegram_status: row.telegram_status ?? null, lab_product_display_text: productDisplay, master_display_for_packer: productDisplay, items_text: productDisplay || "", display_for_packer: productDisplay, for_packer_bb_display: productDisplay };
-}
+function normalizeOrder(row: any, items: CanonicalItem[]): CanonicalOrder { const normalized = items.map(normalizeItem); const cod = num(row.cod_amount); const mapping = row.alien_mapping_status || row.web_mapping_status || row.mapping_status || (normalized.length > 0 && normalized.every(item => item.mapping_status === "MATCHED") ? "MATCHED" : "CHECK_DATA"); const address = row.master_delivery_address || row.address_complete_web || row.web_address_primary || row.address_display_primary || row.full_address || row.address_display_packer || row.addressclean || row.address_display_fallback || row.web_address_fallback || row.web_address_short || [row.address_line_1, row.address_line_2, row.district, row.amphoe, row.province, row.zipcode].filter(Boolean).join(" ") || ""; const productDisplay = String(row.bb_pack_center ?? row.for_packer_bb_display ?? row.single_cleaned_products ?? "").trim() || null; return { ...row, full_address: address, customer_name: row.customer_name, phone: row.phone || row.extracted_phone, address_display_primary: row.web_address_primary || row.address_display_primary || address, address_display_fallback: row.web_address_fallback || row.address_display_fallback || address, items: normalized, mapping_status: mapping, order_number: row.order_number || `#${row.id}`, order_time: effectiveOrderTime(row), cod_amount: cod, is_ready_to_pack: row.is_ready_to_pack ?? (mapping === "MATCHED"), cod_check_status: row.cod_check_status || (cod == null ? "CHECK" : "PASS"), audit_status: row.alien_audit_status || row.audit_status || mapping, telegram_status: row.telegram_status ?? null, items_text: productDisplay || "", display_for_packer: productDisplay }; }
 export async function readCanonicalOrders(search = "", since: string | null = null, until: string | null = null) {
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
@@ -157,17 +106,59 @@ export async function readCanonicalOrders(search = "", since: string | null = nu
     .limit(search.trim() || since || until ? 1000 : ORDER_OPERATIONAL_LIMIT);
   if (error) fail(error);
 
-  // A malformed/null row from PostgREST must not reach normalizeOrder, which
-  // reads fields such as telegram_status. Keep every valid order unchanged.
-  const orderRows = Array.isArray(rows)
-    ? rows.filter((row: unknown): row is Record<string, any> => row !== null && typeof row === "object" && !Array.isArray(row))
-    : [];
-  const labAttached = await attachLab88Candidates(api, orderRows);
-  const orderRowsWithCandidates = labAttached.rows;
+  let orderRows = rows ?? [];
+  // BB product truth: enrich each order from the single Lab order-center field.
+  // If the v2 view is not installed yet, keep the main Orders page readable.
+  if (getActiveCamp() === "BB") {
+    const { data: packRows } = await api
+      .from("vw_bb_product_extraction_lab88_order_center_v2")
+      .select("upsert_key,bb_pack_center,quantity_center,total_cot_quantity,product_line_count,center_status")
+      .limit(1000);
+    if (packRows?.length) {
+      const packByKey = new Map(packRows.map((pack: any) => [String(pack.upsert_key ?? ""), pack]));
+      orderRows = orderRows.map((row: any) => ({ ...row, ...(packByKey.get(String(row.upsert_key ?? "")) ?? {}) }));
+    }
+  }
+  const orderIds = orderRows.map((row: any) => Number(row.id)).filter((id: number) => Number.isFinite(id));
+  const itemsByOrder = new Map<number, CanonicalItem[]>();
+  let itemError: unknown = null;
+
+  // canonical_orders คือหัวบิล ส่วนสินค้าจริงอยู่ใน canonical_order_items
+  // รวมกลับมาเป็นแถวออเดอร์เดียวสำหรับหน้าเว็บ โดยไม่อ่านสินค้าเฉพาะจาก JSON ในหัวบิล
+  if (orderIds.length) {
+    const { data: itemRows, error: itemsError } = await api
+      .from("canonical_order_items")
+      .select("*")
+      .in("order_id", orderIds)
+      .order("line_no", { ascending: true });
+
+    itemError = itemsError;
+    if (!itemsError) {
+      for (const item of itemRows ?? []) {
+        const orderId = Number((item as any).order_id);
+        if (!Number.isFinite(orderId)) continue;
+        itemsByOrder.set(orderId, [...(itemsByOrder.get(orderId) ?? []), item as CanonicalItem]);
+      }
+    }
+  }
+
   const query = search.trim().toLowerCase();
-  const orders = orderRowsWithCandidates
+  const orders = orderRows
     .map((row: any) => {
-      const normalized = normalizeOrder(row);
+      const linkedItems = itemsByOrder.get(Number(row.id));
+
+      // Fallback รองรับข้อมูลเก่าที่ยังไม่ได้แตกลง canonical_order_items
+      const fallbackItems = parseJsonArray(row.order_items).length
+        ? parseJsonArray(row.order_items)
+        : parseJsonArray(row.items_json).length
+          ? parseJsonArray(row.items_json)
+          : parseJsonArray(row.product_items).length
+            ? parseJsonArray(row.product_items)
+            : parseJsonArray(row.web_items_clean).length
+              ? parseJsonArray(row.web_items_clean)
+              : parseJsonArray(row.web_items_all_fields);
+
+      const normalized = normalizeOrder(row, linkedItems?.length ? linkedItems : fallbackItems);
       return {
         ...normalized,
         source_table: sourceTable,
@@ -178,21 +169,19 @@ export async function readCanonicalOrders(search = "", since: string | null = nu
     .filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query));
 
   orders.sort((a, b) => new Date(b.order_time || 0).getTime() - new Date(a.order_time || 0).getTime());
-  return { orders, itemError: null, productError: labAttached.error, sourceTable, fetchedAt: new Date().toISOString(), since };
+  return { orders, itemError, sourceTable, fetchedAt: new Date().toISOString(), since };
 }
 export async function readTelegramDeliveryOrders(search = "", room: "queue" | "today" | "yesterday_after_14" | "sent" = "queue") {
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  // One stable view supplies every BB order; queue/history membership is
-  // filtered by the UI from its text-safe delivery flags.
-  const sourceTable = "drakside_telagram_delivery_pro";
+  // Manual room: read every BB bill. The UI separates waiting/sent locally
+  // from the explicit sent fields; no time cutoff or mapping gate applies.
+  const sourceTable = "dk_DARKSIDEMARKETING_TELAGRAM_bb";
   const { data, error } = await api.from(sourceTable).select("*").limit(1000);
   if (error) fail(error);
   const query = search.trim().toLowerCase();
-  const validRows = (data ?? []).filter((row: any) => row && typeof row === "object" && !Array.isArray(row));
-  const labAttached = await attachLab88Candidates(api, validRows);
-  const orders = labAttached.rows.map(decorateLab88Products).filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query)).sort((a: any, b: any) => new Date(b.drakside_source_time ?? b.order_time ?? b.created_at ?? 0).getTime() - new Date(a.drakside_source_time ?? a.order_time ?? a.created_at ?? 0).getTime());
-  return { orders, itemError: null, productError: labAttached.error, sourceTable, fetchedAt: new Date().toISOString(), room };
+  const orders = (data ?? []).filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query)).sort((a: any, b: any) => new Date(b.source_time ?? b.order_time ?? 0).getTime() - new Date(a.source_time ?? a.order_time ?? 0).getTime());
+  return { orders, itemError: null, sourceTable, fetchedAt: new Date().toISOString(), room };
 }
 
 export async function readBbAlertRoom(search = "") {
@@ -201,9 +190,7 @@ export async function readBbAlertRoom(search = "") {
   const { data, error } = await api.from("vw_bb_order_alert_room_v1").select("*").limit(2000);
   if (error) fail(error);
   const query = search.trim().toLowerCase();
-  const rows = (data ?? []).filter((row: any) => row && typeof row === "object" && !Array.isArray(row));
-  const labAttached = await attachLab88Candidates(api, rows);
-  return labAttached.rows.map(decorateLab88Products)
+  return (data ?? [])
     .filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query))
     .sort((a: any, b: any) => String(b.order_time_display ?? "").localeCompare(String(a.order_time_display ?? "")));
 }
@@ -359,8 +346,8 @@ export async function readAlienReview(search = ''): Promise<AlienReviewItem[]> {
   const api = getSupabase();
   if (!api) fail({ message: 'ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key' });
   const camp = getActiveCamp();
-  const orderTable = camp === 'ST' ? 'st_orders' : camp === 'SB' ? 'sb_orders' : 'bb_orders';
-  const inspectorView = camp === 'BB' ? 'vw_bb_alien_master_center' : 'vw_product_alien_inspector';
+  const orderTable = 'bb_orders';
+  const inspectorView = 'vw_bb_alien_master_center';
   const [ordersResult, masterResult, aliasResult, inventoryResult, inspectorResult] = await Promise.all([
     api.from(orderTable).select('*').order('updated_at', { ascending: false }).limit(1000),
     // Read the existing tables without assuming a particular SKU column name.
