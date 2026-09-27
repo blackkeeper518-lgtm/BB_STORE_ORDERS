@@ -9,6 +9,7 @@
 - `client/src/lib/canonical.ts`
 - `client/src/pages/DailyChatSummary.tsx`
 - `client/src/pages/OrderControl.tsx`
+- `client/src/pages/TelegramDeliveryRoom.tsx`
 
 เส้นทางข้อมูล BB:
 
@@ -18,4 +19,7 @@
 - หัวบิล: `stock_notice`
 - ตัวผูก: `upsert_key`
 
-ไม่รวมไฟล์ `OrderControl (8).tsx` หรือไฟล์ ST เก่า
+ไม่รวมไฟล์สำรองหรือไฟล์คนละชุด
+
+
+กฎเวลา: ใช้ `order_time_display` เท่านั้น ห้ามใช้เวลาอื่นเป็นเวลาออเดอร์

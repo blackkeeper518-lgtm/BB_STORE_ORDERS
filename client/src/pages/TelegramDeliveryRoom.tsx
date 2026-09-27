@@ -50,13 +50,13 @@ function deliveryStatus(row: OrderRow) {
 }
 
 function realTime(row: OrderRow) {
-  return row.order_time || row.order_message_created_at || row.facebook_message_created_at || row.facebook_created_at || row.fb_created_at || row.order_close_time_from_chat || null;
+  return row.order_time_display || null;
 }
 
 function displayTime(row: OrderRow) { return String(row.order_time_display || "ไม่พบ order_time_display"); }
 
 function productOf(row: OrderRow) {
-  return evidenceText(row.lab_product_display_text) || "ยังไม่มี master_display_for_packer ใน Lab 88";
+  return evidenceText(row.bb_pack_center);
 }
 
 function evidenceText(value: unknown): string {
@@ -195,7 +195,7 @@ export default function TelegramDeliveryRoom() {
       phone: String(order.phone ?? order.extracted_phone ?? ""),
       address_display_packer: addressOf(order),
       cod_amount: String(order.cod_amount ?? ""),
-      for_packer_bb_display: String(order.lab_product_display_text ?? ""),
+      for_packer_bb_display: String(order.bb_pack_center ?? ""),
       shipping_method: String(order.shipping_method ?? "⚡FLASH EXPRESS"),
     });
     setEditMode(false);
@@ -313,6 +313,8 @@ export default function TelegramDeliveryRoom() {
           <div className="rounded-2xl border border-fuchsia-400/15 bg-fuchsia-400/5 p-3"><p className="text-[10px] uppercase tracking-[0.18em] text-fuchsia-200/50">อัปเดตล่าสุด</p><p className="mt-1 text-sm font-medium text-fuchsia-100">{query.data?.fetchedAt ? new Date(query.data.fetchedAt).toLocaleTimeString("th-TH") : "ยังไม่อ่าน"}</p></div>
         </div>
       </header>
+
+      <div className="rounded-2xl border border-amber-300/25 bg-amber-400/10 p-4 text-xs leading-6 text-amber-50/85"><p className="font-semibold text-amber-200">กฎเวลา BB</p><p>ห้องนี้ใช้เวลาออเดอร์จาก <code className="rounded bg-black/30 px-1.5 py-0.5 text-amber-100">order_time_display</code> เท่านั้น ห้ามใช้เวลาอื่นมาปน เพื่อไม่ให้คิวโหลดช้า เรียงผิด หรือข้อมูลระเบิด</p></div>
 
       <div className="grid gap-3 md:grid-cols-[1.2fr_1fr]">
         <div className="rounded-2xl border border-orange-300/25 bg-orange-400/10 p-4 text-xs leading-6 text-orange-50/80"><p className="mb-1 flex items-center gap-2 font-semibold text-orange-200"><Zap className="h-4 w-4" />ลำดับสำคัญของห้องนี้</p><b className="text-white">ป้ายหัวบิล → สถานะส่ง → คำเตือน → ข้อมูลสินค้า/ที่อยู่</b><p className="mt-1 text-orange-100/55">พบคำเตือนในคิว {warningCount} จุด · ปุ่มคัดลอกไม่เปลี่ยนสถานะ</p></div>

@@ -114,8 +114,8 @@ function orderLocalTimestamp(row: any): string | null {
   return new Date(Date.UTC(year, month - 1, day, hour - 7, minute, second)).toISOString();
 }
 function effectiveOrderTime(row: any): string | null {
-  // Facebook order_time is authoritative. Other timestamps are audit fallbacks only.
-  return row.order_time_display || row.order_time || row.order_message_created_at || row.facebook_message_created_at || row.facebook_created_at || row.fb_created_at || row.order_close_time_from_chat || orderLocalTimestamp(row) || null;
+  // กฎ BB: เวลาของออเดอร์มาจาก order_time_display เท่านั้น ห้าม fallback ไปเวลาอื่น
+  return row.order_time_display || null;
 }
 function normalizeOrder(row: any, items: CanonicalItem[]): CanonicalOrder { const normalized = items.map(normalizeItem); const cod = num(row.cod_amount); const mapping = row.alien_mapping_status || row.web_mapping_status || row.mapping_status || (normalized.length > 0 && normalized.every(item => item.mapping_status === "MATCHED") ? "MATCHED" : "CHECK_DATA"); const address = row.master_delivery_address || row.address_complete_web || row.web_address_primary || row.address_display_primary || row.full_address || row.address_display_packer || row.addressclean || row.address_display_fallback || row.web_address_fallback || row.web_address_short || [row.address_line_1, row.address_line_2, row.district, row.amphoe, row.province, row.zipcode].filter(Boolean).join(" ") || ""; const productDisplay = String(row.bb_pack_center ?? "").trim() || null; return { ...row, full_address: address, customer_name: row.customer_name, phone: row.phone || row.extracted_phone, address_display_primary: row.web_address_primary || row.address_display_primary || address, address_display_fallback: row.web_address_fallback || row.address_display_fallback || address, items: normalized, mapping_status: mapping, order_number: row.order_number || row.order_number_display || `#${row.upsert_key || "UNKNOWN"}`, order_time: effectiveOrderTime(row), cod_amount: cod, is_ready_to_pack: row.is_ready_to_pack ?? (mapping === "MATCHED"), cod_check_status: row.cod_check_status || (cod == null ? "CHECK" : "PASS"), audit_status: row.alien_audit_status || row.audit_status || mapping, telegram_status: row.telegram_status ?? null, items_text: productDisplay || "", display_for_packer: productDisplay }; }
 export async function readCanonicalOrders(search = "", since: string | null = null, until: string | null = null) {
@@ -135,7 +135,21 @@ export async function readCanonicalOrders(search = "", since: string | null = nu
     for (const row of result.data ?? []) {
       const key = String(row.upsert_key ?? row.order_number ?? "");
       const previous = rowsByKey.get(key);
-      rowsByKey.set(key, previous ? { ...row, ...previous } : row);
+      if (!previous) {
+        rowsByKey.set(key, row);
+        continue;
+      }
+
+      // รวมสองห้องแบบบ้าน ๆ: ค่าที่มีจริงต้องชนะค่าว่าง
+      const merged = { ...previous, ...row };
+      for (const field of ["bb_pack_center", "stock_notice", "center_status", "total_cot_quantity"]) {
+        const current = row[field];
+        const old = previous[field];
+        if ((current == null || String(current).trim() === "") && old != null && String(old).trim() !== "") {
+          merged[field] = old;
+        }
+      }
+      rowsByKey.set(key, merged);
     }
   }
   const orderRows = Array.from(rowsByKey.values());
@@ -201,7 +215,7 @@ export async function readTelegramDeliveryOrders(search = "", room: "queue" | "t
   const { data, error } = await api.from(sourceTable).select("*").limit(1000);
   if (error) fail(error);
   const query = search.trim().toLowerCase();
-  const orders = (data ?? []).filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query)).sort((a: any, b: any) => new Date(b.source_time ?? b.order_time ?? 0).getTime() - new Date(a.source_time ?? a.order_time ?? 0).getTime());
+  const orders = (data ?? []).filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query)).sort((a: any, b: any) => String(b.order_time_display ?? "").localeCompare(String(a.order_time_display ?? "")));
   return { orders, itemError: null, sourceTable, fetchedAt: new Date().toISOString(), room };
 }
 
@@ -326,7 +340,7 @@ export async function setInventoryAvailability(input: { productId: number; sku: 
   });
 }
 
-export async function readDailyOrders(date: string, search = "") { const start = new Date(`${date}T00:00:00+07:00`).toISOString(); const result = await readCanonicalOrders(search, start); const orders = result.orders.filter((o: any) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok" }).format(new Date(o.order_time ?? o.created_at ?? "")) === date); return { date, orders, total: orders.length }; }
+export async function readDailyOrders(date: string, search = "") { const result = await readCanonicalOrders(search); const [year, month, day] = date.split("-"); const displayPrefix = `${Number(day)}/${Number(month)}/${String(Number(year) % 100)}`; const orders = result.orders.filter((o: any) => String(o.order_time_display ?? "").startsWith(displayPrefix)); return { date, orders, total: orders.length }; }
 async function readChatRows() {
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
