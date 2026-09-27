@@ -1,30 +1,55 @@
-# แพ็กเกจ BB / ST — ห้องกลาง Telegram + ห้องส่ง
+# BB Telegram Delivery Room Package
 
-ไฟล์นี้รวม SQL ของแต่ละค่ายแยกกัน และ patch สำหรับโค้ดหน้าเว็บ BB ที่แก้หน้าแรก/แหล่งแสดงสินค้า
+แพ็กเกจนี้สำหรับโปรเจกต์ BB เท่านั้น ห้ามนำ SQL ไปใช้ในฐานข้อมูล ST
 
-## ไฟล์ในแพ็กเกจ
+## หน้าเว็บ
 
-- `BB_telegram_rooms.sql` — SQL เต็มของ **BB เท่านั้น**
-- `ST_telegram_rooms.sql` — SQL เต็มของ **ST เท่านั้น**
-- `BB_STORE_ORDERS_home_orders_lab88.patch` — patch โค้ดเว็บ BB: `/` ไป `/orders` และใช้ `lab_product_candidates[*].master_display_for_packer` เป็นแหล่งแสดงสินค้า
+วางไฟล์ตามโครงสร้างเดิม:
 
-## สำคัญก่อนรัน SQL
+```text
+client/src/pages/TelegramDeliveryRoom.tsx
+client/src/lib/canonical.ts
+client/src/lib/telegramDelivery.ts
+```
 
-1. ไฟล์ BB กับ ST เป็นคนละโปรเจกต์/ฐานข้อมูล **ห้ามรันสลับค่าย**
-2. รัน SQL ของค่ายนั้นใน Supabase SQL Editor ของค่ายเดียวกันเท่านั้น
-3. SQL ทั้งสองไฟล์อาศัย view ต้นทาง Lab 88 และ Lab 99 ที่มีอยู่แล้ว โดยจะไม่ลบหรือสร้างทับ Lab 88/Lab 99
-4. สคริปต์จะสร้าง/แทนที่ห้องกลางและห้องส่ง พร้อมคิวที่ตัดรายการที่ส่งแล้วออกจากห้องส่ง โดยตรวจสถานะในตารางหลักของค่าย (`bb_orders` หรือ `st_orders`)
-5. n8n ควรอัปเดตแถวด้วย `upsert_key` หลัง Telegram ส่งสำเร็จ แล้วตั้ง `telegram_status = 'SENT'` และ/หรือ `telegram_sent = true` เท่านั้น อย่าตั้ง SENT ก่อนส่งสำเร็จ
-6. ST มีเงื่อนไขเวลาตั้งแต่ 22:00 ของเมื่อวานตามเวลา Bangkok และเรียงจากเก่าไปใหม่ ส่วน BB ใช้เงื่อนไขตาม SQL BB
+Route เดิมยังใช้:
 
-## การอัปโหลดขึ้น GitHub
+```text
+/telegram-delivery
+```
 
-หน้า GitHub `/upload/main` รับไฟล์ที่เลือก/ลากวาง แต่การอัปโหลด ZIP **ไม่แตกไฟล์ให้อัตโนมัติ** และการอัปโหลดไฟล์ `.patch` จะเก็บ patch ไว้เฉย ๆ ไม่ได้แก้ source code ให้อัตโนมัติ
+หน้า BB รองรับการติ๊กเลือกออเดอร์หลายรายการ, เปิด/ปิดเลือกทั้งหมด, ปล่อยรันเฉพาะรายการที่เลือก, คัดลอกบิล, แก้ไข, ส่งจากเว็บ, ส่งจากภายนอก และกด `ติ๊ก SENT` ภายหลังได้ โดยการปล่อยรันไม่เปลี่ยน SENT อัตโนมัติ
 
-- หากต้องการเก็บไฟล์ SQL ใน repository ให้แตก ZIP ในเครื่องก่อน แล้วอัปโหลด `BB_telegram_rooms.sql`, `ST_telegram_rooms.sql` และ `README.md` เข้าไป
-- หากต้องการใช้ patch เปลี่ยน source code เว็บ BB ให้ตรวจและ apply patch กับ clone ของ repository ด้วย `git apply BB_STORE_ORDERS_home_orders_lab88.patch` จากนั้นค่อย commit/push ตามขั้นตอนของคุณ หรือแก้/อัปโหลด source files ที่เปลี่ยนโดยตรง
-- การเก็บ SQL ไว้ใน GitHub ไม่ได้รัน SQL และไม่ได้ deploy เว็บไซต์โดยอัตโนมัติ
+## SQL ที่ให้มา
 
-## ขอบเขตการตรวจสอบ
+รันใน Supabase BB เท่านั้น:
 
-เว็บแพตช์ผ่าน TypeScript check, production build และ unit tests ใน working copy ก่อนแพ็ก แต่ SQL ยังไม่ได้รันกับฐานข้อมูลจริง จึงควรตรวจชื่อ view ต้นทางและดูจำนวนแถวหลังติดตั้งด้วย read-only checks ที่ท้ายไฟล์ก่อนนำไปใช้จริง
+1. `vw_bb_orders_all_v2.sql` หรือ `vw_bb_orders_all_v2_slim.sql` ตาม View ที่หน้าเว็บใช้อยู่
+2. `vw_bb_product_extraction_lab88_fixed.sql`
+3. `vw_bb_product_extraction_lab88_candidates_lines.sql`
+4. `bb_stamp_telegram_header_by_product_lane.sql`
+5. `bb_manual_delivery_and_alert_room_v1.sql`
+
+`vw_bb_product_extraction_lab88_fixed.sql` ใช้ `CREATE OR REPLACE VIEW` ไม่ใช้ `DROP VIEW` เพื่อไม่ทำลาย View เว็บที่พึ่งพา Lab 88
+
+`vw_bb_product_extraction_lab88_candidates_lines.sql` แตก `lab_product_candidates` เป็น 1 สินค้า = 1 แถว โดยรักษา:
+
+```text
+raw_text
+view_th_name_clean
+master_sku
+master_th_name
+bb_pack
+cot_quantity
+line_mapping_status
+```
+
+## กฎข้อมูล
+
+- BB ใช้ `vw_bb_product_extraction_lab88` เป็นก้อน Lab หลัก
+- ใช้ `vw_bb_product_extraction_lab88_candidates_lines` สำหรับอ่านรายสินค้า
+- `bb_pack` ใช้สำหรับคนแพ็ก เช่น `🟥 CAVALLO_RED(คาวาโร่แดง)`
+- ถ้าแมปไม่ได้ ให้เก็บ raw evidence และขึ้นป้ายตรวจ ห้ามเดา SKU
+- หัวบิลใช้ค่าจากฐานข้อมูลเมื่อมีค่า
+- ส่งจากเว็บหรือส่งจากภายนอกได้ แล้วกลับมากด `ติ๊ก SENT`
+- ห้ามรัน SQL ชุดนี้ใน ST

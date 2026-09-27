@@ -4,7 +4,7 @@
 
 -- Do not DROP: web views depend on lab88_lines.
 -- CREATE OR REPLACE preserves those dependencies and updates the logic in place.
-CREATE OR REPLACE VIEW public.vw_bb_product_extraction_lab88 AS
+CREATE OR REPLACE VIEW public.vw_bb_product_extraction_lab88_v2 AS
 WITH order_source AS (
   SELECT
     o.upsert_key,
@@ -270,7 +270,7 @@ GROUP BY
   stamped_product_text;
 
 -- Exploded form: one mapped/raw product line per row for the web and inspection room.
-CREATE OR REPLACE VIEW public.vw_bb_product_extraction_lab88_lines AS
+CREATE OR REPLACE VIEW public.vw_bb_product_extraction_lab88_v2_lines AS
 SELECT
   l.upsert_key,
   l.order_number,
@@ -289,10 +289,10 @@ SELECT
   candidate->>'view_th_name_clean' AS view_th_name_clean,
   candidate->>'master_th_name' AS master_th_name,
   candidate->>'bb_pack' AS bb_pack
-FROM public.vw_bb_product_extraction_lab88 AS l
+FROM public.vw_bb_product_extraction_lab88_v2 AS l
 CROSS JOIN LATERAL jsonb_array_elements(l.lab_product_candidates) AS e(candidate);
 
-COMMENT ON VIEW public.vw_bb_product_extraction_lab88 IS
+COMMENT ON VIEW public.vw_bb_product_extraction_lab88_v2 IS
   'BB-only bottom product extraction Lab; corrected grouping and preserved candidate JSON.';
-COMMENT ON VIEW public.vw_bb_product_extraction_lab88_lines IS
+COMMENT ON VIEW public.vw_bb_product_extraction_lab88_v2_lines IS
   'BB-only exploded Lab lines; one raw/mapped product candidate per row.';
