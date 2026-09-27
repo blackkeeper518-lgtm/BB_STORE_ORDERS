@@ -1,3 +1,15 @@
+// ⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘
+// 🎯 BB OrderControl : DATA ROUTE RULES
+// ⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘
+// Scope: BB only · อ่านและตรวจออเดอร์
+// โต๊ะหลัก: bb_stoer
+// สายแรก: dk_darksidemarketing_bb
+// สายสอง: dk_darksidemarketing_telagram_bb
+// คีย์หลัก: upsert_key · เวลาหลัก: order_time_display
+// ที่อยู่สำรอง: address_display_packer
+// ห้ามเปลี่ยน Telegram status · ห้ามลบหลักฐาน · ห้ามเอา ST logic มาปน
+// ⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘
+
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 const CONFIG_KEY = "bb-supabase-config";
@@ -15,7 +27,7 @@ export function getSupabaseConfig(camp: Camp = getActiveCamp()): SupabaseConfig 
     if (!raw) return null;
     const value = JSON.parse(raw) as Partial<SupabaseConfig>;
     if (!value.url || !value.anonKey) return null;
-    return { url: value.url.replace(/\/$/, ""), anonKey: value.anonKey, orderTable: value.orderTable || "vw_bb_orders_all_v2" };
+    return { url: value.url.replace(/\/$/, ""), anonKey: value.anonKey, orderTable: value.orderTable || "bb_stoer" };
   } catch { return null; }
 }
 export function saveSupabaseConfig(config: SupabaseConfig, camp: Camp = getActiveCamp()) { const clean = { url: config.url.trim().replace(/\/$/, ""), anonKey: config.anonKey.trim(), orderTable: config.orderTable?.trim() || defaultOrderView(camp) }; localStorage.setItem(profileKey(camp), JSON.stringify(clean)); client = null; clientSignature = ""; }
@@ -71,12 +83,12 @@ function scoreDailyOrderSignal(text: string, latestCod: number | null) {
   return { score, qualified, qualifiedCod, reasons: Array.from(new Set(reasons)), coreCount: core.length, flowCount: flow.length };
 }export type CanonicalItem = Record<string, any>;
 export type CanonicalOrder = Record<string, any> & { items: CanonicalItem[]; items_text: string; display_for_packer: string | null; is_ready_to_pack: boolean; cod_check_status: string | null; audit_status: string | null; order_status: string | null; telegram_status: string | null };
-const ORDER_SOURCE_TABLE_BY_CAMP: Record<Camp, string> = { BB: "vw_bb_orders_all_v2" };
+const ORDER_SOURCE_TABLE_BY_CAMP: Record<Camp, string> = { BB: "dk_darksidemarketing_telagram_bb" };
 // BB main room currently has 700+ orders; avoid truncating the operational queue.
 const ORDER_OPERATIONAL_LIMIT = 1000;
 function defaultOrderView(camp: Camp) { return ORDER_SOURCE_TABLE_BY_CAMP[camp]; }
 function currentOrderWindowStart() { const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date()); const values = Object.fromEntries(parts.filter(part => part.type !== "literal").map(part => [part.type, Number(part.value)])); return new Date(Date.UTC(values.year, values.month - 1, values.day - 1, 7, 0, 0)).toISOString(); }
-function normalizeItem(item: CanonicalItem): CanonicalItem { const master = item.product_master && typeof item.product_master === "object" ? item.product_master : {}; const display = String(item.bb_pack_center ?? item.for_packer_bb_display ?? item.single_cleaned_products ?? "").trim() || null; const mapping = item.mapping_status || (item.sku_match_status === "MATCHED_PRODUCT_MASTER" ? "MATCHED" : null); return { ...item, ...master, quantity: num(item.quantity ?? item.extracted_qty ?? item.qty ?? item.master_qty_display ?? item.master_quantity), unit_price: num(item.unit_price_order ?? item.unit_price ?? master.unit_price), expected_cod: num(item.expected_cod), stock_qty: num(item.stock_qty ?? item.inventory?.stock_qty), mapping_status: mapping, display_for_packer: display, label: display, label_display: display }; }
+function normalizeItem(item: CanonicalItem): CanonicalItem { const master = item.product_master && typeof item.product_master === "object" ? item.product_master : {}; const display = String(item.bb_pack_center ?? "").trim() || null; const mapping = item.mapping_status || (item.sku_match_status === "MATCHED_PRODUCT_MASTER" ? "MATCHED" : null); return { ...item, ...master, quantity: num(item.quantity ?? item.extracted_qty ?? item.qty ?? item.master_qty_display ?? item.master_quantity), unit_price: num(item.unit_price_order ?? item.unit_price ?? master.unit_price), expected_cod: num(item.expected_cod), stock_qty: num(item.stock_qty ?? item.inventory?.stock_qty), mapping_status: mapping, display_for_packer: display, label: display, label_display: display }; }
 function parseJsonArray(value: unknown): CanonicalItem[] { if (Array.isArray(value)) return value as CanonicalItem[]; if (typeof value !== "string") return []; try { const parsed = JSON.parse(value); return Array.isArray(parsed) ? parsed : []; } catch { return []; } }
 function orderLocalTimestamp(row: any): string | null {
   const dateText = String(row.order_date || row.date_th || "");
@@ -93,32 +105,31 @@ function orderLocalTimestamp(row: any): string | null {
 }
 function effectiveOrderTime(row: any): string | null {
   // Facebook order_time is authoritative. Other timestamps are audit fallbacks only.
-  return row.order_time || row.order_message_created_at || row.facebook_message_created_at || row.facebook_created_at || row.fb_created_at || row.order_close_time_from_chat || orderLocalTimestamp(row) || null;
+  return row.order_time_display || row.order_time || row.order_message_created_at || row.facebook_message_created_at || row.facebook_created_at || row.fb_created_at || row.order_close_time_from_chat || orderLocalTimestamp(row) || null;
 }
-function normalizeOrder(row: any, items: CanonicalItem[]): CanonicalOrder { const normalized = items.map(normalizeItem); const cod = num(row.cod_amount); const mapping = row.alien_mapping_status || row.web_mapping_status || row.mapping_status || (normalized.length > 0 && normalized.every(item => item.mapping_status === "MATCHED") ? "MATCHED" : "CHECK_DATA"); const address = row.master_delivery_address || row.address_complete_web || row.web_address_primary || row.address_display_primary || row.full_address || row.address_display_packer || row.addressclean || row.address_display_fallback || row.web_address_fallback || row.web_address_short || [row.address_line_1, row.address_line_2, row.district, row.amphoe, row.province, row.zipcode].filter(Boolean).join(" ") || ""; const productDisplay = String(row.bb_pack_center ?? row.for_packer_bb_display ?? row.single_cleaned_products ?? "").trim() || null; return { ...row, full_address: address, customer_name: row.customer_name, phone: row.phone || row.extracted_phone, address_display_primary: row.web_address_primary || row.address_display_primary || address, address_display_fallback: row.web_address_fallback || row.address_display_fallback || address, items: normalized, mapping_status: mapping, order_number: row.order_number || `#${row.id}`, order_time: effectiveOrderTime(row), cod_amount: cod, is_ready_to_pack: row.is_ready_to_pack ?? (mapping === "MATCHED"), cod_check_status: row.cod_check_status || (cod == null ? "CHECK" : "PASS"), audit_status: row.alien_audit_status || row.audit_status || mapping, telegram_status: row.telegram_status ?? null, items_text: productDisplay || "", display_for_packer: productDisplay }; }
+function normalizeOrder(row: any, items: CanonicalItem[]): CanonicalOrder { const normalized = items.map(normalizeItem); const cod = num(row.cod_amount); const mapping = row.alien_mapping_status || row.web_mapping_status || row.mapping_status || (normalized.length > 0 && normalized.every(item => item.mapping_status === "MATCHED") ? "MATCHED" : "CHECK_DATA"); const address = row.master_delivery_address || row.address_complete_web || row.web_address_primary || row.address_display_primary || row.full_address || row.address_display_packer || row.addressclean || row.address_display_fallback || row.web_address_fallback || row.web_address_short || [row.address_line_1, row.address_line_2, row.district, row.amphoe, row.province, row.zipcode].filter(Boolean).join(" ") || ""; const productDisplay = String(row.bb_pack_center ?? "").trim() || null; return { ...row, full_address: address, customer_name: row.customer_name, phone: row.phone || row.extracted_phone, address_display_primary: row.web_address_primary || row.address_display_primary || address, address_display_fallback: row.web_address_fallback || row.address_display_fallback || address, items: normalized, mapping_status: mapping, order_number: row.order_number || row.order_number_display || `#${row.upsert_key || "UNKNOWN"}`, order_time: effectiveOrderTime(row), cod_amount: cod, is_ready_to_pack: row.is_ready_to_pack ?? (mapping === "MATCHED"), cod_check_status: row.cod_check_status || (cod == null ? "CHECK" : "PASS"), audit_status: row.alien_audit_status || row.audit_status || mapping, telegram_status: row.telegram_status ?? null, items_text: productDisplay || "", display_for_packer: productDisplay }; }
 export async function readCanonicalOrders(search = "", since: string | null = null, until: string | null = null) {
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
 
-  const sourceTable = defaultOrderView(getActiveCamp());
-  let queryBuilder = api.from(sourceTable).select("*");
-  const { data: rows, error } = await queryBuilder
-    .limit(search.trim() || since || until ? 1000 : ORDER_OPERATIONAL_LIMIT);
-  if (error) fail(error);
+  const sourceTables = ["dk_darksidemarketing_bb", "dk_darksidemarketing_telagram_bb"];
+  const readLimit = search.trim() || since || until ? 1000 : ORDER_OPERATIONAL_LIMIT;
+  const results = await Promise.all(sourceTables.map((table) => api.from(table).select("*").limit(readLimit)));
+  const successful = results.filter((result) => !result.error);
+  if (!successful.length) fail(results[0]?.error);
 
-  let orderRows = rows ?? [];
-  // BB product truth: enrich each order from the single Lab order-center field.
-  // If the v2 view is not installed yet, keep the main Orders page readable.
-  if (getActiveCamp() === "BB") {
-    const { data: packRows } = await api
-      .from("vw_bb_product_extraction_lab88_order_center_v2")
-      .select("upsert_key,bb_pack_center,quantity_center,total_cot_quantity,product_line_count,center_status")
-      .limit(1000);
-    if (packRows?.length) {
-      const packByKey = new Map(packRows.map((pack: any) => [String(pack.upsert_key ?? ""), pack]));
-      orderRows = orderRows.map((row: any) => ({ ...row, ...(packByKey.get(String(row.upsert_key ?? "")) ?? {}) }));
+  // อ่านได้ทั้งสองห้องกลาง แล้วรวมแถวซ้ำด้วย upsert_key
+  // เว็บกลางเก็บประวัติแชทมากกว่า ส่วน Telegram เติมข้อมูลห้องส่งให้ครบ
+  const rowsByKey = new Map<string, any>();
+  for (const result of successful) {
+    for (const row of result.data ?? []) {
+      const key = String(row.upsert_key ?? row.order_number ?? "");
+      const previous = rowsByKey.get(key);
+      rowsByKey.set(key, previous ? { ...row, ...previous } : row);
     }
   }
+  const orderRows = Array.from(rowsByKey.values());
+  const sourceTable = sourceTables.join(" + ");
   const orderIds = orderRows.map((row: any) => Number(row.id)).filter((id: number) => Number.isFinite(id));
   const itemsByOrder = new Map<number, CanonicalItem[]>();
   let itemError: unknown = null;
@@ -176,7 +187,7 @@ export async function readTelegramDeliveryOrders(search = "", room: "queue" | "t
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
   // Manual room: read every BB bill. The UI separates waiting/sent locally
   // from the explicit sent fields; no time cutoff or mapping gate applies.
-  const sourceTable = "dk_DARKSIDEMARKETING_TELAGRAM_bb";
+  const sourceTable = "dk_darksidemarketing_telagram_bb";
   const { data, error } = await api.from(sourceTable).select("*").limit(1000);
   if (error) fail(error);
   const query = search.trim().toLowerCase();
@@ -420,13 +431,12 @@ export async function readAlienReview(search = ''): Promise<AlienReviewItem[]> {
     const inventory: any = master?.id != null
       ? inventoryByKey.get(`id:${String(master.id)}`) ?? inventoryByKey.get(`sku:${resolvedSku.toLowerCase()}`)
       : inventoryByKey.get(`sku:${resolvedSku.toLowerCase()}`);
-    // A matched display must be the prebuilt value from product_master only.
-    // Never fall back to an order field or compose/modify a display in Alien.
-    const masterDisplay = String(master?.master_display_for_packer ?? '').trim();
-    const hasRawEvidence = Boolean(raw && !/CHECK_SKU|ระบุสินค้าไม่ได้/i.test(raw));
+    // Order product display comes from LAB view bb_pack_center only.
+    // Do not rebuild, translate, or replace the LAB value in the web room.
+    const masterDisplay = String(order.bb_pack_center ?? '').trim();
     const mappingStatus = String(order.mapping_status ?? order.match_status ?? '').toUpperCase();
-    const matched = Boolean(hasRawEvidence && master && masterDisplay && (mappingStatus === 'MATCHED' || mappingStatus === 'RESOLVED' || Boolean(aliasSku)));
-    const audit_status = matched ? 'MATCHED' : hasRawEvidence ? 'REVIEW' : 'RAW_MISSING';
+    const matched = Boolean(masterDisplay && (mappingStatus === 'MATCHED' || mappingStatus === 'RESOLVED' || Boolean(aliasSku)));
+    const audit_status = matched ? 'MATCHED' : 'REVIEW';
     const customerHistory = Array.from(new Set(history));
     const row = {
       ...order,
