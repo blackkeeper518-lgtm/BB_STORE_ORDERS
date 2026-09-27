@@ -1,0 +1,2117 @@
+diff --git a/client/src/App.tsx b/client/src/App.tsx
+index 7e6cebe..90da73f 100644
+--- a/client/src/App.tsx
++++ b/client/src/App.tsx
+@@ -29,10 +29,11 @@ function Shell({ children }: { children: React.ReactNode }) { return <DashboardL
+ function Router() {
+   const [location] = useLocation();
+   const hasSupabaseConfig = Boolean(getSupabaseConfig());
+-  const setupExempt = location === "/connect" || location === "/secret-gallery";
++  const setupExempt = location === "/connect" || location === "/secret-gallery" || location === "/secret-gallery/images";
+   if (!hasSupabaseConfig && !setupExempt) return <Redirect to="/connect" />;
+   return <Switch>
+     <Route path="/connect"><Redirect to="/secret-gallery" /></Route>
++    <Route path="/secret-gallery/images"><SecretGallery /></Route>
+     <Route path="/secret-gallery"><SecretGallery /></Route>
+     <Route path="/orders"><Shell><OrderControl /></Shell></Route>
+     <Route path="/parcel-mapping"><Shell><ParcelMapping /></Shell></Route>
+diff --git a/client/src/index.css b/client/src/index.css
+index 7d506b5..05eb3eb 100644
+--- a/client/src/index.css
++++ b/client/src/index.css
+@@ -56,3 +56,42 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
+ @keyframes bb-running-light { from { background-position: 0 50%; } to { background-position: 220% 50%; } }
+ @keyframes bb-pulse-light { 0%, 100% { opacity: .55; transform: scale(.8); } 50% { opacity: 1; transform: scale(1.25); } }
+ @keyframes bb-send-glow { 0%, 100% { box-shadow: 0 0 12px rgba(255, 62, 207, .28); } 50% { box-shadow: 0 0 28px rgba(255, 62, 207, .62); } }
++
++
++/* Secret Gallery: internal page scrolling and VS Code-like Prism tokens. */
++.secret-gallery-page { scrollbar-gutter: stable; }
++.code-editor { overscroll-behavior: contain; }
++.code-highlight { width: max-content; min-width: 100%; color: #d4d4d4; tab-size: 2; }
++.code-highlight code { font: inherit; }
++.code-input { color: transparent; -webkit-text-fill-color: transparent; caret-color: #72eaff; tab-size: 2; }
++.code-input::selection { background: rgba(179, 92, 255, .42); color: #fff; -webkit-text-fill-color: #fff; }
++.code-highlight .token.comment,
++.code-highlight .token.prolog,
++.code-highlight .token.doctype,
++.code-highlight .token.cdata { color: #6a9955; font-style: italic; }
++.code-highlight .token.keyword,
++.code-highlight .token.atrule,
++.code-highlight .token.selector,
++.code-highlight .token.important { color: #c586c0; }
++.code-highlight .token.string,
++.code-highlight .token.char,
++.code-highlight .token.attr-value,
++.code-highlight .token.inserted { color: #ce9178; }
++.code-highlight .token.function,
++.code-highlight .token.function-variable { color: #dcdcaa; }
++.code-highlight .token.class-name,
++.code-highlight .token.maybe-class-name,
++.code-highlight .token.builtin { color: #4ec9b0; }
++.code-highlight .token.number,
++.code-highlight .token.boolean,
++.code-highlight .token.constant,
++.code-highlight .token.symbol { color: #b5cea8; }
++.code-highlight .token.operator,
++.code-highlight .token.punctuation { color: #d4d4d4; }
++.code-highlight .token.property,
++.code-highlight .token.tag,
++.code-highlight .token.attr-name,
++.code-highlight .token.parameter { color: #9cdcfe; }
++.code-highlight .token.title,
++.code-highlight .token.heading { color: #569cd6; font-weight: 700; }
++.code-highlight .token.deleted { color: #f48771; }
+diff --git a/client/src/lib/canonical.ts b/client/src/lib/canonical.ts
+index b0c6f02..ec6e7a0 100644
+--- a/client/src/lib/canonical.ts
++++ b/client/src/lib/canonical.ts
+@@ -1,7 +1,7 @@
+ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+ 
+ const CONFIG_KEY = "bb-supabase-config";
+-export type Camp = "BB";
++export type Camp = "BB" | "ST" | "SB";
+ const DEPLOYMENT_CAMP: Camp = "BB";
+ export type SupabaseConfig = { url: string; anonKey: string; orderTable?: string };
+ let client: SupabaseClient | null = null;
+@@ -106,7 +106,11 @@ export async function readCanonicalOrders(search = "", since: string | null = nu
+     .limit(search.trim() || since || until ? 1000 : ORDER_OPERATIONAL_LIMIT);
+   if (error) fail(error);
+ 
+-  const orderRows = rows ?? [];
++  // A malformed/null row from PostgREST must not reach normalizeOrder, which
++  // reads fields such as telegram_status. Keep every valid order unchanged.
++  const orderRows = Array.isArray(rows)
++    ? rows.filter((row: unknown): row is Record<string, any> => row !== null && typeof row === "object" && !Array.isArray(row))
++    : [];
+   const orderIds = orderRows.map((row: any) => Number(row.id)).filter((id: number) => Number.isFinite(id));
+   const itemsByOrder = new Map<number, CanonicalItem[]>();
+   let itemError: unknown = null;
+@@ -162,12 +166,13 @@ export async function readCanonicalOrders(search = "", since: string | null = nu
+ export async function readTelegramDeliveryOrders(search = "", room: "queue" | "today" | "yesterday_after_14" | "sent" = "queue") {
+   const api = getSupabase();
+   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
+-  // Database views own Queue/Sent membership; the UI only displays returned rows.
+-  const sourceTable = room === "sent" ? "vw_bb_telegram_sent_room_v1" : "vw_bb_telegram_queue_room_v1";
++  // One stable view supplies every BB order; queue/history membership is
++  // filtered by the UI from its text-safe delivery flags.
++  const sourceTable = "drakside_telagram_delivery_pro";
+   const { data, error } = await api.from(sourceTable).select("*").limit(1000);
+   if (error) fail(error);
+   const query = search.trim().toLowerCase();
+-  const orders = (data ?? []).filter((row: any) => row && typeof row === "object" && !Array.isArray(row)).filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query)).sort((a: any, b: any) => new Date(b.source_time ?? b.order_time ?? 0).getTime() - new Date(a.source_time ?? a.order_time ?? 0).getTime());
++  const orders = (data ?? []).filter((row: any) => row && typeof row === "object" && !Array.isArray(row)).filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query)).sort((a: any, b: any) => new Date(b.drakside_source_time ?? b.order_time ?? b.created_at ?? 0).getTime() - new Date(a.drakside_source_time ?? a.order_time ?? a.created_at ?? 0).getTime());
+   return { orders, itemError: null, sourceTable, fetchedAt: new Date().toISOString(), room };
+ }
+ 
+diff --git a/client/src/pages/SecretGallery.tsx b/client/src/pages/SecretGallery.tsx
+index ee022c1..3a26089 100644
+--- a/client/src/pages/SecretGallery.tsx
++++ b/client/src/pages/SecretGallery.tsx
+@@ -1,49 +1,1025 @@
+ import { Button } from "@/components/ui/button";
+ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+ import { Input } from "@/components/ui/input";
+-import { Check, Clipboard, Code2, FileCode2, FilePlus2, FolderArchive, Home, ImagePlus, LockKeyhole, LogOut, Pencil, Search, Save, Sparkles, Trash2, X } from "lucide-react";
+-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
++import {
++  Check,
++  Clipboard,
++  ClipboardCopy,
++  Code2,
++  FileCode2,
++  FilePlus2,
++  FolderArchive,
++  Home,
++  ImagePlus,
++  LockKeyhole,
++  LogOut,
++  Pencil,
++  Search,
++  Save,
++  Sparkles,
++  Trash2,
++  X,
++} from "lucide-react";
++import {
++  useCallback,
++  useEffect,
++  useMemo,
++  useRef,
++  useState,
++  type ReactNode,
++} from "react";
+ import { useLocation } from "wouter";
+-import { getActiveCamp, getSupabase, getSupabaseConfig, saveSupabaseConfig } from "@/lib/canonical";
++import Prism from "prismjs";
++import "prismjs/components/prism-sql";
++import "prismjs/components/prism-java";
++import "prismjs/components/prism-markdown";
++import {
++  getActiveCamp,
++  getSupabase,
++  getSupabaseConfig,
++  saveSupabaseConfig,
++} from "@/lib/canonical";
+ 
+ type CodeLanguage = "sql" | "java" | "md";
+-type VaultDoc = { id: string; title: string; language: CodeLanguage; note: string; code: string; updatedAt: string };
++type VaultDoc = {
++  id: string;
++  title: string;
++  language: CodeLanguage;
++  note: string;
++  code: string;
++  updatedAt: string;
++};
+ type GalleryItem = { id: string; src: string; name: string; createdAt: string };
+-type ArchiveCard = { id: string; title: string; docIds: string[]; createdAt: string };
++type ArchiveCard = {
++  id: string;
++  title: string;
++  docIds: string[];
++  createdAt: string;
++};
+ 
+ const ROOM_PASSWORD = "1234";
+ const DOCS_KEY = "nightops-secret-vault-v2";
+ const IMAGES_KEY = "nightops-secret-gallery-v1";
+ const ARCHIVE_KEY = "nightops-secret-archive-v1";
+-const languageMeta: Record<CodeLanguage, { label: string; icon: string; tint: string }> = { sql: { label: "SQL", icon: "▣", tint: "text-cyan-300" }, java: { label: "Java", icon: "◈", tint: "text-fuchsia-300" }, md: { label: "Markdown", icon: "#", tint: "text-yellow-300" } };
++const languageMeta: Record<
++  CodeLanguage,
++  { label: string; icon: string; tint: string }
++> = {
++  sql: { label: "SQL", icon: "▣", tint: "text-cyan-300" },
++  java: { label: "Java", icon: "◈", tint: "text-fuchsia-300" },
++  md: { label: "Markdown", icon: "#", tint: "text-yellow-300" },
++};
++const prismLanguage: Record<CodeLanguage, string> = {
++  sql: "sql",
++  java: "java",
++  md: "markdown",
++};
+ 
+-const readLocal = <T,>(key: string, fallback: T): T => { try { return JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback)) as T; } catch { return fallback; } };
++const readLocal = <T,>(key: string, fallback: T): T => {
++  try {
++    return JSON.parse(
++      localStorage.getItem(key) || JSON.stringify(fallback)
++    ) as T;
++  } catch {
++    return fallback;
++  }
++};
+ 
+ export default function SecretGallery() {
+-  const [, setLocation] = useLocation();
+-  const [unlocked, setUnlocked] = useState(() => sessionStorage.getItem("nightops-gallery-unlocked") === "1");
+-  const [password, setPassword] = useState(""); const [error, setError] = useState("");
+-  const camp = getActiveCamp(); const connection = getSupabaseConfig(camp);
+-  const [supabaseUrl, setSupabaseUrl] = useState(connection?.url || ""); const [supabaseKey, setSupabaseKey] = useState(connection?.anonKey || ""); const [orderTable, setOrderTable] = useState(connection?.orderTable || "vw_bb_orders_all_v2");
+-  const [connectionMessage, setConnectionMessage] = useState(""); const [connectionBusy, setConnectionBusy] = useState(false);
+-  const [docs, setDocs] = useState<VaultDoc[]>(() => readLocal(DOCS_KEY, [])); const [images, setImages] = useState<GalleryItem[]>(() => readLocal(IMAGES_KEY, [])); const [archives, setArchives] = useState<ArchiveCard[]>(() => readLocal(ARCHIVE_KEY, []));
+-  const [activeId, setActiveId] = useState<string | null>(() => readLocal<VaultDoc[]>(DOCS_KEY, [])[0]?.id ?? null); const [draggedDocId, setDraggedDocId] = useState<string | null>(null); const [query, setQuery] = useState(""); const [view, setView] = useState<"vault" | "images">("vault"); const [copied, setCopied] = useState(false); const [saved, setSaved] = useState(false); const [preview, setPreview] = useState<GalleryItem | null>(null); const inputRef = useRef<HTMLInputElement>(null);
+-  const activeDoc = docs.find(doc => doc.id === activeId) ?? null; const filteredDocs = useMemo(() => docs.filter(doc => `${doc.title} ${doc.note} ${doc.code}`.toLowerCase().includes(query.toLowerCase())), [docs, query]);
+-  useEffect(() => { localStorage.setItem(DOCS_KEY, JSON.stringify(docs)); }, [docs]); useEffect(() => { localStorage.setItem(IMAGES_KEY, JSON.stringify(images)); }, [images]); useEffect(() => { localStorage.setItem(ARCHIVE_KEY, JSON.stringify(archives)); }, [archives]);
+-  const saveConnection = async () => { setConnectionBusy(true); setConnectionMessage(""); try { const url = supabaseUrl.trim().replace(/\/$/, ""); const anonKey = supabaseKey.trim(); const table = orderTable.trim() || "vw_bb_orders_all_v2"; if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url)) throw new Error("URL Supabase ไม่ถูกต้อง"); if (!anonKey) throw new Error("กรุณาใส่ Anon/Publishable Key"); if (/service_role|secret/i.test(anonKey)) throw new Error("ห้ามใส่ service-role หรือ secret key ในหน้าเว็บ"); saveSupabaseConfig({ url, anonKey, orderTable: table }, camp); const api = getSupabase(); if (!api) throw new Error("สร้าง Supabase client ไม่สำเร็จ"); const { error: queryError } = await api.from(table).select("*", { count: "exact", head: true }); if (queryError) throw queryError; setConnectionMessage("เชื่อมต่อแล้ว · บันทึกไว้ในเครื่องนี้"); } catch (e) { setConnectionMessage(e instanceof Error ? e.message : String(e)); } finally { setConnectionBusy(false); } };
+-  const login = () => { if (password === ROOM_PASSWORD) { sessionStorage.setItem("nightops-gallery-unlocked", "1"); setUnlocked(true); setPassword(""); setError(""); } else setError("รหัสไม่ถูกต้อง"); };
+-  const createDoc = (language: CodeLanguage = "sql") => { const doc: VaultDoc = { id: crypto.randomUUID(), title: `ไฟล์ใหม่ · ${languageMeta[language].label}`, language, note: "เขียนโน้ตอธิบายไฟล์นี้ไว้ตรงนี้", code: language === "sql" ? "-- พิมพ์ SQL ของคุณตรงนี้\n" : language === "java" ? "// Java playground\n" : "# บันทึกโปรเจค\n", updatedAt: new Date().toISOString() }; setDocs(current => [doc, ...current]); setActiveId(doc.id); setView("vault"); };
+-  const updateActive = (patch: Partial<VaultDoc>) => { if (!activeId) return; setDocs(current => current.map(doc => doc.id === activeId ? { ...doc, ...patch, updatedAt: new Date().toISOString() } : doc)); };
+-  const deleteDoc = (id: string) => { if (!window.confirm("ลบไฟล์นี้จากเครื่องนี้ใช่ไหม?")) return; setDocs(current => current.filter(doc => doc.id !== id)); setArchives(current => current.map(card => ({ ...card, docIds: card.docIds.filter(docId => docId !== id) }))); if (activeId === id) setActiveId(docs.find(doc => doc.id !== id)?.id ?? null); };
+-  const copyCode = async () => { if (!activeDoc) return; await navigator.clipboard?.writeText(activeDoc.code); setCopied(true); window.setTimeout(() => setCopied(false), 1400); };
+-  const addFiles = (files: FileList | null) => { if (!files) return; Array.from(files).filter(file => file.type.startsWith("image/")).forEach(file => { const reader = new FileReader(); reader.onload = () => setImages(current => [{ id: crypto.randomUUID(), src: String(reader.result), name: file.name, createdAt: new Date().toISOString() }, ...current]); reader.readAsDataURL(file); }); };
+-  const createArchive = () => { const title = window.prompt("ตั้งชื่อโฟลเดอร์เก็บโค้ด", "SQL งานสำคัญ"); if (!title?.trim()) return; const card = { id: crypto.randomUUID(), title: title.trim(), docIds: [], createdAt: new Date().toISOString() }; setArchives(current => [card, ...current]); setView("images"); };
+-  const dropDoc = (archiveId: string, docId = draggedDocId) => { if (!docId) return; setArchives(current => current.map(card => card.id === archiveId && !card.docIds.includes(docId) ? { ...card, docIds: [...card.docIds, docId] } : card)); setDraggedDocId(null); };
+-  const dropOnReferenceTab = () => { if (!draggedDocId) return; const target = archives[0] ?? { id: crypto.randomUUID(), title: "ภาพอ้างอิง · CODE ARCHIVE", docIds: [], createdAt: new Date().toISOString() }; setArchives(current => current.some(card => card.id === target.id) ? current.map(card => card.id === target.id && !card.docIds.includes(draggedDocId) ? { ...card, docIds: [...card.docIds, draggedDocId] } : card) : [target, ...current]); setDraggedDocId(null); setView("images"); };
+-  const docsIn = (card: ArchiveCard) => card.docIds.map(id => docs.find(doc => doc.id === id)).filter(Boolean) as VaultDoc[];
++  const [location, setLocation] = useLocation();
++  const [unlocked, setUnlocked] = useState(
++    () => sessionStorage.getItem("nightops-gallery-unlocked") === "1"
++  );
++  const [password, setPassword] = useState("");
++  const [error, setError] = useState("");
++  const camp = getActiveCamp();
++  const connection = getSupabaseConfig(camp);
++  const [supabaseUrl, setSupabaseUrl] = useState(connection?.url || "");
++  const [supabaseKey, setSupabaseKey] = useState(connection?.anonKey || "");
++  const [orderTable, setOrderTable] = useState(
++    connection?.orderTable || "vw_bb_orders_all_v2"
++  );
++  const [connectionMessage, setConnectionMessage] = useState("");
++  const [connectionBusy, setConnectionBusy] = useState(false);
++  const [docs, setDocs] = useState<VaultDoc[]>(() => readLocal(DOCS_KEY, []));
++  const [images, setImages] = useState<GalleryItem[]>(() =>
++    readLocal(IMAGES_KEY, [])
++  );
++  const [archives, setArchives] = useState<ArchiveCard[]>(() =>
++    readLocal(ARCHIVE_KEY, [])
++  );
++  const [activeId, setActiveId] = useState<string | null>(
++    () => readLocal<VaultDoc[]>(DOCS_KEY, [])[0]?.id ?? null
++  );
++  const [draggedDocId, setDraggedDocId] = useState<string | null>(null);
++  const [query, setQuery] = useState("");
++  const [view, setView] = useState<"vault" | "images">("vault");
++  const [copied, setCopied] = useState(false);
++  const [saved, setSaved] = useState(false);
++  const [preview, setPreview] = useState<GalleryItem | null>(null);
++  const inputRef = useRef<HTMLInputElement>(null);
++  const editorRef = useRef<HTMLTextAreaElement>(null);
++  const highlightRef = useRef<HTMLPreElement>(null);
++  const [imageMessage, setImageMessage] = useState("");
++  const setGalleryView = (next: "vault" | "images") => {
++    setView(next);
++    setLocation(
++      next === "images" ? "/secret-gallery/images" : "/secret-gallery"
++    );
++  };
++  useEffect(() => {
++    setView(location === "/secret-gallery/images" ? "images" : "vault");
++  }, [location]);
++  const activeDoc = docs.find(doc => doc.id === activeId) ?? null;
++  const highlightedCode = useMemo(() => {
++    if (!activeDoc) return "";
++    const lang = prismLanguage[activeDoc.language];
++    return Prism.highlight(
++      activeDoc.code,
++      Prism.languages[lang] ?? Prism.languages.plain,
++      lang
++    );
++  }, [activeDoc?.code, activeDoc?.language]);
++  const syncEditorScroll = () => {
++    const editor = editorRef.current;
++    const code = highlightRef.current;
++    if (editor && code) {
++      code.style.transform = `translate(${-editor.scrollLeft}px, ${-editor.scrollTop}px)`;
++    }
++  };
++  const filteredDocs = useMemo(
++    () =>
++      docs.filter(doc =>
++        `${doc.title} ${doc.note} ${doc.code}`
++          .toLowerCase()
++          .includes(query.toLowerCase())
++      ),
++    [docs, query]
++  );
++  useEffect(() => {
++    localStorage.setItem(DOCS_KEY, JSON.stringify(docs));
++  }, [docs]);
++  useEffect(() => {
++    localStorage.setItem(IMAGES_KEY, JSON.stringify(images));
++  }, [images]);
++  useEffect(() => {
++    localStorage.setItem(ARCHIVE_KEY, JSON.stringify(archives));
++  }, [archives]);
++  const saveConnection = async () => {
++    setConnectionBusy(true);
++    setConnectionMessage("");
++    try {
++      const url = supabaseUrl.trim().replace(/\/$/, "");
++      const anonKey = supabaseKey.trim();
++      const table = orderTable.trim() || "vw_bb_orders_all_v2";
++      if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url))
++        throw new Error("URL Supabase ไม่ถูกต้อง");
++      if (!anonKey) throw new Error("กรุณาใส่ Anon/Publishable Key");
++      if (/service_role|secret/i.test(anonKey))
++        throw new Error("ห้ามใส่ service-role หรือ secret key ในหน้าเว็บ");
++      saveSupabaseConfig({ url, anonKey, orderTable: table }, camp);
++      const api = getSupabase();
++      if (!api) throw new Error("สร้าง Supabase client ไม่สำเร็จ");
++      const { error: queryError } = await api
++        .from(table)
++        .select("*", { count: "exact", head: true });
++      if (queryError) throw queryError;
++      setConnectionMessage("เชื่อมต่อแล้ว · บันทึกไว้ในเครื่องนี้");
++    } catch (e) {
++      setConnectionMessage(e instanceof Error ? e.message : String(e));
++    } finally {
++      setConnectionBusy(false);
++    }
++  };
++  const login = () => {
++    if (password === ROOM_PASSWORD) {
++      sessionStorage.setItem("nightops-gallery-unlocked", "1");
++      setUnlocked(true);
++      setPassword("");
++      setError("");
++    } else setError("รหัสไม่ถูกต้อง");
++  };
++  const createDoc = (language: CodeLanguage = "sql") => {
++    const doc: VaultDoc = {
++      id: crypto.randomUUID(),
++      title: `ไฟล์ใหม่ · ${languageMeta[language].label}`,
++      language,
++      note: "เขียนโน้ตอธิบายไฟล์นี้ไว้ตรงนี้",
++      code:
++        language === "sql"
++          ? "-- พิมพ์ SQL ของคุณตรงนี้\n"
++          : language === "java"
++            ? "// Java playground\n"
++            : "# บันทึกโปรเจค\n",
++      updatedAt: new Date().toISOString(),
++    };
++    setDocs(current => [doc, ...current]);
++    setActiveId(doc.id);
++    setGalleryView("vault");
++  };
++  const updateActive = (patch: Partial<VaultDoc>) => {
++    if (!activeId) return;
++    setDocs(current =>
++      current.map(doc =>
++        doc.id === activeId
++          ? { ...doc, ...patch, updatedAt: new Date().toISOString() }
++          : doc
++      )
++    );
++  };
++  const deleteDoc = (id: string) => {
++    if (!window.confirm("ลบไฟล์นี้จากเครื่องนี้ใช่ไหม?")) return;
++    setDocs(current => current.filter(doc => doc.id !== id));
++    setArchives(current =>
++      current.map(card => ({
++        ...card,
++        docIds: card.docIds.filter(docId => docId !== id),
++      }))
++    );
++    if (activeId === id)
++      setActiveId(docs.find(doc => doc.id !== id)?.id ?? null);
++  };
++  const copyCode = async () => {
++    if (!activeDoc) return;
++    await navigator.clipboard?.writeText(activeDoc.code);
++    setCopied(true);
++    window.setTimeout(() => setCopied(false), 1400);
++  };
++  const addFiles = useCallback((files: FileList | File[] | null) => {
++    if (!files) return;
++    Array.from(files)
++      .filter(file => file.type.startsWith("image/"))
++      .forEach(file => {
++        const reader = new FileReader();
++        reader.onload = () =>
++          setImages(current => [
++            {
++              id: crypto.randomUUID(),
++              src: String(reader.result),
++              name: file.name,
++              createdAt: new Date().toISOString(),
++            },
++            ...current,
++          ]);
++        reader.readAsDataURL(file);
++      });
++  }, []);
++  useEffect(() => {
++    if (view !== "images") return;
++    const pasteImages = (event: ClipboardEvent) => {
++      const files = Array.from(event.clipboardData?.items ?? [])
++        .filter(item => item.kind === "file" && item.type.startsWith("image/"))
++        .map(item => item.getAsFile())
++        .filter((file): file is File => Boolean(file));
++      if (!files.length) return;
++      event.preventDefault();
++      addFiles(files);
++      setImageMessage(`${files.length} ภาพถูกวางจากคลิปบอร์ดแล้ว`);
++    };
++    window.addEventListener("paste", pasteImages);
++    return () => window.removeEventListener("paste", pasteImages);
++  }, [addFiles, view]);
++  const pasteImageFromClipboard = async () => {
++    try {
++      if (!navigator.clipboard?.read || typeof ClipboardItem === "undefined") {
++        throw new Error(
++          "เบราว์เซอร์ไม่รองรับวางรูปโดยตรง — ลองวางด้วย Ctrl+V บนหน้าเก็บภาพ"
++        );
++      }
++      const clipboardItems = await navigator.clipboard.read();
++      const imageFiles: File[] = [];
++      for (const item of clipboardItems) {
++        const imageType = item.types.find(type => type.startsWith("image/"));
++        if (!imageType) continue;
++        const blob = await item.getType(imageType);
++        imageFiles.push(
++          new File(
++            [blob],
++            `clipboard-${Date.now()}.${imageType.split("/")[1] || "png"}`,
++            { type: imageType }
++          )
++        );
++      }
++      if (!imageFiles.length) {
++        setImageMessage(
++          "ยังไม่พบรูปในคลิปบอร์ด — คัดลอกรูปก่อนแล้ววางด้วย Ctrl+V"
++        );
++        return;
++      }
++      addFiles(imageFiles);
++      setImageMessage(`${imageFiles.length} ภาพถูกวางจากคลิปบอร์ดแล้ว`);
++    } catch (e) {
++      setImageMessage(
++        e instanceof Error
++          ? e.message
++          : "วางรูปไม่สำเร็จ — ลอง Ctrl+V บนหน้านี้"
++      );
++    }
++  };
++  const copyImage = async (item: GalleryItem) => {
++    try {
++      if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") {
++        throw new Error("เบราว์เซอร์ไม่รองรับการคัดลอกรูป");
++      }
++      const blob = await (await fetch(item.src)).blob();
++      await navigator.clipboard.write([
++        new ClipboardItem({ [blob.type || "image/png"]: blob }),
++      ]);
++      setImageMessage(`คัดลอกรูป ${item.name} แล้ว`);
++    } catch (e) {
++      setImageMessage(e instanceof Error ? e.message : "คัดลอกรูปไม่สำเร็จ");
++    }
++  };
++  const createArchive = () => {
++    const title = window.prompt("ตั้งชื่อโฟลเดอร์เก็บโค้ด", "SQL งานสำคัญ");
++    if (!title?.trim()) return;
++    const card = {
++      id: crypto.randomUUID(),
++      title: title.trim(),
++      docIds: [],
++      createdAt: new Date().toISOString(),
++    };
++    setArchives(current => [card, ...current]);
++    setGalleryView("vault");
++  };
++  const dropDoc = (archiveId: string, docId = draggedDocId) => {
++    if (!docId) return;
++    setArchives(current =>
++      current.map(card =>
++        card.id === archiveId && !card.docIds.includes(docId)
++          ? { ...card, docIds: [...card.docIds, docId] }
++          : card
++      )
++    );
++    setDraggedDocId(null);
++  };
++  const dropOnReferenceTab = (docId = draggedDocId) => {
++    if (!docId) return;
++    setArchives(current => {
++      if (!current.length) {
++        return [
++          {
++            id: crypto.randomUUID(),
++            title: "โฟลเดอร์เก็บโค้ด",
++            docIds: [docId],
++            createdAt: new Date().toISOString(),
++          },
++        ];
++      }
++      return current.map((card, index) =>
++        index === 0 && !card.docIds.includes(docId)
++          ? { ...card, docIds: [...card.docIds, docId] }
++          : card
++      );
++    });
++    setDraggedDocId(null);
++    setGalleryView("vault");
++  };
++  const docsIn = (card: ArchiveCard) =>
++    card.docIds
++      .map(id => docs.find(doc => doc.id === id))
++      .filter(Boolean) as VaultDoc[];
+ 
+-  if (!unlocked) return <div className="flex min-h-[calc(100vh-2rem)] items-center justify-center bg-[#090611] p-4 text-white"><Card className="neon-card w-full max-w-md rounded-3xl border-fuchsia-400/30 bg-[#130b1e]"><CardHeader className="text-center"><LockKeyhole className="mx-auto h-10 w-10 text-cyan-300" /><CardTitle className="mt-2 text-2xl text-white">NEON ALIAS VAULT</CardTitle><p className="text-sm text-fuchsia-100/55">BB STORE · PRIVATE ROOM</p></CardHeader><CardContent><Input autoFocus type="password" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => { if (e.key === "Enter") login(); }} placeholder="ใส่รหัสห้อง" className="border-cyan-400/25 bg-black/35 text-center tracking-[0.3em] text-white" />{error ? <p className="mt-2 text-center text-xs text-pink-300">{error}</p> : null}<Button onClick={login} className="mt-4 w-full bg-gradient-to-r from-fuchsia-600 to-violet-700">ปลดล็อกห้อง</Button></CardContent></Card></div>;
++  if (!unlocked)
++    return (
++      <div className="flex min-h-[calc(100vh-2rem)] items-center justify-center bg-[#090611] p-4 text-white">
++        <Card className="neon-card w-full max-w-md rounded-3xl border-fuchsia-400/30 bg-[#130b1e]">
++          <CardHeader className="text-center">
++            <LockKeyhole className="mx-auto h-10 w-10 text-cyan-300" />
++            <CardTitle className="mt-2 text-2xl text-white">
++              DRAKSIDE MARKETING
++            </CardTitle>
++            <p className="text-sm text-fuchsia-100/55">
++              การตลาดที่ไม่แข่งขัน แต่ไม่มีใครตามทัน
++            </p>
++          </CardHeader>
++          <CardContent>
++            <Input
++              autoFocus
++              type="password"
++              value={password}
++              onChange={e => setPassword(e.target.value)}
++              onKeyDown={e => {
++                if (e.key === "Enter") login();
++              }}
++              placeholder="ใส่รหัสห้อง"
++              className="border-cyan-400/25 bg-black/35 text-center tracking-[0.3em] text-white"
++            />
++            {error ? (
++              <p className="mt-2 text-center text-xs text-pink-300">{error}</p>
++            ) : null}
++            <Button
++              onClick={login}
++              className="mt-4 w-full bg-gradient-to-r from-fuchsia-600 to-violet-700"
++            >
++              ปลดล็อกห้อง
++            </Button>
++          </CardContent>
++        </Card>
++      </div>
++    );
+ 
+-  return <div className="cyber-grid min-h-[calc(100vh-2rem)] bg-[#090611] p-2 text-white sm:p-4 lg:p-6"><div className="mx-auto max-w-[1500px] space-y-4"><header className="neon-card relative overflow-hidden rounded-3xl border border-fuchsia-400/25 bg-[#130b1e] p-5 sm:p-6"><div className="absolute -right-20 -top-24 h-72 w-72 rounded-full bg-fuchsia-600/20 blur-3xl" /><div className="relative flex flex-wrap items-center justify-between gap-4"><div><div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.3em] text-cyan-300"><Sparkles className="h-4 w-4" /> BB STORE · NEON ALIAS VAULT</div><h1 className="cyber-title mt-2 text-3xl font-bold text-white sm:text-4xl">คำวิบัติ · โค้ด · หลักฐาน</h1><p className="mt-2 max-w-2xl text-sm text-fuchsia-100/60">แก้คำใหม่จากแอดมิน เก็บ SQL และภาพอ้างอิงไว้ในเครื่องนี้</p></div><div className="flex flex-wrap gap-2"><Button onClick={() => setLocation("/orders")} variant="outline" className="border-cyan-400/30 bg-transparent text-cyan-200"><Home className="mr-2 h-4 w-4" />หน้าออเดอร์</Button><Button onClick={() => createDoc("sql")} className="bg-gradient-to-r from-fuchsia-600 to-violet-700"><FilePlus2 className="mr-2 h-4 w-4" />ไฟล์ใหม่</Button><Button variant="outline" onClick={() => { sessionStorage.removeItem("nightops-gallery-unlocked"); setUnlocked(false); }} className="border-fuchsia-400/25 bg-transparent text-fuchsia-100"><LogOut className="mr-2 h-4 w-4" />ล็อกห้อง</Button></div></div></header><Card className="neon-card rounded-3xl border-cyan-400/20 bg-black/20"><CardHeader><CardTitle className="flex items-center gap-2 text-sm text-white"><LockKeyhole className="h-4 w-4 text-cyan-300" />การเชื่อมต่อฐาน BB · ใส่ครั้งเดียว</CardTitle></CardHeader><CardContent className="grid gap-3 md:grid-cols-3"><Input value={supabaseUrl} onChange={e => setSupabaseUrl(e.target.value)} placeholder="https://ชื่อโปรเจกต์.supabase.co" className="border-fuchsia-400/20 bg-black/25 text-white" /><Input type="password" value={supabaseKey} onChange={e => setSupabaseKey(e.target.value)} placeholder="Anon / Publishable Key" className="border-fuchsia-400/20 bg-black/25 text-white" /><Input value={orderTable} onChange={e => setOrderTable(e.target.value)} placeholder="vw_bb_orders_all_v2" className="border-fuchsia-400/20 bg-black/25 font-mono text-white" /><div className="flex items-center gap-2 md:col-span-3"><Button onClick={() => void saveConnection()} disabled={connectionBusy} className="bg-gradient-to-r from-fuchsia-600 to-violet-700">{connectionBusy ? "กำลังตรวจ…" : "บันทึกและทดสอบการเชื่อมต่อ"}</Button><span className="text-xs text-white/50">{connectionMessage}</span></div></CardContent></Card><div className="flex flex-wrap items-center justify-between gap-2"><div className="flex flex-wrap items-center gap-2" onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); dropOnReferenceTab(); }}><Button onClick={() => setView("vault")} variant="outline" className={view === "vault" ? "border-cyan-400/50 bg-cyan-500/15 text-cyan-200" : "border-white/10 bg-transparent text-white/60"}><Code2 className="mr-2 h-4 w-4" />CODE VAULT · {docs.length}</Button><Button onClick={createArchive} variant="outline" className="border-cyan-400/40 bg-cyan-500/10 text-cyan-200"><FolderArchive className="mr-2 h-4 w-4" />+ โฟลเดอร์เก็บโค้ด</Button><Button onClick={() => setView("images")} variant="outline" className={view === "images" ? "border-fuchsia-400/50 bg-fuchsia-500/15 text-fuchsia-200" : "border-white/10 bg-transparent text-white/60"}><ImagePlus className="mr-2 h-4 w-4" />ภาพอ้างอิง · {images.length}</Button><Button onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); dropOnReferenceTab(); }} variant="outline" className="border-yellow-400/35 bg-yellow-500/10 text-yellow-200"><FolderArchive className="mr-2 h-4 w-4" />เก็บไฟล์{archives.length ? ` · ${archives.length} โฟลเดอร์` : ""}</Button><span className="hidden text-[10px] text-white/35 lg:inline">ลากไฟล์จากรายการซ้ายมาวางที่นี่</span></div><div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-cyan-200/45"><span className="h-2 w-2 animate-pulse rounded-full bg-cyan-300" /> LOCAL VAULT · AUTOSAVE</div></div>{view === "images" ? <Card className="neon-card rounded-3xl border-fuchsia-500/20 bg-[#100817]"><CardHeader className="flex flex-row items-center justify-between"><CardTitle className="text-base text-white">ภาพอ้างอิง / CODE ARCHIVE</CardTitle><div className="flex flex-wrap gap-2"><Button onClick={() => inputRef.current?.click()} className="bg-gradient-to-r from-fuchsia-600 to-violet-700"><ImagePlus className="mr-2 h-4 w-4" />เพิ่มรูป</Button><input ref={inputRef} type="file" accept="image/*" multiple className="hidden" onChange={e => { addFiles(e.target.files); e.currentTarget.value = ""; }} /></div></CardHeader><CardContent>{archives.length ? <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{archives.map(card => <div key={card.id} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); dropDoc(card.id); }} className="neon-card min-h-36 rounded-2xl border border-cyan-400/25 bg-black/25 p-4"><div className="flex items-start justify-between gap-2"><div><p className="text-[10px] uppercase tracking-[0.2em] text-cyan-300">CODE FOLDER</p><h3 className="mt-1 font-semibold text-white">{card.title}</h3></div><button type="button" onClick={() => setArchives(current => current.filter(x => x.id !== card.id))} className="text-pink-300/70 hover:text-pink-200"><Trash2 className="h-4 w-4" /></button></div><div className="mt-3 space-y-1">{docsIn(card).length ? docsIn(card).map(doc => <button key={doc.id} type="button" onClick={() => { setActiveId(doc.id); setView("vault"); }} className="block w-full truncate rounded-lg bg-white/[0.04] px-2 py-1 text-left font-mono text-[11px] text-cyan-200">{languageMeta[doc.language].icon} {doc.title}</button>) : <p className="text-[11px] text-white/30">วางไฟล์ตรงนี้เพื่อเก็บเข้ากล่อง</p>}</div></div>)}</div> : null}{images.length ? <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">{images.map(item => <div key={item.id} className="group overflow-hidden rounded-2xl border border-fuchsia-500/20 bg-black/20"><button type="button" onClick={() => setPreview(item)} className="block aspect-[4/3] w-full overflow-hidden"><img src={item.src} alt={item.name} className="h-full w-full object-cover transition duration-200 group-hover:scale-105" /></button><div className="flex items-center justify-between gap-2 p-2"><p className="truncate text-[10px] text-fuchsia-100/65">{item.name}</p><button type="button" onClick={() => setImages(current => current.filter(x => x.id !== item.id))} className="text-pink-300/70"><Trash2 className="h-3.5 w-3.5" /></button></div></div>)}</div> : <EmptyState icon={<ImagePlus />} text="ยังไม่มีภาพอ้างอิง" />}</CardContent></Card> : <div className="grid min-h-[620px] gap-4 lg:grid-cols-[260px_minmax(0,1fr)_300px]"><Card className="neon-card overflow-hidden rounded-3xl border-fuchsia-500/20 bg-[#100817]"><CardHeader className="border-b border-white/5 p-4"><div className="flex items-center justify-between"><CardTitle className="text-sm text-white">FILES / NOTES</CardTitle><button type="button" onClick={() => createDoc("sql")} className="rounded-lg p-2 text-cyan-300 hover:bg-cyan-500/10"><FilePlus2 className="h-4 w-4" /></button></div><div className="relative mt-3"><Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-white/30" /><Input value={query} onChange={e => setQuery(e.target.value)} placeholder="ค้นหาไฟล์..." className="h-9 border-white/10 bg-black/25 pl-9 text-xs text-white" /></div></CardHeader><CardContent className="max-h-[540px] space-y-2 overflow-auto p-3">{filteredDocs.length ? filteredDocs.map(doc => <button key={doc.id} type="button" draggable onDragStart={() => setDraggedDocId(doc.id)} onDragEnd={() => setDraggedDocId(null)} onClick={() => setActiveId(doc.id)} className={`w-full rounded-2xl border p-3 text-left transition ${activeId === doc.id ? "border-cyan-400/50 bg-cyan-500/10" : "border-white/5 bg-black/15 hover:border-fuchsia-400/30"}`}><div className="flex items-center justify-between gap-2"><span className={`font-mono text-[10px] font-bold ${languageMeta[doc.language].tint}`}>{languageMeta[doc.language].icon} {languageMeta[doc.language].label}</span><span className="text-[9px] text-white/25">{new Date(doc.updatedAt).toLocaleDateString("th-TH")}</span></div><p className="mt-2 truncate text-sm font-semibold text-white/85">{doc.title}</p><p className="mt-1 truncate text-[10px] text-white/35">{doc.note}</p></button>) : <EmptyState icon={<FileCode2 />} text="ยังไม่มีไฟล์ · กด + เพื่อสร้าง" />}</CardContent></Card><Card className="neon-card overflow-hidden rounded-3xl border-fuchsia-500/20 bg-[#0e0715]"><CardHeader className="border-b border-white/5 p-4"><div className="flex flex-wrap items-center justify-between gap-3"><div className="flex min-w-0 items-center gap-2"><Pencil className="h-4 w-4 shrink-0 text-cyan-300" /><Input value={activeDoc?.title ?? "ยังไม่ได้เลือกไฟล์"} onChange={e => updateActive({ title: e.target.value })} className="h-9 min-w-0 border-white/10 bg-black/20 text-sm font-semibold text-white" disabled={!activeDoc} /></div><div className="flex gap-2"><Button onClick={() => { setSaved(true); window.setTimeout(() => setSaved(false), 1400); }} disabled={!activeDoc} className="h-9 bg-gradient-to-r from-fuchsia-600 to-violet-700">{saved ? <Check className="mr-2 h-4 w-4" /> : <Save className="mr-2 h-4 w-4" />}{saved ? "บันทึกแล้ว" : "บันทึก"}</Button><Button onClick={copyCode} disabled={!activeDoc} variant="outline" className="h-9 border-white/10 bg-transparent text-white">{copied ? <Check className="mr-2 h-4 w-4 text-emerald-300" /> : <Clipboard className="mr-2 h-4 w-4" />}{copied ? "คัดลอกแล้ว" : "คัดลอก"}</Button></div></div><div className="mt-3 flex flex-wrap items-center gap-2"><select value={activeDoc?.language ?? "sql"} onChange={e => updateActive({ language: e.target.value as CodeLanguage })} disabled={!activeDoc} className="h-8 rounded-lg border border-fuchsia-400/25 bg-black/35 px-3 font-mono text-xs text-fuchsia-200 outline-none"><option value="sql">SQL</option><option value="java">Java</option><option value="md">Markdown</option></select><span className="text-[10px] uppercase tracking-[0.18em] text-white/30">ลากรายการซ้ายไปเก็บที่ภาพอ้างอิง · autosave local</span></div></CardHeader>{activeDoc ? <CardContent className="space-y-3 p-4"><textarea value={activeDoc.note} onChange={e => updateActive({ note: e.target.value })} placeholder="โน้ตอธิบายไฟล์นี้..." className="min-h-16 w-full resize-y rounded-xl border border-fuchsia-400/15 bg-fuchsia-500/[0.04] p-3 text-sm text-fuchsia-100/75 outline-none focus:border-cyan-400/50" /><div className="code-shell overflow-hidden rounded-2xl border border-cyan-400/25 bg-[#08050e]"><div className="flex items-center justify-between border-b border-white/5 bg-white/[0.03] px-4 py-2"><span className="font-mono text-[10px] text-cyan-300">{languageMeta[activeDoc.language].icon} {languageMeta[activeDoc.language].label} · LIVE EDITOR</span><span className="text-[10px] text-white/25">{activeDoc.code.split("\n").length} lines · ลากเลื่อนได้</span></div><textarea spellCheck={false} value={activeDoc.code} onChange={e => updateActive({ code: e.target.value })} className="h-[62vh] max-h-[680px] min-h-[360px] w-full resize-none overflow-auto whitespace-pre bg-transparent p-4 font-mono text-[12px] leading-6 text-cyan-50/90 outline-none selection:bg-fuchsia-400/30" /></div></CardContent> : <EmptyState icon={<Code2 />} text="เลือกไฟล์ทางซ้าย หรือสร้างไฟล์ใหม่" />}</Card><Card className="neon-card rounded-3xl border-fuchsia-500/20 bg-[#100817]"><CardHeader><CardTitle className="flex items-center gap-2 text-sm text-white"><FileCode2 className="h-4 w-4 text-cyan-300" />VAULT CONTROL</CardTitle></CardHeader><CardContent className="space-y-4 text-xs text-white/55"><div className="rounded-2xl border border-cyan-400/15 bg-cyan-500/[0.04] p-4"><p className="text-[10px] uppercase tracking-[0.2em] text-cyan-300">ACTIVE FILE</p><p className="mt-2 truncate text-base font-semibold text-white">{activeDoc?.title ?? "—"}</p><p className="mt-1 text-white/35">{activeDoc ? `${languageMeta[activeDoc.language].label} · ${activeDoc.code.length.toLocaleString()} chars` : "ยังไม่ได้เลือก"}</p></div><div><p className="mb-2 text-[10px] uppercase tracking-[0.2em] text-white/30">QUICK CREATE</p><div className="grid grid-cols-3 gap-2">{(["sql", "java", "md"] as CodeLanguage[]).map(lang => <button key={lang} type="button" onClick={() => createDoc(lang)} className="rounded-xl border border-white/10 bg-black/20 p-3 font-mono text-xs text-cyan-200 hover:border-fuchsia-400/40 hover:bg-fuchsia-500/10">{languageMeta[lang].icon} {languageMeta[lang].label}</button>)}</div></div><div className="rounded-2xl border border-pink-400/20 bg-pink-500/[0.04] p-4"><p className="text-[10px] uppercase tracking-[0.2em] text-pink-300">DANGER ZONE</p><Button onClick={() => activeId && deleteDoc(activeId)} disabled={!activeDoc} variant="outline" className="mt-3 w-full border-pink-400/25 bg-transparent text-pink-200"><Trash2 className="mr-2 h-4 w-4" />ลบไฟล์นี้</Button></div></CardContent></Card></div>}</div>{preview ? <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/85 p-4" onClick={() => setPreview(null)}><button type="button" className="absolute right-5 top-5 rounded-full bg-white/10 p-2 text-white" onClick={() => setPreview(null)}><X className="h-5 w-5" /></button><img src={preview.src} alt={preview.name} className="max-h-[90vh] max-w-[95vw] rounded-2xl object-contain" /></div> : null}</div>;
++  return (
++    <div className="secret-gallery-page cyber-grid h-[100dvh] min-w-0 overflow-x-hidden overflow-y-auto overscroll-contain bg-[#090611] p-2 text-white sm:p-4 lg:p-6">
++      <div className="mx-auto min-w-0 max-w-[1500px] space-y-4">
++        <header className="neon-card relative overflow-hidden rounded-3xl border border-fuchsia-400/25 bg-[#130b1e] p-5 sm:p-6">
++          <div className="absolute -right-20 -top-24 h-72 w-72 rounded-full bg-fuchsia-600/20 blur-3xl" />
++          <div className="relative flex flex-wrap items-center justify-between gap-4">
++            <div>
++              <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.3em] text-cyan-300">
++                <Sparkles className="h-4 w-4" /> DRAKSIDE MARKETING
++              </div>
++              <h1 className="cyber-title mt-2 text-3xl font-bold text-white sm:text-4xl">
++                DRAKSIDE MARKETING
++              </h1>
++              <p className="mt-2 max-w-2xl text-sm text-fuchsia-100/60">
++                การตลาดที่ไม่แข่งขัน แต่ไม่มีใครตามทัน
++              </p>
++            </div>
++            <div className="flex flex-wrap gap-2">
++              <Button
++                onClick={() => setLocation("/orders")}
++                variant="outline"
++                className="border-cyan-400/30 bg-transparent text-cyan-200"
++              >
++                <Home className="mr-2 h-4 w-4" />
++                หน้าออเดอร์
++              </Button>
++              <Button
++                onClick={() => createDoc("sql")}
++                className="bg-gradient-to-r from-fuchsia-600 to-violet-700"
++              >
++                <FilePlus2 className="mr-2 h-4 w-4" />
++                ไฟล์ใหม่
++              </Button>
++              <Button
++                variant="outline"
++                onClick={() => {
++                  sessionStorage.removeItem("nightops-gallery-unlocked");
++                  setUnlocked(false);
++                }}
++                className="border-fuchsia-400/25 bg-transparent text-fuchsia-100"
++              >
++                <LogOut className="mr-2 h-4 w-4" />
++                ล็อกห้อง
++              </Button>
++            </div>
++          </div>
++        </header>
++        <Card className="neon-card rounded-3xl border-cyan-400/20 bg-black/20">
++          <CardHeader>
++            <CardTitle className="flex items-center gap-2 text-sm text-white">
++              <LockKeyhole className="h-4 w-4 text-cyan-300" />
++              การเชื่อมต่อฐาน BB · ใส่ครั้งเดียว
++            </CardTitle>
++          </CardHeader>
++          <CardContent className="grid gap-3 md:grid-cols-3">
++            <Input
++              value={supabaseUrl}
++              onChange={e => setSupabaseUrl(e.target.value)}
++              placeholder="https://ชื่อโปรเจกต์.supabase.co"
++              className="border-fuchsia-400/20 bg-black/25 text-white"
++            />
++            <Input
++              type="password"
++              value={supabaseKey}
++              onChange={e => setSupabaseKey(e.target.value)}
++              placeholder="Anon / Publishable Key"
++              className="border-fuchsia-400/20 bg-black/25 text-white"
++            />
++            <Input
++              value={orderTable}
++              onChange={e => setOrderTable(e.target.value)}
++              placeholder="vw_bb_orders_all_v2"
++              className="border-fuchsia-400/20 bg-black/25 font-mono text-white"
++            />
++            <div className="flex items-center gap-2 md:col-span-3">
++              <Button
++                onClick={() => void saveConnection()}
++                disabled={connectionBusy}
++                className="bg-gradient-to-r from-fuchsia-600 to-violet-700"
++              >
++                {connectionBusy ? "กำลังตรวจ…" : "บันทึกและทดสอบการเชื่อมต่อ"}
++              </Button>
++              <span className="text-xs text-white/50">{connectionMessage}</span>
++            </div>
++          </CardContent>
++        </Card>
++        <div className="flex flex-wrap items-center justify-between gap-2">
++          <div
++            className="flex flex-wrap items-center gap-2"
++            onDragOver={e => e.preventDefault()}
++            onDrop={e => {
++              e.preventDefault();
++              dropOnReferenceTab(
++                e.dataTransfer.getData("text/plain") ||
++                  draggedDocId ||
++                  undefined
++              );
++            }}
++          >
++            <Button
++              onClick={() => setGalleryView("vault")}
++              variant="outline"
++              className={
++                view === "vault"
++                  ? "border-cyan-400/50 bg-cyan-500/15 text-cyan-200"
++                  : "border-white/10 bg-transparent text-white/60"
++              }
++            >
++              <Code2 className="mr-2 h-4 w-4" />
++              CODE VAULT · {docs.length}
++            </Button>
++            <Button
++              onClick={createArchive}
++              variant="outline"
++              className="border-cyan-400/40 bg-cyan-500/10 text-cyan-200"
++            >
++              <FolderArchive className="mr-2 h-4 w-4" />+ โฟลเดอร์เก็บโค้ด
++            </Button>
++            <Button
++              onClick={() => setGalleryView("images")}
++              variant="outline"
++              className={
++                view === "images"
++                  ? "border-fuchsia-400/50 bg-fuchsia-500/15 text-fuchsia-200"
++                  : "border-white/10 bg-transparent text-white/60"
++              }
++            >
++              <ImagePlus className="mr-2 h-4 w-4" />
++              ภาพอ้างอิง · {images.length}
++            </Button>
++            <Button
++              onDragOver={e => e.preventDefault()}
++              onDrop={e => {
++                e.preventDefault();
++                dropOnReferenceTab();
++              }}
++              variant="outline"
++              className="border-yellow-400/35 bg-yellow-500/10 text-yellow-200"
++            >
++              <FolderArchive className="mr-2 h-4 w-4" />
++              เก็บไฟล์{archives.length ? ` · ${archives.length} โฟลเดอร์` : ""}
++            </Button>
++            <span className="hidden text-[10px] text-white/35 lg:inline">
++              ลากไฟล์จากรายการซ้ายมาวางที่นี่
++            </span>
++          </div>
++          <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-cyan-200/45">
++            <span className="h-2 w-2 animate-pulse rounded-full bg-cyan-300" />{" "}
++            LOCAL VAULT · AUTOSAVE
++          </div>
++        </div>
++        {view === "vault" ? (
++          <section className="rounded-2xl border border-yellow-400/20 bg-yellow-500/[0.035] p-3 sm:p-4">
++            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
++              <div>
++                <h2 className="flex items-center gap-2 text-sm font-semibold text-yellow-100">
++                  <FolderArchive className="h-4 w-4 text-yellow-300" />{" "}
++                  กล่องเก็บไฟล์ · {archives.length} โฟลเดอร์
++                </h2>
++                <p className="mt-1 text-[11px] text-white/40">
++                  ลากไฟล์โค้ดจากรายการด้านล่างมาวางในโฟลเดอร์ได้เลย
++                  ไม่ต้องออกจากหน้านี้
++                </p>
++              </div>
++              <Button
++                onClick={createArchive}
++                variant="outline"
++                className="h-8 border-yellow-400/30 bg-transparent text-yellow-100"
++              >
++                <FolderArchive className="mr-2 h-4 w-4" />
++                สร้างโฟลเดอร์
++              </Button>
++            </div>
++            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
++              {archives.map(card => (
++                <div
++                  key={card.id}
++                  onDragOver={e => e.preventDefault()}
++                  onDrop={e => {
++                    e.preventDefault();
++                    dropDoc(
++                      card.id,
++                      e.dataTransfer.getData("text/plain") ||
++                        draggedDocId ||
++                        undefined
++                    );
++                  }}
++                  className="min-h-24 rounded-xl border border-dashed border-yellow-300/25 bg-black/20 p-3 transition hover:border-yellow-300/60 hover:bg-yellow-500/[0.06]"
++                >
++                  <div className="flex items-center justify-between gap-2">
++                    <p className="truncate text-xs font-semibold text-yellow-100">
++                      {card.title}
++                    </p>
++                    <span className="shrink-0 text-[10px] text-white/35">
++                      {card.docIds.length} ไฟล์
++                    </span>
++                  </div>
++                  <div className="mt-2 flex max-h-20 flex-wrap gap-1 overflow-auto">
++                    {docsIn(card).length ? (
++                      docsIn(card).map(doc => (
++                        <button
++                          key={doc.id}
++                          type="button"
++                          onClick={() => {
++                            setActiveId(doc.id);
++                            setGalleryView("vault");
++                          }}
++                          className="max-w-full truncate rounded-md bg-white/[0.05] px-2 py-1 text-left font-mono text-[10px] text-cyan-100"
++                        >
++                          {languageMeta[doc.language].icon} {doc.title}
++                        </button>
++                      ))
++                    ) : (
++                      <span className="text-[10px] text-white/30">
++                        วางไฟล์ตรงนี้
++                      </span>
++                    )}
++                  </div>
++                </div>
++              ))}
++              {!archives.length ? (
++                <div
++                  onDragOver={e => e.preventDefault()}
++                  onDrop={e => {
++                    e.preventDefault();
++                    dropOnReferenceTab(
++                      e.dataTransfer.getData("text/plain") ||
++                        draggedDocId ||
++                        undefined
++                    );
++                  }}
++                  className="flex min-h-24 items-center justify-center rounded-xl border border-dashed border-yellow-300/25 bg-black/15 text-xs text-white/40"
++                >
++                  วางไฟล์ตรงนี้เพื่อสร้างกล่องเก็บไฟล์แรก
++                </div>
++              ) : null}
++            </div>
++          </section>
++        ) : null}
++        {view === "images" ? (
++          <Card className="neon-card rounded-3xl border-fuchsia-500/20 bg-[#100817]">
++            <CardHeader className="flex flex-row items-center justify-between">
++              <CardTitle className="text-base text-white">
++                กล่องเก็บภาพ · {images.length} ภาพ
++              </CardTitle>
++              <div className="flex flex-wrap gap-2">
++                <Button
++                  variant="outline"
++                  onClick={() => void pasteImageFromClipboard()}
++                  className="border-cyan-400/30 bg-transparent text-cyan-100"
++                >
++                  <ClipboardCopy className="mr-2 h-4 w-4" />
++                  วางภาพจากคลิปบอร์ด
++                </Button>
++                <Button
++                  onClick={() => inputRef.current?.click()}
++                  className="bg-gradient-to-r from-fuchsia-600 to-violet-700"
++                >
++                  <ImagePlus className="mr-2 h-4 w-4" />
++                  เพิ่มรูป
++                </Button>
++                <input
++                  ref={inputRef}
++                  type="file"
++                  accept="image/*"
++                  multiple
++                  className="hidden"
++                  onChange={e => {
++                    addFiles(e.target.files);
++                    e.currentTarget.value = "";
++                  }}
++                />
++              </div>
++            </CardHeader>
++            <CardContent>
++              <p className="mb-3 text-xs text-white/40">
++                กด “วางภาพจากคลิปบอร์ด” หรือกด Ctrl+V เพื่อเก็บภาพทันที ·
++                คลิกไอคอนคัดลอกใต้รูปเพื่อคัดลอกรูปไปใช้
++              </p>
++              {imageMessage ? (
++                <p role="status" className="mb-3 text-xs text-cyan-200">
++                  {imageMessage}
++                </p>
++              ) : null}
++              {images.length ? (
++                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
++                  {images.map(item => (
++                    <div
++                      key={item.id}
++                      className="group overflow-hidden rounded-2xl border border-fuchsia-500/20 bg-black/20"
++                    >
++                      <button
++                        type="button"
++                        onClick={() => setPreview(item)}
++                        className="block aspect-[4/3] w-full overflow-hidden"
++                      >
++                        <img
++                          src={item.src}
++                          alt={item.name}
++                          className="h-full w-full object-cover transition duration-200 group-hover:scale-105"
++                        />
++                      </button>
++                      <div className="flex items-center justify-between gap-2 p-2">
++                        <p className="truncate text-[10px] text-fuchsia-100/65">
++                          {item.name}
++                        </p>
++                        <button
++                          type="button"
++                          title="คัดลอกรูป"
++                          aria-label={`คัดลอกรูป ${item.name}`}
++                          onClick={() => void copyImage(item)}
++                          className="shrink-0 text-cyan-200/75 hover:text-cyan-100"
++                        >
++                          <ClipboardCopy className="h-3.5 w-3.5" />
++                        </button>
++                        <button
++                          type="button"
++                          onClick={() =>
++                            setImages(current =>
++                              current.filter(x => x.id !== item.id)
++                            )
++                          }
++                          className="text-pink-300/70"
++                        >
++                          <Trash2 className="h-3.5 w-3.5" />
++                        </button>
++                      </div>
++                    </div>
++                  ))}
++                </div>
++              ) : (
++                <EmptyState icon={<ImagePlus />} text="ยังไม่มีภาพอ้างอิง" />
++              )}
++            </CardContent>
++          </Card>
++        ) : (
++          <div className="grid min-h-[620px] gap-4 lg:grid-cols-[260px_minmax(0,1fr)_300px]">
++            <Card className="neon-card overflow-hidden rounded-3xl border-fuchsia-500/20 bg-[#100817]">
++              <CardHeader className="border-b border-white/5 p-4">
++                <div className="flex items-center justify-between">
++                  <CardTitle className="text-sm text-white">
++                    FILES / NOTES
++                  </CardTitle>
++                  <button
++                    type="button"
++                    onClick={() => createDoc("sql")}
++                    className="rounded-lg p-2 text-cyan-300 hover:bg-cyan-500/10"
++                  >
++                    <FilePlus2 className="h-4 w-4" />
++                  </button>
++                </div>
++                <div className="relative mt-3">
++                  <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-white/30" />
++                  <Input
++                    value={query}
++                    onChange={e => setQuery(e.target.value)}
++                    placeholder="ค้นหาไฟล์..."
++                    className="h-9 border-white/10 bg-black/25 pl-9 text-xs text-white"
++                  />
++                </div>
++              </CardHeader>
++              <CardContent className="max-h-[540px] space-y-2 overflow-auto p-3">
++                {filteredDocs.length ? (
++                  filteredDocs.map(doc => (
++                    <button
++                      key={doc.id}
++                      type="button"
++                      draggable
++                      onDragStart={e => {
++                        setDraggedDocId(doc.id);
++                        e.dataTransfer.setData("text/plain", doc.id);
++                        e.dataTransfer.effectAllowed = "copy";
++                      }}
++                      onDragEnd={() => setDraggedDocId(null)}
++                      onClick={() => setActiveId(doc.id)}
++                      className={`w-full rounded-2xl border p-3 text-left transition ${activeId === doc.id ? "border-cyan-400/50 bg-cyan-500/10" : "border-white/5 bg-black/15 hover:border-fuchsia-400/30"}`}
++                    >
++                      <div className="flex items-center justify-between gap-2">
++                        <span
++                          className={`font-mono text-[10px] font-bold ${languageMeta[doc.language].tint}`}
++                        >
++                          {languageMeta[doc.language].icon}{" "}
++                          {languageMeta[doc.language].label}
++                        </span>
++                        <span className="text-[9px] text-white/25">
++                          {new Date(doc.updatedAt).toLocaleDateString("th-TH")}
++                        </span>
++                      </div>
++                      <p className="mt-2 truncate text-sm font-semibold text-white/85">
++                        {doc.title}
++                      </p>
++                      <p className="mt-1 truncate text-[10px] text-white/35">
++                        {doc.note}
++                      </p>
++                    </button>
++                  ))
++                ) : (
++                  <EmptyState
++                    icon={<FileCode2 />}
++                    text="ยังไม่มีไฟล์ · กด + เพื่อสร้าง"
++                  />
++                )}
++              </CardContent>
++            </Card>
++            <Card className="neon-card overflow-hidden rounded-3xl border-fuchsia-500/20 bg-[#0e0715]">
++              <CardHeader className="border-b border-white/5 p-4">
++                <div className="flex flex-wrap items-center justify-between gap-3">
++                  <div className="flex min-w-0 items-center gap-2">
++                    <Pencil className="h-4 w-4 shrink-0 text-cyan-300" />
++                    <Input
++                      value={activeDoc?.title ?? "ยังไม่ได้เลือกไฟล์"}
++                      onChange={e => updateActive({ title: e.target.value })}
++                      className="h-9 min-w-0 border-white/10 bg-black/20 text-sm font-semibold text-white"
++                      disabled={!activeDoc}
++                    />
++                  </div>
++                  <div className="flex gap-2">
++                    <Button
++                      onClick={() => {
++                        setSaved(true);
++                        window.setTimeout(() => setSaved(false), 1400);
++                      }}
++                      disabled={!activeDoc}
++                      className="h-9 bg-gradient-to-r from-fuchsia-600 to-violet-700"
++                    >
++                      {saved ? (
++                        <Check className="mr-2 h-4 w-4" />
++                      ) : (
++                        <Save className="mr-2 h-4 w-4" />
++                      )}
++                      {saved ? "บันทึกแล้ว" : "บันทึก"}
++                    </Button>
++                    <Button
++                      onClick={copyCode}
++                      disabled={!activeDoc}
++                      variant="outline"
++                      className="h-9 border-white/10 bg-transparent text-white"
++                    >
++                      {copied ? (
++                        <Check className="mr-2 h-4 w-4 text-emerald-300" />
++                      ) : (
++                        <Clipboard className="mr-2 h-4 w-4" />
++                      )}
++                      {copied ? "คัดลอกแล้ว" : "คัดลอก"}
++                    </Button>
++                  </div>
++                </div>
++                <div className="mt-3 flex flex-wrap items-center gap-2">
++                  <select
++                    value={activeDoc?.language ?? "sql"}
++                    onChange={e =>
++                      updateActive({ language: e.target.value as CodeLanguage })
++                    }
++                    disabled={!activeDoc}
++                    className="h-8 rounded-lg border border-fuchsia-400/25 bg-black/35 px-3 font-mono text-xs text-fuchsia-200 outline-none"
++                  >
++                    <option value="sql">SQL</option>
++                    <option value="java">Java</option>
++                    <option value="md">Markdown</option>
++                  </select>
++                  <span className="text-[10px] uppercase tracking-[0.18em] text-white/30">
++                    ลากรายการซ้ายไปเก็บที่ภาพอ้างอิง · autosave local
++                  </span>
++                </div>
++              </CardHeader>
++              {activeDoc ? (
++                <CardContent className="space-y-3 p-4">
++                  <textarea
++                    value={activeDoc.note}
++                    onChange={e => updateActive({ note: e.target.value })}
++                    placeholder="โน้ตอธิบายไฟล์นี้..."
++                    className="min-h-16 w-full resize-y rounded-xl border border-fuchsia-400/15 bg-fuchsia-500/[0.04] p-3 text-sm text-fuchsia-100/75 outline-none focus:border-cyan-400/50"
++                  />
++                  <div className="code-shell min-w-0 overflow-hidden rounded-2xl border border-cyan-400/25 bg-[#08050e]">
++                    <div className="flex items-center justify-between border-b border-white/5 bg-white/[0.03] px-4 py-2">
++                      <span className="font-mono text-[10px] text-cyan-300">
++                        {languageMeta[activeDoc.language].icon}{" "}
++                        {languageMeta[activeDoc.language].label} · LIVE EDITOR
++                      </span>
++                      <span className="text-[10px] text-white/25">
++                        {activeDoc.code.split("\n").length} lines ·
++                        เลื่อนแนวตั้ง/แนวนอนได้
++                      </span>
++                    </div>
++                    <div className="code-editor relative h-[62vh] min-h-[360px] max-h-[680px] min-w-0 overflow-hidden">
++                      <pre
++                        aria-hidden="true"
++                        ref={highlightRef}
++                        className="code-highlight pointer-events-none absolute left-0 top-0 m-0 min-h-full min-w-full whitespace-pre p-4 font-mono text-[12px] leading-6"
++                      >
++                        <code
++                          className={`language-${prismLanguage[activeDoc.language]}`}
++                          dangerouslySetInnerHTML={{
++                            __html: highlightedCode || "\u200b",
++                          }}
++                        />
++                      </pre>
++                      <textarea
++                        ref={editorRef}
++                        aria-label={`แก้ไขโค้ด ${activeDoc.title}`}
++                        spellCheck={false}
++                        wrap="off"
++                        value={activeDoc.code}
++                        onScroll={syncEditorScroll}
++                        onChange={e => updateActive({ code: e.target.value })}
++                        className="code-input absolute inset-0 m-0 h-full w-full resize-none overflow-auto whitespace-pre bg-transparent p-4 font-mono text-[12px] leading-6 outline-none selection:bg-fuchsia-400/30"
++                      />
++                    </div>
++                  </div>
++                </CardContent>
++              ) : (
++                <EmptyState
++                  icon={<Code2 />}
++                  text="เลือกไฟล์ทางซ้าย หรือสร้างไฟล์ใหม่"
++                />
++              )}
++            </Card>
++            <Card className="neon-card rounded-3xl border-fuchsia-500/20 bg-[#100817]">
++              <CardHeader>
++                <CardTitle className="flex items-center gap-2 text-sm text-white">
++                  <FileCode2 className="h-4 w-4 text-cyan-300" />
++                  VAULT CONTROL
++                </CardTitle>
++              </CardHeader>
++              <CardContent className="space-y-4 text-xs text-white/55">
++                <div className="rounded-2xl border border-cyan-400/15 bg-cyan-500/[0.04] p-4">
++                  <p className="text-[10px] uppercase tracking-[0.2em] text-cyan-300">
++                    ACTIVE FILE
++                  </p>
++                  <p className="mt-2 truncate text-base font-semibold text-white">
++                    {activeDoc?.title ?? "—"}
++                  </p>
++                  <p className="mt-1 text-white/35">
++                    {activeDoc
++                      ? `${languageMeta[activeDoc.language].label} · ${activeDoc.code.length.toLocaleString()} chars`
++                      : "ยังไม่ได้เลือก"}
++                  </p>
++                </div>
++                <div>
++                  <p className="mb-2 text-[10px] uppercase tracking-[0.2em] text-white/30">
++                    QUICK CREATE
++                  </p>
++                  <div className="grid grid-cols-3 gap-2">
++                    {(["sql", "java", "md"] as CodeLanguage[]).map(lang => (
++                      <button
++                        key={lang}
++                        type="button"
++                        onClick={() => createDoc(lang)}
++                        className="rounded-xl border border-white/10 bg-black/20 p-3 font-mono text-xs text-cyan-200 hover:border-fuchsia-400/40 hover:bg-fuchsia-500/10"
++                      >
++                        {languageMeta[lang].icon} {languageMeta[lang].label}
++                      </button>
++                    ))}
++                  </div>
++                </div>
++                <div className="rounded-2xl border border-pink-400/20 bg-pink-500/[0.04] p-4">
++                  <p className="text-[10px] uppercase tracking-[0.2em] text-pink-300">
++                    DANGER ZONE
++                  </p>
++                  <Button
++                    onClick={() => activeId && deleteDoc(activeId)}
++                    disabled={!activeDoc}
++                    variant="outline"
++                    className="mt-3 w-full border-pink-400/25 bg-transparent text-pink-200"
++                  >
++                    <Trash2 className="mr-2 h-4 w-4" />
++                    ลบไฟล์นี้
++                  </Button>
++                </div>
++              </CardContent>
++            </Card>
++          </div>
++        )}
++      </div>
++      {preview ? (
++        <div
++          className="fixed inset-0 z-[80] flex items-center justify-center bg-black/85 p-4"
++          onClick={() => setPreview(null)}
++        >
++          <button
++            type="button"
++            className="absolute right-5 top-5 rounded-full bg-white/10 p-2 text-white"
++            onClick={() => setPreview(null)}
++          >
++            <X className="h-5 w-5" />
++          </button>
++          <img
++            src={preview.src}
++            alt={preview.name}
++            className="max-h-[90vh] max-w-[95vw] rounded-2xl object-contain"
++          />
++        </div>
++      ) : null}
++    </div>
++  );
++}
++function EmptyState({ icon, text }: { icon: ReactNode; text: string }) {
++  return (
++    <div className="flex min-h-32 flex-col items-center justify-center rounded-2xl border border-dashed border-cyan-500/20 p-6 text-center text-xs text-white/35">
++      {icon}
++      <span className="mt-2">{text}</span>
++    </div>
++  );
+ }
+-function EmptyState({ icon, text }: { icon: ReactNode; text: string }) { return <div className="flex min-h-32 flex-col items-center justify-center rounded-2xl border border-dashed border-cyan-500/20 p-6 text-center text-xs text-white/35">{icon}<span className="mt-2">{text}</span></div>; }
+diff --git a/client/src/pages/TelegramDeliveryRoom.tsx b/client/src/pages/TelegramDeliveryRoom.tsx
+index ab2bccd..1df0695 100644
+--- a/client/src/pages/TelegramDeliveryRoom.tsx
++++ b/client/src/pages/TelegramDeliveryRoom.tsx
+@@ -15,10 +15,28 @@ function liveClockLabel(value: Date) {
+ 
+ type OrderRow = Record<string, any>;
+ 
+-function isSent(row: OrderRow) {
+-  const status = String(row.telegram_status ?? "").trim().toLowerCase();
+-  const sent = String(row.telegram_sent ?? "").trim().toLowerCase();
+-  return ["1", "true", "t", "sent", "delivered", "ไปแล้วไปลับ"].includes(status) || ["1", "true", "t", "sent"].includes(sent);
++function isOrderRow(value: unknown): value is OrderRow {
++  return value !== null && typeof value === "object" && !Array.isArray(value);
++}
++
++function textValue(value: unknown): string {
++  if (typeof value === "string") return value;
++  if (value == null) return "";
++  if (typeof value === "object") {
++    try { return JSON.stringify(value); } catch { return ""; }
++  }
++  return String(value);
++}
++
++function isSent(row: OrderRow | null | undefined) {
++  if (!isOrderRow(row)) return false;
++  const status = textValue(row.telegram_status).trim().toLowerCase();
++  const deliveryStatus = textValue(row.delivery_status).trim().toLowerCase();
++  const deliveryState = textValue(row.delivery_state).trim().toLowerCase();
++  const viewSentFlag = textValue(row.drakside_is_sent).trim().toLowerCase();
++  const sent = textValue(row.telegram_sent).trim().toLowerCase();
++  const sentValues = ["1", "true", "t", "sent", "delivered", "sent_to_telegram", "ไปแล้วไปลับ"];
++  return sentValues.includes(status) || sentValues.includes(deliveryStatus) || sentValues.includes(deliveryState) || ["1", "true", "t"].includes(viewSentFlag) || ["1", "true", "t", "sent"].includes(sent);
+ }
+ 
+ function orderKey(row: OrderRow) {
+@@ -138,7 +156,9 @@ export default function TelegramDeliveryRoom() {
+     refetchInterval: 180_000,
+   });
+ 
+-  const allOrders = (query.data?.orders ?? []) as OrderRow[];
++  const allOrders: OrderRow[] = Array.isArray(query.data?.orders)
++    ? query.data.orders.filter(isOrderRow)
++    : [];
+   const waiting = useMemo(() => allOrders.filter((row) => room === "sent" ? isSent(row) : !isSent(row)).sort((a, b) => new Date(realTime(b) || 0).getTime() - new Date(realTime(a) || 0).getTime()), [allOrders, room]);
+   const order = waiting[selected];
+   const selectedOrders = useMemo(() => waiting.filter((row) => selectedKeys.has(orderKey(row))), [selectedKeys, waiting]);
+@@ -234,11 +254,13 @@ export default function TelegramDeliveryRoom() {
+   async function markSelectedOrdersSent() {
+     if (!selectedOrders.length) { setSendMessage("ยังไม่ได้ติ๊กเลือกออเดอร์"); return; }
+     try {
++      const rowsToMark = selectedOrders.filter((row) => !isSent(row));
++      if (!rowsToMark.length) { setSendMessage("ออเดอร์ที่เลือกอยู่ในประวัติส่งแล้วแล้ว"); return; }
+       const patch = { telegram_sent: "true", telegram_status: "SENT", delivery_state: "SENT", sent_at: new Date().toISOString(), last_delivery_note: "ผู้ใช้งานยืนยันส่งแล้วจากภายนอก/หน้า Telegram" };
+-      for (const row of selectedOrders) {
++      for (const row of rowsToMark) {
+         if (row.id) await updateBbOrder(row.id, patch); else if (row.upsert_key) await updateBbOrderByKey(String(row.upsert_key), patch);
+       }
+-      setSendMessage(`ติ๊ก SENT แล้ว ${selectedOrders.length} ออเดอร์`);
++      setSendMessage(`เก็บเป็น SENT แล้ว ${rowsToMark.length} ออเดอร์ (ข้อมูลออเดอร์เดิมยังอยู่)`);
+       setSelectedKeys(new Set());
+       await query.refetch();
+     } catch (error) {
+@@ -247,6 +269,7 @@ export default function TelegramDeliveryRoom() {
+   }
+ 
+   async function markCurrentOrderSent() {
++    if (isSent(order)) { setSendMessage("ออเดอร์นี้อยู่ในประวัติส่งแล้ว และจะไม่กลับเข้าคิว"); return; }
+     if (!order?.id && !order?.upsert_key) { setSendMessage("ติ๊กส่งแล้วไม่ได้: ไม่พบ id หรือ upsert_key"); return; }
+     try {
+       const patch = { telegram_sent: "true", telegram_status: "SENT", delivery_state: "SENT", sent_at: new Date().toISOString(), last_delivery_note: "ผู้ใช้งานกดยืนยันส่งแล้วจากห้อง Telegram" };
+@@ -272,17 +295,6 @@ export default function TelegramDeliveryRoom() {
+     } finally { setEditSaving(false); }
+   }
+ 
+-  async function recallCurrentOrder() {
+-    if (!order?.id || room !== "sent") return;
+-    if (!window.confirm("เรียกออเดอร์นี้กลับเข้าคิวรอส่งหรือไม่?")) return;
+-    try {
+-      await updateBbOrder(order.id, { telegram_sent: "false", telegram_status: "RECALLED", delivery_state: "RECALLED", recalled_at: new Date().toISOString(), recall_count: Number(order.recall_count ?? 0) + 1, last_delivery_note: "เรียกกลับจากหน้าเว็บ" });
+-      setSendMessage("เรียกกลับแล้ว — ออเดอร์กลับเข้าคิวรอส่ง");
+-      setRoom("queue");
+-      await query.refetch();
+-    } catch (error) { setSendMessage(`เรียกกลับไม่สำเร็จ: ${error instanceof Error ? error.message : String(error)}`); }
+-  }
+-
+   return (
+     <div className="bb-telegram-room min-h-full space-y-5 text-white">
+       <header className="relative overflow-hidden rounded-3xl border border-fuchsia-400/30 bg-[#10091c] p-6 shadow-2xl shadow-fuchsia-950/30">
+@@ -317,7 +329,7 @@ export default function TelegramDeliveryRoom() {
+       <div className="grid gap-5 xl:grid-cols-[350px_1fr]">
+         <Card className="rounded-3xl border-fuchsia-400/20 bg-[#10091c]">
+           <CardHeader className="space-y-3">
+-            <div className="flex flex-wrap items-center justify-between gap-2"><CardTitle className="flex items-center gap-2 text-base text-fuchsia-100"><Clock3 className="h-4 w-4 text-fuchsia-300" />{room === "sent" ? "ประวัติส่งแล้ว" : "คิวตามเวลาจริง"}</CardTitle><div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => setRoom(room === "sent" ? "queue" : "sent")} className={room === "sent" ? "border-cyan-400/30 text-cyan-200" : "border-fuchsia-300/70 bg-fuchsia-600/25 text-fuchsia-50 shadow-[0_0_18px_rgba(217,70,239,.45)]"}>{room === "sent" ? "กลับคิวรอส่ง" : "รอส่ง · คิวเวลาจริง"}</Button>{room === "sent" && <Button size="sm" variant="outline" onClick={recallCurrentOrder} disabled={!order} className="border-amber-300/40 bg-amber-400/10 text-amber-200">↩️ เรียกกลับ</Button>}<Button size="sm" variant="outline" onClick={() => query.refetch()} className="border-orange-400/20 text-orange-200"><RefreshCw className={`mr-1 h-3.5 w-3.5 ${query.isFetching ? "animate-spin" : ""}`} />รีเฟรช</Button></div></div>
++            <div className="flex flex-wrap items-center justify-between gap-2"><CardTitle className="flex items-center gap-2 text-base text-fuchsia-100"><Clock3 className="h-4 w-4 text-fuchsia-300" />{room === "sent" ? "ประวัติส่งแล้ว" : "คิวตามเวลาจริง"}</CardTitle><div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => setRoom(room === "sent" ? "queue" : "sent")} className={room === "sent" ? "border-cyan-400/30 text-cyan-200" : "border-fuchsia-300/70 bg-fuchsia-600/25 text-fuchsia-50 shadow-[0_0_18px_rgba(217,70,239,.45)]"}>{room === "sent" ? "กลับคิวรอส่ง" : "ประวัติส่งแล้ว"}</Button><Button size="sm" variant="outline" onClick={() => query.refetch()} className="border-orange-400/20 text-orange-200"><RefreshCw className={`mr-1 h-3.5 w-3.5 ${query.isFetching ? "animate-spin" : ""}`} />รีเฟรช</Button></div></div>
+             <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ค้นหาเลขออเดอร์ / ลูกค้า / สินค้า" className="border-orange-400/20 bg-black/40 text-orange-100 placeholder:text-orange-100/30" />
+             <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-orange-100/55"><span>แสดง {waiting.length} รายการ · เลือกแล้ว {selectedOrders.length}</span><div className="flex flex-wrap items-center gap-2"><Button size="sm" variant="outline" onClick={toggleAllVisible} className="h-7 border-cyan-400/30 px-2 text-[10px] text-cyan-200">{waiting.length > 0 && waiting.every((row) => selectedKeys.has(orderKey(row))) ? "ปิดเลือกทั้งหมด" : "เปิดเลือกทั้งหมด"}</Button><Button size="sm" onClick={sendSelectedOrders} disabled={!selectedOrders.length || sendMessage.startsWith("กำลังปล่อยรัน")} className="h-7 border-fuchsia-300/50 bg-fuchsia-500/20 px-2 text-[10px] text-fuchsia-100">ปล่อยรัน ({selectedOrders.length})</Button><Button size="sm" onClick={markSelectedOrdersSent} disabled={!selectedOrders.length} className="h-7 border-emerald-300/50 bg-emerald-500/20 px-2 text-[10px] text-emerald-100">ติ๊ก SENT</Button><span className="font-mono">ใหม่สุดอยู่บน</span></div></div>
+           </CardHeader>
+diff --git a/package.json b/package.json
+index 8c0069a..5d0b47d 100644
+--- a/package.json
++++ b/package.json
+@@ -66,6 +66,7 @@
+     "mysql2": "^3.15.0",
+     "nanoid": "^5.1.5",
+     "next-themes": "^0.4.6",
++    "prismjs": "^1.30.0",
+     "react": "^19.2.1",
+     "react-day-picker": "^9.11.1",
+     "react-dom": "^19.2.1",
+@@ -89,6 +90,7 @@
+     "@types/express": "4.17.21",
+     "@types/google.maps": "^3.58.1",
+     "@types/node": "^24.7.0",
++    "@types/prismjs": "^1.26.6",
+     "@types/react": "^19.2.1",
+     "@types/react-dom": "^19.2.1",
+     "@vitejs/plugin-react": "^5.0.4",
+diff --git a/pnpm-lock.yaml b/pnpm-lock.yaml
+index 5522bf4..18bb92a 100644
+--- a/pnpm-lock.yaml
++++ b/pnpm-lock.yaml
+@@ -169,6 +169,9 @@ importers:
+       next-themes:
+         specifier: ^0.4.6
+         version: 0.4.6(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
++      prismjs:
++        specifier: ^1.30.0
++        version: 1.30.0
+       react:
+         specifier: ^19.2.1
+         version: 19.2.1
+@@ -233,6 +236,9 @@ importers:
+       '@types/node':
+         specifier: ^24.7.0
+         version: 24.7.0
++      '@types/prismjs':
++        specifier: ^1.26.6
++        version: 1.26.6
+       '@types/react':
+         specifier: ^19.2.1
+         version: 19.2.1
+@@ -2335,6 +2341,9 @@ packages:
+   '@types/node@24.7.0':
+     resolution: {integrity: sha512-IbKooQVqUBrlzWTi79E8Fw78l8k1RNtlDDNWsFZs7XonuQSJ8oNYfEeclhprUldXISRMLzBpILuKgPlIxm+/Yw==}
+ 
++  '@types/prismjs@1.26.6':
++    resolution: {integrity: sha512-vqlvI7qlMvcCBbVe0AKAb4f97//Hy0EBTaiW8AalRnG/xAN5zOiWWyrNqNXeq8+KAuvRewjCVY1+IPxk4RdNYw==}
++
+   '@types/qs@6.14.0':
+     resolution: {integrity: sha512-eOunJqu0K1923aExK6y8p6fsihYEn/BYuQ4g0CxAAgFc4b/ZLN4CrsRZ55srTdqoiLzU2B2evC+apEIxprEzkQ==}
+ 
+@@ -3769,6 +3778,10 @@ packages:
+     engines: {node: '>=14'}
+     hasBin: true
+ 
++  prismjs@1.30.0:
++    resolution: {integrity: sha512-DEvV2ZF2r2/63V+tK8hQvrR2ZGn10srHbXviTlcv7Kpzw8jWiNTqbVgjO3IY8RxrrOUF8VPMQQFysYYYv0YZxw==}
++    engines: {node: '>=6'}
++
+   prop-types@15.8.1:
+     resolution: {integrity: sha512-oj87CgZICdulUohogVAR7AjlC0327U4el4L6eAvOqCeudMDVU0NThNaV+b9Df4dXgSP1gXMTnPdhfe/2qDH5cg==}
+ 
+@@ -6757,6 +6770,8 @@ snapshots:
+     dependencies:
+       undici-types: 7.14.0
+ 
++  '@types/prismjs@1.26.6': {}
++
+   '@types/qs@6.14.0': {}
+ 
+   '@types/range-parser@1.2.7': {}
+@@ -8439,6 +8454,8 @@ snapshots:
+ 
+   prettier@3.6.2: {}
+ 
++  prismjs@1.30.0: {}
++
+   prop-types@15.8.1:
+     dependencies:
+       loose-envify: 1.4.0
+diff --git a/server/supabase.test.ts b/server/supabase.test.ts
+new file mode 100644
+index 0000000..ddc8bc3
+--- /dev/null
++++ b/server/supabase.test.ts
+@@ -0,0 +1,31 @@
++import { describe, expect, it } from "vitest";
++import { getLiveOrderStats, type LiveOrder } from "./supabase";
++
++describe("getLiveOrderStats", () => {
++  it("ignores null rows before reading telegram_status", () => {
++    const orders = [
++      { telegram_status: "SENT", is_ready_to_pack: true, cod_check_status: "PASS", page_id: "page-1" },
++      null,
++      undefined,
++    ] as unknown as LiveOrder[];
++
++    expect(getLiveOrderStats(orders)).toEqual({
++      total: 1,
++      mapped: 1,
++      review: 0,
++      codCheck: 0,
++      sent: 1,
++      pages: 1,
++    });
++  });
++
++  it("treats missing and non-canonical status values as text safely", () => {
++    const orders = [
++      { telegram_status: null, is_ready_to_pack: false, cod_check_status: "CHECK", page_id: null },
++      { telegram_status: "sent", is_ready_to_pack: false, cod_check_status: "PASS", page_id: "page-1" },
++    ] as unknown as LiveOrder[];
++
++    expect(getLiveOrderStats(orders).sent).toBe(1);
++    expect(getLiveOrderStats(orders).total).toBe(2);
++  });
++});
+diff --git a/server/supabase.ts b/server/supabase.ts
+index 8143e2a..55c417d 100644
+--- a/server/supabase.ts
++++ b/server/supabase.ts
+@@ -28,7 +28,10 @@ async function itemRows(orderIds: number[]) {
+   return supabaseGet<Array<Record<string, unknown>>>(`canonical_order_items?select=*&order_id=in.(${orderIds.join(",")})&order=line_no.asc&limit=10000`);
+ }
+ export async function fetchLiveOrders(search?: string) {
+-  const rows = await orderRows();
++  const response = await orderRows();
++  const rows = Array.isArray(response)
++    ? response.filter((row): row is Record<string, unknown> => row !== null && typeof row === "object" && !Array.isArray(row))
++    : [];
+   let items: Array<Record<string, unknown>> = [];
+   try {
+     items = await itemRows(rows.map(r => Number(r.id)).filter(Number.isFinite));
+@@ -42,7 +45,7 @@ export async function fetchLiveOrders(search?: string) {
+   const q = search?.trim().toLowerCase();
+   return rows.map(r => normalizeOrder(r, grouped.get(Number(r.id)) ?? [])).filter(o => !q || JSON.stringify(o).toLowerCase().includes(q));
+ }
+-export function getLiveOrderStats(orders: LiveOrder[]): LiveOrderStats { return { total: orders.length, mapped: orders.filter(o => o.is_ready_to_pack).length, review: orders.filter(o => !o.is_ready_to_pack).length, codCheck: orders.filter(o => o.cod_check_status !== "PASS").length, sent: orders.filter(o => o.telegram_status === "SENT").length, pages: new Set(orders.map(o => o.page_id).filter(Boolean)).size }; }
++export function getLiveOrderStats(orders: LiveOrder[]): LiveOrderStats { const safeOrders = Array.isArray(orders) ? orders.filter((order): order is LiveOrder => order !== null && typeof order === "object") : []; return { total: safeOrders.length, mapped: safeOrders.filter(o => o.is_ready_to_pack).length, review: safeOrders.filter(o => !o.is_ready_to_pack).length, codCheck: safeOrders.filter(o => o.cod_check_status !== "PASS").length, sent: safeOrders.filter(o => String(o.telegram_status ?? "").toUpperCase() === "SENT").length, pages: new Set(safeOrders.map(o => o.page_id).filter(Boolean)).size }; }
+ export async function fetchLiveThreads(search?: string) { const orders = await fetchLiveOrders(search); const map = new Map<string, LiveThread>(); for (const order of orders) { const key = `${order.page_id ?? ""}:${order.thread_id ?? order.order_number}`; const current = map.get(key) ?? { key, pageName: order.page_name ?? "ไม่ระบุเพจ", pageId: order.page_id, threadId: order.thread_id, customerId: order.recipient_id ?? null, latestAt: order.created_at, latestOrderNumber: order.order_number, customerName: order.customer_name, preview: order.source_text ?? order.display_for_packer ?? "", orderCount: 0, unread: false, sentCount: 0, messageCount: 0, customerMessages: 0, pageMessages: 0, orderSignals: 0, snippets: [], orders: [], chatTimeline: [], searchText: "" }; current.orders.push(order); current.orderCount++; current.messageCount += order.chat_timeline.length; current.customerMessages = (current.customerMessages ?? 0) + order.chat_timeline.filter(x => !/เพจ|admin|แอดมิน/i.test(x)).length; current.pageMessages = (current.pageMessages ?? 0) + order.chat_timeline.filter(x => /เพจ|admin|แอดมิน/i.test(x)).length; current.orderSignals = current.orderCount; current.snippets = [...(current.snippets ?? []), ...order.chat_timeline.slice(0, 3)]; current.chatTimeline.push(...order.chat_timeline); current.searchText += ` ${order.customer_name ?? ""} ${order.source_text ?? ""} ${order.order_number}`; map.set(key, current); } return Array.from(map.values()).sort((a, b) => String(b.latestAt).localeCompare(String(a.latestAt))); }
+ export async function fetchExternalChatMessages(pageId: string, threadId: string): Promise<ExternalChatMessage[]> { const orders = (await fetchLiveOrders()).filter(o => o.page_id === pageId && o.thread_id === threadId); return orders.flatMap(o => o.chat_timeline.map((line, i) => { const outbound = /เพจ|admin|แอดมิน/i.test(line); return { id: o.id * 10000 + i, providerMessageId: null, pageId, pageName: o.page_name, threadId, senderId: o.recipient_id ?? "", senderName: o.customer_name, customerName: o.customer_name, sender_name: o.customer_name, customer_name: o.customer_name, speaker_type: outbound ? "page" : "customer", senderType: outbound ? "page" : "customer", side: outbound ? "right" : "left", direction: outbound ? "outbound" : "inbound", text: line, message_text: line, attachmentsJson: null, occurredAt: o.order_time, occurred_at: o.order_time, source_created_at: o.created_at, createdAt: o.created_at, source_message_id: null, dedupe_key: `:` }; })); }
+ export async function fetchConversationEvidence(pageId: string, threadId: string) { return fetchExternalChatMessages(pageId, threadId); }
+diff --git a/sql/bb_telegram_manual_sent_queue_fix.sql b/sql/bb_telegram_manual_sent_queue_fix.sql
+index 32c407b..85d8575 100644
+--- a/sql/bb_telegram_manual_sent_queue_fix.sql
++++ b/sql/bb_telegram_manual_sent_queue_fix.sql
+@@ -1,8 +1,7 @@
+--- BB ONLY · MANUAL ARCHIVE BUTTON + DATABASE-DRIVEN QUEUE / HISTORY
+--- Run in the BB Supabase project only.
+--- No n8n workflow is changed. No order rows are deleted.
+--- Requires the existing bb_orders, vw_bb_telegram_manual_room_v1, and
+--- bb_orders_sent_history objects.
++-- BB ONLY · PERMANENT SENT STATUS + ONE DRAKSIDE DELIVERY VIEW
++-- Uses the existing vw_bb_orders_all_v2 only. Bill-builder routing is deferred.
++-- Creates/updates only public.drakside_telagram_delivery_pro; no existing view,
++-- room, lab object, or bb_orders row is dropped or bulk-updated.
+ 
+ BEGIN;
+ 
+@@ -17,66 +16,87 @@ ALTER TABLE public.bb_orders
+ ALTER TABLE public.bb_orders_sent_history
+   ADD COLUMN IF NOT EXISTS upsert_key text,
+   ADD COLUMN IF NOT EXISTS page_name text,
+-  ADD COLUMN IF NOT EXISTS facebook_name text;
++  ADD COLUMN IF NOT EXISTS facebook_name text,
++  ADD COLUMN IF NOT EXISTS delivery_status text DEFAULT 'SENT';
+ 
+--- The manual archive button sets telegram_status='SENT'. Parse values through
+--- JSON so this remains safe with boolean/text legacy telegram_sent columns.
++-- Keep the legacy telegram_sent storage type intact for existing rooms and n8n.
++-- Text status fields remain text; the frontend also safely normalizes old values.
+ CREATE OR REPLACE FUNCTION public.bb_record_sent_history()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ AS $function$
+ DECLARE
++  row_json jsonb;
+   old_status text := upper(COALESCE(to_jsonb(OLD)->>'telegram_status', ''));
+   new_status text := upper(COALESCE(to_jsonb(NEW)->>'telegram_status', ''));
+-  old_sent_flag boolean := lower(COALESCE(to_jsonb(OLD)->>'telegram_sent', '')) IN ('true', '1', 't', 'sent', 'delivered', 'ไปแล้วไปลับ');
+-  new_sent_flag boolean := lower(COALESCE(to_jsonb(NEW)->>'telegram_sent', '')) IN ('true', '1', 't', 'sent', 'delivered', 'ไปแล้วไปลับ');
+-  row_json jsonb;
++  new_state text := upper(COALESCE(to_jsonb(NEW)->>'delivery_state', ''));
++  new_sent_flag boolean := lower(COALESCE(to_jsonb(NEW)->>'telegram_sent', '')) IN ('true', '1', 't', 'sent', 'delivered', 'sent_to_telegram', 'ไปแล้วไปลับ');
++  history_sent_at timestamptz;
+ BEGIN
++  -- Once an order has an archive record, later imports cannot unset its SENT state.
++  SELECT h.sent_at
++    INTO history_sent_at
++    FROM public.bb_orders_sent_history AS h
++   WHERE (NULLIF(NEW.upsert_key::text, '') IS NOT NULL
++          AND (h.upsert_key = NEW.upsert_key::text OR h.order_key = NEW.upsert_key::text
++               OR h.snapshot->>'upsert_key' = NEW.upsert_key::text))
++      OR (NULLIF(NEW.order_number::text, '') IS NOT NULL
++          AND h.order_number = NEW.order_number::text)
++      OR (NULLIF(NEW.id::text, '') IS NOT NULL
++          AND h.snapshot->>'id' = NEW.id::text)
++   ORDER BY h.sent_at ASC
++   LIMIT 1;
++
++  IF FOUND THEN
++    NEW.telegram_status := 'SENT';
++    NEW.delivery_state := 'SENT';
++    NEW.sent_at := COALESCE(history_sent_at, NEW.sent_at, now());
++    RETURN NEW;
++  END IF;
++
+   IF new_status IN ('SENT', 'DELIVERED', 'SENT_TO_TELEGRAM', 'ไปแล้วไปลับ')
+-     AND old_status NOT IN ('SENT', 'DELIVERED', 'SENT_TO_TELEGRAM', 'ไปแล้วไปลับ') THEN
++     OR new_state IN ('SENT', 'DELIVERED', 'SENT_TO_TELEGRAM', 'ไปแล้วไปลับ')
++     OR new_sent_flag THEN
++    NEW.telegram_status := 'SENT';
+     NEW.delivery_state := 'SENT';
+     NEW.sent_at := COALESCE(NEW.sent_at, now());
+     row_json := to_jsonb(NEW);
+ 
+     INSERT INTO public.bb_orders_sent_history (
+-      order_key, order_number, sent_at, snapshot, upsert_key, page_name, facebook_name
++      order_key, order_number, sent_at, snapshot, upsert_key, page_name,
++      facebook_name, delivery_status
+     ) VALUES (
+-      NEW.upsert_key,
+-      row_json->>'order_number',
++      NULLIF(NEW.upsert_key::text, ''),
++      NULLIF(NEW.order_number::text, ''),
+       NEW.sent_at,
+       row_json,
+-      NEW.upsert_key,
++      NULLIF(NEW.upsert_key::text, ''),
+       row_json->>'page_name',
+-      row_json->>'facebook_name'
++      row_json->>'facebook_name',
++      'SENT'
+     );
+   ELSIF new_status IN ('RECALLED', 'RECALL')
+-        AND (old_status IN ('SENT', 'DELIVERED', 'SENT_TO_TELEGRAM', 'ไปแล้วไปลับ') OR old_sent_flag) THEN
+-    NEW.delivery_state := 'RECALLED';
+-    NEW.recalled_at := COALESCE(NEW.recalled_at, now());
+-    row_json := to_jsonb(NEW);
+-
+-    UPDATE public.bb_orders_sent_history
+-       SET delivery_status = 'RECALLED',
+-           recalled_at = COALESCE(recalled_at, NEW.recalled_at),
+-           recall_count = GREATEST(COALESCE(recall_count, 0), COALESCE(NULLIF(row_json->>'recall_count', '')::integer, 0))
+-     WHERE order_key = NEW.upsert_key
+-       AND delivery_status = 'SENT';
++        AND old_status IN ('SENT', 'DELIVERED', 'SENT_TO_TELEGRAM', 'ไปแล้วไปลับ') THEN
++    -- Keep old recall writes from moving a sent order back into the queue.
++    NEW.telegram_status := 'SENT';
++    NEW.delivery_state := 'SENT';
+   END IF;
++
+   RETURN NEW;
+ END;
+ $function$;
+ 
+ DROP TRIGGER IF EXISTS trg_bb_record_sent_history ON public.bb_orders;
+ CREATE TRIGGER trg_bb_record_sent_history
+-BEFORE UPDATE OF telegram_status ON public.bb_orders
++BEFORE INSERT OR UPDATE ON public.bb_orders
+ FOR EACH ROW
+ EXECUTE FUNCTION public.bb_record_sent_history();
+ 
+--- One-time idempotent backfill for orders already marked SENT before this fix.
+--- Avoid creating another history entry when order_key/upsert_key or order number
+--- already exists. JSON extraction tolerates legacy boolean/text columns.
++-- Idempotent backfill into the archive table only. The source order rows are
++-- read-only here and are never deleted or bulk-updated.
+ INSERT INTO public.bb_orders_sent_history (
+-  order_key, order_number, snapshot, upsert_key, page_name, facebook_name
++  order_key, order_number, snapshot, upsert_key, page_name, facebook_name,
++  delivery_status
+ )
+ SELECT
+   NULLIF(j->>'upsert_key', ''),
+@@ -84,99 +104,69 @@ SELECT
+   j,
+   NULLIF(j->>'upsert_key', ''),
+   NULLIF(j->>'page_name', ''),
+-  NULLIF(j->>'facebook_name', '')
++  NULLIF(j->>'facebook_name', ''),
++  'SENT'
+ FROM (
+-  SELECT DISTINCT ON (COALESCE(NULLIF(to_jsonb(o)->>'upsert_key', ''), NULLIF(to_jsonb(o)->>'order_number', '')))
++  SELECT DISTINCT ON (COALESCE(NULLIF(to_jsonb(o)->>'upsert_key', ''), NULLIF(to_jsonb(o)->>'order_number', ''), to_jsonb(o)->>'id'))
+     to_jsonb(o) AS j
+   FROM public.bb_orders AS o
+   WHERE upper(COALESCE(to_jsonb(o)->>'telegram_status', '')) IN ('SENT', 'DELIVERED', 'SENT_TO_TELEGRAM', 'ไปแล้วไปลับ')
+-     OR upper(COALESCE(to_jsonb(o)->>'delivery_state', '')) = 'SENT'
+-     OR lower(COALESCE(to_jsonb(o)->>'telegram_sent', '')) IN ('true', '1', 't', 'sent', 'delivered', 'ไปแล้วไปลับ')
++     OR upper(COALESCE(to_jsonb(o)->>'delivery_state', '')) IN ('SENT', 'DELIVERED', 'SENT_TO_TELEGRAM', 'ไปแล้วไปลับ')
++     OR lower(COALESCE(to_jsonb(o)->>'telegram_sent', '')) IN ('true', '1', 't', 'sent', 'delivered', 'sent_to_telegram', 'ไปแล้วไปลับ')
+   ORDER BY
+-    COALESCE(NULLIF(to_jsonb(o)->>'upsert_key', ''), NULLIF(to_jsonb(o)->>'order_number', '')),
+-    NULLIF(to_jsonb(o)->>'sent_at', '') DESC NULLS LAST,
+-    NULLIF(to_jsonb(o)->>'updated_at', '') DESC NULLS LAST
++    COALESCE(NULLIF(to_jsonb(o)->>'upsert_key', ''), NULLIF(to_jsonb(o)->>'order_number', ''), to_jsonb(o)->>'id'),
++    NULLIF(to_jsonb(o)->>'sent_at', '') ASC NULLS LAST,
++    NULLIF(to_jsonb(o)->>'updated_at', '') ASC NULLS LAST
+ ) AS existing_sent(j)
+ WHERE NOT EXISTS (
+   SELECT 1
+   FROM public.bb_orders_sent_history AS h
+   WHERE (NULLIF(existing_sent.j->>'upsert_key', '') IS NOT NULL
+-         AND (h.order_key = existing_sent.j->>'upsert_key' OR h.upsert_key = existing_sent.j->>'upsert_key'))
++         AND (h.order_key = existing_sent.j->>'upsert_key' OR h.upsert_key = existing_sent.j->>'upsert_key'
++              OR h.snapshot->>'upsert_key' = existing_sent.j->>'upsert_key'))
+      OR (COALESCE(NULLIF(existing_sent.j->>'order_number', ''), NULLIF(existing_sent.j->>'order_number_display', '')) IS NOT NULL
+          AND h.order_number = COALESCE(NULLIF(existing_sent.j->>'order_number', ''), NULLIF(existing_sent.j->>'order_number_display', '')))
++     OR (NULLIF(existing_sent.j->>'id', '') IS NOT NULL AND h.snapshot->>'id' = existing_sent.j->>'id')
+ );
+ 
+--- Queue omits currently sent orders in SQL. A recalled row is explicitly
+--- allowed back in even if a legacy telegram_sent flag remains true.
+-CREATE OR REPLACE VIEW public.vw_bb_telegram_queue_room_v1 AS
+-SELECT *
+-FROM public.vw_bb_telegram_manual_room_v1
+-WHERE CASE
+-  WHEN upper(COALESCE(telegram_status, '')) IN ('RECALLED', 'RECALL') THEN false
+-  WHEN upper(COALESCE(telegram_status, '')) IN ('SENT', 'DELIVERED', 'SENT_TO_TELEGRAM', 'ไปแล้วไปลับ') THEN true
+-  WHEN upper(COALESCE(delivery_state, '')) = 'RECALLED' THEN false
+-  ELSE COALESCE(is_sent, false)
+-END IS NOT TRUE;
+-
+--- Persistent history supplies the Sent room; recalled send events stay auditable.
+-CREATE OR REPLACE VIEW public.vw_bb_telegram_sent_room_v1 AS
++-- Single stable BB view for the queue and sent-history tab. This reads the
++-- existing order view only; bill-builder data can be routed later by the owner.
++CREATE OR REPLACE VIEW public.drakside_telagram_delivery_pro AS
++WITH source_orders AS (
++  SELECT o.*, to_jsonb(o) AS drakside_order_json
++  FROM public.vw_bb_orders_all_v2 AS o
++)
+ SELECT
+-  COALESCE(NULLIF(h.snapshot->>'id', ''), h.id::text) AS id,
+-  COALESCE(NULLIF(h.upsert_key, ''), NULLIF(h.order_key, ''), NULLIF(h.snapshot->>'upsert_key', '')) AS upsert_key,
+-  COALESCE(NULLIF(h.snapshot->>'order_number', ''), h.order_number) AS order_number,
+-  COALESCE(NULLIF(h.snapshot->>'order_number_display', ''), h.order_number) AS order_number_display,
+-  h.snapshot->>'order_time_display' AS order_time_display,
+-  h.snapshot->>'order_time' AS order_time,
+-  h.sent_at AS source_time,
+-  h.snapshot->>'created_at' AS created_at,
+-  h.snapshot->>'updated_at' AS updated_at,
+-  COALESCE(NULLIF(h.page_name, ''), NULLIF(h.snapshot->>'page_name', '')) AS page_name,
+-  COALESCE(NULLIF(h.facebook_name, ''), NULLIF(h.snapshot->>'facebook_name', '')) AS facebook_name,
+-  h.snapshot->>'customer_name' AS customer_name,
+-  h.snapshot->>'phone' AS phone,
+-  h.snapshot->>'extracted_phone' AS extracted_phone,
+-  h.snapshot->>'cod_amount' AS cod_amount,
+-  h.snapshot->>'address_display_packer' AS address_display_packer,
+-  h.snapshot->>'addressclean' AS addressclean,
+-  h.snapshot->>'full_address' AS full_address,
+-  h.snapshot->>'province' AS province,
+-  h.snapshot->>'zipcode' AS zipcode,
+-  COALESCE(
+-    NULLIF(h.snapshot->>'for_packer_bb_display', ''),
+-    NULLIF(h.snapshot->>'product_display_for_packer', ''),
+-    NULLIF(h.snapshot->>'final_display_for_packer', ''),
+-    NULLIF(h.snapshot->>'master_display_for_packer', ''),
+-    NULLIF(h.snapshot->>'single_cleaned_products', ''),
+-    NULLIF(h.snapshot->>'extracted_product_raw', ''),
+-    NULLIF(h.snapshot->>'sniper_x_text_clean', '')
+-  ) AS for_packer_bb_display,
+-  h.snapshot->>'sniper_x_text_clean' AS sniper_x_text_clean,
+-  h.snapshot->>'normalized_chat_timeline' AS normalized_chat_timeline,
+-  h.snapshot->>'mapping_status' AS mapping_status,
+-  h.snapshot->>'stock_notice' AS stock_notice,
+-  h.snapshot->>'shipping_method' AS shipping_method,
+-  'true'::text AS telegram_sent,
+-  h.delivery_status AS telegram_status,
+-  h.delivery_status AS delivery_state,
+-  h.sent_at,
+-  h.recalled_at,
+-  h.snapshot->>'last_delivery_note' AS last_delivery_note,
+-  (h.delivery_status = 'SENT') AS is_sent,
+-  h.delivery_status,
+-  h.recall_count
+-FROM public.bb_orders_sent_history AS h;
++  o.*,
++  COALESCE(NULLIF(o.drakside_order_json->>'order_time', ''), NULLIF(o.drakside_order_json->>'created_at', '')) AS drakside_source_time,
++  (
++    lower(COALESCE(o.drakside_order_json->>'telegram_sent', '')) IN ('true', '1', 't', 'sent', 'delivered', 'sent_to_telegram', 'ไปแล้วไปลับ')
++    OR upper(COALESCE(o.drakside_order_json->>'telegram_status', '')) IN ('SENT', 'DELIVERED', 'SENT_TO_TELEGRAM', 'ไปแล้วไปลับ')
++    OR upper(COALESCE(o.drakside_order_json->>'delivery_state', '')) IN ('SENT', 'DELIVERED', 'SENT_TO_TELEGRAM', 'ไปแล้วไปลับ')
++    OR EXISTS (
++      SELECT 1
++      FROM public.bb_orders_sent_history AS h
++      WHERE (NULLIF(o.drakside_order_json->>'upsert_key', '') IS NOT NULL
++             AND (h.upsert_key = o.drakside_order_json->>'upsert_key'
++                  OR h.order_key = o.drakside_order_json->>'upsert_key'
++                  OR h.snapshot->>'upsert_key' = o.drakside_order_json->>'upsert_key'))
++         OR (NULLIF(o.drakside_order_json->>'order_number', '') IS NOT NULL
++             AND h.order_number = o.drakside_order_json->>'order_number')
++         OR (NULLIF(o.drakside_order_json->>'id', '') IS NOT NULL
++             AND h.snapshot->>'id' = o.drakside_order_json->>'id')
++    )
++  ) AS drakside_is_sent,
++  'BB'::text AS drakside_camp
++FROM source_orders AS o
++;
+ 
+-COMMENT ON VIEW public.vw_bb_telegram_queue_room_v1 IS
+-  'BB queue room. SQL view excludes current SENT rows; RECALLED orders return to the queue.';
+-COMMENT ON VIEW public.vw_bb_telegram_sent_room_v1 IS
+-  'BB persistent send-history room. SENT and RECALLED events remain auditable from bb_orders_sent_history.';
++COMMENT ON VIEW public.drakside_telagram_delivery_pro IS
++  'BB delivery/backup queue source; reads vw_bb_orders_all_v2 only. Bill-builder routing is deferred.';
+ 
+ COMMIT;
+ 
+--- Read-only checks after running:
+--- SELECT count(*) AS queue_count FROM public.vw_bb_telegram_queue_room_v1;
+--- SELECT count(*) AS history_count FROM public.vw_bb_telegram_sent_room_v1;
+--- SELECT upsert_key, order_number, sent_at, recalled_at, delivery_status, page_name, facebook_name
+--- FROM public.vw_bb_telegram_sent_room_v1 ORDER BY source_time DESC NULLS LAST LIMIT 20;
+--- NOTIFY pgrst, 'reload schema';
+--- No SQL is executed by preparing this file.
++-- Read-only checks to run after applying (does not modify data):
++-- SELECT count(*) FROM public.drakside_telagram_delivery_pro;
++-- SELECT order_number, telegram_status, drakside_is_sent, drakside_camp
++-- FROM public.drakside_telagram_delivery_pro ORDER BY drakside_source_time DESC LIMIT 20;
++-- This migration does not drop any view/table and does not delete or bulk-update orders.
+diff --git a/telegram-status-archive.patch b/telegram-status-archive.patch
+index b55c54d..c02f51c 100644
+--- a/telegram-status-archive.patch
++++ b/telegram-status-archive.patch
+@@ -1,25 +1,25 @@
+-From f8910bb4162e18cb287dfc8416a6e44dc09390b0 Mon Sep 17 00:00:00 2001
++From ad0253118377341a37bd690a80ce3bb2ba00d3f9 Mon Sep 17 00:00:00 2001
+ From: suriya123zz1-ops
+  <3.33624806e+08+suriya123zz1-ops@users.noreply.github.com>
+ Date: Fri, 25 Sep 2026 18:24:21 +0000
+ Subject: [PATCH] Fix Telegram sent status persistence
+ 
+ ---
+- client/src/lib/canonical.ts               |   8 +-
+- client/src/pages/TelegramDeliveryRoom.tsx |  51 ++++---
++ client/src/lib/canonical.ts               |  15 +-
++ client/src/pages/TelegramDeliveryRoom.tsx |  50 ++++--
+  server/supabase.test.ts                   |  31 ++++
+  server/supabase.ts                        |   7 +-
+- sql/bb_telegram_manual_sent_queue_fix.sql | 163 +++++++++++++---------
+- 5 files changed, 170 insertions(+), 90 deletions(-)
++ sql/bb_telegram_manual_sent_queue_fix.sql | 210 +++++++++++-----------
++ 5 files changed, 177 insertions(+), 136 deletions(-)
+  create mode 100644 server/supabase.test.ts
+ 
+ diff --git a/client/src/lib/canonical.ts b/client/src/lib/canonical.ts
+-index b0c6f02..e53f1f3 100644
++index b0c6f02..ec6e7a0 100644
+ --- a/client/src/lib/canonical.ts
+ +++ b/client/src/lib/canonical.ts
+ @@ -1,7 +1,7 @@
+  import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+- 
++
+  const CONFIG_KEY = "bb-supabase-config";
+ -export type Camp = "BB";
+ +export type Camp = "BB" | "ST" | "SB";
+@@ -29,7 +29,7 @@ index b0c6f02..e53f1f3 100644
+ @@ -106,7 +106,11 @@ export async function readCanonicalOrders(search = "", since: string | null = nu
+      .limit(search.trim() || since || until ? 1000 : ORDER_OPERATIONAL_LIMIT);
+    if (error) fail(error);
+- 
++
+ -  const orderRows = rows ?? [];
+ +  // A malformed/null row from PostgREST must not reach normalizeOrder, which
+ +  // reads fields such as telegram_status. Keep every valid order unchanged.
+@@ -39,14 +39,31 @@ index b0c6f02..e53f1f3 100644
+    const orderIds = orderRows.map((row: any) => Number(row.id)).filter((id: number) => Number.isFinite(id));
+    const itemsByOrder = new Map<number, CanonicalItem[]>();
+    let itemError: unknown = null;
++@@ -162,12 +166,13 @@ export async function readCanonicalOrders(search = "", since: string | null = nu
++ export async function readTelegramDeliveryOrders(search = "", room: "queue" | "today" | "yesterday_after_14" | "sent" = "queue") {
++   const api = getSupabase();
++   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
++-  // Database views own Queue/Sent membership; the UI only displays returned rows.
++-  const sourceTable = room === "sent" ? "vw_bb_telegram_sent_room_v1" : "vw_bb_telegram_queue_room_v1";
+++  // One stable view supplies every BB order; queue/history membership is
+++  // filtered by the UI from its text-safe delivery flags.
+++  const sourceTable = "drakside_telagram_delivery_pro";
++   const { data, error } = await api.from(sourceTable).select("*").limit(1000);
++   if (error) fail(error);
++   const query = search.trim().toLowerCase();
++-  const orders = (data ?? []).filter((row: any) => row && typeof row === "object" && !Array.isArray(row)).filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query)).sort((a: any, b: any) => new Date(b.source_time ?? b.order_time ?? 0).getTime() - new Date(a.source_time ?? a.order_time ?? 0).getTime());
+++  const orders = (data ?? []).filter((row: any) => row && typeof row === "object" && !Array.isArray(row)).filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query)).sort((a: any, b: any) => new Date(b.drakside_source_time ?? b.order_time ?? b.created_at ?? 0).getTime() - new Date(a.drakside_source_time ?? a.order_time ?? a.created_at ?? 0).getTime());
++   return { orders, itemError: null, sourceTable, fetchedAt: new Date().toISOString(), room };
++ }
++
+ diff --git a/client/src/pages/TelegramDeliveryRoom.tsx b/client/src/pages/TelegramDeliveryRoom.tsx
+-index ab2bccd..786f68c 100644
++index ab2bccd..1df0695 100644
+ --- a/client/src/pages/TelegramDeliveryRoom.tsx
+ +++ b/client/src/pages/TelegramDeliveryRoom.tsx
+-@@ -15,10 +15,27 @@ function liveClockLabel(value: Date) {
+- 
++@@ -15,10 +15,28 @@ function liveClockLabel(value: Date) {
++
+  type OrderRow = Record<string, any>;
+- 
++
+ -function isSent(row: OrderRow) {
+ -  const status = String(row.telegram_status ?? "").trim().toLowerCase();
+ -  const sent = String(row.telegram_sent ?? "").trim().toLowerCase();
+@@ -69,26 +86,25 @@ index ab2bccd..786f68c 100644
+ +  const status = textValue(row.telegram_status).trim().toLowerCase();
+ +  const deliveryStatus = textValue(row.delivery_status).trim().toLowerCase();
+ +  const deliveryState = textValue(row.delivery_state).trim().toLowerCase();
+++  const viewSentFlag = textValue(row.drakside_is_sent).trim().toLowerCase();
+ +  const sent = textValue(row.telegram_sent).trim().toLowerCase();
+ +  const sentValues = ["1", "true", "t", "sent", "delivered", "sent_to_telegram", "ไปแล้วไปลับ"];
+-+  return sentValues.includes(status) || sentValues.includes(deliveryStatus) || sentValues.includes(deliveryState) || ["1", "true", "t", "sent"].includes(sent);
+++  return sentValues.includes(status) || sentValues.includes(deliveryStatus) || sentValues.includes(deliveryState) || ["1", "true", "t"].includes(viewSentFlag) || ["1", "true", "t", "sent"].includes(sent);
+  }
+- 
++
+  function orderKey(row: OrderRow) {
+-@@ -138,8 +155,10 @@ export default function TelegramDeliveryRoom() {
++@@ -138,7 +156,9 @@ export default function TelegramDeliveryRoom() {
+      refetchInterval: 180_000,
+    });
+- 
++
+ -  const allOrders = (query.data?.orders ?? []) as OrderRow[];
+--  const waiting = useMemo(() => allOrders.filter((row) => room === "sent" ? isSent(row) : !isSent(row)).sort((a, b) => new Date(realTime(b) || 0).getTime() - new Date(realTime(a) || 0).getTime()), [allOrders, room]);
+ +  const allOrders: OrderRow[] = Array.isArray(query.data?.orders)
+ +    ? query.data.orders.filter(isOrderRow)
+ +    : [];
+-+  const waiting = useMemo(() => allOrders.filter((row) => room === "sent" || !isSent(row)).sort((a, b) => new Date(realTime(b) || 0).getTime() - new Date(realTime(a) || 0).getTime()), [allOrders, room]);
++   const waiting = useMemo(() => allOrders.filter((row) => room === "sent" ? isSent(row) : !isSent(row)).sort((a, b) => new Date(realTime(b) || 0).getTime() - new Date(realTime(a) || 0).getTime()), [allOrders, room]);
+    const order = waiting[selected];
+    const selectedOrders = useMemo(() => waiting.filter((row) => selectedKeys.has(orderKey(row))), [selectedKeys, waiting]);
+-   const message = useMemo(() => order ? telegramText(order, header || DEFAULT_HEADER) : "คิวว่าง — ไม่มีออเดอร์รอส่ง", [order, header]);
+-@@ -234,11 +253,13 @@ export default function TelegramDeliveryRoom() {
++@@ -234,11 +254,13 @@ export default function TelegramDeliveryRoom() {
+    async function markSelectedOrdersSent() {
+      if (!selectedOrders.length) { setSendMessage("ยังไม่ได้ติ๊กเลือกออเดอร์"); return; }
+      try {
+@@ -104,18 +120,18 @@ index ab2bccd..786f68c 100644
+        setSelectedKeys(new Set());
+        await query.refetch();
+      } catch (error) {
+-@@ -247,6 +268,7 @@ export default function TelegramDeliveryRoom() {
++@@ -247,6 +269,7 @@ export default function TelegramDeliveryRoom() {
+    }
+- 
++
+    async function markCurrentOrderSent() {
+ +    if (isSent(order)) { setSendMessage("ออเดอร์นี้อยู่ในประวัติส่งแล้ว และจะไม่กลับเข้าคิว"); return; }
+      if (!order?.id && !order?.upsert_key) { setSendMessage("ติ๊กส่งแล้วไม่ได้: ไม่พบ id หรือ upsert_key"); return; }
+      try {
+        const patch = { telegram_sent: "true", telegram_status: "SENT", delivery_state: "SENT", sent_at: new Date().toISOString(), last_delivery_note: "ผู้ใช้งานกดยืนยันส่งแล้วจากห้อง Telegram" };
+-@@ -272,17 +294,6 @@ export default function TelegramDeliveryRoom() {
++@@ -272,17 +295,6 @@ export default function TelegramDeliveryRoom() {
+      } finally { setEditSaving(false); }
+    }
+- 
++
+ -  async function recallCurrentOrder() {
+ -    if (!order?.id || room !== "sent") return;
+ -    if (!window.confirm("เรียกออเดอร์นี้กลับเข้าคิวรอส่งหรือไม่?")) return;
+@@ -130,7 +146,7 @@ index ab2bccd..786f68c 100644
+    return (
+      <div className="bb-telegram-room min-h-full space-y-5 text-white">
+        <header className="relative overflow-hidden rounded-3xl border border-fuchsia-400/30 bg-[#10091c] p-6 shadow-2xl shadow-fuchsia-950/30">
+-@@ -317,7 +328,7 @@ export default function TelegramDeliveryRoom() {
++@@ -317,7 +329,7 @@ export default function TelegramDeliveryRoom() {
+        <div className="grid gap-5 xl:grid-cols-[350px_1fr]">
+          <Card className="rounded-3xl border-fuchsia-400/20 bg-[#10091c]">
+            <CardHeader className="space-y-3">
+@@ -202,7 +218,7 @@ index 8143e2a..55c417d 100644
+  export async function fetchExternalChatMessages(pageId: string, threadId: string): Promise<ExternalChatMessage[]> { const orders = (await fetchLiveOrders()).filter(o => o.page_id === pageId && o.thread_id === threadId); return orders.flatMap(o => o.chat_timeline.map((line, i) => { const outbound = /เพจ|admin|แอดมิน/i.test(line); return { id: o.id * 10000 + i, providerMessageId: null, pageId, pageName: o.page_name, threadId, senderId: o.recipient_id ?? "", senderName: o.customer_name, customerName: o.customer_name, sender_name: o.customer_name, customer_name: o.customer_name, speaker_type: outbound ? "page" : "customer", senderType: outbound ? "page" : "customer", side: outbound ? "right" : "left", direction: outbound ? "outbound" : "inbound", text: line, message_text: line, attachmentsJson: null, occurredAt: o.order_time, occurred_at: o.order_time, source_created_at: o.created_at, createdAt: o.created_at, source_message_id: null, dedupe_key: `:` }; })); }
+  export async function fetchConversationEvidence(pageId: string, threadId: string) { return fetchExternalChatMessages(pageId, threadId); }
+ diff --git a/sql/bb_telegram_manual_sent_queue_fix.sql b/sql/bb_telegram_manual_sent_queue_fix.sql
+-index 32c407b..6020559 100644
++index 32c407b..85d8575 100644
+ --- a/sql/bb_telegram_manual_sent_queue_fix.sql
+ +++ b/sql/bb_telegram_manual_sent_queue_fix.sql
+ @@ -1,8 +1,7 @@
+@@ -211,30 +227,25 @@ index 32c407b..6020559 100644
+ --- No n8n workflow is changed. No order rows are deleted.
+ --- Requires the existing bb_orders, vw_bb_telegram_manual_room_v1, and
+ --- bb_orders_sent_history objects.
+-+-- BB ONLY · PERMANENT SENT ARCHIVE + TEXT DELIVERY STATUSES
+-+-- Run in the BB Supabase project only, after the existing history/manual-room
+-+-- objects have been created. This migration never deletes or bulk-updates orders.
+-+-- The trigger only normalizes future INSERT/UPDATE writes to bb_orders.
+- 
+++-- BB ONLY · PERMANENT SENT STATUS + ONE DRAKSIDE DELIVERY VIEW
+++-- Uses the existing vw_bb_orders_all_v2 only. Bill-builder routing is deferred.
+++-- Creates/updates only public.drakside_telagram_delivery_pro; no existing view,
+++-- room, lab object, or bb_orders row is dropped or bulk-updated.
++
+  BEGIN;
+- 
+-@@ -17,66 +16,90 @@ ALTER TABLE public.bb_orders
++
++@@ -17,66 +16,87 @@ ALTER TABLE public.bb_orders
+  ALTER TABLE public.bb_orders_sent_history
+    ADD COLUMN IF NOT EXISTS upsert_key text,
+    ADD COLUMN IF NOT EXISTS page_name text,
+ -  ADD COLUMN IF NOT EXISTS facebook_name text;
+ +  ADD COLUMN IF NOT EXISTS facebook_name text,
+ +  ADD COLUMN IF NOT EXISTS delivery_status text DEFAULT 'SENT';
+- 
++
+ --- The manual archive button sets telegram_status='SENT'. Parse values through
+ --- JSON so this remains safe with boolean/text legacy telegram_sent columns.
+-+-- Human-readable delivery states are text. Keep legacy telegram_sent's
+-+-- existing type unchanged because vw_bb_orders_all_v2 and n8n may depend on it;
+-+-- the API/view layer serializes that legacy flag as text for UI comparisons.
+-+
+-+-- A sent-history match is authoritative. Re-imports/upserts of the same order
+-+-- cannot clear SENT or make it eligible for the queue again. Existing history
+-+-- rows are retained as auditable records, including legacy recalled_at metadata.
+++-- Keep the legacy telegram_sent storage type intact for existing rooms and n8n.
+++-- Text status fields remain text; the frontend also safely normalizes old values.
+  CREATE OR REPLACE FUNCTION public.bb_record_sent_history()
+  RETURNS trigger
+  LANGUAGE plpgsql
+@@ -250,6 +261,7 @@ index 32c407b..6020559 100644
+ +  new_sent_flag boolean := lower(COALESCE(to_jsonb(NEW)->>'telegram_sent', '')) IN ('true', '1', 't', 'sent', 'delivered', 'sent_to_telegram', 'ไปแล้วไปลับ');
+ +  history_sent_at timestamptz;
+  BEGIN
+++  -- Once an order has an archive record, later imports cannot unset its SENT state.
+ +  SELECT h.sent_at
+ +    INTO history_sent_at
+ +    FROM public.bb_orders_sent_history AS h
+@@ -278,7 +290,7 @@ index 32c407b..6020559 100644
+      NEW.delivery_state := 'SENT';
+      NEW.sent_at := COALESCE(NEW.sent_at, now());
+      row_json := to_jsonb(NEW);
+- 
++
+      INSERT INTO public.bb_orders_sent_history (
+ -      order_key, order_number, sent_at, snapshot, upsert_key, page_name, facebook_name
+ +      order_key, order_number, sent_at, snapshot, upsert_key, page_name,
+@@ -310,7 +322,7 @@ index 32c407b..6020559 100644
+ -     WHERE order_key = NEW.upsert_key
+ -       AND delivery_status = 'SENT';
+ +        AND old_status IN ('SENT', 'DELIVERED', 'SENT_TO_TELEGRAM', 'ไปแล้วไปลับ') THEN
+-+    -- Legacy recall writes cannot undo an archived send event.
+++    -- Keep old recall writes from moving a sent order back into the queue.
+ +    NEW.telegram_status := 'SENT';
+ +    NEW.delivery_state := 'SENT';
+    END IF;
+@@ -318,18 +330,19 @@ index 32c407b..6020559 100644
+    RETURN NEW;
+  END;
+  $function$;
+- 
++
+  DROP TRIGGER IF EXISTS trg_bb_record_sent_history ON public.bb_orders;
+  CREATE TRIGGER trg_bb_record_sent_history
+ -BEFORE UPDATE OF telegram_status ON public.bb_orders
+ +BEFORE INSERT OR UPDATE ON public.bb_orders
+  FOR EACH ROW
+  EXECUTE FUNCTION public.bb_record_sent_history();
+- 
++
+ --- One-time idempotent backfill for orders already marked SENT before this fix.
+ --- Avoid creating another history entry when order_key/upsert_key or order number
+ --- already exists. JSON extraction tolerates legacy boolean/text columns.
+-+-- Idempotent backfill into the archive table only; bb_orders rows are not changed.
+++-- Idempotent backfill into the archive table only. The source order rows are
+++-- read-only here and are never deleted or bulk-updated.
+  INSERT INTO public.bb_orders_sent_history (
+ -  order_key, order_number, snapshot, upsert_key, page_name, facebook_name
+ +  order_key, order_number, snapshot, upsert_key, page_name, facebook_name,
+@@ -337,7 +350,7 @@ index 32c407b..6020559 100644
+  )
+  SELECT
+    NULLIF(j->>'upsert_key', ''),
+-@@ -84,46 +107,55 @@ SELECT
++@@ -84,99 +104,69 @@ SELECT
+    j,
+    NULLIF(j->>'upsert_key', ''),
+    NULLIF(j->>'page_name', ''),
+@@ -373,12 +386,10 @@ index 32c407b..6020559 100644
+           AND h.order_number = COALESCE(NULLIF(existing_sent.j->>'order_number', ''), NULLIF(existing_sent.j->>'order_number_display', '')))
+ +     OR (NULLIF(existing_sent.j->>'id', '') IS NOT NULL AND h.snapshot->>'id' = existing_sent.j->>'id')
+  );
+- 
++
+ --- Queue omits currently sent orders in SQL. A recalled row is explicitly
+ --- allowed back in even if a legacy telegram_sent flag remains true.
+-+-- Queue includes orders not archived and not currently marked sent. Sent history
+-+-- is checked by stable key, order number, and finally the preserved source id.
+- CREATE OR REPLACE VIEW public.vw_bb_telegram_queue_room_v1 AS
++-CREATE OR REPLACE VIEW public.vw_bb_telegram_queue_room_v1 AS
+ -SELECT *
+ -FROM public.vw_bb_telegram_manual_room_v1
+ -WHERE CASE
+@@ -389,70 +400,103 @@ index 32c407b..6020559 100644
+ -END IS NOT TRUE;
+ -
+ --- Persistent history supplies the Sent room; recalled send events stay auditable.
+-+SELECT q.*
+-+FROM public.vw_bb_telegram_manual_room_v1 AS q
+-+WHERE COALESCE(q.is_sent, false) IS NOT TRUE
+-+  AND NOT EXISTS (
+-+    SELECT 1
+-+    FROM public.bb_orders_sent_history AS h
+-+    WHERE (NULLIF(q.upsert_key::text, '') IS NOT NULL
+-+           AND (h.upsert_key = q.upsert_key::text OR h.order_key = q.upsert_key::text
+-+                OR h.snapshot->>'upsert_key' = q.upsert_key::text))
+-+       OR (NULLIF(q.order_number::text, '') IS NOT NULL
+-+           AND h.order_number = q.order_number::text)
+-+       OR (NULLIF(q.id::text, '') IS NOT NULL AND h.snapshot->>'id' = q.id::text)
+-+  );
+-+
+-+-- Show archive rows as text/SENT regardless of any legacy recall metadata. No
+-+-- archived order is moved back to the operational queue by this view.
+- CREATE OR REPLACE VIEW public.vw_bb_telegram_sent_room_v1 AS
++-CREATE OR REPLACE VIEW public.vw_bb_telegram_sent_room_v1 AS
+++-- Single stable BB view for the queue and sent-history tab. This reads the
+++-- existing order view only; bill-builder data can be routed later by the owner.
+++CREATE OR REPLACE VIEW public.drakside_telagram_delivery_pro AS
+++WITH source_orders AS (
+++  SELECT o.*, to_jsonb(o) AS drakside_order_json
+++  FROM public.vw_bb_orders_all_v2 AS o
+++)
+  SELECT
+-   COALESCE(NULLIF(h.snapshot->>'id', ''), h.id::text) AS id,
+-   COALESCE(NULLIF(h.upsert_key, ''), NULLIF(h.order_key, ''), NULLIF(h.snapshot->>'upsert_key', '')) AS upsert_key,
++-  COALESCE(NULLIF(h.snapshot->>'id', ''), h.id::text) AS id,
++-  COALESCE(NULLIF(h.upsert_key, ''), NULLIF(h.order_key, ''), NULLIF(h.snapshot->>'upsert_key', '')) AS upsert_key,
+ -  COALESCE(NULLIF(h.snapshot->>'order_number', ''), h.order_number) AS order_number,
+-+  COALESCE(NULLIF(h.snapshot->>'order_number', ''), NULLIF(h.snapshot->>'order_number_display', ''), h.order_number) AS order_number,
+-   COALESCE(NULLIF(h.snapshot->>'order_number_display', ''), h.order_number) AS order_number_display,
+-   h.snapshot->>'order_time_display' AS order_time_display,
+-   h.snapshot->>'order_time' AS order_time,
+-@@ -156,27 +188,26 @@ SELECT
+-   h.snapshot->>'stock_notice' AS stock_notice,
+-   h.snapshot->>'shipping_method' AS shipping_method,
+-   'true'::text AS telegram_sent,
++-  COALESCE(NULLIF(h.snapshot->>'order_number_display', ''), h.order_number) AS order_number_display,
++-  h.snapshot->>'order_time_display' AS order_time_display,
++-  h.snapshot->>'order_time' AS order_time,
++-  h.sent_at AS source_time,
++-  h.snapshot->>'created_at' AS created_at,
++-  h.snapshot->>'updated_at' AS updated_at,
++-  COALESCE(NULLIF(h.page_name, ''), NULLIF(h.snapshot->>'page_name', '')) AS page_name,
++-  COALESCE(NULLIF(h.facebook_name, ''), NULLIF(h.snapshot->>'facebook_name', '')) AS facebook_name,
++-  h.snapshot->>'customer_name' AS customer_name,
++-  h.snapshot->>'phone' AS phone,
++-  h.snapshot->>'extracted_phone' AS extracted_phone,
++-  h.snapshot->>'cod_amount' AS cod_amount,
++-  h.snapshot->>'address_display_packer' AS address_display_packer,
++-  h.snapshot->>'addressclean' AS addressclean,
++-  h.snapshot->>'full_address' AS full_address,
++-  h.snapshot->>'province' AS province,
++-  h.snapshot->>'zipcode' AS zipcode,
++-  COALESCE(
++-    NULLIF(h.snapshot->>'for_packer_bb_display', ''),
++-    NULLIF(h.snapshot->>'product_display_for_packer', ''),
++-    NULLIF(h.snapshot->>'final_display_for_packer', ''),
++-    NULLIF(h.snapshot->>'master_display_for_packer', ''),
++-    NULLIF(h.snapshot->>'single_cleaned_products', ''),
++-    NULLIF(h.snapshot->>'extracted_product_raw', ''),
++-    NULLIF(h.snapshot->>'sniper_x_text_clean', '')
++-  ) AS for_packer_bb_display,
++-  h.snapshot->>'sniper_x_text_clean' AS sniper_x_text_clean,
++-  h.snapshot->>'normalized_chat_timeline' AS normalized_chat_timeline,
++-  h.snapshot->>'mapping_status' AS mapping_status,
++-  h.snapshot->>'stock_notice' AS stock_notice,
++-  h.snapshot->>'shipping_method' AS shipping_method,
++-  'true'::text AS telegram_sent,
+ -  h.delivery_status AS telegram_status,
+ -  h.delivery_status AS delivery_state,
+-+  'SENT'::text AS telegram_status,
+-+  'SENT'::text AS delivery_state,
+-   h.sent_at,
+-   h.recalled_at,
+-   h.snapshot->>'last_delivery_note' AS last_delivery_note,
++-  h.sent_at,
++-  h.recalled_at,
++-  h.snapshot->>'last_delivery_note' AS last_delivery_note,
+ -  (h.delivery_status = 'SENT') AS is_sent,
+ -  h.delivery_status,
+-+  true AS is_sent,
+-+  'SENT'::text AS delivery_status,
+-   h.recall_count
+- FROM public.bb_orders_sent_history AS h;
+- 
+- COMMENT ON VIEW public.vw_bb_telegram_queue_room_v1 IS
++-  h.recall_count
++-FROM public.bb_orders_sent_history AS h;
+++  o.*,
+++  COALESCE(NULLIF(o.drakside_order_json->>'order_time', ''), NULLIF(o.drakside_order_json->>'created_at', '')) AS drakside_source_time,
+++  (
+++    lower(COALESCE(o.drakside_order_json->>'telegram_sent', '')) IN ('true', '1', 't', 'sent', 'delivered', 'sent_to_telegram', 'ไปแล้วไปลับ')
+++    OR upper(COALESCE(o.drakside_order_json->>'telegram_status', '')) IN ('SENT', 'DELIVERED', 'SENT_TO_TELEGRAM', 'ไปแล้วไปลับ')
+++    OR upper(COALESCE(o.drakside_order_json->>'delivery_state', '')) IN ('SENT', 'DELIVERED', 'SENT_TO_TELEGRAM', 'ไปแล้วไปลับ')
+++    OR EXISTS (
+++      SELECT 1
+++      FROM public.bb_orders_sent_history AS h
+++      WHERE (NULLIF(o.drakside_order_json->>'upsert_key', '') IS NOT NULL
+++             AND (h.upsert_key = o.drakside_order_json->>'upsert_key'
+++                  OR h.order_key = o.drakside_order_json->>'upsert_key'
+++                  OR h.snapshot->>'upsert_key' = o.drakside_order_json->>'upsert_key'))
+++         OR (NULLIF(o.drakside_order_json->>'order_number', '') IS NOT NULL
+++             AND h.order_number = o.drakside_order_json->>'order_number')
+++         OR (NULLIF(o.drakside_order_json->>'id', '') IS NOT NULL
+++             AND h.snapshot->>'id' = o.drakside_order_json->>'id')
+++    )
+++  ) AS drakside_is_sent,
+++  'BB'::text AS drakside_camp
+++FROM source_orders AS o
+++;
++
++-COMMENT ON VIEW public.vw_bb_telegram_queue_room_v1 IS
+ -  'BB queue room. SQL view excludes current SENT rows; RECALLED orders return to the queue.';
+-+  'BB queue room. Any order with a sent-history record stays out of queue permanently.';
+- COMMENT ON VIEW public.vw_bb_telegram_sent_room_v1 IS
++-COMMENT ON VIEW public.vw_bb_telegram_sent_room_v1 IS
+ -  'BB persistent send-history room. SENT and RECALLED events remain auditable from bb_orders_sent_history.';
+-+  'BB permanent text-status send archive. Rows are retained and never returned to queue.';
+- 
+++COMMENT ON VIEW public.drakside_telagram_delivery_pro IS
+++  'BB delivery/backup queue source; reads vw_bb_orders_all_v2 only. Bill-builder routing is deferred.';
++
+  COMMIT;
+- 
++
+ --- Read-only checks after running:
+-+-- Read-only verification queries; execute manually after applying:
+- -- SELECT count(*) AS queue_count FROM public.vw_bb_telegram_queue_room_v1;
++--- SELECT count(*) AS queue_count FROM public.vw_bb_telegram_queue_room_v1;
+ --- SELECT count(*) AS history_count FROM public.vw_bb_telegram_sent_room_v1;
+ --- SELECT upsert_key, order_number, sent_at, recalled_at, delivery_status, page_name, facebook_name
+ --- FROM public.vw_bb_telegram_sent_room_v1 ORDER BY source_time DESC NULLS LAST LIMIT 20;
+ --- NOTIFY pgrst, 'reload schema';
+ --- No SQL is executed by preparing this file.
+-+-- SELECT count(*) AS archive_count FROM public.vw_bb_telegram_sent_room_v1;
+-+-- SELECT upsert_key, order_number, telegram_status, delivery_state, delivery_status
+-+-- FROM public.vw_bb_telegram_sent_room_v1 ORDER BY source_time ASC LIMIT 20;
+-+-- No DELETE or bulk UPDATE against bb_orders is performed by this file.
+--- 
+++-- Read-only checks to run after applying (does not modify data):
+++-- SELECT count(*) FROM public.drakside_telagram_delivery_pro;
+++-- SELECT order_number, telegram_status, drakside_is_sent, drakside_camp
+++-- FROM public.drakside_telagram_delivery_pro ORDER BY drakside_source_time DESC LIMIT 20;
+++-- This migration does not drop any view/table and does not delete or bulk-update orders.
++--
+ 2.43.0
+ 
