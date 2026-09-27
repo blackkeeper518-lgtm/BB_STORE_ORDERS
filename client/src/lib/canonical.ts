@@ -16,6 +16,10 @@ const CONFIG_KEY = "bb-supabase-config";
 export type Camp = "BB";
 const DEPLOYMENT_CAMP: Camp = "BB";
 export type SupabaseConfig = { url: string; anonKey: string; orderTable?: string };
+// ถ้ามีค่าใน Render ให้ทุกเครื่องใช้ฐานเดียวกันได้เลย
+// ห้ามใส่ service_role/secret key ในตัวแปรฝั่งเว็บ ใช้เฉพาะ Anon/Publishable Key
+const DEPLOYMENT_SUPABASE_URL = String(import.meta.env.VITE_SUPABASE_URL ?? "").trim().replace(/\/$/, "");
+const DEPLOYMENT_SUPABASE_ANON_KEY = String(import.meta.env.VITE_SUPABASE_ANON_KEY ?? "").trim();
 let client: SupabaseClient | null = null;
 let clientSignature = "";
 export function getActiveCamp(): Camp { return DEPLOYMENT_CAMP; }
@@ -24,11 +28,17 @@ function profileKey(_camp: Camp) { return CONFIG_KEY; }
 export function getSupabaseConfig(camp: Camp = getActiveCamp()): SupabaseConfig | null {
   try {
     const raw = localStorage.getItem(profileKey(camp));
-    if (!raw) return null;
-    const value = JSON.parse(raw) as Partial<SupabaseConfig>;
-    if (!value.url || !value.anonKey) return null;
-    return { url: value.url.replace(/\/$/, ""), anonKey: value.anonKey, orderTable: value.orderTable || "bb_stoer" };
-  } catch { return null; }
+    if (raw) {
+      const value = JSON.parse(raw) as Partial<SupabaseConfig>;
+      if (value.url && value.anonKey) {
+        return { url: value.url.replace(/\/$/, ""), anonKey: value.anonKey, orderTable: value.orderTable || "bb_stoer" };
+      }
+    }
+  } catch { /* ถ้าค่าใน browser เสีย ให้ลองใช้ค่ากลางของ Deployment */ }
+  if (DEPLOYMENT_SUPABASE_URL && DEPLOYMENT_SUPABASE_ANON_KEY) {
+    return { url: DEPLOYMENT_SUPABASE_URL, anonKey: DEPLOYMENT_SUPABASE_ANON_KEY, orderTable: defaultOrderView(camp) };
+  }
+  return null;
 }
 export function saveSupabaseConfig(config: SupabaseConfig, camp: Camp = getActiveCamp()) { const clean = { url: config.url.trim().replace(/\/$/, ""), anonKey: config.anonKey.trim(), orderTable: config.orderTable?.trim() || defaultOrderView(camp) }; localStorage.setItem(profileKey(camp), JSON.stringify(clean)); client = null; clientSignature = ""; }
 export function clearSupabaseConfig(camp: Camp = getActiveCamp()) { localStorage.removeItem(profileKey(camp)); client = null; clientSignature = ""; }

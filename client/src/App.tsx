@@ -29,10 +29,12 @@ function Shell({ children }: { children: React.ReactNode }) { return <DashboardL
 function Router() {
   const [location] = useLocation();
   const hasSupabaseConfig = Boolean(getSupabaseConfig());
-  const setupExempt = location === "/" || location === "/orders" || location === "/connect" || location === "/secret-gallery" || location === "/secret-gallery/images";
+  // หน้าเว็บใช้การเชื่อมต่อ Supabase เป็นด่านเดียว ไม่ถามรหัสผ่าน
+  // ห้องลับยังแยกล็อกอินของตัวเองใน SecretGallery
+  const setupExempt = location === "/connect" || location === "/secret-gallery" || location === "/secret-gallery/images";
   if (!hasSupabaseConfig && !setupExempt) return <Redirect to="/connect" />;
   return <Switch>
-    <Route path="/connect"><Redirect to="/secret-gallery" /></Route>
+    <Route path="/connect"><ConnectSupabase /></Route>
     <Route path="/secret-gallery/images"><SecretGallery /></Route>
     <Route path="/secret-gallery"><SecretGallery /></Route>
     <Route path="/orders"><Shell><OrderControl /></Shell></Route>
