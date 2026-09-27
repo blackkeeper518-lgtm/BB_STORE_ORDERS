@@ -1,0 +1,420 @@
+diff --git a/client/src/App.tsx b/client/src/App.tsx
+index 90da73f..cb5585e 100644
+--- a/client/src/App.tsx
++++ b/client/src/App.tsx
+@@ -29,7 +29,7 @@ function Shell({ children }: { children: React.ReactNode }) { return <DashboardL
+ function Router() {
+   const [location] = useLocation();
+   const hasSupabaseConfig = Boolean(getSupabaseConfig());
+-  const setupExempt = location === "/connect" || location === "/secret-gallery" || location === "/secret-gallery/images";
++  const setupExempt = location === "/" || location === "/orders" || location === "/connect" || location === "/secret-gallery" || location === "/secret-gallery/images";
+   if (!hasSupabaseConfig && !setupExempt) return <Redirect to="/connect" />;
+   return <Switch>
+     <Route path="/connect"><Redirect to="/secret-gallery" /></Route>
+@@ -50,7 +50,7 @@ function Router() {
+     <Route path="/order-buckets"><Shell><OrderBuckets /></Shell></Route>
+     <Route path="/daily-chat-summary"><Shell><DailyChatSummary /></Shell></Route>
+     <Route path="/order-history"><Shell><OrderHistory /></Shell></Route>
+-    <Route path="/"><Redirect to="/chats" /></Route>
++    <Route path="/"><Redirect to="/orders" /></Route>
+     <Route path="/404" component={NotFound} />
+     <Route component={NotFound} />
+   </Switch>;
+diff --git a/client/src/components/DashboardLayout.tsx b/client/src/components/DashboardLayout.tsx
+index 3a418e0..dd899e0 100644
+--- a/client/src/components/DashboardLayout.tsx
++++ b/client/src/components/DashboardLayout.tsx
+@@ -64,7 +64,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
+         const next = rows.map((row) => {
+           const key = String(row.upsert_key || row.order_number || row.id || "");
+           const title = `ออเดอร์ใหม่ ${row.order_number || key}`;
+-          const detail = String(row.alien_display_with_quantity || row.master_display_for_packer || row.display_for_packer || "ตรวจข้อมูลออเดอร์");
++          const detail = String(row.lab_product_display_text || "ยังไม่มี master_display_for_packer ใน Lab 88");
+           return { key, title, detail, time: row.order_time || row.order_time_display || null, seen: key === lastSeen || (lastSeen !== "" && key !== rows[0]?.upsert_key) };
+         }).filter((item) => item.key);
+         if (!cancelled) {
+diff --git a/client/src/lib/canonical.ts b/client/src/lib/canonical.ts
+index ec6e7a0..f1269d2 100644
+--- a/client/src/lib/canonical.ts
++++ b/client/src/lib/canonical.ts
+@@ -9,6 +9,9 @@ let clientSignature = "";
+ export function getActiveCamp(): Camp { return DEPLOYMENT_CAMP; }
+ export function setActiveCamp(_camp: Camp) { client = null; clientSignature = ""; }
+ function profileKey(_camp: Camp) { return CONFIG_KEY; }
++const LAB88_FALLBACK_FIELD_KEY = "lab88-product-fallback-field";
++export function getLab88FallbackFieldName() { try { return localStorage.getItem(LAB88_FALLBACK_FIELD_KEY) || ""; } catch { return ""; } }
++export function saveLab88FallbackFieldName(value: string) { try { localStorage.setItem(LAB88_FALLBACK_FIELD_KEY, value.trim()); } catch { /* browser storage may be disabled */ } }
+ export function getSupabaseConfig(camp: Camp = getActiveCamp()): SupabaseConfig | null {
+   try {
+     const raw = localStorage.getItem(profileKey(camp));
+@@ -76,8 +79,45 @@ const ORDER_SOURCE_TABLE_BY_CAMP: Record<Camp, string> = { BB: "vw_bb_orders_all
+ const ORDER_OPERATIONAL_LIMIT = 1000;
+ function defaultOrderView(camp: Camp) { return ORDER_SOURCE_TABLE_BY_CAMP[camp]; }
+ function currentOrderWindowStart() { const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date()); const values = Object.fromEntries(parts.filter(part => part.type !== "literal").map(part => [part.type, Number(part.value)])); return new Date(Date.UTC(values.year, values.month - 1, values.day - 1, 7, 0, 0)).toISOString(); }
+-function normalizeItem(item: CanonicalItem): CanonicalItem { const master = item.product_master && typeof item.product_master === "object" ? item.product_master : {}; const display = item.for_packer_bb_display || item.single_cleaned_products || null; const mapping = item.mapping_status || (item.sku_match_status === "MATCHED_PRODUCT_MASTER" ? "MATCHED" : null); return { ...item, ...master, quantity: num(item.quantity ?? item.extracted_qty ?? item.qty ?? item.master_qty_display ?? item.master_quantity), unit_price: num(item.unit_price_order ?? item.unit_price ?? master.unit_price), expected_cod: num(item.expected_cod), stock_qty: num(item.stock_qty ?? item.inventory?.stock_qty), mapping_status: mapping, display_for_packer: display, label: display, label_display: display }; }
++function candidateProductDisplay(candidate: any): string {
++  const primary = String(candidate?.master_display_for_packer ?? "").trim();
++  if (primary) return primary;
++  const fallbackField = getLab88FallbackFieldName();
++  return fallbackField ? String(candidate?.[fallbackField] ?? "").trim() : "";
++}
+ function parseJsonArray(value: unknown): CanonicalItem[] { if (Array.isArray(value)) return value as CanonicalItem[]; if (typeof value !== "string") return []; try { const parsed = JSON.parse(value); return Array.isArray(parsed) ? parsed : []; } catch { return []; } }
++function lab88ViewForCamp(camp: Camp) { return camp === "BB" ? "vw_bb_product_extraction_lab88" : camp === "ST" ? "vw_st_product_extraction_lab88" : null; }
++function candidateLookupKeys(row: any): string[] { return [String(row.upsert_key ?? "").trim(), String(row.order_number ?? "").trim()].filter(Boolean); }
++export function decorateLab88Products(row: any) {
++  const candidates = parseJsonArray(row?.lab_product_candidates);
++  const items = candidates.map((candidate, index) => {
++    const display = candidateProductDisplay(candidate);
++    const quantity = num(candidate.cot_quantity);
++    return { ...candidate, id: candidate.id ?? candidate.source_line_no ?? index + 1, sku: candidate.master_sku ?? null, master_display_for_packer: display || null, display_for_packer: display || null, label_display: display || null, th_name: candidate.th_name ?? candidate.master_th_name ?? null, quantity, qty: quantity };
++  });
++  const productDisplay = items.map(item => item.display_for_packer).filter(Boolean).join("\n") || null;
++  return { ...row, lab_product_candidates: candidates, items, lab_product_display_text: productDisplay, items_text: productDisplay || "", master_display_for_packer: productDisplay, display_for_packer: productDisplay, for_packer_bb_display: productDisplay };
++}
++async function attachLab88Candidates(api: any, rows: any[]) {
++  const view = lab88ViewForCamp(getActiveCamp());
++  if (!view || !rows.length) return { rows, error: null as unknown };
++  const { data, error } = await api.from(view).select("upsert_key,order_number,lab_product_candidates").limit(5000);
++  if (error) return { rows: rows.map(row => ({ ...row, lab_product_candidates: parseJsonArray(row.lab_product_candidates) })), error };
++  const candidatesByKey = new Map<string, CanonicalItem[]>();
++  for (const labRow of data ?? []) {
++    const candidates = parseJsonArray(labRow.lab_product_candidates);
++    for (const key of candidateLookupKeys(labRow)) candidatesByKey.set(key, candidates);
++  }
++  return {
++    rows: rows.map(row => {
++      const candidates = candidateLookupKeys(row).map(key => candidatesByKey.get(key)).find(Boolean)
++        ?? parseJsonArray(row.lab_product_candidates);
++      return { ...row, lab_product_candidates: candidates };
++    }),
++    error: null as unknown,
++  };
++}
++function normalizeItem(item: CanonicalItem): CanonicalItem { const master = item.product_master && typeof item.product_master === "object" ? item.product_master : {}; const display = String(item.lab_master_display_for_packer ?? "").trim() || null; const mapping = item.mapping_status || (item.sku_match_status === "MATCHED_PRODUCT_MASTER" ? "MATCHED" : null); return { ...item, ...master, quantity: num(item.quantity ?? item.cot_quantity ?? item.extracted_qty ?? item.qty ?? item.master_qty_display ?? item.master_quantity), unit_price: num(item.unit_price_order ?? item.unit_price ?? master.unit_price), expected_cod: num(item.expected_cod), stock_qty: num(item.stock_qty ?? item.inventory?.stock_qty), mapping_status: mapping, master_display_for_packer: display, display_for_packer: display, label: display, label_display: display, telegram_final_mapped: display, sku: display ? item.sku : null }; }
+ function orderLocalTimestamp(row: any): string | null {
+   const dateText = String(row.order_date || row.date_th || "");
+   const timeText = String(row.time_th || "");
+@@ -95,7 +135,18 @@ function effectiveOrderTime(row: any): string | null {
+   // Facebook order_time is authoritative. Other timestamps are audit fallbacks only.
+   return row.order_time || row.order_message_created_at || row.facebook_message_created_at || row.facebook_created_at || row.fb_created_at || row.order_close_time_from_chat || orderLocalTimestamp(row) || null;
+ }
+-function normalizeOrder(row: any, items: CanonicalItem[]): CanonicalOrder { const normalized = items.map(normalizeItem); const cod = num(row.cod_amount); const mapping = row.alien_mapping_status || row.web_mapping_status || row.mapping_status || (normalized.length > 0 && normalized.every(item => item.mapping_status === "MATCHED") ? "MATCHED" : "CHECK_DATA"); const address = row.master_delivery_address || row.address_complete_web || row.web_address_primary || row.address_display_primary || row.full_address || row.address_display_packer || row.addressclean || row.address_display_fallback || row.web_address_fallback || row.web_address_short || [row.address_line_1, row.address_line_2, row.district, row.amphoe, row.province, row.zipcode].filter(Boolean).join(" ") || ""; const productDisplay = String(row.for_packer_bb_display || "").trim() || String(row.single_cleaned_products || "").trim() || null; return { ...row, full_address: address, customer_name: row.customer_name, phone: row.phone || row.extracted_phone, address_display_primary: row.web_address_primary || row.address_display_primary || address, address_display_fallback: row.web_address_fallback || row.address_display_fallback || address, items: normalized, mapping_status: mapping, order_number: row.order_number || `#${row.id}`, order_time: effectiveOrderTime(row), cod_amount: cod, is_ready_to_pack: row.is_ready_to_pack ?? (mapping === "MATCHED"), cod_check_status: row.cod_check_status || (cod == null ? "CHECK" : "PASS"), audit_status: row.alien_audit_status || row.audit_status || mapping, telegram_status: row.telegram_status ?? null, items_text: productDisplay || "", display_for_packer: productDisplay }; }
++function normalizeOrder(row: any): CanonicalOrder {
++  const decorated = decorateLab88Products(row);
++  const normalized: CanonicalItem[] = decorated.items.map((item: CanonicalItem) => normalizeItem({
++    ...item,
++    lab_master_display_for_packer: item.display_for_packer,
++  }));
++  const productDisplay = decorated.lab_product_display_text;
++  const cod = num(row.cod_amount);
++  const mapping = row.alien_mapping_status || row.web_mapping_status || row.mapping_status || (normalized.length > 0 && normalized.every(item => item.mapping_status === "MATCHED") ? "MATCHED" : "CHECK_DATA");
++  const address = row.master_delivery_address || row.address_complete_web || row.web_address_primary || row.address_display_primary || row.full_address || row.address_display_packer || row.addressclean || row.address_display_fallback || row.web_address_fallback || row.web_address_short || [row.address_line_1, row.address_line_2, row.district, row.amphoe, row.province, row.zipcode].filter(Boolean).join(" ") || "";
++  return { ...decorated, full_address: address, customer_name: row.customer_name, phone: row.phone || row.extracted_phone, address_display_primary: row.web_address_primary || row.address_display_primary || address, address_display_fallback: row.web_address_fallback || row.address_display_fallback || address, items: normalized, mapping_status: mapping, order_number: row.order_number || `#${row.id}`, order_time: effectiveOrderTime(row), cod_amount: cod, is_ready_to_pack: row.is_ready_to_pack ?? (mapping === "MATCHED"), cod_check_status: row.cod_check_status || (cod == null ? "CHECK" : "PASS"), audit_status: row.alien_audit_status || row.audit_status || mapping, telegram_status: row.telegram_status ?? null, lab_product_display_text: productDisplay, master_display_for_packer: productDisplay, items_text: productDisplay || "", display_for_packer: productDisplay, for_packer_bb_display: productDisplay };
++}
+ export async function readCanonicalOrders(search = "", since: string | null = null, until: string | null = null) {
+   const api = getSupabase();
+   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
+@@ -111,46 +162,12 @@ export async function readCanonicalOrders(search = "", since: string | null = nu
+   const orderRows = Array.isArray(rows)
+     ? rows.filter((row: unknown): row is Record<string, any> => row !== null && typeof row === "object" && !Array.isArray(row))
+     : [];
+-  const orderIds = orderRows.map((row: any) => Number(row.id)).filter((id: number) => Number.isFinite(id));
+-  const itemsByOrder = new Map<number, CanonicalItem[]>();
+-  let itemError: unknown = null;
+-
+-  // canonical_orders คือหัวบิล ส่วนสินค้าจริงอยู่ใน canonical_order_items
+-  // รวมกลับมาเป็นแถวออเดอร์เดียวสำหรับหน้าเว็บ โดยไม่อ่านสินค้าเฉพาะจาก JSON ในหัวบิล
+-  if (orderIds.length) {
+-    const { data: itemRows, error: itemsError } = await api
+-      .from("canonical_order_items")
+-      .select("*")
+-      .in("order_id", orderIds)
+-      .order("line_no", { ascending: true });
+-
+-    itemError = itemsError;
+-    if (!itemsError) {
+-      for (const item of itemRows ?? []) {
+-        const orderId = Number((item as any).order_id);
+-        if (!Number.isFinite(orderId)) continue;
+-        itemsByOrder.set(orderId, [...(itemsByOrder.get(orderId) ?? []), item as CanonicalItem]);
+-      }
+-    }
+-  }
+-
++  const labAttached = await attachLab88Candidates(api, orderRows);
++  const orderRowsWithCandidates = labAttached.rows;
+   const query = search.trim().toLowerCase();
+-  const orders = orderRows
++  const orders = orderRowsWithCandidates
+     .map((row: any) => {
+-      const linkedItems = itemsByOrder.get(Number(row.id));
+-
+-      // Fallback รองรับข้อมูลเก่าที่ยังไม่ได้แตกลง canonical_order_items
+-      const fallbackItems = parseJsonArray(row.order_items).length
+-        ? parseJsonArray(row.order_items)
+-        : parseJsonArray(row.items_json).length
+-          ? parseJsonArray(row.items_json)
+-          : parseJsonArray(row.product_items).length
+-            ? parseJsonArray(row.product_items)
+-            : parseJsonArray(row.web_items_clean).length
+-              ? parseJsonArray(row.web_items_clean)
+-              : parseJsonArray(row.web_items_all_fields);
+-
+-      const normalized = normalizeOrder(row, linkedItems?.length ? linkedItems : fallbackItems);
++      const normalized = normalizeOrder(row);
+       return {
+         ...normalized,
+         source_table: sourceTable,
+@@ -161,7 +178,7 @@ export async function readCanonicalOrders(search = "", since: string | null = nu
+     .filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query));
+ 
+   orders.sort((a, b) => new Date(b.order_time || 0).getTime() - new Date(a.order_time || 0).getTime());
+-  return { orders, itemError, sourceTable, fetchedAt: new Date().toISOString(), since };
++  return { orders, itemError: null, productError: labAttached.error, sourceTable, fetchedAt: new Date().toISOString(), since };
+ }
+ export async function readTelegramDeliveryOrders(search = "", room: "queue" | "today" | "yesterday_after_14" | "sent" = "queue") {
+   const api = getSupabase();
+@@ -172,8 +189,10 @@ export async function readTelegramDeliveryOrders(search = "", room: "queue" | "t
+   const { data, error } = await api.from(sourceTable).select("*").limit(1000);
+   if (error) fail(error);
+   const query = search.trim().toLowerCase();
+-  const orders = (data ?? []).filter((row: any) => row && typeof row === "object" && !Array.isArray(row)).filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query)).sort((a: any, b: any) => new Date(b.drakside_source_time ?? b.order_time ?? b.created_at ?? 0).getTime() - new Date(a.drakside_source_time ?? a.order_time ?? a.created_at ?? 0).getTime());
+-  return { orders, itemError: null, sourceTable, fetchedAt: new Date().toISOString(), room };
++  const validRows = (data ?? []).filter((row: any) => row && typeof row === "object" && !Array.isArray(row));
++  const labAttached = await attachLab88Candidates(api, validRows);
++  const orders = labAttached.rows.map(decorateLab88Products).filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query)).sort((a: any, b: any) => new Date(b.drakside_source_time ?? b.order_time ?? b.created_at ?? 0).getTime() - new Date(a.drakside_source_time ?? a.order_time ?? a.created_at ?? 0).getTime());
++  return { orders, itemError: null, productError: labAttached.error, sourceTable, fetchedAt: new Date().toISOString(), room };
+ }
+ 
+ export async function readBbAlertRoom(search = "") {
+@@ -182,7 +201,9 @@ export async function readBbAlertRoom(search = "") {
+   const { data, error } = await api.from("vw_bb_order_alert_room_v1").select("*").limit(2000);
+   if (error) fail(error);
+   const query = search.trim().toLowerCase();
+-  return (data ?? [])
++  const rows = (data ?? []).filter((row: any) => row && typeof row === "object" && !Array.isArray(row));
++  const labAttached = await attachLab88Candidates(api, rows);
++  return labAttached.rows.map(decorateLab88Products)
+     .filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query))
+     .sort((a: any, b: any) => String(b.order_time_display ?? "").localeCompare(String(a.order_time_display ?? "")));
+ }
+diff --git a/client/src/pages/AlertRoom.tsx b/client/src/pages/AlertRoom.tsx
+index 112f4eb..57f02a3 100644
+--- a/client/src/pages/AlertRoom.tsx
++++ b/client/src/pages/AlertRoom.tsx
+@@ -24,7 +24,7 @@ function extractChange(row: any) {
+   const from = row.changed_from || row.product_before || row.previous_product || row.original_product;
+   const to = row.changed_to || row.product_after || row.new_product || row.replacement_product;
+   if (from || to) return { from: text(from, "รอบแรก"), to: text(to, "รายการล่าสุด"), changed: true, decisionMinutes };
+-  const raw = text(row.for_packer_bb_display || row.sniper_x_text_clean, "ยังไม่มีหลักฐานสินค้า");
++  const raw = text(row.lab_product_display_text, "ยังไม่มี master_display_for_packer ใน Lab 88");
+   const match = raw.match(/(?:เปลี่ยนจาก|จาก)\s*(.+?)\s*(?:เป็น|ไปเป็น|→|ถัดไป)\s*(.+?)(?:\n|$)/i);
+   if (match) return { from: match[1].trim(), to: match[2].trim(), changed: true, decisionMinutes };
+   return { from: "รายการเดิม", to: raw, changed: false, decisionMinutes };
+diff --git a/client/src/pages/ChatHub.tsx b/client/src/pages/ChatHub.tsx
+index 0609624..06c9ff2 100644
+--- a/client/src/pages/ChatHub.tsx
++++ b/client/src/pages/ChatHub.tsx
+@@ -98,7 +98,7 @@ export default function ChatHub() {
+     });
+     return unsubscribe;
+   }, [selectedPageId, selectedThreadId]);
+-  const linkedOrdersQuery = trpc.orders.forThread.useQuery({ pageId: selectedPageId, threadId: selectedThreadId }, { enabled: Boolean(selectedPageId && selectedThreadId), refetchInterval: 60_000 });
++  const linkedOrders = selected?.orders ?? [];
+   const chatEvidenceQuery = trpc.orders.chatEvidence.useQuery({ pageId: selectedPageId, threadId: selectedThreadId }, { enabled: Boolean(selectedPageId && selectedThreadId && orderDetailOpen), refetchInterval: 60_000 });
+   const totalMessages = useMemo(() => threads.reduce((total, thread) => total + thread.messageCount, 0), [threads]);
+   const uploadImage = trpc.chat.uploadImage.useMutation({ onSuccess: result => setReplyImageUrl(`${window.location.origin}${result.url}`) });
+@@ -202,7 +202,7 @@ export default function ChatHub() {
+   </div>;
+ 
+   const conversation = selected ? <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+-    <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-orange-500/10 px-5 py-3"><div className="flex min-w-0 items-center gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500/25 to-red-500/25 text-orange-200"><CircleUserRound className="h-5 w-5" /></div><div className="min-w-0"><h2 className="truncate text-base font-semibold text-white">{selected.customerName || "ลูกค้าใหม่"}</h2><div className="mt-1 flex items-center gap-2 text-[11px] text-orange-100/40"><span className="truncate">{selected.pageName}</span><span>·</span><span>{timeLabel(selected.latestAt)}</span></div></div></div><div className="flex max-w-full flex-wrap items-center justify-end gap-2"><Badge className="hidden border border-emerald-400/25 bg-emerald-400/10 text-emerald-300 sm:inline-flex">● ONLINE</Badge><Button size="sm" variant="outline" onClick={confirmSelectedOrder} disabled={selectedConfirmed || confirmOrder.isPending} className="rounded-xl border-orange-400/25 bg-orange-400/10 text-xs text-amber-200 hover:bg-orange-400/20">{selectedConfirmed ? <><CheckCircle2 className="mr-1 h-3.5 w-3.5" />ยืนยันแล้ว</> : confirmOrder.isPending ? "กำลังบันทึก…" : "ยืนยันเป็นออเดอร์"}</Button><Button size="sm" variant="outline" onClick={() => setOrderDetailOpen(true)} className="rounded-xl border-amber-400/25 bg-amber-400/10 text-xs text-amber-200 hover:bg-amber-400/20">ออเดอร์ ({linkedOrdersQuery.data?.length ?? 0})</Button><Button size="sm" onClick={openOrderSummary} className="rounded-xl bg-orange-600/80 text-xs hover:bg-orange-500">สรุปออเดอร์</Button>{isMobile ? <button onClick={() => setMobileOpen(false)} className="rounded-xl p-2 text-orange-100/55 hover:bg-orange-500/10 hover:text-white" aria-label="ปิดห้องแชท"><X className="h-5 w-5" /></button> : null}</div></div>
++    <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-orange-500/10 px-5 py-3"><div className="flex min-w-0 items-center gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500/25 to-red-500/25 text-orange-200"><CircleUserRound className="h-5 w-5" /></div><div className="min-w-0"><h2 className="truncate text-base font-semibold text-white">{selected.customerName || "ลูกค้าใหม่"}</h2><div className="mt-1 flex items-center gap-2 text-[11px] text-orange-100/40"><span className="truncate">{selected.pageName}</span><span>·</span><span>{timeLabel(selected.latestAt)}</span></div></div></div><div className="flex max-w-full flex-wrap items-center justify-end gap-2"><Badge className="hidden border border-emerald-400/25 bg-emerald-400/10 text-emerald-300 sm:inline-flex">● ONLINE</Badge><Button size="sm" variant="outline" onClick={confirmSelectedOrder} disabled={selectedConfirmed || confirmOrder.isPending} className="rounded-xl border-orange-400/25 bg-orange-400/10 text-xs text-amber-200 hover:bg-orange-400/20">{selectedConfirmed ? <><CheckCircle2 className="mr-1 h-3.5 w-3.5" />ยืนยันแล้ว</> : confirmOrder.isPending ? "กำลังบันทึก…" : "ยืนยันเป็นออเดอร์"}</Button><Button size="sm" variant="outline" onClick={() => setOrderDetailOpen(true)} className="rounded-xl border-amber-400/25 bg-amber-400/10 text-xs text-amber-200 hover:bg-amber-400/20">ออเดอร์ ({linkedOrders.length ?? 0})</Button><Button size="sm" onClick={openOrderSummary} className="rounded-xl bg-orange-600/80 text-xs hover:bg-orange-500">สรุปออเดอร์</Button>{isMobile ? <button onClick={() => setMobileOpen(false)} className="rounded-xl p-2 text-orange-100/55 hover:bg-orange-500/10 hover:text-white" aria-label="ปิดห้องแชท"><X className="h-5 w-5" /></button> : null}</div></div>
+     <div ref={chatTimelineRef} onScroll={handleTimelineScroll} className="relative min-h-0 flex-1 flex flex-col justify-start gap-3 overflow-y-auto overscroll-contain bg-[radial-gradient(circle_at_70%_20%,rgba(168,85,247,0.09),transparent_32%),#0b0910] p-5 [-webkit-overflow-scrolling:touch]">
+       {showNewMessages ? <button type="button" onClick={jumpToLatest} className="sticky bottom-3 left-1/2 z-20 mx-auto -mb-10 rounded-full border border-orange-300/30 bg-gradient-to-r from-orange-600 to-red-600 px-4 py-2 text-xs font-semibold text-white shadow-[0_0_24px_rgba(168,85,247,0.45)] transition hover:scale-105">ข้อความใหม่ · ลงล่างสุด</button> : null}
+       {messagesQuery.isFetching ? <div className="absolute right-4 top-4 z-10 inline-flex items-center gap-1.5 rounded-full border border-orange-400/20 bg-[#15101d]/90 px-2.5 py-1 text-[10px] text-orange-200"><LoaderCircle className="h-3 w-3 animate-spin" />กำลังอัปเดต</div> : null}
+@@ -223,7 +223,7 @@ export default function ChatHub() {
+     </div>
+     {isMobile && mobileOpen ? <div className="fixed inset-0 z-50 flex items-end bg-black/75 p-2 backdrop-blur-sm"><div className="flex h-[94dvh] max-h-[94dvh] w-full min-h-0 flex-col overflow-hidden rounded-3xl border border-orange-400/25 bg-[#100d15] shadow-2xl shadow-orange-950/30">{conversation}</div></div> : null}
+     {summaryOpen ? <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"><div className="w-full max-w-2xl rounded-3xl border border-orange-400/25 bg-[#15101d] p-5 shadow-2xl shadow-orange-950/40"><div className="flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-[0.22em] text-orange-300">ADMIN ORDER SUMMARY</p><h3 className="mt-2 text-xl font-semibold text-white">สร้างใบสรุปออเดอร์ในห้องนี้</h3></div><button onClick={() => setSummaryOpen(false)} className="rounded-xl p-2 text-orange-100/50 hover:bg-orange-500/10 hover:text-white"><X className="h-5 w-5" /></button></div><Textarea autoFocus value={summaryText} onChange={event => setSummaryText(event.target.value)} placeholder="วางข้อความลูกค้าที่นี่…" className="mt-4 min-h-48 border-orange-500/20 bg-black/25 text-sm leading-6 text-white placeholder:text-orange-100/25" />{summary ? <div className="mt-4 rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.06] p-4"><div className="flex items-center justify-between gap-3"><p className="text-xs font-semibold uppercase tracking-wider text-emerald-300">PREVIEW · {summary.orderNumber}</p><span className="text-[10px] text-emerald-200/60">ยังไม่ส่ง</span></div><div className="mt-3 grid gap-2 text-sm sm:grid-cols-2"><div><span className="text-[10px] text-orange-100/40">ชื่อลูกค้า</span><p className="text-white">{summary.customerName || "ไม่ระบุชื่อ"}</p></div><div><span className="text-[10px] text-orange-100/40">เบอร์โทร</span><p className="text-white">{summary.phone || "ไม่ระบุเบอร์โทร"}</p></div><div className="sm:col-span-2"><span className="text-[10px] text-orange-100/40">ที่อยู่</span><p className="text-orange-100/80">{summary.address || "ไม่ระบุที่อยู่"}</p></div><div><span className="text-[10px] text-orange-100/40">สินค้า</span><p className="text-orange-200">{summary.product}</p></div><div><span className="text-[10px] text-orange-100/40">COD</span><p className="text-amber-200">{summary.cod === "ไม่ระบุ" ? summary.cod : `${summary.cod} บาท`}</p></div></div><div className="mt-3 border-t border-emerald-400/10 pt-3"><span className="text-[10px] text-orange-100/40">ข้อความที่จะนำไปใส่ช่องตอบกลับ</span><pre className="mt-1 whitespace-pre-wrap text-xs leading-5 text-orange-100/75">{summary.copyText}</pre></div>{summary.timingMs ? <p className="mt-3 border-t border-emerald-400/10 pt-2 text-[10px] text-emerald-200/55">วัดเวลา: รวม {summary.timingMs.total}ms · ดึงข้อมูล {summary.timingMs.dataLookup}ms · แปลงข้อความ {summary.timingMs.parse}ms · Audit {summary.timingMs.audit}ms</p> : null}</div> : null}<div className="mt-4 rounded-xl border border-orange-400/10 bg-black/15 p-3"><p className="text-[10px] font-semibold uppercase tracking-wider text-orange-100/40">ประวัติ Timing ล่าสุด</p>{summaryTimingsQuery.isLoading ? <p className="mt-2 text-[10px] text-orange-100/35">กำลังโหลด…</p> : <div className="mt-2 space-y-1">{summaryTimingsQuery.data?.slice(0, 5).map(row => { const timing = (row.metadata as { timingMs?: { total?: number; dataLookup?: number; parse?: number; audit?: number } }).timingMs; return <p key={row.id} className="text-[10px] text-orange-100/50">{row.orderNumber ?? "draft"} · รวม {timing?.total ?? "—"}ms · data {timing?.dataLookup ?? "—"}ms · parse {timing?.parse ?? "—"}ms</p>; })}</div>}</div><div className="mt-4 flex justify-end gap-2"><Button variant="outline" onClick={() => setSummaryOpen(false)} className="border-orange-400/20 bg-transparent text-orange-100/70">ยกเลิก</Button><Button disabled={!summaryText.trim() || generateSummary.isPending} onClick={() => generateSummary.mutate({ rawText: summaryText, pageId: selectedPageId || undefined, threadId: selectedThreadId || undefined })} className="bg-gradient-to-r from-orange-600 to-red-600">{generateSummary.isPending ? "กำลังอ่าน…" : "สรุปออเดอร์"}</Button></div></div></div> : null}
+-    {orderDetailOpen ? <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"><div className="max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-3xl border border-amber-400/25 bg-[#15101d] p-5 shadow-2xl"><div className="flex items-center justify-between"><div><p className="text-xs uppercase tracking-[0.2em] text-amber-300">LINKED ORDERS</p><h3 className="mt-1 text-xl font-semibold text-white">ออเดอร์ของ {selected?.customerName || "ลูกค้ารายนี้"}</h3></div><button onClick={() => setOrderDetailOpen(false)} className="rounded-xl p-2 text-orange-100/50 hover:bg-orange-500/10 hover:text-white"><X className="h-5 w-5" /></button></div>{linkedOrdersQuery.isLoading || linkedOrdersQuery.isFetching ? <div className="mt-8 flex items-center justify-center gap-2 text-sm text-orange-100/50"><LoaderCircle className="h-4 w-4 animate-spin text-amber-300" />กำลังค้นหาออเดอร์…</div> : linkedOrdersQuery.data?.length ? <div className="mt-4 space-y-3">{linkedOrdersQuery.data.map(order => <div key={order.order_number} className="rounded-2xl border border-amber-400/15 bg-amber-400/[0.05] p-4"><div className="flex flex-wrap items-center justify-between gap-2"><p className="font-semibold text-amber-100">{order.order_number}</p><span className="text-xs text-orange-100/50">COD {order.cod_amount ?? order.expected_cod ?? "—"} บาท</span></div><p className="mt-2 text-sm text-orange-100/75">{order.customer_name || "ไม่ระบุชื่อ"} · {order.phone || "ไม่ระบุเบอร์"}</p><p className="mt-1 text-xs leading-5 text-orange-100/50">{order.full_address || "ไม่ระบุที่อยู่"}</p><p className="mt-2 text-xs text-orange-200/70">{order.items.map(item => item.label_display || item.telegram_final_mapped || item.display_for_packer || item.sku).filter(Boolean).join(" · ") || "ไม่ระบุสินค้า"}</p></div>)}</div> : <p className="mt-5 rounded-2xl border border-orange-500/10 bg-black/20 p-4 text-sm text-orange-100/50">ยังไม่พบออเดอร์ที่เชื่อมกับห้องนี้</p>}{chatEvidenceQuery.isLoading ? <div className="mt-5 flex items-center gap-2 text-xs text-amber-200/70"><LoaderCircle className="h-3.5 w-3.5 animate-spin" />กำลังโหลดหลักฐานแชท…</div> : <div className="mt-5 rounded-2xl border border-orange-400/15 bg-orange-400/[0.04] p-4"><div className="flex items-center justify-between"><p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-200">CHAT EVIDENCE</p><span className="text-[10px] text-amber-100/50">{chatEvidenceQuery.data?.length ?? 0} รายการ</span></div><div className="mt-3 max-h-64 space-y-2 overflow-y-auto">{chatEvidenceQuery.data?.length ? chatEvidenceQuery.data.map(row => <div key={String(row.id)} className="rounded-xl border border-orange-400/10 bg-black/20 p-2.5"><div className="flex justify-between gap-2 text-[10px] text-amber-100/45"><span>{row.speaker_type === "page" ? "[เพจ]" : "[ลูกค้า]"} {String(row.customer_name ?? row.sender_name ?? "ลูกค้า")}</span><span>{timeLabel(String(row.occurred_at ?? row.source_created_at ?? ""))}</span></div><p className="mt-1 whitespace-pre-wrap text-xs leading-5 text-orange-50/80">{String(row.message_text ?? "[ข้อความไม่มีตัวอักษร / มีไฟล์แนบ]")}</p><p className="mt-1 truncate text-[9px] text-amber-100/30">source: {String(row.source_message_id ?? row.dedupe_key ?? "—")}</p></div>) : <p className="text-xs text-amber-100/45">ยังไม่มีหลักฐานจากตารางแชทลูกค้าหรือเพจสำหรับห้องนี้</p>}</div></div>}</div></div> : null}
++    {orderDetailOpen ? <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"><div className="max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-3xl border border-amber-400/25 bg-[#15101d] p-5 shadow-2xl"><div className="flex items-center justify-between"><div><p className="text-xs uppercase tracking-[0.2em] text-amber-300">LINKED ORDERS</p><h3 className="mt-1 text-xl font-semibold text-white">ออเดอร์ของ {selected?.customerName || "ลูกค้ารายนี้"}</h3></div><button onClick={() => setOrderDetailOpen(false)} className="rounded-xl p-2 text-orange-100/50 hover:bg-orange-500/10 hover:text-white"><X className="h-5 w-5" /></button></div>{threadsQuery.isLoading ? <div className="mt-8 flex items-center justify-center gap-2 text-sm text-orange-100/50"><LoaderCircle className="h-4 w-4 animate-spin text-amber-300" />กำลังค้นหาออเดอร์…</div> : linkedOrders.length ? <div className="mt-4 space-y-3">{linkedOrders.map((order: any) => <div key={order.order_number} className="rounded-2xl border border-amber-400/15 bg-amber-400/[0.05] p-4"><div className="flex flex-wrap items-center justify-between gap-2"><p className="font-semibold text-amber-100">{order.order_number}</p><span className="text-xs text-orange-100/50">COD {order.cod_amount ?? order.expected_cod ?? "—"} บาท</span></div><p className="mt-2 text-sm text-orange-100/75">{order.customer_name || "ไม่ระบุชื่อ"} · {order.phone || "ไม่ระบุเบอร์"}</p><p className="mt-1 text-xs leading-5 text-orange-100/50">{order.full_address || "ไม่ระบุที่อยู่"}</p><p className="mt-2 text-xs text-orange-200/70">{order.lab_product_display_text || "ยังไม่มี master_display_for_packer ใน Lab 88"}</p></div>)}</div> : <p className="mt-5 rounded-2xl border border-orange-500/10 bg-black/20 p-4 text-sm text-orange-100/50">ยังไม่พบออเดอร์ที่เชื่อมกับห้องนี้</p>}{chatEvidenceQuery.isLoading ? <div className="mt-5 flex items-center gap-2 text-xs text-amber-200/70"><LoaderCircle className="h-3.5 w-3.5 animate-spin" />กำลังโหลดหลักฐานแชท…</div> : <div className="mt-5 rounded-2xl border border-orange-400/15 bg-orange-400/[0.04] p-4"><div className="flex items-center justify-between"><p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-200">CHAT EVIDENCE</p><span className="text-[10px] text-amber-100/50">{chatEvidenceQuery.data?.length ?? 0} รายการ</span></div><div className="mt-3 max-h-64 space-y-2 overflow-y-auto">{chatEvidenceQuery.data?.length ? chatEvidenceQuery.data.map(row => <div key={String(row.id)} className="rounded-xl border border-orange-400/10 bg-black/20 p-2.5"><div className="flex justify-between gap-2 text-[10px] text-amber-100/45"><span>{row.speaker_type === "page" ? "[เพจ]" : "[ลูกค้า]"} {String(row.customer_name ?? row.sender_name ?? "ลูกค้า")}</span><span>{timeLabel(String(row.occurred_at ?? row.source_created_at ?? ""))}</span></div><p className="mt-1 whitespace-pre-wrap text-xs leading-5 text-orange-50/80">{String(row.message_text ?? "[ข้อความไม่มีตัวอักษร / มีไฟล์แนบ]")}</p><p className="mt-1 truncate text-[9px] text-amber-100/30">source: {String(row.source_message_id ?? row.dedupe_key ?? "—")}</p></div>) : <p className="text-xs text-amber-100/45">ยังไม่มีหลักฐานจากตารางแชทลูกค้าหรือเพจสำหรับห้องนี้</p>}</div></div>}</div></div> : null}
+     {lightboxUrl ? <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/90 p-4" onClick={() => setLightboxUrl(null)}><img src={lightboxUrl} alt="รูปภาพขนาดเต็ม" className="max-h-[92vh] max-w-[94vw] rounded-2xl object-contain shadow-2xl" /></div> : null}
+     <footer className="flex items-center gap-2 px-2 text-[11px] text-orange-100/30"><MessageCircle className="h-3.5 w-3.5" />n8n API → Supabase ทุก 1 นาที · ห้องแชทอ่านจากตารางกลาง · ทุกการตอบกลับบันทึก Audit Log</footer>
+   </div></div>;
+diff --git a/client/src/pages/DailyChatSummary.tsx b/client/src/pages/DailyChatSummary.tsx
+index 58284ab..083bfd8 100644
+--- a/client/src/pages/DailyChatSummary.tsx
++++ b/client/src/pages/DailyChatSummary.tsx
+@@ -11,7 +11,7 @@ function todayBangkok() { return new Intl.DateTimeFormat("en-CA", { timeZone: "A
+ function dateKey(value: string | null | undefined) { if (!value) return ""; const date = new Date(value); if (Number.isNaN(date.getTime())) return ""; return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok", year: "numeric", month: "2-digit", day: "2-digit" }).format(date); }
+ function dateLabel(value: string | null | undefined) { if (!value) return "—"; const date = new Date(value); return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat("th-TH", { timeZone: "Asia/Bangkok", dateStyle: "short", timeStyle: "short" }).format(date); }
+ function csvCell(value: unknown) { return `"${String(value ?? "").replace(/"/g, '""').replace(/\r?\n/g, " ")}"`; }
+-function productText(order: any) { return order.items_text || order.display_for_packer || order.label_display || order.sku || (order.raw_product_evidence_logic ? `ค้นจากแชท: ${order.raw_product_evidence_logic}` : "ไม่ระบุสินค้า"); }
++function productText(order: any) { return order.lab_product_display_text || "ยังไม่มี master_display_for_packer ใน Lab 88"; }
+ function reviewStatus(order: any) { return String(order.review_status || "").toUpperCase(); }
+ 
+ export default function DailyChatSummary() {
+diff --git a/client/src/pages/OrderBuckets.tsx b/client/src/pages/OrderBuckets.tsx
+index 4dff046..fd32a54 100644
+--- a/client/src/pages/OrderBuckets.tsx
++++ b/client/src/pages/OrderBuckets.tsx
+@@ -1,15 +1,16 @@
+ import { Badge } from "@/components/ui/badge";
+ import { Button } from "@/components/ui/button";
+ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+-import { trpc } from "@/lib/trpc";
++import { readCanonicalOrders } from "@/lib/canonical";
+ import { ArrowRight, Boxes, CheckCircle2, RefreshCw } from "lucide-react";
+ import { useMemo, useState } from "react";
+ import { Link } from "wouter";
++import { useQuery } from "@tanstack/react-query";
+ 
+ type Bucket = "all" | "one" | "two" | "three_plus";
+ 
+ export default function OrderBuckets() {
+-  const query = trpc.orders.live.useQuery(undefined, { refetchInterval: 30_000 });
++  const query = useQuery({ queryKey: ["canonical-orders", "buckets"], queryFn: () => readCanonicalOrders(), refetchInterval: 30_000 });
+   const [bucket, setBucket] = useState<Bucket>("all");
+   const orders = query.data?.orders ?? [];
+   const getQty = (order: (typeof orders)[number]) => (order.total_quantity ?? order.items.reduce((sum, item) => sum + Number(item.quantity ?? item.qty ?? 1), 0)) || 1;
+@@ -18,6 +19,6 @@ export default function OrderBuckets() {
+   return <div className="min-h-[calc(100vh-2rem)] space-y-5 bg-[#09070d] p-2 text-white sm:p-4 lg:p-6">
+     <header className="rounded-3xl border border-orange-500/20 bg-[#100c19] p-6 shadow-2xl shadow-orange-950/20"><div className="flex flex-wrap items-start justify-between gap-4"><div><div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.25em] text-orange-300"><Boxes className="h-4 w-4" /> NIGHTOPS · ORDER REVIEW QUEUE</div><h1 className="mt-3 text-3xl font-semibold">แยกออเดอร์ตามจำนวนคอต</h1><p className="mt-2 text-sm leading-6 text-orange-100/55">เป็นมุมตรวจจาก <span className="font-mono text-orange-200">vw_st_orders_all_v2</span> เดียวกัน ไม่คัดลอกหรือย้ายข้อมูลจริง</p></div><div className="flex gap-2"><Link href="/orders"><Button className="bg-gradient-to-r from-orange-600 to-red-600">ส่งเข้าห้องรวม <ArrowRight className="ml-2 h-4 w-4" /></Button></Link><Button variant="outline" onClick={() => query.refetch()} className="border-orange-400/20 bg-orange-400/5 text-orange-100"><RefreshCw className={`mr-2 h-4 w-4 ${query.isFetching ? "animate-spin" : ""}`} />รีเฟรช</Button></div></div></header>
+     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{([ ["all", "รวมทั้งหมด", orders.length, "text-white"], ["one", "1 คอต", counts.one, "text-emerald-300"], ["two", "2 คอต", counts.two, "text-amber-300"], ["three_plus", "3 คอตขึ้นไป", counts.three_plus, "text-orange-300"] ] as const).map(([value, label, count, tone]) => <button key={value} type="button" onClick={() => setBucket(value)} className={`text-left ${bucket === value ? "ring-1 ring-fuchsia-400/50" : ""}`}><Card className="rounded-2xl border-orange-500/15 bg-[#100d15]"><CardContent className="p-4"><p className={`text-2xl font-semibold ${tone}`}>{count.toLocaleString("th-TH")}</p><p className="text-xs text-orange-100/45">{label}</p></CardContent></Card></button>)}</div>
+-    <Card className="rounded-3xl border-orange-500/15 bg-[#100d15]"><CardHeader><CardTitle className="flex items-center justify-between text-base"><span>{bucket === "all" ? "ออเดอร์ทั้งหมด" : bucket === "one" ? "ออเดอร์ 1 คอต" : bucket === "two" ? "ออเดอร์ 2 คอต" : "ออเดอร์ 3 คอตขึ้นไป"}</span><Badge className="border-orange-400/20 bg-orange-400/10 text-orange-200">{visible.length} รายการ</Badge></CardTitle></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[900px] text-left text-xs"><thead className="border-b border-orange-500/10 text-orange-100/35"><tr><th className="p-3">Order</th><th className="p-3">ลูกค้า</th><th className="p-3">สินค้า</th><th className="p-3">จำนวนคอต</th><th className="p-3">สถานะ</th><th className="p-3">ตรวจ/แก้</th></tr></thead><tbody>{visible.map(order => <tr key={order.order_number} className="border-b border-orange-500/[0.06]"><td className="p-3 font-mono text-orange-200">{order.order_number}</td><td className="p-3 text-white">{order.customer_name || "ไม่ระบุ"}<p className="text-[10px] text-orange-100/35">{order.phone || "ไม่มีเบอร์"}</p></td><td className="max-w-sm p-3 text-orange-100/65">{order.items.map(item => item.display_for_packer || item.label_display || item.th_name || item.sku || "สินค้า").join(" · ")}</td><td className="p-3 font-semibold text-emerald-300">{getQty(order)}</td><td className="p-3"><Badge className="border-orange-400/20 bg-orange-400/10 text-orange-200">{order.order_status || order.audit_status || "รอตรวจ"}</Badge></td><td className="p-3"><Link href="/orders"><Button size="sm" variant="outline" className="border-orange-400/20 bg-orange-400/5 text-orange-200"><CheckCircle2 className="mr-1 h-3.5 w-3.5" />เปิดตรวจ</Button></Link></td></tr>)}</tbody></table></div>{query.isLoading ? <p className="p-8 text-center text-sm text-orange-100/40">กำลังโหลดออเดอร์…</p> : null}{!query.isLoading && visible.length === 0 ? <p className="p-8 text-center text-sm text-orange-100/40">ไม่พบออเดอร์ในกลุ่มนี้</p> : null}</CardContent></Card>
++    <Card className="rounded-3xl border-orange-500/15 bg-[#100d15]"><CardHeader><CardTitle className="flex items-center justify-between text-base"><span>{bucket === "all" ? "ออเดอร์ทั้งหมด" : bucket === "one" ? "ออเดอร์ 1 คอต" : bucket === "two" ? "ออเดอร์ 2 คอต" : "ออเดอร์ 3 คอตขึ้นไป"}</span><Badge className="border-orange-400/20 bg-orange-400/10 text-orange-200">{visible.length} รายการ</Badge></CardTitle></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[900px] text-left text-xs"><thead className="border-b border-orange-500/10 text-orange-100/35"><tr><th className="p-3">Order</th><th className="p-3">ลูกค้า</th><th className="p-3">สินค้า</th><th className="p-3">จำนวนคอต</th><th className="p-3">สถานะ</th><th className="p-3">ตรวจ/แก้</th></tr></thead><tbody>{visible.map(order => <tr key={order.order_number} className="border-b border-orange-500/[0.06]"><td className="p-3 font-mono text-orange-200">{order.order_number}</td><td className="p-3 text-white">{order.customer_name || "ไม่ระบุ"}<p className="text-[10px] text-orange-100/35">{order.phone || "ไม่มีเบอร์"}</p></td><td className="max-w-sm whitespace-pre-wrap p-3 text-orange-100/65">{order.items.map(item => item.master_display_for_packer || "ยังไม่มี master_display_for_packer ใน Lab 88").join("\n")}</td><td className="p-3 font-semibold text-emerald-300">{getQty(order)}</td><td className="p-3"><Badge className="border-orange-400/20 bg-orange-400/10 text-orange-200">{order.order_status || order.audit_status || "รอตรวจ"}</Badge></td><td className="p-3"><Link href="/orders"><Button size="sm" variant="outline" className="border-orange-400/20 bg-orange-400/5 text-orange-200"><CheckCircle2 className="mr-1 h-3.5 w-3.5" />เปิดตรวจ</Button></Link></td></tr>)}</tbody></table></div>{query.isLoading ? <p className="p-8 text-center text-sm text-orange-100/40">กำลังโหลดออเดอร์…</p> : null}{!query.isLoading && visible.length === 0 ? <p className="p-8 text-center text-sm text-orange-100/40">ไม่พบออเดอร์ตามเงื่อนไขนี้</p> : null}</CardContent></Card>
+   </div>;
+ }
+diff --git a/client/src/pages/OrderControl.tsx b/client/src/pages/OrderControl.tsx
+index cf25382..976fb43 100644
+--- a/client/src/pages/OrderControl.tsx
++++ b/client/src/pages/OrderControl.tsx
+@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
+ import { Card, CardContent } from "@/components/ui/card";
+ import { Input } from "@/components/ui/input";
+ import { trpc } from "@/lib/trpc";
+-import { getActiveCamp, readCanonicalOrders } from "@/lib/canonical";
++import { getActiveCamp, getLab88FallbackFieldName, readCanonicalOrders, saveLab88FallbackFieldName } from "@/lib/canonical";
+ import {
+   AlertTriangle,
+   CalendarDays,
+@@ -85,17 +85,17 @@ function customerHistoryText(order: any): string {
+ }
+ 
+ function itemDisplay(item: any) {
+-  return item.for_packer_bb_display || item.single_cleaned_products || "📦 ต้องค้นจากประวัติแชท";
++  return item.master_display_for_packer || "📦 ยังไม่มี master_display_for_packer ใน Lab 88";
+ }
+ 
+ function orderProductPreview(order: any) {
+   if (Array.isArray(order.items) && order.items.length) {
+     return order.items.map((item: any) => {
+       const quantity = item.quantity ?? item.qty;
+-      return `${itemDisplay(item)}${quantity != null ? ` ×${quantity}` : ""}`;
++      return itemDisplay(item);
+     }).join(" · ");
+   }
+-  return itemDisplay(order) || order.th_name || order.sku || "📦 ต้องค้นจากประวัติแชท";
++  return itemDisplay(order);
+ }
+ 
+ function orderProductQuantity(order: any) {
+@@ -143,6 +143,7 @@ export default function OrderControl() {
+   const [previewText, setPreviewText] = useState("");
+   const [flashBusinessCode, setFlashBusinessCode] = useState(() => localStorage.getItem("flash-business-code") || "");
+   const [flashSaved, setFlashSaved] = useState(false);
++  const [productFallbackField, setProductFallbackField] = useState(() => getLab88FallbackFieldName());
+   const [reviewOverrides, setReviewOverrides] = useState<Record<string, "PASSED" | "FAILED">>(() => {
+     try { return JSON.parse(localStorage.getItem(`order-review-${getActiveCamp()}`) || "{}"); } catch { return {}; }
+   });
+@@ -208,7 +209,7 @@ export default function OrderControl() {
+     window.setTimeout(() => setCopied(false), 1800);
+   };
+   const previewSummary = (order: any) => {
+-    const items = order.items?.length ? order.items.map((item: any) => `${itemDisplay(item)}${item.quantity != null ? ` ${item.quantity} คอต` : ""}`).join("\n") : itemDisplay(order);
++    const items = order.items?.length ? order.items.map((item: any) => itemDisplay(item)).join("\n") : itemDisplay(order);
+     setPreviewText([order.order_number, order.customer_name || "ไม่ระบุชื่อ", order.phone || "ไม่ระบุเบอร์", orderAddress(order), `COD ${money(order.cod_amount)}`, items].join("\n"));
+   };
+ 
+@@ -225,11 +226,16 @@ export default function OrderControl() {
+         <div className="pointer-events-none absolute -right-20 -top-32 h-72 w-72 rounded-full bg-orange-700/20 blur-3xl" />
+         <div className="pointer-events-none absolute bottom-0 left-1/3 h-32 w-64 rounded-full bg-orange-500/10 blur-3xl" />
+         <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+-          <div><div className="mb-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.3em] text-orange-300"><Flame className="h-3.5 w-3.5" /> NIGHTOPS · ORDER CONTROL</div><h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">ห้องควบคุมออเดอร์</h1><p className="mt-2 max-w-xl text-sm leading-6 text-slate-400">ยึด <span className="font-mono text-fuchsia-300">bb_orders</span> เป็นฐานออเดอร์หลัก พร้อมรองรับรายการสินค้า 2–3 รายการในออเดอร์เดียว</p></div>
++          <div><div className="mb-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.3em] text-orange-300"><Flame className="h-3.5 w-3.5" /> NIGHTOPS · ORDER CONTROL</div><h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">ห้องควบคุมออเดอร์</h1><p className="mt-2 max-w-xl text-sm leading-6 text-slate-400">ข้อมูลสินค้าแสดงจาก <span className="font-mono text-fuchsia-300">lab_product_candidates[*].master_display_for_packer</span> เท่านั้น และรองรับหลายรายการต่อออเดอร์</p></div>
+           <div className="flex flex-wrap items-center gap-2"><Badge className="border border-emerald-500/30 bg-emerald-500/10 text-emerald-300"><span className="mr-2 h-1.5 w-1.5 rounded-full bg-emerald-400" /> LIVE DATA</Badge><Badge variant="outline" className="border-orange-500/30 bg-orange-500/5 text-orange-300"><Database className="mr-1.5 h-3 w-3" /> Supabase</Badge><Button variant="outline" size="sm" onClick={exportOrders} disabled={!visibleOrders.length} className="border-emerald-400/20 bg-emerald-400/5 text-emerald-200"><Download className="mr-2 h-3.5 w-3.5" /> Export CSV</Button><Button variant="outline" size="sm" onClick={() => liveQuery.refetch()} className="border-white/10 bg-white/5 text-slate-200 hover:bg-white/10 hover:text-white"><RefreshCw className={`mr-2 h-3.5 w-3.5 ${liveQuery.isFetching ? "animate-spin" : ""}`} /> รีเฟรช</Button></div>
+         </div>
+       </header>
+ 
++      <label className="flex flex-col gap-2 rounded-2xl border border-orange-400/20 bg-[#111116] p-4 text-xs text-orange-100/70 sm:flex-row sm:items-center sm:justify-between">
++        <span><span className="font-semibold text-orange-200">ฟิลด์สำรองสินค้า (ยังไม่กำหนด)</span><span className="mt-1 block text-[11px] text-slate-500">เว้นว่างไว้ก่อน ระบบจะแสดงสินค้าเฉพาะ master_display_for_packer จาก Lab 88 เท่านั้น</span></span>
++        <Input value={productFallbackField} onChange={event => { setProductFallbackField(event.target.value); saveLab88FallbackFieldName(event.target.value); }} placeholder="ใส่ชื่อฟิลด์ภายหลัง" className="h-9 sm:max-w-xs border-orange-300/20 bg-black/30 font-mono text-white placeholder:text-slate-600" />
++      </label>
++
+       <Card className="hidden rounded-2xl border-orange-400/20 bg-orange-400/[0.04]"><CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"><div><div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-orange-300 shadow-[0_0_12px_rgba(251,146,60,0.8)]" /><p className="text-sm font-semibold text-orange-100">FLASH BUSINESS · ศูนย์เช็คสถานะขนส่ง</p></div><p className="mt-1 text-xs text-slate-400">ใส่รหัสธุรกิจไว้เตรียมต่อ Flash API — ค่านี้เก็บใน Browser เครื่องนี้และยังไม่ส่งออกจากหน้าเว็บ</p></div><div className="flex w-full gap-2 sm:w-auto"><Input value={flashBusinessCode} onChange={event => { setFlashBusinessCode(event.target.value); setFlashSaved(false); }} placeholder="Flash Business Code" className="h-9 min-w-0 border-orange-300/20 bg-black/30 font-mono text-xs text-white placeholder:text-slate-600 sm:w-56" /><Button size="sm" variant="outline" onClick={() => { localStorage.setItem("flash-business-code", flashBusinessCode.trim()); setFlashSaved(true); }} className="border-orange-300/30 bg-orange-300/10 text-orange-100 hover:bg-orange-300/20">{flashSaved ? "บันทึกแล้ว" : "บันทึกรหัส"}</Button></div></CardContent></Card>
+ 
+       <Card className={`hidden rounded-2xl border ${liveQuery.isError ? "border-red-500/30 bg-red-950/20" : liveQuery.isFetching ? "border-amber-400/30 bg-amber-950/10" : "border-emerald-500/25 bg-emerald-950/10"}`}><CardContent className="flex flex-wrap items-center justify-between gap-3 p-4"><div className="flex items-center gap-3"><div className={`h-3 w-3 rounded-full ${liveQuery.isError ? "bg-red-400" : liveQuery.isFetching ? "animate-pulse bg-amber-300" : "bg-emerald-400"}`} /><div><p className="text-sm font-semibold text-white">{liveQuery.isError ? "บันทึก/อ่านออเดอร์ไม่ครบ" : liveQuery.isFetching ? "กำลังตรวจสอบข้อมูลออเดอร์…" : "สถานะสายออเดอร์พร้อม"}</p><p className="mt-1 text-xs text-slate-400">ระบบอ่านจาก <span className="font-mono text-fuchsia-300">vw_bb_orders_all_v2</span> · หัวบิลจาก bb_orders · สินค้าและที่อยู่ใช้ฟิลด์สำรองจาก View · <span className="font-mono text-orange-200">{stats?.total ?? 0}</span> รายการ</p></div></div><Badge className={liveQuery.isError ? "border-red-400/30 bg-red-400/10 text-red-300" : liveQuery.isFetching ? "border-amber-400/30 bg-amber-400/10 text-amber-200" : "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"}>{liveQuery.isError ? "INCOMPLETE" : liveQuery.isFetching ? "CHECKING" : "LOADED"}</Badge></CardContent></Card>
+diff --git a/client/src/pages/OrderHistory.tsx b/client/src/pages/OrderHistory.tsx
+index c613f30..5f17a75 100644
+--- a/client/src/pages/OrderHistory.tsx
++++ b/client/src/pages/OrderHistory.tsx
+@@ -19,7 +19,7 @@ export default function OrderHistory() {
+   return <div className="min-h-[calc(100vh-2rem)] space-y-5 bg-[#09070d] p-2 text-white sm:p-4 lg:p-6">
+     <header className="rounded-3xl border border-orange-500/20 bg-[#100c19] p-6 shadow-2xl shadow-orange-950/20"><div className="flex flex-wrap items-start justify-between gap-4"><div><div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.25em] text-orange-300"><Archive className="h-4 w-4" /> NIGHTOPS · ORDER HISTORY</div><h1 className="mt-3 text-3xl font-semibold">ประวัติออเดอร์รายวัน</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-orange-100/55">อ่านจาก st_orders โดยตรง ไม่รวมกับตารางแชท ใช้ page_id + thread_id เป็นคีย์เชื่อมกลับไปดูห้องสนทนา</p></div><div className="flex flex-wrap gap-2"><Input type="date" value={date} onChange={event => setDate(event.target.value)} className="w-40 border-orange-400/20 bg-black/20 text-white" /><Button variant="outline" onClick={() => query.refetch()} className="border-orange-400/20 bg-orange-400/5 text-orange-100"><RefreshCw className={`mr-2 h-4 w-4 ${query.isFetching ? "animate-spin" : ""}`} />รีเฟรช</Button></div></div></header>
+     <div className="grid gap-3 sm:grid-cols-3"><Stat label="ออเดอร์วันนี้" value={query.data?.total ?? 0} /><Stat label="มีคีย์เชื่อมแชท" value={orders.filter(order => order.page_id && order.thread_id).length} tone="text-amber-300" /><Stat label="COD รวม" value={orders.reduce((sum, order) => sum + Number(order.cod_amount ?? order.expected_cod ?? 0), 0).toLocaleString("th-TH")} tone="text-amber-300" /></div>
+-    <Card className="rounded-3xl border-orange-500/15 bg-[#100d15]"><CardHeader><div className="flex flex-wrap items-center justify-between gap-3"><CardTitle className="text-base">รายการออเดอร์จาก st_orders</CardTitle><div className="relative w-full sm:w-80"><Search className="absolute left-3 top-2.5 h-4 w-4 text-orange-100/30" /><Input value={search} onChange={event => setSearch(event.target.value)} placeholder="ค้นหาเลขออเดอร์ ชื่อลูกค้า SKU เพจ" className="border-orange-500/15 bg-black/20 pl-9 text-white placeholder:text-orange-100/25" /></div></div></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[1050px] text-left text-xs"><thead className="border-b border-orange-500/10 text-orange-100/35"><tr><th className="p-3">ออเดอร์</th><th className="p-3">ลูกค้า</th><th className="p-3">สินค้า</th><th className="p-3">COD</th><th className="p-3">เพจ / คีย์แชท</th><th className="p-3">เวลา</th><th className="p-3">เชื่อมแชท</th></tr></thead><tbody>{orders.map(order => <tr key={`${order.upsert_key ?? order.order_number}-${order.id}`} className="border-b border-orange-500/[0.06] align-top"><td className="p-3"><p className="font-semibold text-orange-200">{order.order_number}</p><p className="mt-1 font-mono text-[10px] text-orange-100/30">{order.upsert_key || `id:${order.id}`}</p></td><td className="p-3"><p className="font-medium text-white">{order.customer_name || order.facebook_name || "ไม่ระบุชื่อ"}</p><p className="mt-1 text-orange-100/45">{order.phone || "ไม่ระบุเบอร์"}</p><p className="mt-1 max-w-xs text-orange-100/40">{order.full_address || order.address_display_packer || "ไม่ระบุที่อยู่"}</p></td><td className="max-w-xs whitespace-pre-wrap p-3 text-orange-100/70">{order.items_text || order.display_for_packer || order.label_display || order.sku || "ไม่ระบุสินค้า"}</td><td className="p-3"><Badge className="border-amber-400/20 bg-amber-400/10 text-amber-200">{Number(order.cod_amount ?? order.expected_cod ?? 0).toLocaleString("th-TH")} บาท</Badge></td><td className="p-3"><p className="text-orange-200">{order.page_name || "—"}</p><p className="mt-1 font-mono text-[10px] text-orange-100/35">{order.page_id || "—"}</p><p className="mt-1 font-mono text-[10px] text-amber-200/50">{order.thread_id || "ไม่มี thread_id"}</p></td><td className="p-3 text-orange-100/55">{dateLabel(order.order_time || order.created_at)}</td><td className="p-3">{order.page_id && order.thread_id ? <Link href={`/chats?page_id=${encodeURIComponent(order.page_id)}&thread_id=${encodeURIComponent(order.thread_id)}`}><Button size="sm" variant="outline" className="border-orange-400/20 bg-orange-400/5 text-amber-200"><ExternalLink className="mr-1 h-3.5 w-3.5" />เปิดแชท</Button></Link> : <span className="text-amber-200/60">รอคีย์</span>}</td></tr>)}</tbody></table></div>{query.isLoading ? <p className="p-8 text-center text-sm text-orange-100/40">กำลังโหลดประวัติออเดอร์…</p> : null}{!query.isLoading && !orders.length ? <p className="p-8 text-center text-sm text-orange-100/40">ไม่พบออเดอร์ในวันที่เลือก</p> : null}</CardContent></Card>
++    <Card className="rounded-3xl border-orange-500/15 bg-[#100d15]"><CardHeader><div className="flex flex-wrap items-center justify-between gap-3"><CardTitle className="text-base">รายการออเดอร์จาก st_orders</CardTitle><div className="relative w-full sm:w-80"><Search className="absolute left-3 top-2.5 h-4 w-4 text-orange-100/30" /><Input value={search} onChange={event => setSearch(event.target.value)} placeholder="ค้นหาเลขออเดอร์ ชื่อลูกค้า SKU เพจ" className="border-orange-500/15 bg-black/20 pl-9 text-white placeholder:text-orange-100/25" /></div></div></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[1050px] text-left text-xs"><thead className="border-b border-orange-500/10 text-orange-100/35"><tr><th className="p-3">ออเดอร์</th><th className="p-3">ลูกค้า</th><th className="p-3">สินค้า</th><th className="p-3">COD</th><th className="p-3">เพจ / คีย์แชท</th><th className="p-3">เวลา</th><th className="p-3">เชื่อมแชท</th></tr></thead><tbody>{orders.map(order => <tr key={`${order.upsert_key ?? order.order_number}-${order.id}`} className="border-b border-orange-500/[0.06] align-top"><td className="p-3"><p className="font-semibold text-orange-200">{order.order_number}</p><p className="mt-1 font-mono text-[10px] text-orange-100/30">{order.upsert_key || `id:${order.id}`}</p></td><td className="p-3"><p className="font-medium text-white">{order.customer_name || order.facebook_name || "ไม่ระบุชื่อ"}</p><p className="mt-1 text-orange-100/45">{order.phone || "ไม่ระบุเบอร์"}</p><p className="mt-1 max-w-xs text-orange-100/40">{order.full_address || order.address_display_packer || "ไม่ระบุที่อยู่"}</p></td><td className="max-w-xs whitespace-pre-wrap p-3 text-orange-100/70">{order.lab_product_display_text || "ยังไม่มี master_display_for_packer ใน Lab 88"}</td><td className="p-3"><Badge className="border-amber-400/20 bg-amber-400/10 text-amber-200">{Number(order.cod_amount ?? order.expected_cod ?? 0).toLocaleString("th-TH")} บาท</Badge></td><td className="p-3"><p className="text-orange-200">{order.page_name || "—"}</p><p className="mt-1 font-mono text-[10px] text-orange-100/35">{order.page_id || "—"}</p><p className="mt-1 font-mono text-[10px] text-amber-200/50">{order.thread_id || "ไม่มี thread_id"}</p></td><td className="p-3 text-orange-100/55">{dateLabel(order.order_time || order.created_at)}</td><td className="p-3">{order.page_id && order.thread_id ? <Link href={`/chats?page_id=${encodeURIComponent(order.page_id)}&thread_id=${encodeURIComponent(order.thread_id)}`}><Button size="sm" variant="outline" className="border-orange-400/20 bg-orange-400/5 text-amber-200"><ExternalLink className="mr-1 h-3.5 w-3.5" />เปิดแชท</Button></Link> : <span className="text-amber-200/60">รอคีย์</span>}</td></tr>)}</tbody></table></div>{query.isLoading ? <p className="p-8 text-center text-sm text-orange-100/40">กำลังโหลดประวัติออเดอร์…</p> : null}{!query.isLoading && !orders.length ? <p className="p-8 text-center text-sm text-orange-100/40">ไม่พบออเดอร์ในวันที่เลือก</p> : null}</CardContent></Card>
+   </div>;
+ }
+ function Stat({ label, value, tone = "text-white" }: { label: string; value: number | string; tone?: string }) { return <Card className="rounded-2xl border-orange-500/15 bg-[#100d15]"><CardContent className="p-4"><p className={`text-2xl font-semibold ${tone}`}>{value}</p><p className="mt-1 text-xs text-orange-100/45">{label}</p></CardContent></Card>; }
+diff --git a/client/src/pages/ParcelMapping.tsx b/client/src/pages/ParcelMapping.tsx
+index 165600f..71e23ce 100644
+--- a/client/src/pages/ParcelMapping.tsx
++++ b/client/src/pages/ParcelMapping.tsx
+@@ -18,12 +18,12 @@ function normalizePhone(value: string) {
+ }
+ 
+ function itemText(item: any) {
+-  return item.display_for_packer || item.label_display || item.th_name || item.product_name || item.sku || "สินค้า";
++  return item.master_display_for_packer || "ยังไม่มี master_display_for_packer ใน Lab 88";
+ }
+ 
+ function orderProducts(order: any) {
+-  if (Array.isArray(order.items) && order.items.length) return order.items.map((item: any) => `${itemText(item)}${item.quantity != null ? ` ${item.quantity} คอต` : ""}`).join("\n");
+-  return order.display_for_packer || order.th_name || order.sku || "ไม่ระบุสินค้า";
++  if (Array.isArray(order.items) && order.items.length) return order.items.map((item: any) => itemText(item)).join("\n");
++  return order.lab_product_display_text || "ยังไม่มี master_display_for_packer ใน Lab 88";
+ }
+ 
+ function loadDrafts(): Record<string, { tracking: string; carrier: string }> {
+@@ -128,5 +128,5 @@ export default function ParcelMapping() {
+ 
+ function orderProductPreview(order: any) {
+   if (Array.isArray(order.items) && order.items.length) return order.items.map((item: any) => itemText(item)).join(" · ");
+-  return order.display_for_packer || order.th_name || order.sku || "สินค้า";
++  return order.lab_product_display_text || "ยังไม่มี master_display_for_packer ใน Lab 88";
+ }
+diff --git a/client/src/pages/TelegramDeliveryRoom.tsx b/client/src/pages/TelegramDeliveryRoom.tsx
+index 1df0695..ddc405a 100644
+--- a/client/src/pages/TelegramDeliveryRoom.tsx
++++ b/client/src/pages/TelegramDeliveryRoom.tsx
+@@ -56,8 +56,7 @@ function realTime(row: OrderRow) {
+ function displayTime(row: OrderRow) { return String(row.order_time_display || "ไม่พบ order_time_display"); }
+ 
+ function productOf(row: OrderRow) {
+-  // ห้อง Telegram ใช้ฟิวสินค้ากลางของ BB เท่านั้น; single_cleaned_products เป็นสำรองทันที
+-  return evidenceText(row.for_packer_bb_display) || evidenceText(row.single_cleaned_products) || "ยังไม่มีข้อมูลสินค้า";
++  return evidenceText(row.lab_product_display_text) || "ยังไม่มี master_display_for_packer ใน Lab 88";
+ }
+ 
+ function evidenceText(value: unknown): string {
+@@ -196,7 +195,7 @@ export default function TelegramDeliveryRoom() {
+       phone: String(order.phone ?? order.extracted_phone ?? ""),
+       address_display_packer: addressOf(order),
+       cod_amount: String(order.cod_amount ?? ""),
+-      for_packer_bb_display: String(order.for_packer_bb_display ?? order.single_cleaned_products ?? ""),
++      for_packer_bb_display: String(order.lab_product_display_text ?? ""),
+       shipping_method: String(order.shipping_method ?? "⚡FLASH EXPRESS"),
+     });
+     setEditMode(false);
