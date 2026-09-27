@@ -11,7 +11,7 @@ function todayBangkok() { return new Intl.DateTimeFormat("en-CA", { timeZone: "A
 function dateKey(value: string | null | undefined) { if (!value) return ""; const date = new Date(value); if (Number.isNaN(date.getTime())) return ""; return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok", year: "numeric", month: "2-digit", day: "2-digit" }).format(date); }
 function dateLabel(value: string | null | undefined) { if (!value) return "—"; const date = new Date(value); return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat("th-TH", { timeZone: "Asia/Bangkok", dateStyle: "short", timeStyle: "short" }).format(date); }
 function csvCell(value: unknown) { return `"${String(value ?? "").replace(/"/g, '""').replace(/\r?\n/g, " ")}"`; }
-function productText(order: any) { return order.lab_product_display_text || "ยังไม่มี master_display_for_packer ใน Lab 88"; }
+function productText(order: any) { return order.bb_pack_center || "💬 สินค้าขอพักร้อนแป๊บ เดี๋ยวกลับมาให้คิดถึง!"; }
 function reviewStatus(order: any) { return String(order.review_status || "").toUpperCase(); }
 
 export default function DailyChatSummary() {
