@@ -3,8 +3,8 @@
 // ⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘
 // Scope: BB only · อ่านและตรวจออเดอร์
 // โต๊ะหลัก: bb_orders
-// สินค้า/หัวบิล: vw_bb_product_extraction_lab88_order_center_v2
-// ห้องกลางเก่าไม่ใช่เส้นทางอ่านของเว็บแล้ว
+// สินค้า/หัวบิล: for_packer_bb_display จาก bb_orders
+// เว็บและ Telegram อ่าน bb_orders โดยตรงด้วย select เฉพาะคอลัมน์
 // คีย์หลัก: upsert_key · เวลาหลัก: order_time_display
 // ที่อยู่สำรอง: address_display_packer
 // ห้ามเปลี่ยน Telegram status · ห้ามลบหลักฐาน · ห้ามเอา ST logic มาปน
@@ -122,26 +122,45 @@ function isoDateKey(value: string | null): string {
   return values.year && values.month && values.day ? `${values.year}-${values.month}-${values.day}` : "";
 }
 function normalizeOrder(row: any, items: CanonicalItem[]): CanonicalOrder { const normalized = items.map(normalizeItem); const cod = num(row.cod_amount); const mapping = row.alien_mapping_status || row.web_mapping_status || row.mapping_status || (normalized.length > 0 && normalized.every(item => item.mapping_status === "MATCHED") ? "MATCHED" : "CHECK_DATA"); const address = row.master_delivery_address || row.address_complete_web || row.web_address_primary || row.address_display_primary || row.full_address || row.address_display_packer || row.addressclean || row.address_display_fallback || row.web_address_fallback || row.web_address_short || [row.address_line_1, row.address_line_2, row.district, row.amphoe, row.province, row.zipcode].filter(Boolean).join(" ") || ""; const productDisplay = String(row.bb_pack_center ?? "").trim() || null; return { ...row, full_address: address, customer_name: row.customer_name, phone: row.phone || row.extracted_phone, address_display_primary: row.web_address_primary || row.address_display_primary || address, address_display_fallback: row.web_address_fallback || row.address_display_fallback || address, items: normalized, mapping_status: mapping, order_number: row.order_number || row.order_number_display || `#${row.upsert_key || "UNKNOWN"}`, order_time: effectiveOrderTime(row), cod_amount: cod, is_ready_to_pack: row.is_ready_to_pack ?? (mapping === "MATCHED"), cod_check_status: row.cod_check_status || (cod == null ? "CHECK" : "PASS"), audit_status: row.alien_audit_status || row.audit_status || mapping, telegram_status: row.telegram_status ?? null, items_text: productDisplay || "", display_for_packer: productDisplay }; }
+// BB ONLY: direct table reads with narrow projections. Do not load the wide row
+// or make the browser execute the Lab view's JSON expansion and matching joins.
+const BB_WEB_ORDER_COLUMNS = [
+  "id", "upsert_key", "order_number", "order_number_display", "order_time_display",
+  "page_id", "page_name", "facebook_name", "customer_name", "phone", "extracted_phone",
+  "address_display_packer", "district", "amphoe", "province", "zipcode",
+  "cod_amount", "expected_cod", "order_status", "audit_flags", "is_ready_to_pack",
+  "cod_check_status", "lock_status", "shipping_carrier", "telegram_sent", "telegram_sent_at",
+  "telegram_status", "delivery_state", "sent_at", "for_packer_bb_display"
+].join(",");
+
+const BB_TELEGRAM_ORDER_COLUMNS = [
+  "id", "upsert_key", "order_number", "order_number_display", "order_time_display",
+  "page_name", "facebook_name", "customer_name", "phone", "extracted_phone",
+  "address_display_packer", "province", "zipcode",
+  "cod_amount", "expected_cod", "order_status", "is_ready_to_pack", "lock_status", "shipping_carrier", "shipping_method",
+  "telegram_sent", "telegram_sent_at", "telegram_status", "delivery_state", "sent_at",
+  "for_packer_bb_display", "telegram_header", "telegram_body", "audit_flags"
+].join(",");
+
+function normalizeBbDirectRow(row: any): CanonicalOrder {
+  const product = typeof row.for_packer_bb_display === "string" ? row.for_packer_bb_display.trim() : "";
+  const mappingStatus = row.is_ready_to_pack === true ? "MATCHED" : null;
+  return normalizeOrder({
+    ...row,
+    bb_pack_center: product || null,
+    stock_notice: row.telegram_header || null,
+    mapping_status: mappingStatus,
+  }, []);
+}
+
 export async function readCanonicalOrders(search = "", since: string | null = null, until: string | null = null) {
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
 
-  // เว็บกลางอ่าน View เว็บเท่านั้น: View นี้ join bb_orders + LAB ไว้แล้ว
-  // เลือกเฉพาะคอลัมน์ที่หน้าเว็บใช้ เพื่อไม่ลาก chat timeline ก้อนใหญ่
-  const webColumns = [
-    "upsert_key", "order_number", "order_number_display", "order_time_display",
-    "page_name", "facebook_name", "customer_name", "phone", "extracted_phone",
-    "address_display_packer", "final_address_for_bill", "short_address", "full_address",
-    "address_line_1", "address_line_2", "addressclean", "district", "amphoe", "province", "zipcode",
-    "cod_amount", "expected_cod", "order_status", "audit_flags", "is_ready_to_pack",
-    "cod_check_status", "lock_status", "shipping_carrier", "telegram_sent", "telegram_sent_at", "telegram_status",
-    "sniper_x_text_clean", "bb_pack_center", "stock_notice", "telegram_pretty", "center_status",
-    "total_cot_quantity", "product_line_count", "quantity_center", "mapping_status_center"
-  ].join(",");
   const limit = search.trim() || since || until ? 500 : 300;
   const { data, error } = await api
-    .from("dk_darksidemarketing_bb")
-    .select(webColumns)
+    .from("bb_orders")
+    .select(BB_WEB_ORDER_COLUMNS)
     .order("order_time_display", { ascending: false })
     .limit(limit);
   if (error) fail(error);
@@ -151,9 +170,8 @@ export async function readCanonicalOrders(search = "", since: string | null = nu
   const untilKey = isoDateKey(until);
   const orders = (data ?? [])
     .map((row: any) => ({
-      ...normalizeOrder(row, []),
-      source_table: "dk_darksidemarketing_bb",
-      raw_text_with_phone_timed: null,
+      ...normalizeBbDirectRow(row),
+      source_table: "bb_orders",
       review_status: row.review_status ?? null,
     }) as CanonicalOrder)
     .filter((row: any) => {
@@ -162,34 +180,53 @@ export async function readCanonicalOrders(search = "", since: string | null = nu
       return (!fromKey || (dateKey && dateKey >= fromKey)) && (!untilKey || (dateKey && dateKey <= untilKey));
     });
   orders.sort((a, b) => displayOrderSortKey(b.order_time_display) - displayOrderSortKey(a.order_time_display));
-  return { orders, itemError: null, sourceTable: "dk_darksidemarketing_bb", fetchedAt: new Date().toISOString(), since };
+  return { orders, itemError: null, sourceTable: "bb_orders", fetchedAt: new Date().toISOString(), since };
 }
 export async function readTelegramDeliveryOrders(search = "", room: "queue" | "today" | "yesterday_after_14" | "sent" = "queue") {
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
 
-  // Telegram อ่านห้องกลาง Telegram แยกจากเว็บ ตามโครงสร้างเดิมของพี่
-  const telegramColumns = [
-    "upsert_key", "order_number", "order_number_display", "order_time_display",
-    "page_name", "facebook_name", "customer_name", "phone", "extracted_phone",
-    "address_display_packer", "final_address_for_bill", "short_address", "full_address",
-    "district", "amphoe", "province", "zipcode", "cod_amount", "order_status", "lock_status",
-    "shipping_carrier", "telegram_sent", "telegram_sent_at", "bb_pack_center", "stock_notice",
-     "raw_text_with_phone", "normalized_chat_timeline", "stock_notice",
-    "telegram_pretty", "center_status", "total_cot_quantity"
-  ].join(",");
   const { data, error } = await api
-    .from("dk_darksidemarketing_telagram_bb")
-    .select(telegramColumns)
+    .from("bb_orders")
+    .select(BB_TELEGRAM_ORDER_COLUMNS)
     .order("order_time_display", { ascending: false })
     .limit(1000);
   if (error) fail(error);
   const query = search.trim().toLowerCase();
   const allOrders = (data ?? [])
-    .map((row: any) => ({ ...normalizeOrder(row, []), source_table: "dk_darksidemarketing_telagram_bb", raw_text_with_phone_timed: null }) as CanonicalOrder)
+    .map((row: any) => ({ ...normalizeBbDirectRow(row), source_table: "bb_orders" }) as CanonicalOrder)
     .filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query));
   const orders = allOrders.sort((a, b) => displayOrderSortKey(b.order_time_display) - displayOrderSortKey(a.order_time_display));
-  return { orders, itemError: null, sourceTable: "dk_darksidemarketing_telagram_bb", fetchedAt: new Date().toISOString(), room };
+  return { orders, itemError: null, sourceTable: "bb_orders", fetchedAt: new Date().toISOString(), room };
+}
+
+export async function readBbOrderEvidence(upsertKey: string) {
+  const api = getSupabase();
+  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
+  const { data, error } = await api
+    .from("bb_orders")
+    .select("upsert_key,raw_text_with_phone_timed,normalized_chat_timeline")
+    .eq("upsert_key", upsertKey)
+    .maybeSingle();
+  if (error) fail(error);
+  return data ?? {};
+}
+
+export async function readBbOrderEvidenceBatch(upsertKeys: string[]) {
+  const keys = Array.from(new Set(upsertKeys.map((key) => String(key ?? "").trim()).filter(Boolean)));
+  if (!keys.length) return [];
+  const api = getSupabase();
+  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
+  const evidence: any[] = [];
+  for (let offset = 0; offset < keys.length; offset += 100) {
+    const { data, error } = await api
+      .from("bb_orders")
+      .select("upsert_key,raw_text_with_phone_timed,normalized_chat_timeline")
+      .in("upsert_key", keys.slice(offset, offset + 100));
+    if (error) fail(error);
+    evidence.push(...(data ?? []));
+  }
+  return evidence;
 }
 
 export async function readBbAlertRoom(search = "") {
