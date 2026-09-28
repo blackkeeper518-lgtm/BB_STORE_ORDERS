@@ -77,7 +77,7 @@ const FLOW_SIGNATURES = [
   "#BellaAgent",
   "#SINGTO_ORDER"
 ];
-const FLOW_SIGNALS = ["เบลล่า", "Bella", "#MilaAgent", "#BellaAgent", "Agent", "#Agent", "BellaAgent", "MilaAgent", "Mila", "#GinaAgent", "Gina", "#LemonAgent", "Lemon", "จีน่า", "เลม่อน", "มิล่า", "สรุปโดย:🤖"];
+const FLOW_SIGNALS = ["#ไนท์รา", "🔮#BB_ORDER_01", "#Venika", "🔮#BB_ORDER_02", "#Mali", "🔮#BB_ORDER_03", "🍉TANGMO", "🔮#BB_ORDER_04", "#👑เจ๊บี", "🔮#BB_ORDER_05", "🍀ใบบัว", "🔮#BB_ORDER_06", "🔮#BB_ORDER_07", "#วีนัท", "สรุปโดย:🤖"];
 const PRODUCT_LINE_SIGNAL = /(?:📦\s*)?รายการสินค้า|(?:🟢|🟡|🔴|🟠|🟣|🔵|🟩|🟨|🟥|🟧|🟪|🟦|🍉|🥭)\s*[A-Z_ก-๙]+.*?คอต\.?/i;
 function normalizeFlowText(value: string) { return String(value || "").toLowerCase().replace(/[\s:：|]/g, ""); }
 function scoreDailyOrderSignal(text: string, latestCod: number | null) {
