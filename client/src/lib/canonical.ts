@@ -175,6 +175,7 @@ export async function readTelegramDeliveryOrders(search = "", room: "queue" | "t
     "address_display_packer", "final_address_for_bill", "short_address", "full_address",
     "district", "amphoe", "province", "zipcode", "cod_amount", "order_status", "lock_status",
     "shipping_carrier", "telegram_sent", "telegram_sent_at", "bb_pack_center", "stock_notice",
+     "raw_text_with_phone", "normalized_chat_timeline", "stock_notice",
     "telegram_pretty", "center_status", "total_cot_quantity"
   ].join(",");
   const { data, error } = await api
