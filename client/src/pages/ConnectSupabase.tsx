@@ -26,7 +26,7 @@ function freshChecks(): RoomCheck[] {
 
 export default function ConnectSupabase() {
   const camp: Camp = getActiveCamp();
-  const orderView = "dk_darksidemarketing_bb";
+  const orderView = "bb_orders";
   const orderTable = "bb_orders";
   const existing = getSupabaseConfig(camp);
   const [url, setUrl] = useState(existing?.url || "");
