@@ -2,9 +2,9 @@
 // 🎯 BB OrderControl : DATA ROUTE RULES
 // ⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘
 // Scope: BB only · อ่านและตรวจออเดอร์
-// โต๊ะหลัก: bb_stoer
-// สายแรก: dk_darksidemarketing_bb
-// สายสอง: dk_darksidemarketing_telagram_bb
+// โต๊ะหลัก: bb_orders
+// สินค้า/หัวบิล: vw_bb_product_extraction_lab88_order_center_v2
+// ห้องกลางเก่าไม่ใช่เส้นทางอ่านของเว็บแล้ว
 // คีย์หลัก: upsert_key · เวลาหลัก: order_time_display
 // ที่อยู่สำรอง: address_display_packer
 // ห้ามเปลี่ยน Telegram status · ห้ามลบหลักฐาน · ห้ามเอา ST logic มาปน
@@ -77,7 +77,7 @@ const FLOW_SIGNATURES = [
   "#BellaAgent",
   "#SINGTO_ORDER"
 ];
-const FLOW_SIGNALS = ["#ไนท์รา", "🔮#BB_ORDER_01", "#Venika", "🔮#BB_ORDER_02", "#Mali", "🔮#BB_ORDER_03", "🍉TANGMO", "🔮#BB_ORDER_04", "#👑เจ๊บี", "🔮#BB_ORDER_05", "🍀ใบบัว", "🔮#BB_ORDER_06", "🔮#BB_ORDER_07", "#วีนัท", "สรุปโดย:🤖"];
+const FLOW_SIGNALS = ["เบลล่า", "Bella", "#MilaAgent", "#BellaAgent", "Agent", "#Agent", "BellaAgent", "MilaAgent", "Mila", "#GinaAgent", "Gina", "#LemonAgent", "Lemon", "จีน่า", "เลม่อน", "มิล่า", "สรุปโดย:🤖"];
 const PRODUCT_LINE_SIGNAL = /(?:📦\s*)?รายการสินค้า|(?:🟢|🟡|🔴|🟠|🟣|🔵|🟩|🟨|🟥|🟧|🟪|🟦|🍉|🥭)\s*[A-Z_ก-๙]+.*?คอต\.?/i;
 function normalizeFlowText(value: string) { return String(value || "").toLowerCase().replace(/[\s:：|]/g, ""); }
 function scoreDailyOrderSignal(text: string, latestCod: number | null) {
@@ -93,9 +93,9 @@ function scoreDailyOrderSignal(text: string, latestCod: number | null) {
   return { score, qualified, qualifiedCod, reasons: Array.from(new Set(reasons)), coreCount: core.length, flowCount: flow.length };
 }export type CanonicalItem = Record<string, any>;
 export type CanonicalOrder = Record<string, any> & { items: CanonicalItem[]; items_text: string; display_for_packer: string | null; is_ready_to_pack: boolean; cod_check_status: string | null; audit_status: string | null; order_status: string | null; telegram_status: string | null };
-const ORDER_SOURCE_TABLE_BY_CAMP: Record<Camp, string> = { BB: "dk_darksidemarketing_telagram_bb" };
-// BB main room currently has 700+ orders; avoid truncating the operational queue.
-const ORDER_OPERATIONAL_LIMIT = 1000;
+const ORDER_SOURCE_TABLE_BY_CAMP: Record<Camp, string> = { BB: "bb_orders" };
+// Direct BB route stays intentionally small so Supabase does not timeout on large chat payloads.
+const ORDER_OPERATIONAL_LIMIT = 300;
 function defaultOrderView(camp: Camp) { return ORDER_SOURCE_TABLE_BY_CAMP[camp]; }
 function currentOrderWindowStart() { const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date()); const values = Object.fromEntries(parts.filter(part => part.type !== "literal").map(part => [part.type, Number(part.value)])); return new Date(Date.UTC(values.year, values.month - 1, values.day - 1, 7, 0, 0)).toISOString(); }
 function normalizeItem(item: CanonicalItem): CanonicalItem { const master = item.product_master && typeof item.product_master === "object" ? item.product_master : {}; const display = String(item.bb_pack_center ?? "").trim() || null; const mapping = item.mapping_status || (item.sku_match_status === "MATCHED_PRODUCT_MASTER" ? "MATCHED" : null); return { ...item, ...master, quantity: num(item.quantity ?? item.extracted_qty ?? item.qty ?? item.master_qty_display ?? item.master_quantity), unit_price: num(item.unit_price_order ?? item.unit_price ?? master.unit_price), expected_cod: num(item.expected_cod), stock_qty: num(item.stock_qty ?? item.inventory?.stock_qty), mapping_status: mapping, display_for_packer: display, label: display, label_display: display }; }
@@ -117,106 +117,95 @@ function effectiveOrderTime(row: any): string | null {
   // กฎ BB: เวลาของออเดอร์มาจาก order_time_display เท่านั้น ห้าม fallback ไปเวลาอื่น
   return row.order_time_display || null;
 }
+function displayOrderSortKey(value: unknown): number {
+  const match = String(value ?? "").trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s+(\d{1,2}):(\d{2})/);
+  if (!match) return 0;
+  let year = Number(match[3]);
+  if (year < 100) year = 1957 + year; // Thai short year: 69 = 2026
+  else if (year > 2400) year -= 543;
+  return Number(`${year}${match[2].padStart(2, "0")}${match[1].padStart(2, "0")}${match[4].padStart(2, "0")}${match[5]}`);
+}
+function displayDateKey(value: unknown): string {
+  const match = String(value ?? "").trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if (!match) return "";
+  let year = Number(match[3]);
+  if (year < 100) year = 1957 + year;
+  else if (year > 2400) year -= 543;
+  return `${year}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}`;
+}
+function isoDateKey(value: string | null): string {
+  if (!value) return "";
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date(value));
+  const values = Object.fromEntries(parts.filter(part => part.type !== "literal").map(part => [part.type, part.value]));
+  return values.year && values.month && values.day ? `${values.year}-${values.month}-${values.day}` : "";
+}
 function normalizeOrder(row: any, items: CanonicalItem[]): CanonicalOrder { const normalized = items.map(normalizeItem); const cod = num(row.cod_amount); const mapping = row.alien_mapping_status || row.web_mapping_status || row.mapping_status || (normalized.length > 0 && normalized.every(item => item.mapping_status === "MATCHED") ? "MATCHED" : "CHECK_DATA"); const address = row.master_delivery_address || row.address_complete_web || row.web_address_primary || row.address_display_primary || row.full_address || row.address_display_packer || row.addressclean || row.address_display_fallback || row.web_address_fallback || row.web_address_short || [row.address_line_1, row.address_line_2, row.district, row.amphoe, row.province, row.zipcode].filter(Boolean).join(" ") || ""; const productDisplay = String(row.bb_pack_center ?? "").trim() || null; return { ...row, full_address: address, customer_name: row.customer_name, phone: row.phone || row.extracted_phone, address_display_primary: row.web_address_primary || row.address_display_primary || address, address_display_fallback: row.web_address_fallback || row.address_display_fallback || address, items: normalized, mapping_status: mapping, order_number: row.order_number || row.order_number_display || `#${row.upsert_key || "UNKNOWN"}`, order_time: effectiveOrderTime(row), cod_amount: cod, is_ready_to_pack: row.is_ready_to_pack ?? (mapping === "MATCHED"), cod_check_status: row.cod_check_status || (cod == null ? "CHECK" : "PASS"), audit_status: row.alien_audit_status || row.audit_status || mapping, telegram_status: row.telegram_status ?? null, items_text: productDisplay || "", display_for_packer: productDisplay }; }
 export async function readCanonicalOrders(search = "", since: string | null = null, until: string | null = null) {
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
 
-  const sourceTables = ["dk_darksidemarketing_bb", "dk_darksidemarketing_telagram_bb"];
-  const readLimit = search.trim() || since || until ? 1000 : ORDER_OPERATIONAL_LIMIT;
-  const results = await Promise.all(sourceTables.map((table) => api.from(table).select("*").limit(readLimit)));
-  const successful = results.filter((result) => !result.error);
-  if (!successful.length) fail(results[0]?.error);
+  // BB direct route: bb_orders = spine, LAB view = product/bill fields.
+  // ไม่อ่านห้องกลางสอง View และไม่ขน chat timeline ก้อนใหญ่ในรอบรายการ.
+  const orderColumns = [
+    "id", "upsert_key", "order_number", "order_number_display", "order_date", "order_time", "order_time_display", "time_th",
+    "page_name", "facebook_name", "customer_name", "phone", "extracted_phone",
+    "address_display_packer", "final_address_for_bill", "short_address", "full_address", "addressclean",
+    "district", "amphoe", "province", "zipcode", "cod_amount", "expected_cod", "order_status",
+    "audit_flags", "is_ready_to_pack", "cod_check_status", "lock_status", "shipping_carrier",
+    "telegram_sent", "telegram_sent_at", "telegram_status", "page_id", "thread_id", "message_id"
+  ].join(",");
+  const orderLimit = search.trim() || since || until ? 500 : 300;
+  let orderQuery = api
+    .from("bb_orders")
+    .select(orderColumns)
+    .order("order_time_display", { ascending: false })
+    .limit(orderLimit);
+  const { data: rawOrders, error: orderError } = await orderQuery;
+  if (orderError) fail(orderError);
+  const baseRows = rawOrders ?? [];
+  const keys = baseRows.map((row: any) => String(row.upsert_key ?? "").trim()).filter(Boolean);
 
-  // อ่านได้ทั้งสองห้องกลาง แล้วรวมแถวซ้ำด้วย upsert_key
-  // เว็บกลางเก็บประวัติแชทมากกว่า ส่วน Telegram เติมข้อมูลห้องส่งให้ครบ
-  const rowsByKey = new Map<string, any>();
-  for (const result of successful) {
-    for (const row of result.data ?? []) {
-      const key = String(row.upsert_key ?? row.order_number ?? "");
-      const previous = rowsByKey.get(key);
-      if (!previous) {
-        rowsByKey.set(key, row);
-        continue;
-      }
-
-      // รวมสองห้องแบบบ้าน ๆ: ค่าที่มีจริงต้องชนะค่าว่าง
-      const merged = { ...previous, ...row };
-      for (const field of ["bb_pack_center", "stock_notice", "center_status", "total_cot_quantity"]) {
-        const current = row[field];
-        const old = previous[field];
-        if ((current == null || String(current).trim() === "") && old != null && String(old).trim() !== "") {
-          merged[field] = old;
-        }
-      }
-      rowsByKey.set(key, merged);
-    }
-  }
-  const orderRows = Array.from(rowsByKey.values());
-  const sourceTable = sourceTables.join(" + ");
-  const orderIds = orderRows.map((row: any) => Number(row.id)).filter((id: number) => Number.isFinite(id));
-  const itemsByOrder = new Map<number, CanonicalItem[]>();
-  let itemError: unknown = null;
-
-  // canonical_orders คือหัวบิล ส่วนสินค้าจริงอยู่ใน canonical_order_items
-  // รวมกลับมาเป็นแถวออเดอร์เดียวสำหรับหน้าเว็บ โดยไม่อ่านสินค้าเฉพาะจาก JSON ในหัวบิล
-  if (orderIds.length) {
-    const { data: itemRows, error: itemsError } = await api
-      .from("canonical_order_items")
-      .select("*")
-      .in("order_id", orderIds)
-      .order("line_no", { ascending: true });
-
-    itemError = itemsError;
-    if (!itemsError) {
-      for (const item of itemRows ?? []) {
-        const orderId = Number((item as any).order_id);
-        if (!Number.isFinite(orderId)) continue;
-        itemsByOrder.set(orderId, [...(itemsByOrder.get(orderId) ?? []), item as CanonicalItem]);
-      }
+  const labMap = new Map<string, any>();
+  if (keys.length) {
+    const { data: labRows, error: labError } = await api
+      .from("vw_bb_product_extraction_lab88_order_center_v2")
+      .select("upsert_key,bb_pack_center,stock_notice,center_status,total_cot_quantity,product_line_count,quantity_center,mapping_status_center")
+      .in("upsert_key", keys);
+    if (labError) fail(labError);
+    for (const lab of labRows ?? []) {
+      const key = String((lab as any).upsert_key ?? "").trim();
+      if (key && !labMap.has(key)) labMap.set(key, lab);
     }
   }
 
   const query = search.trim().toLowerCase();
-  const orders = orderRows
+  const orders = baseRows
     .map((row: any) => {
-      const linkedItems = itemsByOrder.get(Number(row.id));
-
-      // Fallback รองรับข้อมูลเก่าที่ยังไม่ได้แตกลง canonical_order_items
-      const fallbackItems = parseJsonArray(row.order_items).length
-        ? parseJsonArray(row.order_items)
-        : parseJsonArray(row.items_json).length
-          ? parseJsonArray(row.items_json)
-          : parseJsonArray(row.product_items).length
-            ? parseJsonArray(row.product_items)
-            : parseJsonArray(row.web_items_clean).length
-              ? parseJsonArray(row.web_items_clean)
-              : parseJsonArray(row.web_items_all_fields);
-
-      const normalized = normalizeOrder(row, linkedItems?.length ? linkedItems : fallbackItems);
+      const lab = labMap.get(String(row.upsert_key ?? "").trim()) ?? {};
+      const merged = { ...row, ...lab };
+      const normalized = normalizeOrder(merged, []);
       return {
         ...normalized,
-        source_table: sourceTable,
-        raw_text_with_phone_timed: row.raw_text_with_phone_timed ?? row.raw_text_with_phone ?? row.raw_text ?? null,
-        review_status: row.review_status ?? null,
+        source_table: "bb_orders + vw_bb_product_extraction_lab88_order_center_v2",
+        raw_text_with_phone_timed: null,
+        review_status: merged.review_status ?? null,
       } as CanonicalOrder;
     })
-    .filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query));
+    .filter((row: any) => {
+      if (query && !JSON.stringify(row).toLowerCase().includes(query)) return false;
+      const dateKey = displayDateKey(row.order_time_display);
+      const fromKey = isoDateKey(since);
+      const untilKey = isoDateKey(until);
+      return (!fromKey || (dateKey && dateKey >= fromKey)) && (!untilKey || (dateKey && dateKey <= untilKey));
+    });
 
-  orders.sort((a, b) => new Date(b.order_time || 0).getTime() - new Date(a.order_time || 0).getTime());
-  return { orders, itemError, sourceTable, fetchedAt: new Date().toISOString(), since };
+  orders.sort((a, b) => displayOrderSortKey(b.order_time_display) - displayOrderSortKey(a.order_time_display));
+  return { orders, itemError: null, sourceTable: "bb_orders + vw_bb_product_extraction_lab88_order_center_v2", fetchedAt: new Date().toISOString(), since };
 }
 export async function readTelegramDeliveryOrders(search = "", room: "queue" | "today" | "yesterday_after_14" | "sent" = "queue") {
-  const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  // Manual room: read every BB bill. The UI separates waiting/sent locally
-  // from the explicit sent fields; no time cutoff or mapping gate applies.
-  const sourceTable = "dk_darksidemarketing_telagram_bb";
-  const { data, error } = await api.from(sourceTable).select("*").limit(1000);
-  if (error) fail(error);
-  const query = search.trim().toLowerCase();
-  const orders = (data ?? []).filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query)).sort((a: any, b: any) => String(b.order_time_display ?? "").localeCompare(String(a.order_time_display ?? "")));
-  return { orders, itemError: null, sourceTable, fetchedAt: new Date().toISOString(), room };
+  // ห้องส่งอ่านแกนเดียวกันโดยตรง: ไม่พึ่ง View ที่อาจถูกถอดออก
+  const result = await readCanonicalOrders(search);
+  return { ...result, room, sourceTable: "bb_orders + vw_bb_product_extraction_lab88_order_center_v2" };
 }
 
 export async function readBbAlertRoom(search = "") {
