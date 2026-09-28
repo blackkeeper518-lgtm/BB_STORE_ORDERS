@@ -61,36 +61,18 @@ function num(v: any) { const n = Number(v); return v == null || v === "" || !Num
 function asText(v: any) { return typeof v === "string" ? v : v == null ? "" : JSON.stringify(v); }
 function parseCod(text: string) { const matches = text.match(/(?:ยอดรวม\s*)?cod\s*[:=]?\s*\[?\s*([\d,]+(?:\.\d+)?)\s*\]?|เก็บปลายทาง[^\d]{0,20}([\d,]+(?:\.\d+)?)/gi) || []; const last = matches[matches.length - 1] || ""; const numberMatch = last.match(/[\d,]+(?:\.\d+)?/); return numberMatch ? Number(numberMatch[0].replace(/,/g, "")) : null; }
 const CORE_SIGNATURE = ["🚨 [สถานะ: ปิดยอดสำเร็จ!]", "[สรุปรายการสั่งซื้อ]", "⚡FLASH EXPRESS", "COD", "📍ที่อยู่จัดส่ง:", "✅:", "🟡MOND GOLD:", "🆔เลขที่ออเดอร์: ORD-2606:", "📱 เบอร์:", "📮 รหัสไปรษณีย์:", "👤 ชื่อ:", "💰 COD:", "เขียว:", "สรุปรายการสั่งซื้อ", "เลขที่ออเดอร์", "ที่อยู่จัดส่ง", "ORD-", "📦 รายการสินค้า:", "คอต.", "ยอดรวม"];
-const FLOW_SIGNATURES = [
-  "🚨[สถานะ:ปิดยอดสำเร็จ]",
-  "🦁[สรุปรายการสั่งซื้อ]สิงโตสโตร์ ↠",
-  "🆔 เลขที่ออเดอร์: ORD-2606",
-  "⏰ เวลาสั่งซื้อ:",
-  "💰 ยอดรวมCOD:",
-  "━━━━━━━━━━━━━━━━",
-  "👤ชื่อ:",
-  "📱เบอร์โทรศัพท์:",
-  "📍ที่อยู่จัดส่ง:",
-  "📮รหัสไปรษณีย์:",
-  "📦 รายการสินค้า:",
-  "🚚 ขนส่ง: ⚡FLASH EXPRESS💨",
-  "#BellaAgent",
-  "#SINGTO_ORDER"
-];
-const FLOW_SIGNALS = ["เบลล่า", "Bella", "#MilaAgent", "#BellaAgent", "Agent", "#Agent", "BellaAgent", "MilaAgent", "Mila", "#GinaAgent", "Gina", "#LemonAgent", "Lemon", "จีน่า", "เลม่อน", "มิล่า", "สรุปโดย:🤖"];
 const PRODUCT_LINE_SIGNAL = /(?:📦\s*)?รายการสินค้า|(?:🟢|🟡|🔴|🟠|🟣|🔵|🟩|🟨|🟥|🟧|🟪|🟦|🍉|🥭)\s*[A-Z_ก-๙]+.*?คอต\.?/i;
-function normalizeFlowText(value: string) { return String(value || "").toLowerCase().replace(/[\s:：|]/g, ""); }
 function scoreDailyOrderSignal(text: string, latestCod: number | null) {
   const value = String(text || ""); const reasons: string[] = [];
-  const lower = value.toLowerCase(); const flowText = normalizeFlowText(value); const core = CORE_SIGNATURE.filter(k => lower.includes(k.toLowerCase())); const flow = FLOW_SIGNALS.filter(k => lower.includes(k.toLowerCase())); const flowSignature = FLOW_SIGNATURES.filter(k => flowText.includes(normalizeFlowText(k))); const productLine = PRODUCT_LINE_SIGNAL.test(value);
+  const lower = value.toLowerCase(); const core = CORE_SIGNATURE.filter(k => lower.includes(k.toLowerCase())); const productLine = PRODUCT_LINE_SIGNAL.test(value);
   const phone = /(?:เบอร์โทรศัพท์|เบอร์|โทร|tel)\s*[:：.]?\s*\d{9,10}|\b0\d{9}\b/i.test(value); const postal = /\b\d{5}\b/.test(value);
   const address = /(?:ที่อยู่|จัดส่ง|ตำบล|ต\.|อำเภอ|อ\.|จังหวัด|จ\.)/i.test(value); const orderDate = /\b\d{1,2}[\/.-]\d{1,2}[\/.-]\d{2,4}\b/.test(value) || /order_date|เวลาสั่งซื้อ|วันที่สั่งซื้อ/i.test(value);
   const cod = latestCod ?? parseCod(value); let score = 0;
   if (cod != null) { score += 10; reasons.push("COD " + cod); } if (phone) { score += 3; reasons.push("เบอร์โทร"); } if (postal) { score += 4; reasons.push("รหัสไปรษณีย์"); }
   if (address) { score += 4; reasons.push("ที่อยู่"); } if (orderDate) { score += 5; reasons.push("วันที่/เวลาสั่งซื้อ"); }
-  if (core.length) { score += Math.min(core.length * 3, 12); reasons.push("Core " + core.slice(0, 3).join(" | ")); } if (flow.length) { score += Math.min(flow.length * 3, 9); reasons.push("Flow " + flow.slice(0, 3).join(" | ")); } if (flowSignature.length) { score += Math.min(flowSignature.length * 4, 20); reasons.push("Singto " + flowSignature.slice(0, 3).join(" | ")); } if (productLine) { score += 3; reasons.push("บรรทัดสินค้า"); }
-  const qualifiedCod = cod != null && cod >= 200; const qualified = score >= 30 || qualifiedCod || core.length > 0 || flow.length > 0 || flowSignature.length > 0;
-  return { score, qualified, qualifiedCod, reasons: Array.from(new Set(reasons)), coreCount: core.length, flowCount: flow.length };
+  if (core.length) { score += Math.min(core.length * 3, 12); reasons.push("Core " + core.slice(0, 3).join(" | ")); } if (productLine) { score += 3; reasons.push("บรรทัดสินค้า"); }
+  const qualifiedCod = cod != null && cod >= 200; const qualified = score >= 30 || qualifiedCod || core.length > 0;
+  return { score, qualified, qualifiedCod, reasons: Array.from(new Set(reasons)), coreCount: core.length, flowCount: 0 };
 }export type CanonicalItem = Record<string, any>;
 export type CanonicalOrder = Record<string, any> & { items: CanonicalItem[]; items_text: string; display_for_packer: string | null; is_ready_to_pack: boolean; cod_check_status: string | null; audit_status: string | null; order_status: string | null; telegram_status: string | null };
 const ORDER_SOURCE_TABLE_BY_CAMP: Record<Camp, string> = { BB: "bb_orders" };
@@ -144,68 +126,69 @@ export async function readCanonicalOrders(search = "", since: string | null = nu
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
 
-  // BB direct route: bb_orders = spine, LAB view = product/bill fields.
-  // ไม่อ่านห้องกลางสอง View และไม่ขน chat timeline ก้อนใหญ่ในรอบรายการ.
-  const orderColumns = [
-    "id", "upsert_key", "order_number", "order_number_display", "order_date", "order_time", "order_time_display", "time_th",
+  // เว็บกลางอ่าน View เว็บเท่านั้น: View นี้ join bb_orders + LAB ไว้แล้ว
+  // เลือกเฉพาะคอลัมน์ที่หน้าเว็บใช้ เพื่อไม่ลาก chat timeline ก้อนใหญ่
+  const webColumns = [
+    "upsert_key", "order_number", "order_number_display", "order_time_display",
     "page_name", "facebook_name", "customer_name", "phone", "extracted_phone",
-    "address_display_packer", "final_address_for_bill", "short_address", "full_address", "addressclean",
-    "district", "amphoe", "province", "zipcode", "cod_amount", "expected_cod", "order_status",
-    "audit_flags", "is_ready_to_pack", "cod_check_status", "lock_status", "shipping_carrier",
-    "telegram_sent", "telegram_sent_at", "telegram_status", "page_id", "thread_id", "message_id"
+    "address_display_packer", "final_address_for_bill", "short_address", "full_address",
+    "address_line_1", "address_line_2", "addressclean", "district", "amphoe", "province", "zipcode",
+    "cod_amount", "expected_cod", "order_status", "audit_flags", "is_ready_to_pack",
+    "cod_check_status", "lock_status", "shipping_carrier", "telegram_sent", "telegram_sent_at", "telegram_status",
+    "sniper_x_text_clean", "bb_pack_center", "stock_notice", "telegram_pretty", "center_status",
+    "total_cot_quantity", "product_line_count", "quantity_center", "mapping_status_center"
   ].join(",");
-  const orderLimit = search.trim() || since || until ? 500 : 300;
-  let orderQuery = api
-    .from("bb_orders")
-    .select(orderColumns)
+  const limit = search.trim() || since || until ? 500 : 300;
+  const { data, error } = await api
+    .from("dk_darksidemarketing_bb")
+    .select(webColumns)
     .order("order_time_display", { ascending: false })
-    .limit(orderLimit);
-  const { data: rawOrders, error: orderError } = await orderQuery;
-  if (orderError) fail(orderError);
-  const baseRows = rawOrders ?? [];
-  const keys = baseRows.map((row: any) => String(row.upsert_key ?? "").trim()).filter(Boolean);
-
-  const labMap = new Map<string, any>();
-  if (keys.length) {
-    const { data: labRows, error: labError } = await api
-      .from("vw_bb_product_extraction_lab88_order_center_v2")
-      .select("upsert_key,bb_pack_center,stock_notice,center_status,total_cot_quantity,product_line_count,quantity_center,mapping_status_center")
-      .in("upsert_key", keys);
-    if (labError) fail(labError);
-    for (const lab of labRows ?? []) {
-      const key = String((lab as any).upsert_key ?? "").trim();
-      if (key && !labMap.has(key)) labMap.set(key, lab);
-    }
-  }
+    .limit(limit);
+  if (error) fail(error);
 
   const query = search.trim().toLowerCase();
-  const orders = baseRows
-    .map((row: any) => {
-      const lab = labMap.get(String(row.upsert_key ?? "").trim()) ?? {};
-      const merged = { ...row, ...lab };
-      const normalized = normalizeOrder(merged, []);
-      return {
-        ...normalized,
-        source_table: "bb_orders + vw_bb_product_extraction_lab88_order_center_v2",
-        raw_text_with_phone_timed: null,
-        review_status: merged.review_status ?? null,
-      } as CanonicalOrder;
-    })
+  const fromKey = isoDateKey(since);
+  const untilKey = isoDateKey(until);
+  const orders = (data ?? [])
+    .map((row: any) => ({
+      ...normalizeOrder(row, []),
+      source_table: "dk_darksidemarketing_bb",
+      raw_text_with_phone_timed: null,
+      review_status: row.review_status ?? null,
+    }) as CanonicalOrder)
     .filter((row: any) => {
       if (query && !JSON.stringify(row).toLowerCase().includes(query)) return false;
       const dateKey = displayDateKey(row.order_time_display);
-      const fromKey = isoDateKey(since);
-      const untilKey = isoDateKey(until);
       return (!fromKey || (dateKey && dateKey >= fromKey)) && (!untilKey || (dateKey && dateKey <= untilKey));
     });
-
   orders.sort((a, b) => displayOrderSortKey(b.order_time_display) - displayOrderSortKey(a.order_time_display));
-  return { orders, itemError: null, sourceTable: "bb_orders + vw_bb_product_extraction_lab88_order_center_v2", fetchedAt: new Date().toISOString(), since };
+  return { orders, itemError: null, sourceTable: "dk_darksidemarketing_bb", fetchedAt: new Date().toISOString(), since };
 }
 export async function readTelegramDeliveryOrders(search = "", room: "queue" | "today" | "yesterday_after_14" | "sent" = "queue") {
-  // ห้องส่งอ่านแกนเดียวกันโดยตรง: ไม่พึ่ง View ที่อาจถูกถอดออก
-  const result = await readCanonicalOrders(search);
-  return { ...result, room, sourceTable: "bb_orders + vw_bb_product_extraction_lab88_order_center_v2" };
+  const api = getSupabase();
+  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
+
+  // Telegram อ่านห้องกลาง Telegram แยกจากเว็บ ตามโครงสร้างเดิมของพี่
+  const telegramColumns = [
+    "upsert_key", "order_number", "order_number_display", "order_time_display",
+    "page_name", "facebook_name", "customer_name", "phone", "extracted_phone",
+    "address_display_packer", "final_address_for_bill", "short_address", "full_address",
+    "district", "amphoe", "province", "zipcode", "cod_amount", "order_status", "lock_status",
+    "shipping_carrier", "telegram_sent", "telegram_sent_at", "bb_pack_center", "stock_notice",
+    "telegram_pretty", "center_status", "total_cot_quantity"
+  ].join(",");
+  const { data, error } = await api
+    .from("dk_darksidemarketing_telagram_bb")
+    .select(telegramColumns)
+    .order("order_time_display", { ascending: false })
+    .limit(1000);
+  if (error) fail(error);
+  const query = search.trim().toLowerCase();
+  const allOrders = (data ?? [])
+    .map((row: any) => ({ ...normalizeOrder(row, []), source_table: "dk_darksidemarketing_telagram_bb", raw_text_with_phone_timed: null }) as CanonicalOrder)
+    .filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query));
+  const orders = allOrders.sort((a, b) => displayOrderSortKey(b.order_time_display) - displayOrderSortKey(a.order_time_display));
+  return { orders, itemError: null, sourceTable: "dk_darksidemarketing_telagram_bb", fetchedAt: new Date().toISOString(), room };
 }
 
 export async function readBbAlertRoom(search = "") {
