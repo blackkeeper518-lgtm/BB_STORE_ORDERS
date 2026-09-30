@@ -1,132 +1,77 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { getActiveCamp, readCanonicalOrders } from "@/lib/canonical";
+import { getActiveCamp, readCanonicalOrders, updateBbOrderByKey } from "@/lib/canonical";
+import { getTelegramBody, sendTelegramFromN8n } from "@/lib/telegramDelivery";
 import { useQuery } from "@tanstack/react-query";
-import { Check, Clipboard, ExternalLink, PackageSearch, RefreshCw, Search, Send, Truck } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { AlertTriangle, Check, CheckCircle2, Clipboard, PackageSearch, RefreshCw, Radar, Search, Send, ShieldAlert, Truck, XCircle, Zap } from "lucide-react";
+import { useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 
-const MAP_KEY = "parcel-mapping-drafts";
 const IMPORT_KEY = "parcel-import-rows";
+const SENT_KEY = "parcel-sent-tracking";
 const money = new Intl.NumberFormat("th-TH");
-const TRACKING_LINKS: Record<ReturnType<typeof getActiveCamp>, string> = { BB: "https://bbstorefullv-1.vercel.app/", ST: "https://singto-one.vercel.app/", SB: "https://suphabass.vercel.app/" };
+type Row = Record<string, any>;
+type ImportRow = { id: string; name: string; phone: string; address: string; cod: string; tracking: string; carrier: string; status: string };
+type Match = { id: string; imported: ImportRow; order: Row | null; score: number; reasons: string[]; status: "MATCHED" | "REVIEW" | "UNMATCHED"; sent: boolean };
 
-function normalizePhone(value: string) {
-  return value.replace(/\D/g, "").replace(/^66/, "0");
+function normalizePhone(value: string) { return value.replace(/\D/g, "").replace(/^66/, "0"); }
+function normalizeText(value: unknown) { return String(value ?? "").toLowerCase().replace(/[\s_\-.,/()]+/g, ""); }
+function textCell(row: Row, names: string[]) { const clean = (value: string) => value.toLowerCase().replace(/[\s_\-]+/g, ""); const entry = Object.entries(row).find(([key, value]) => names.some(name => clean(key) === clean(name)) && value != null && String(value).trim()); return entry ? String(entry[1]).trim() : ""; }
+function loadJson<T>(key: string, fallback: T): T { try { return JSON.parse(localStorage.getItem(key) || "") as T; } catch { return fallback; } }
+function normalizeImportRow(row: Row, index: number): ImportRow { return { id: `${index}-${textCell(row, ["เลขพัสดุ", "tracking", "tracking_number", "waybill"]) || "row"}`, name: textCell(row, ["ชื่อ", "ชื่อลูกค้า", "ชื่อผู้รับ", "customer_name", "name"]), phone: normalizePhone(textCell(row, ["เบอร์", "เบอร์โทร", "โทร", "phone", "phone_norm"])), address: textCell(row, ["ที่อยู่", "ที่อยู่จัดส่ง", "address", "full_address", "address_display_packer"]), cod: textCell(row, ["ยอด COD", "COD", "ยอดเก็บปลายทาง", "cod_amount", "amount"]), tracking: textCell(row, ["เลขพัสดุ", "เลขที่พัสดุ", "เลขแทรค", "tracking", "tracking_number", "waybill"]), carrier: textCell(row, ["ขนส่ง", "carrier", "shipping_company"]) || "FLASH EXPRESS", status: textCell(row, ["สถานะ", "status"]) }; }
+function orderPhone(order: Row) { return normalizePhone(String(order.phone || order.extracted_phone || "")); }
+function orderName(order: Row) { return String(order.customer_name || order.facebook_name || ""); }
+function orderProducts(order: Row) { return String(order.lab_product_display_text || order.display_for_packer || order.final_display_for_packer || order.for_packer_bb_display || "ยังไม่มีข้อมูลสินค้า"); }
+function orderAddress(order: Row) { return String(order.full_address || order.address_display_packer || order.addressclean || order.address_display_primary || "ยังไม่มีที่อยู่"); }
+function orderTime(order: Row) { return String(order.order_time_display || order.order_time || "ไม่พบเวลาออเดอร์"); }
+function normalizedAddress(value: unknown) { return normalizeText(value).replace(/ประเทศไทย/g, ""); }
+function numericValue(value: unknown) { const parsed = Number(String(value ?? "").replace(/[^\d.-]/g, "")); return Number.isFinite(parsed) && String(value ?? "").trim() ? parsed : null; }
+function matchOne(imported: ImportRow, orders: Row[]): { order: Row | null; score: number; reasons: string[]; ambiguous: boolean } {
+  const candidates = orders.map(order => {
+    let score = 0; const reasons: string[] = [];
+    if (imported.phone && orderPhone(order) && imported.phone === orderPhone(order)) { score += 40; reasons.push("เบอร์โทรตรง"); }
+    if (imported.name && normalizeText(imported.name) && normalizeText(imported.name) === normalizeText(orderName(order))) { score += 25; reasons.push("ชื่อผู้รับตรง"); }
+    else if (imported.name && normalizeText(imported.name) && (normalizeText(orderName(order)).includes(normalizeText(imported.name)) || normalizeText(imported.name).includes(normalizeText(orderName(order))))) { score += 12; reasons.push("ชื่อผู้รับใกล้เคียง"); }
+    const importedAddress = normalizedAddress(imported.address); const orderAddr = normalizedAddress(orderAddress(order));
+    if (importedAddress && orderAddr && importedAddress === orderAddr) { score += 25; reasons.push("ที่อยู่ตรง"); }
+    else if (importedAddress && orderAddr && (importedAddress.includes(orderAddr) || orderAddr.includes(importedAddress))) { score += 12; reasons.push("ที่อยู่ใกล้เคียง"); }
+    const importedCod = numericValue(imported.cod); const orderCod = numericValue(order.cod_amount ?? order.expected_cod);
+    if (importedCod != null && orderCod != null && importedCod === orderCod) { score += 20; reasons.push("ยอด COD ตรง"); }
+    return { order, score, reasons };
+  }).filter(item => item.score > 0).sort((a, b) => b.score - a.score);
+  const best = candidates[0]; const second = candidates[1];
+  if (!best) return { order: null, score: 0, reasons: ["ไม่พบเบอร์โทร/ชื่อ/เลขออเดอร์ที่ตรง"], ambiguous: false };
+  return { order: best.order, score: Math.min(best.score, 100), reasons: best.reasons, ambiguous: Boolean(second && second.score >= best.score - 5) };
 }
-
-function itemText(item: any) {
-  return item.master_display_for_packer || "ยังไม่มี master_display_for_packer ใน Lab 88";
-}
-
-function orderProducts(order: any) {
-  if (Array.isArray(order.items) && order.items.length) return order.items.map((item: any) => itemText(item)).join("\n");
-  return order.lab_product_display_text || "ยังไม่มี master_display_for_packer ใน Lab 88";
-}
-
-function loadDrafts(): Record<string, { tracking: string; carrier: string }> {
-  try { return JSON.parse(localStorage.getItem(MAP_KEY) || "{}"); } catch { return {}; }
-}
-
-function textCell(row: Record<string, unknown>, names: string[]) {
-  const clean = (value: string) => value.toLowerCase().replace(/[\s_\-]/g, "");
-  const entry = Object.entries(row).find(([key, value]) => names.some(name => clean(key) == clean(name)) && value != null && String(value).trim());
-  return entry ? String(entry[1]).trim() : "";
-}
-
-function normalizeImportRow(row: Record<string, unknown>) {
-  return {
-    name: textCell(row, ["ชื่อ", "ชื่อลูกค้า", "ชื่อผู้รับ", "customer_name", "name"]),
-    phone: normalizePhone(textCell(row, ["เบอร์", "เบอร์โทร", "โทร", "โทรศัพท์", "phone", "phone_norm"])),
-    tracking: textCell(row, ["เลขพัสดุ", "เลขที่พัสดุ", "เลขแทรค", "tracking", "tracking_number", "waybill"]),
-    carrier: textCell(row, ["ขนส่ง", "carrier", "shipping_company"]) || "FLASH EXPRESS",
-    status: textCell(row, ["สถานะ", "status"]),
-  };
-}
-
-function loadImportedRows() {
-  try { return JSON.parse(localStorage.getItem(IMPORT_KEY) || "[]") as ReturnType<typeof normalizeImportRow>[]; } catch { return []; }
-}
+function statusStyle(status: Match["status"]) { return status === "MATCHED" ? "border-emerald-300/50 bg-emerald-500/10 text-emerald-200" : status === "REVIEW" ? "border-amber-300/50 bg-amber-500/10 text-amber-200" : "border-red-300/50 bg-red-500/10 text-red-200"; }
+function buildMessage(match: Match) { const order = match.order!; const tracking = match.imported.tracking; return [`🚚 แจ้งเลขพัสดุ`, `━━━━━━━━━━━━━━━━━━━━`, `📅 วันที่สั่งซื้อ: ${orderTime(order)}`, `🆔 เลขออเดอร์: ${order.order_number_display || order.order_number || "ไม่ระบุ"}`, `📢 ชื่อเพจ: ${order.page_name || "ไม่ระบุ"}`, `👤 ผู้รับ: ${orderName(order)}`, `💰 ยอด COD: ${order.cod_amount ?? order.expected_cod ?? "ไม่ระบุ"} บาท`, `━━━━━━━━━━━━━━━━━━━━`, `📦 สินค้า: ${orderProducts(order)}`, `🚚 ขนส่ง: ${match.imported.carrier}`, `📮 เลขพัสดุ: ${tracking}`, `━━━━━━━━━━━━━━━━━━━━`, `📍 ที่อยู่: ${orderAddress(order)}`].join("\n"); }
 
 export default function ParcelMapping() {
-  const [phone, setPhone] = useState("");
-  const [selectedNumber, setSelectedNumber] = useState<string | null>(null);
-  const [tracking, setTracking] = useState("");
-  const [carrier, setCarrier] = useState("FLASH EXPRESS");
+  const query = useQuery({ queryKey: ["parcel-radar-orders"], queryFn: () => readCanonicalOrders(), refetchInterval: 30_000 });
+  const orders = useMemo(() => (query.data?.orders ?? []) as Row[], [query.data?.orders]);
+  const [importedRows, setImportedRows] = useState<ImportRow[]>(() => loadJson<ImportRow[]>(IMPORT_KEY, []));
+  const [sentTracking, setSentTracking] = useState<Record<string, boolean>>(() => loadJson<Record<string, boolean>>(SENT_KEY, {}));
+  const [search, setSearch] = useState("");
   const [copied, setCopied] = useState(false);
-  const [drafts, setDrafts] = useState(loadDrafts);
-  const [importedRows, setImportedRows] = useState(loadImportedRows);
-  const [importMessage, setImportMessage] = useState("");
-  const query = useQuery({ queryKey: ["parcel-mapping-orders"], queryFn: () => readCanonicalOrders(), refetchInterval: 30_000 });
-  const importByPhone = useMemo(() => new Map(importedRows.filter(row => row.phone).map(row => [row.phone, row])), [importedRows]);
-  const orders = useMemo(() => (query.data?.orders ?? []).map((order: any) => {
-    const imported = importByPhone.get(normalizePhone(String(order.phone || "")));
-    return imported ? { ...order, customer_name: imported.name || order.customer_name, imported_tracking: imported.tracking, imported_carrier: imported.carrier, imported_status: imported.status } : order;
-  }), [query.data?.orders, importByPhone]);
-  const matchedOrders = useMemo(() => {
-    const q = normalizePhone(phone);
-    if (!q) return [];
-    return orders.filter((order: any) => normalizePhone(String(order.phone || "")).includes(q));
-  }, [orders, phone]);
-  const selectedOrder = orders.find((order: any) => order.order_number === selectedNumber) ?? null;
-  const activeCamp = getActiveCamp();
-  const trackingLink = TRACKING_LINKS[activeCamp];
-  const selectedDraft = selectedOrder ? drafts[selectedOrder.order_number] : undefined;
-  const effectiveTracking = selectedOrder ? (tracking || selectedDraft?.tracking || selectedOrder.imported_tracking || "") : "";
-  const message = selectedOrder ? [
-    `แจ้งเลขพัสดุ ${selectedOrder.customer_name || "คุณลูกค้า"}`,
-    `เลขออเดอร์: ${selectedOrder.order_number}`,
-    `เลขพัสดุ: ${effectiveTracking || "รอเลขพัสดุ"}`,
-    `ขนส่ง: ${carrier || selectedDraft?.carrier || selectedOrder.imported_carrier || "ไม่ระบุ"}`,
-    `ยอดเก็บปลายทาง: ${selectedOrder.cod_amount != null ? `${money.format(Number(selectedOrder.cod_amount))} บาท` : "ไม่ระบุ"}`,
-    "",
-    `ลิ้งเช็คเลขพัสดุ : 🤩 ${trackingLink}`,
-    "ขอบคุณครับ สามารถตรวจสอบสถานะได้จากหน้าเช็คเลขพัสดุของร้านได้เลยครับ",
-  ].join("\n") : "";
+  const [message, setMessage] = useState("");
+  const [sending, setSending] = useState(false);
 
-  useEffect(() => {
-    if (!selectedOrder) return;
-    setTracking(drafts[selectedOrder.order_number]?.tracking || selectedOrder.imported_tracking || "");
-    setCarrier(drafts[selectedOrder.order_number]?.carrier || selectedOrder.imported_carrier || "FLASH EXPRESS");
-  }, [selectedNumber]);
+  const matches = useMemo<Match[]>(() => importedRows.map(imported => { const found = matchOne(imported, orders); return { id: imported.id, imported, order: found.order, score: found.score, reasons: found.ambiguous ? [...found.reasons, "พบผู้สมัครใกล้เคียงหลายราย"] : found.reasons, status: found.order && !found.ambiguous && found.score >= 75 ? "MATCHED" : found.order ? "REVIEW" : "UNMATCHED", sent: Boolean(sentTracking[imported.id]), }; }), [importedRows, orders, sentTracking]);
+  const visible = useMemo(() => matches.filter(item => { const q = normalizeText(search); return !q || normalizeText(`${item.imported.tracking} ${item.imported.name} ${item.order?.order_number || ""} ${orderName(item.order || {})}`).includes(q); }), [matches, search]);
+  const green = matches.filter(item => item.status === "MATCHED" && !item.sent && item.order && item.imported.tracking);
+  const selected = visible[0];
 
+  async function importExcel(file: File) { try { const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" }); const sheet = workbook.Sheets[workbook.SheetNames[0]]; const rows = (XLSX.utils.sheet_to_json<Row>(sheet, { defval: "" }) || []).map(normalizeImportRow).filter(row => row.phone || row.tracking || row.name || row.address || row.cod); setImportedRows(rows); localStorage.setItem(IMPORT_KEY, JSON.stringify(rows)); setMessage(`เรดาห์รับข้อมูล ${rows.length.toLocaleString("th-TH")} แถวแล้ว · ใช้ชื่อ เบอร์ ที่อยู่ COD เป็นสัญญาณ`); } catch (error) { setMessage(`อ่านไฟล์ไม่สำเร็จ: ${error instanceof Error ? error.message : String(error)}`); } }
+  async function sendMatches(rows: Match[]) { if (!rows.length) { setMessage("ยังไม่มีรายการเขียวที่พร้อมส่ง"); return; } setSending(true); setMessage(`เรดาห์กำลังส่ง ${rows.length} รายการ...`); const next = { ...sentTracking }; let ok = 0; try { for (const item of rows) { if (!item.order || !item.imported.tracking) continue; const text = buildMessage(item); await sendTelegramFromN8n(item.order, { text, source: "WEB_OVERRIDE", dirty: true, body: getTelegramBody(item.order) }); await updateBbOrderByKey(String(item.order.upsert_key || item.order.order_number), { telegram_sent: "true", telegram_status: "SENT", delivery_state: "SENT", sent_at: new Date().toISOString() }); next[item.id] = true; ok += 1; } setSentTracking(next); localStorage.setItem(SENT_KEY, JSON.stringify(next)); setMessage(`ส่งสำเร็จ ${ok}/${rows.length} รายการ · เปลี่ยนเป็น SENT แล้ว`); } catch (error) { setSentTracking(next); localStorage.setItem(SENT_KEY, JSON.stringify(next)); setMessage(`หยุดที่รายการหนึ่ง: ${error instanceof Error ? error.message : String(error)} · สำเร็จแล้ว ${ok} รายการ`); } finally { setSending(false); } }
+  async function copySelected() { if (!selected?.order) return; await navigator.clipboard?.writeText(buildMessage(selected)); setCopied(true); window.setTimeout(() => setCopied(false), 1500); }
 
-  const importExcel = async (file: File) => {
-    try {
-      const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rows = (XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" }) || []).map(normalizeImportRow).filter(row => row.phone || row.tracking || row.name);
-      setImportedRows(rows);
-      localStorage.setItem(IMPORT_KEY, JSON.stringify(rows));
-      setImportMessage(`นำเข้า ${rows.length.toLocaleString("th-TH")} แถวแล้ว · จับคู่ด้วยเบอร์โทรเรียบร้อย`);
-    } catch (error) { setImportMessage(`อ่าน Excel ไม่สำเร็จ: ${error instanceof Error ? error.message : String(error)}`); }
-  };
-
-  const saveMapping = () => { // เก็บ draft เท่านั้นจนกว่าจะยืนยัน schema สำหรับเขียนกลับตารางต้นทาง
-    if (!selectedOrder || !tracking.trim()) return;
-    const next = { ...drafts, [selectedOrder.order_number]: { tracking: tracking.trim(), carrier: carrier.trim() || "ไม่ระบุ" } };
-    setDrafts(next);
-    localStorage.setItem(MAP_KEY, JSON.stringify(next));
-  };
-
-  const copyMessage = async () => {
-    if (!message) return;
-    await navigator.clipboard?.writeText(message);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1800);
-  };
-
-  return <div className="min-h-[calc(100vh-2rem)] bg-[#09090b] text-white"><div className="mx-auto max-w-[1500px] space-y-5 p-3 sm:p-5 lg:p-7">
-    <header className="relative overflow-hidden rounded-3xl border border-orange-400/20 bg-[#111116] px-6 py-6 shadow-2xl shadow-cyan-950/10 sm:px-8"><div className="pointer-events-none absolute -right-20 -top-32 h-72 w-72 rounded-full bg-orange-500/10 blur-3xl" /><div className="relative flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"><div><div className="mb-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.3em] text-amber-300"><Truck className="h-3.5 w-3.5" /> PARCEL LINK · ORDER MAPPING</div><h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">ห้องแมปเลขพัสดุ</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">ค้นออเดอร์จากเบอร์ลูกค้า ใส่เลขพัสดุ แล้วสร้างข้อความส่งลูกค้าในคลิกเดียว</p></div><Badge className="w-fit border border-orange-400/30 bg-orange-400/10 text-amber-200">ใช้ค่ายที่เลือกอยู่ · Live 30s</Badge></div></header>
-    <div className="grid gap-5 xl:grid-cols-[0.8fr_1.2fr]"><Card className="rounded-3xl border-white/10 bg-[#111116]"><CardContent className="space-y-5 p-5"><div><p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-amber-300">FIND ORDER</p><h2 className="mt-1 text-xl font-semibold">ค้นจากเบอร์โทรศัพท์</h2><p className="mt-1 text-xs text-slate-400">กรอกเบอร์บางส่วนได้ ระบบจะค้นจากออเดอร์และไฟล์ Excel พัสดุที่นำเข้าแล้ว</p></div><label className="flex cursor-pointer items-center justify-center rounded-2xl border border-dashed border-orange-300/30 bg-orange-300/[0.04] px-4 py-3 text-xs text-orange-100 hover:bg-orange-300/10"><input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={event => { const file = event.target.files?.[0]; if (file) void importExcel(file); }} /><span>📥 โยนไฟล์ Excel พัสดุเข้าระบบ</span></label>{importMessage ? <p className="rounded-xl border border-orange-300/20 bg-orange-300/5 p-3 text-xs text-orange-100">{importMessage}</p> : null}<div className="relative"><Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" /><Input value={phone} onChange={event => { setPhone(event.target.value); setSelectedNumber(null); }} placeholder="เช่น 0812345678" className="h-10 border-white/10 bg-black/30 pl-9 text-white placeholder:text-slate-600" /></div>{query.isError ? <p className="rounded-xl border border-red-400/20 bg-red-400/5 p-3 text-xs text-red-200">อ่านออเดอร์ไม่สำเร็จ: {(query.error as Error).message}</p> : null}{phone && !query.isLoading && matchedOrders.length === 0 ? <div className="rounded-2xl border border-white/5 bg-black/20 p-6 text-center text-sm text-slate-500"><PackageSearch className="mx-auto mb-2 h-7 w-7 text-slate-700" />ยังไม่พบออเดอร์จากเบอร์นี้</div> : null}<div className="space-y-2">{matchedOrders.map((order: any) => <button key={order.order_number} onClick={() => setSelectedNumber(order.order_number)} className={`w-full rounded-2xl border p-4 text-left transition ${selectedNumber === order.order_number ? "border-orange-400/60 bg-orange-400/10" : "border-white/5 bg-black/20 hover:border-white/20"}`}><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="font-mono text-xs font-semibold text-amber-200">{order.order_number}</p><p className="mt-1 truncate text-sm font-semibold text-slate-100">{order.customer_name || "ไม่ระบุชื่อ"}</p><p className="mt-1 text-xs text-slate-400">{order.phone || "ไม่ระบุเบอร์"}</p></div><div className="text-right"><p className="text-xs text-orange-300">{order.cod_amount != null ? `${money.format(Number(order.cod_amount))} ฿` : "ไม่มี COD"}</p><p className="mt-1 text-[11px] text-slate-500">{orderProductPreview(order)}</p></div></div></button>)}</div><Button variant="outline" size="sm" onClick={() => query.refetch()} className="border-white/10 bg-white/5 text-slate-300 hover:bg-white/10"><RefreshCw className={`mr-2 h-3.5 w-3.5 ${query.isFetching ? "animate-spin" : ""}`} />รีเฟรชออเดอร์</Button></CardContent></Card>
-    <Card className="rounded-3xl border-white/10 bg-[#111116]"><CardContent className="space-y-5 p-5">{selectedOrder ? <><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-amber-300">LINK TRACKING TO ORDER</p><h2 className="mt-1 font-mono text-xl font-semibold">{selectedOrder.order_number}</h2><p className="mt-1 text-sm text-slate-300">{selectedOrder.customer_name || "ไม่ระบุชื่อ"} · {selectedOrder.phone || "ไม่ระบุเบอร์"}</p></div><Badge variant="outline" className="border-amber-400/30 bg-amber-400/5 text-amber-200">LOCAL DRAFT / ยังไม่เขียน DB</Badge></div><div className="grid gap-3 sm:grid-cols-2"><label className="text-xs text-slate-400">ขนส่ง<Input value={carrier} onChange={event => setCarrier(event.target.value)} className="mt-1 border-white/10 bg-black/30 text-white" /></label><label className="text-xs text-slate-400">เลขพัสดุ<Input value={tracking} onChange={event => setTracking(event.target.value)} placeholder="เช่น TH123456789" className="mt-1 border-white/10 bg-black/30 font-mono text-white placeholder:text-slate-600" /></label></div><div className="grid gap-4 lg:grid-cols-2"><div className="rounded-2xl border border-white/5 bg-black/20 p-4"><p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">ORDER SNAPSHOT</p><p className="mt-3 whitespace-pre-line text-sm leading-7 text-slate-300">{selectedOrder.full_address || "ไม่ระบุที่อยู่"}{"\n"}{orderProducts(selectedOrder)}{selectedOrder.cod_amount != null ? `\nCOD ${money.format(Number(selectedOrder.cod_amount))} บาท` : ""}</p></div><div className="rounded-2xl border border-orange-400/20 bg-orange-400/[0.04] p-4"><p className="text-[10px] uppercase tracking-[0.2em] text-amber-300">CUSTOMER MESSAGE</p><pre className="mt-3 whitespace-pre-wrap font-sans text-sm leading-7 text-slate-200">{message}</pre></div></div><div className="flex flex-wrap gap-2"><Button onClick={saveMapping} disabled={!tracking.trim()} className="bg-orange-500 text-black hover:bg-orange-400"><Check className="mr-2 h-4 w-4" />บันทึกแมป</Button><Button onClick={copyMessage} disabled={!effectiveTracking} variant="outline" className="border-orange-400/30 bg-orange-400/5 text-amber-100 hover:bg-orange-400/10">{copied ? <Check className="mr-2 h-4 w-4" /> : <Clipboard className="mr-2 h-4 w-4" />}{copied ? "คัดลอกแล้ว" : "คัดลอกข้อความส่งลูกค้า"}</Button><Button disabled variant="outline" className="border-white/10 text-slate-500"><Send className="mr-2 h-4 w-4" />ส่งอัตโนมัติ (ต่อช่องแชท)</Button><Button variant="ghost" onClick={() => setSelectedNumber(null)} className="text-slate-400">ยกเลิก</Button></div></> : <div className="flex min-h-[440px] flex-col items-center justify-center text-center text-slate-500"><PackageSearch className="mb-4 h-10 w-10 text-amber-300/40" /><p className="text-sm">เลือกออเดอร์จากด้านซ้าย</p><p className="mt-1 text-xs text-slate-600">แล้วใส่เลขพัสดุเพื่อสร้างข้อความให้ลูกค้า</p></div>}</CardContent></Card></div>
-    <footer className="flex flex-wrap items-center justify-between gap-3 px-2 text-[11px] text-slate-500"><span className="flex items-center gap-2"><ExternalLink className="h-3.5 w-3.5" />{activeCamp === "BB" ? "BB STORE" : "SINGTO"} · ลูกค้าเช็คสถานะได้จากเว็บหน้าบ้าน</span><span>ลิ้งเช็คพัสดุพร้อมใช้เป็นแบนเนอร์ขายของในข้อความ</span></footer>
-  </div></div>;
+  return <div className="blackbox-room min-h-full space-y-5 text-white"><header className="blackbox-hero relative overflow-hidden rounded-3xl border border-fuchsia-400/30 p-6 shadow-2xl shadow-fuchsia-950/30 sm:p-8"><div className="hero-scanline" /><div className="relative flex flex-wrap items-start justify-between gap-5"><div><p className="live-chip"><Radar className="h-3.5 w-3.5" /> PARCEL RADAR · LIVE SIGNAL</p><h1 className="cyber-title mt-4 text-3xl font-semibold sm:text-4xl">ห้องควบคุมเลขพัสดุ</h1><p className="mt-2 max-w-3xl text-sm leading-6 text-fuchsia-100/65">รับเลขพัสดุ → เรดาห์สแกน → จับคู่ → ตรวจข้อมูลเต็ม → ส่งเฉพาะสัญญาณเขียว</p></div><div className="bb-clock-panel rounded-2xl border px-4 py-3 text-xs"><span className="bb-running-light mr-2 inline-block h-2 w-2 rounded-full" />{getActiveCamp()} · RADAR ONLINE</div></div><div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5"><Metric label="พัสดุทั้งหมด" value={matches.length} tone="signal-violet" /><Metric label="จับคู่สำเร็จ" value={matches.filter(x => x.status === "MATCHED").length} tone="signal-cyan" /><Metric label="ต้องตรวจ" value={matches.filter(x => x.status === "REVIEW").length} tone="signal-pink" /><Metric label="จับคู่ไม่ได้" value={matches.filter(x => x.status === "UNMATCHED").length} tone="signal-fuchsia" /><Metric label="ส่งแล้ว" value={matches.filter(x => x.sent).length} tone="signal-cyan" /></div></header>
+    <div className="grid gap-5 xl:grid-cols-[280px_minmax(0,1fr)_390px]"><Card className="blackbox-queue rounded-3xl"><CardHeader><CardTitle className="flex items-center gap-2 text-fuchsia-100"><Radar className="h-4 w-4 text-cyan-300" /> PARCEL RADAR</CardTitle><p className="text-xs leading-5 text-white/45">ระบบจะบอกว่าจับได้จากอะไร ไม่เดาส่งรายการเหลือง/แดง</p></CardHeader><CardContent className="space-y-4"><div className="radar-wrap"><div className="radar"><div className="radar-sweep" /><div className="radar-core" /><div className="radar-blip blip-one" /><div className="radar-blip blip-two" /><div className="radar-blip blip-three" /><span className="radar-label label-top">LIVE SCAN</span><span className="radar-label label-bottom">{matches.length} SIGNALS</span></div></div><label className="flex cursor-pointer items-center justify-center rounded-2xl border border-cyan-300/25 bg-cyan-400/5 px-4 py-3 text-xs text-cyan-100 hover:bg-cyan-400/10"><input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={event => { const file = event.target.files?.[0]; if (file) void importExcel(file); }} />📥 นำเข้าเลขพัสดุ Excel</label><Button onClick={() => query.refetch()} variant="outline" className="w-full border-fuchsia-300/25 text-fuchsia-100"><RefreshCw className={`mr-2 h-4 w-4 ${query.isFetching ? "animate-spin" : ""}`} />สแกนออเดอร์ใหม่</Button>{message ? <p className="rounded-xl border border-cyan-300/20 bg-cyan-400/5 p-3 text-xs leading-5 text-cyan-100">{message}</p> : null}</CardContent></Card>
+      <Card className="blackbox-queue overflow-hidden rounded-3xl"><CardHeader className="border-b border-white/5"><div className="flex flex-wrap items-center justify-between gap-3"><CardTitle className="text-fuchsia-100">SIGNAL MAP · รายการจับคู่</CardTitle><Button onClick={() => void sendMatches(green)} disabled={!green.length || sending} className="bb-send-button"><Send className="mr-2 h-4 w-4" />ส่งรายการเขียว ({green.length})</Button></div><Input value={search} onChange={event => setSearch(event.target.value)} placeholder="ค้นหาเลขพัสดุ / ออเดอร์ / ผู้รับ" className="mt-3 border-fuchsia-400/25 bg-black/35 text-white placeholder:text-white/30" /></CardHeader><CardContent className="max-h-[680px] space-y-2 overflow-auto p-3">{query.isLoading ? <p className="p-8 text-center text-sm text-white/45">เรดาห์กำลังสแกน...</p> : visible.length ? visible.map(item => <button key={item.id} onClick={() => setSearch(item.imported.tracking)} className="trace-row w-full rounded-2xl p-3 text-left"><div className="flex items-start gap-3"><div className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${item.status === "MATCHED" ? "bg-emerald-300 shadow-[0_0_12px_#6fffe0]" : item.status === "REVIEW" ? "bg-amber-300 shadow-[0_0_12px_#ffd166]" : "bg-red-400 shadow-[0_0_12px_#ff5a8a]"}`} /><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><span className="font-mono text-xs text-cyan-200">{item.imported.tracking || "ไม่มีเลขพัสดุ"}</span><Badge variant="outline" className={statusStyle(item.status)}>{item.sent ? "SENT" : item.status}</Badge></div><p className="mt-1 truncate text-sm font-semibold text-white/85">{item.order ? `${item.order.order_number || "ออเดอร์"} · ${orderName(item.order)}` : item.imported.name || "ไม่พบออเดอร์"}</p><p className="mt-1 text-[11px] text-white/45">{item.score}% · {item.reasons.join(" + ")}</p></div><span className="text-xs text-fuchsia-200/65">{item.imported.carrier}</span></div></button>) : <div className="p-12 text-center text-white/40"><PackageSearch className="mx-auto mb-3 h-8 w-8 text-fuchsia-300/45" /><p>นำเข้าไฟล์เลขพัสดุเพื่อเริ่มสแกน</p></div>}</CardContent></Card>
+      <Card className="blackbox-queue rounded-3xl"><CardHeader><CardTitle className="text-fuchsia-100">ORDER INSPECTOR</CardTitle></CardHeader><CardContent>{selected?.order ? <div className="space-y-4"><div className="rounded-2xl border border-cyan-300/25 bg-cyan-400/5 p-4"><div className="flex items-center justify-between gap-3"><span className="font-mono text-sm text-cyan-200">{selected.order.order_number}</span><Badge variant="outline" className={statusStyle(selected.status)}>{selected.sent ? "SENT" : selected.status}</Badge></div><p className="mt-2 text-xs text-white/55">จับได้จาก: {selected.reasons.join(" + ")}</p></div><Detail label="วันที่/เวลาออเดอร์" value={orderTime(selected.order)} /><Detail label="เพจ" value={selected.order.page_name || "ไม่ระบุ"} /><Detail label="ผู้รับ" value={orderName(selected.order)} /><Detail label="เบอร์โทร" value={selected.order.phone || selected.order.extracted_phone || "ไม่ระบุ"} /><Detail label="สินค้า" value={orderProducts(selected.order)} /><Detail label="COD" value={`${selected.order.cod_amount ?? selected.order.expected_cod ?? "ไม่ระบุ"} บาท`} /><Detail label="ที่อยู่" value={orderAddress(selected.order)} /><Detail label="เลขพัสดุ" value={`${selected.imported.tracking || "ไม่ระบุ"} · ${selected.imported.carrier}`} /><div className="flex flex-wrap gap-2"><Button onClick={() => void copySelected()} variant="outline" className="border-cyan-300/25 text-cyan-100">{copied ? <Check className="mr-2 h-4 w-4" /> : <Clipboard className="mr-2 h-4 w-4" />}{copied ? "คัดลอกแล้ว" : "คัดลอกข้อความ"}</Button><Button onClick={() => void sendMatches([selected])} disabled={selected.status !== "MATCHED" || selected.sent || sending} className="bb-send-button"><Send className="mr-2 h-4 w-4" />ส่งรายการนี้</Button></div></div> : <div className="flex min-h-[480px] flex-col items-center justify-center text-center text-white/40"><ShieldAlert className="mb-3 h-9 w-9 text-fuchsia-300/45" /><p>เลือกสัญญาณจากรายการเพื่อดูออเดอร์เต็ม</p><p className="mt-1 text-xs text-white/25">ระบบจะไม่ส่งรายการเหลือง/แดง</p></div>}</CardContent></Card></div>
+  </div>;
 }
-
-function orderProductPreview(order: any) {
-  if (Array.isArray(order.items) && order.items.length) return order.items.map((item: any) => itemText(item)).join(" · ");
-  return order.lab_product_display_text || "ยังไม่มี master_display_for_packer ใน Lab 88";
-}
+function Metric({ label, value, tone }: { label: string; value: number; tone: string }) { return <div className={`signal-metric ${tone}`}><p className="text-[10px] uppercase tracking-[0.16em] opacity-65">{label}</p><p className="mt-2 text-2xl font-bold text-white">{value.toLocaleString("th-TH")}</p></div>; }
+function Detail({ label, value }: { label: string; value: string }) { return <div className="rounded-xl border border-white/5 bg-black/20 p-3"><p className="text-[10px] uppercase tracking-[0.16em] text-white/35">{label}</p><p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-white/80">{value}</p></div>; }
