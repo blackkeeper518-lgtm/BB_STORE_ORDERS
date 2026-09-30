@@ -12,9 +12,9 @@
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-const CONFIG_KEY = "bb-supabase-config";
-export type Camp = "BB";
-const DEPLOYMENT_CAMP: Camp = "BB";
+const CONFIG_KEY_BY_CAMP: Record<Camp, string> = { BB: "bb-supabase-config", ST: "st-supabase-config" };
+export type Camp = "BB" | "ST";
+const DEPLOYMENT_CAMP: Camp = String(import.meta.env.VITE_DEPLOYMENT_CAMP ?? "BB").toUpperCase() === "ST" ? "ST" : "BB";
 export type SupabaseConfig = { url: string; anonKey: string; orderTable?: string };
 // ถ้ามีค่าใน Render ให้ทุกเครื่องใช้ฐานเดียวกันได้เลย
 // ห้ามใส่ service_role/secret key ในตัวแปรฝั่งเว็บ ใช้เฉพาะ Anon/Publishable Key
@@ -22,16 +22,24 @@ const DEPLOYMENT_SUPABASE_URL = String(import.meta.env.VITE_SUPABASE_URL ?? "").
 const DEPLOYMENT_SUPABASE_ANON_KEY = String(import.meta.env.VITE_SUPABASE_ANON_KEY ?? "").trim();
 let client: SupabaseClient | null = null;
 let clientSignature = "";
-export function getActiveCamp(): Camp { return DEPLOYMENT_CAMP; }
-export function setActiveCamp(_camp: Camp) { client = null; clientSignature = ""; }
-function profileKey(_camp: Camp) { return CONFIG_KEY; }
+export function getActiveCamp(): Camp {
+  const stored = String(localStorage.getItem("active-camp") ?? "").toUpperCase();
+  return stored === "ST" || stored === "BB" ? stored : DEPLOYMENT_CAMP;
+}
+export function setActiveCamp(camp: Camp) {
+  localStorage.setItem("active-camp", camp);
+  client = null;
+  clientSignature = "";
+  window.dispatchEvent(new CustomEvent("camp-change", { detail: camp }));
+}
+function profileKey(camp: Camp) { return CONFIG_KEY_BY_CAMP[camp]; }
 export function getSupabaseConfig(camp: Camp = getActiveCamp()): SupabaseConfig | null {
   try {
     const raw = localStorage.getItem(profileKey(camp));
     if (raw) {
       const value = JSON.parse(raw) as Partial<SupabaseConfig>;
       if (value.url && value.anonKey) {
-        return { url: value.url.replace(/\/$/, ""), anonKey: value.anonKey, orderTable: value.orderTable || "bb_stoer" };
+        return { url: value.url.replace(/\/$/, ""), anonKey: value.anonKey, orderTable: value.orderTable || defaultOrderView(camp) };
       }
     }
   } catch { /* ถ้าค่าใน browser เสีย ให้ลองใช้ค่ากลางของ Deployment */ }
@@ -42,7 +50,7 @@ export function getSupabaseConfig(camp: Camp = getActiveCamp()): SupabaseConfig 
 }
 export function saveSupabaseConfig(config: SupabaseConfig, camp: Camp = getActiveCamp()) { const clean = { url: config.url.trim().replace(/\/$/, ""), anonKey: config.anonKey.trim(), orderTable: config.orderTable?.trim() || defaultOrderView(camp) }; localStorage.setItem(profileKey(camp), JSON.stringify(clean)); client = null; clientSignature = ""; }
 export function clearSupabaseConfig(camp: Camp = getActiveCamp()) { localStorage.removeItem(profileKey(camp)); client = null; clientSignature = ""; }
-export function getSupabase() { const config = getSupabaseConfig(); if (!config) return null; const signature = `${getActiveCamp()}|${config.url}|${config.anonKey}`; if (!client || signature !== clientSignature) { client = createClient(config.url, config.anonKey); clientSignature = signature; } return client; }
+export function getSupabase(camp: Camp = getActiveCamp()) { const config = getSupabaseConfig(camp); if (!config) return null; const signature = `${camp}|${config.url}|${config.anonKey}`; if (!client || signature !== clientSignature) { client = createClient(config.url, config.anonKey); clientSignature = signature; } return client; }
 export function subscribeToChatMessages(onChange: () => void) {
   const api = getSupabase();
   if (!api) return () => undefined;
@@ -75,7 +83,7 @@ function scoreDailyOrderSignal(text: string, latestCod: number | null) {
   return { score, qualified, qualifiedCod, reasons: Array.from(new Set(reasons)), coreCount: core.length, flowCount: 0 };
 }export type CanonicalItem = Record<string, any>;
 export type CanonicalOrder = Record<string, any> & { items: CanonicalItem[]; items_text: string; display_for_packer: string | null; is_ready_to_pack: boolean; cod_check_status: string | null; audit_status: string | null; order_status: string | null; telegram_status: string | null };
-const ORDER_SOURCE_TABLE_BY_CAMP: Record<Camp, string> = { BB: "bb_orders" };
+const ORDER_SOURCE_TABLE_BY_CAMP: Record<Camp, string> = { BB: "bb_orders", ST: "st_order_packer_records" };
 // Direct BB route stays intentionally small so Supabase does not timeout on large chat payloads.
 const ORDER_OPERATIONAL_LIMIT = 300;
 function defaultOrderView(camp: Camp) { return ORDER_SOURCE_TABLE_BY_CAMP[camp]; }
@@ -154,10 +162,18 @@ function normalizeBbDirectRow(row: any): CanonicalOrder {
 }
 
 export async function readCanonicalOrders(search = "", since: string | null = null, until: string | null = null) {
-  const api = getSupabase();
+  const camp = getActiveCamp();
+  const api = getSupabase(camp);
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
 
   const limit = search.trim() || since || until ? 500 : 300;
+  if (camp === "ST") {
+    const { data, error } = await api.from("st_order_packer_records").select("*").limit(limit);
+    if (error) fail(error);
+    const query = search.trim().toLowerCase();
+    const orders = (data ?? []).filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query)).sort((a: any, b: any) => displayOrderSortKey(b.order_time_display) - displayOrderSortKey(a.order_time_display));
+    return { orders, itemError: null, sourceTable: "st_order_packer_records", fetchedAt: new Date().toISOString(), since };
+  }
   const { data, error } = await api
     .from("bb_orders")
     .select(BB_WEB_ORDER_COLUMNS)
@@ -182,22 +198,25 @@ export async function readCanonicalOrders(search = "", since: string | null = nu
   orders.sort((a, b) => displayOrderSortKey(b.order_time_display) - displayOrderSortKey(a.order_time_display));
   return { orders, itemError: null, sourceTable: "bb_orders", fetchedAt: new Date().toISOString(), since };
 }
-export async function readTelegramDeliveryOrders(search = "", room: "queue" | "today" | "yesterday_after_14" | "sent" = "queue") {
-  const api = getSupabase();
+export async function readTelegramDeliveryOrders(search = "", room: "queue" | "sent" = "queue", camp: Camp = getActiveCamp()) {
+  const api = getSupabase(camp);
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
 
-  const { data, error } = await api
-    .from("bb_orders")
-    .select(BB_TELEGRAM_ORDER_COLUMNS)
-    .order("order_time_display", { ascending: false })
-    .limit(1000);
+  const sourceTable = camp === "ST"
+    ? (room === "sent" ? "vw_st_telegram_web_history" : "vw_st_telegram_web_queue")
+    : (room === "sent" ? "vw_bb_telegram_web_history" : "vw_bb_telegram_web_queue");
+  const { data, error } = await api.from(sourceTable).select("*").limit(1000);
   if (error) fail(error);
   const query = search.trim().toLowerCase();
   const allOrders = (data ?? [])
-    .map((row: any) => ({ ...normalizeBbDirectRow(row), source_table: "bb_orders" }) as CanonicalOrder)
+    .map((row: any) => {
+      if (room !== "sent") return { ...row, source_table: sourceTable, camp } as CanonicalOrder;
+      const snapshot = row.snapshot && typeof row.snapshot === "object" && !Array.isArray(row.snapshot) ? row.snapshot : {};
+      return { ...snapshot, ...row, source_table: sourceTable, camp, history_id: row.history_id, history_created_at: row.created_at, telegram_message_text: row.telegram_message_text || snapshot.telegram_message_text } as CanonicalOrder;
+    })
     .filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query));
   const orders = allOrders.sort((a, b) => displayOrderSortKey(b.order_time_display) - displayOrderSortKey(a.order_time_display));
-  return { orders, itemError: null, sourceTable: "bb_orders", fetchedAt: new Date().toISOString(), room };
+  return { orders, itemError: null, sourceTable, fetchedAt: new Date().toISOString(), room, camp };
 }
 
 export async function readBbOrderEvidence(upsertKey: string) {
@@ -256,6 +275,26 @@ export async function updateBbOrderByKey(upsertKey: string, patch: Record<string
   if (error) fail(error);
   if (!data?.length) fail({ message: `ไม่พบออเดอร์ upsert_key=${upsertKey} หรือสิทธิ์ RLS ไม่อนุญาตให้อัปเดต` });
   if (data.length > 1) fail({ message: `พบ upsert_key ซ้ำ ${data.length} แถว ต้องตรวจข้อมูลก่อนแก้ไข` });
+  return data[0];
+}
+
+export async function updateOrder(camp: Camp, id: string | number, patch: Record<string, unknown>) {
+  const api = getSupabase(camp);
+  if (!api) fail({ message: `ยังไม่ได้เชื่อม Supabase ค่าย ${camp}` });
+  const table = ORDER_SOURCE_TABLE_BY_CAMP[camp];
+  const { data, error } = await api.from(table).update(patch).eq("id", id).select("*");
+  if (error) fail(error);
+  if (!data?.length) fail({ message: `ไม่พบออเดอร์ id=${id} หรือสิทธิ์ RLS ไม่อนุญาตให้อัปเดต` });
+  return data[0];
+}
+
+export async function updateOrderByKey(camp: Camp, upsertKey: string, patch: Record<string, unknown>) {
+  const api = getSupabase(camp);
+  if (!api) fail({ message: `ยังไม่ได้เชื่อม Supabase ค่าย ${camp}` });
+  const table = ORDER_SOURCE_TABLE_BY_CAMP[camp];
+  const { data, error } = await api.from(table).update(patch).eq("upsert_key", upsertKey).select("*");
+  if (error) fail(error);
+  if (!data?.length) fail({ message: `ไม่พบออเดอร์ upsert_key=${upsertKey} หรือสิทธิ์ RLS ไม่อนุญาตให้อัปเดต` });
   return data[0];
 }
 
