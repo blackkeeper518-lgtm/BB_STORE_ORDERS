@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { getActiveCamp, readBbOrderEvidence, readTelegramDeliveryOrders, setActiveCamp, updateOrder, updateOrderByKey, type Camp } from "@/lib/canonical";
+import { getActiveCamp, readBbOrderEvidence, readTelegramDeliveryOrders, updateBbOrder, updateBbOrderByKey } from "@/lib/canonical";
 import { AlertTriangle, CheckCircle2, Clipboard, Clock3, Eye, MessageSquareText, RefreshCw, Send, ShieldAlert, Sparkles, Zap } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -56,7 +56,7 @@ function realTime(row: OrderRow) {
 function displayTime(row: OrderRow) { return String(row.order_time_display || "ไม่พบ order_time_display"); }
 
 function productOf(row: OrderRow) {
-  return evidenceText(row.for_packer_bb_display || row.for_packer_st_display || row.bb_pack_center || row.single_cleaned_products || row.display_for_packer);
+  return evidenceText(row.bb_pack_center);
 }
 
 function evidenceText(value: unknown): string {
@@ -137,7 +137,6 @@ function warningOf(row: OrderRow) {
 }
 
 export default function TelegramDeliveryRoom() {
-  const [camp, setCamp] = useState<Camp>(getActiveCamp());
   const [header, setHeader] = useState(DEFAULT_HEADER);
   const [now, setNow] = useState(() => new Date());
   const [selected, setSelected] = useState(0);
@@ -151,8 +150,8 @@ export default function TelegramDeliveryRoom() {
   const [editForm, setEditForm] = useState({ customer_name: "", phone: "", address_display_packer: "", cod_amount: "", for_packer_bb_display: "", shipping_method: "⚡FLASH EXPRESS" });
   const [room, setRoom] = useState<"queue" | "sent">(() => new URLSearchParams(window.location.search).get("room") === "sent" ? "sent" : "queue");
   const query = useQuery({
-    queryKey: ["telegram-delivery-room", camp, room, search],
-    queryFn: () => readTelegramDeliveryOrders(search, room, camp),
+    queryKey: ["telegram-delivery-room", getActiveCamp(), room],
+    queryFn: () => readTelegramDeliveryOrders(search, room),
     refetchInterval: 180_000,
   });
 
@@ -164,7 +163,7 @@ export default function TelegramDeliveryRoom() {
   const evidenceQuery = useQuery({
     queryKey: ["bb-order-evidence", order?.upsert_key],
     queryFn: () => readBbOrderEvidence(String(order!.upsert_key)),
-    enabled: Boolean(order?.upsert_key && showEvidence && camp === "BB"),
+    enabled: Boolean(order?.upsert_key && showEvidence),
     staleTime: 60_000,
   });
   const selectedOrders = useMemo(() => waiting.filter((row) => selectedKeys.has(orderKey(row))), [selectedKeys, waiting]);
@@ -202,7 +201,7 @@ export default function TelegramDeliveryRoom() {
       phone: String(order.phone ?? order.extracted_phone ?? ""),
       address_display_packer: addressOf(order),
       cod_amount: String(order.cod_amount ?? ""),
-      for_packer_bb_display: String(order.for_packer_bb_display ?? order.for_packer_st_display ?? order.bb_pack_center ?? ""),
+      for_packer_bb_display: String(order.bb_pack_center ?? ""),
       shipping_method: String(order.shipping_method ?? "⚡FLASH EXPRESS"),
     });
     setEditMode(false);
@@ -264,7 +263,7 @@ export default function TelegramDeliveryRoom() {
       if (!rowsToMark.length) { setSendMessage("ออเดอร์ที่เลือกอยู่ในประวัติส่งแล้วแล้ว"); return; }
       const patch = { telegram_sent: "true", telegram_status: "SENT", delivery_state: "SENT", sent_at: new Date().toISOString(), last_delivery_note: "ผู้ใช้งานยืนยันส่งแล้วจากภายนอก/หน้า Telegram" };
       for (const row of rowsToMark) {
-        if (row.id) await updateOrder(camp, row.id, patch); else if (row.upsert_key) await updateOrderByKey(camp, String(row.upsert_key), patch);
+        if (row.id) await updateBbOrder(row.id, patch); else if (row.upsert_key) await updateBbOrderByKey(String(row.upsert_key), patch);
       }
       setSendMessage(`เก็บเป็น SENT แล้ว ${rowsToMark.length} ออเดอร์ (ข้อมูลออเดอร์เดิมยังอยู่)`);
       setSelectedKeys(new Set());
@@ -279,7 +278,7 @@ export default function TelegramDeliveryRoom() {
     if (!order?.id && !order?.upsert_key) { setSendMessage("ติ๊กส่งแล้วไม่ได้: ไม่พบ id หรือ upsert_key"); return; }
     try {
       const patch = { telegram_sent: "true", telegram_status: "SENT", delivery_state: "SENT", sent_at: new Date().toISOString(), last_delivery_note: "ผู้ใช้งานกดยืนยันส่งแล้วจากห้อง Telegram" };
-      if (order.id) await updateOrder(camp, order.id, patch); else await updateOrderByKey(camp, String(order.upsert_key), patch);
+      if (order.id) await updateBbOrder(order.id, patch); else await updateBbOrderByKey(String(order.upsert_key), patch);
       setSendMessage("บันทึกแล้ว — รายการนี้ถูกติ๊กเป็นส่งแล้ว");
       await query.refetch();
     } catch (error) {
@@ -291,13 +290,10 @@ export default function TelegramDeliveryRoom() {
     if (!order?.id && !order?.upsert_key) { setSendMessage("บันทึกไม่ได้: ไม่พบ id หรือ upsert_key ของออเดอร์"); return; }
     setEditSaving(true);
     try {
-      const { for_packer_bb_display, ...editFields } = editForm;
-      const patch = camp === "ST"
-        ? { ...editFields, for_packer_st_display: for_packer_bb_display }
-        : { ...editFields, for_packer_bb_display, shipping_method: editForm.shipping_method.trim() || "⚡FLASH EXPRESS" };
-      if (order.id) await updateOrder(camp, order.id, patch); else await updateOrderByKey(camp, String(order.upsert_key), patch);
+      const patch = { ...editForm, shipping_method: editForm.shipping_method.trim() || "⚡FLASH EXPRESS" };
+      if (order.id) await updateBbOrder(order.id, patch); else await updateBbOrderByKey(String(order.upsert_key), patch);
       setEditMode(false);
-      setSendMessage(`แก้ไขแล้ว — บันทึกลง ${camp === "ST" ? "st_order_packer_records" : "bb_orders"} เรียบร้อย`);
+      setSendMessage("แก้ไขแล้ว — บันทึกลง bb_orders เรียบร้อย");
       await query.refetch();
     } catch (error) {
       setSendMessage(`บันทึกไม่สำเร็จ: ${error instanceof Error ? error.message : String(error)}`);
@@ -310,9 +306,8 @@ export default function TelegramDeliveryRoom() {
         <div className="bb-running-line pointer-events-none absolute inset-x-0 top-0 h-1" />
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-fuchsia-300"><Send className="mr-2 inline h-4 w-4" />TELEGRAM DELIVERY · {camp} STORE</p>
-            <h1 className="cyber-title mt-3 text-3xl font-semibold">ห้องตรวจและส่ง Telegram · {camp}</h1>
-            <div className="mt-3 flex gap-2"><Button size="sm" variant="outline" onClick={() => { setCamp("BB"); setActiveCamp("BB"); setSelected(0); setSelectedKeys(new Set()); }} className={camp === "BB" ? "border-fuchsia-300/60 bg-fuchsia-500/20 text-fuchsia-100" : "border-white/10 text-white/50"}>BB · 送 / ประวัติ</Button><Button size="sm" variant="outline" onClick={() => { setCamp("ST"); setActiveCamp("ST"); setSelected(0); setSelectedKeys(new Set()); }} className={camp === "ST" ? "border-orange-300/60 bg-orange-500/20 text-orange-100" : "border-white/10 text-white/50"}>ST · 送 / ประวัติ</Button></div>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-fuchsia-300"><Send className="mr-2 inline h-4 w-4" />TELEGRAM DELIVERY · BB STORE</p>
+            <h1 className="cyber-title mt-3 text-3xl font-semibold">ห้องตรวจและส่ง Telegram</h1>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-orange-100/60">ป้ายหัวบิลชัดเจน · สถานะส่งเด่น · เตือนสินค้าหมด ยอดไม่ครบ และที่อยู่ไม่ครบก่อนส่ง</p>
             <div className="mt-4 flex max-w-2xl flex-col gap-2 sm:flex-row sm:items-center"><span className="whitespace-nowrap text-xs font-semibold text-fuchsia-200">หัวบิล standby</span><Input value={header} onChange={(event) => setHeader(event.target.value)} aria-label="หัวบิล standby" className="border-fuchsia-400/30 bg-black/30 text-fuchsia-50 placeholder:text-fuchsia-200/30" /><span className="whitespace-nowrap text-[10px] text-fuchsia-200/50">หัวจาก SB ในแถวจะใช้ก่อน</span></div>
           </div>
