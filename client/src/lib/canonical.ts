@@ -1,504 +1,203 @@
-// ⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘
-// 🎯 BB OrderControl : DATA ROUTE RULES
-// ⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘
-// Scope: BB only · อ่านและตรวจออเดอร์
-// โต๊ะหลัก: bb_orders
-// สินค้า/หัวบิล: for_packer_bb_display จาก bb_orders
-// เว็บและ Telegram อ่าน bb_orders โดยตรงด้วย select เฉพาะคอลัมน์
-// คีย์หลัก: upsert_key · เวลาหลัก: order_time_display
-// ที่อยู่สำรอง: address_display_packer
-// ห้ามเปลี่ยน Telegram status · ห้ามลบหลักฐาน · ห้ามเอา ST logic มาปน
-// ⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘
-
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-
-const CONFIG_KEY = "bb-supabase-config";
-export type Camp = "BB";
-const DEPLOYMENT_CAMP: Camp = "BB";
-export type SupabaseConfig = { url: string; anonKey: string; orderTable?: string };
-// ค่า Render เป็นแหล่งหลักให้ทุกเครื่องใช้ฐานเดียวกัน; localStorage เป็น fallback เฉพาะ dev/local
-// ห้ามใส่ service_role/secret key ในตัวแปรฝั่งเว็บ ใช้เฉพาะ Anon/Publishable Key
-const DEPLOYMENT_SUPABASE_URL = String(import.meta.env.VITE_SUPABASE_URL ?? "").trim().replace(/\/$/, "");
-const DEPLOYMENT_SUPABASE_ANON_KEY = String(import.meta.env.VITE_SUPABASE_ANON_KEY ?? "").trim();
-let client: SupabaseClient | null = null;
-let clientSignature = "";
-export function getActiveCamp(): Camp { return DEPLOYMENT_CAMP; }
-export function setActiveCamp(_camp: Camp) { client = null; clientSignature = ""; }
-function profileKey(_camp: Camp) { return CONFIG_KEY; }
-export function getSupabaseConfig(camp: Camp = getActiveCamp()): SupabaseConfig | null {
-  // Prefer deployment config so a stale browser-local value cannot split devices
-  // across different Supabase projects.
-  if (DEPLOYMENT_SUPABASE_URL && DEPLOYMENT_SUPABASE_ANON_KEY) {
-    return { url: DEPLOYMENT_SUPABASE_URL, anonKey: DEPLOYMENT_SUPABASE_ANON_KEY, orderTable: defaultOrderView(camp) };
-  }
-  try {
-    const raw = localStorage.getItem(profileKey(camp));
-    if (raw) {
-      const value = JSON.parse(raw) as Partial<SupabaseConfig>;
-      if (value.url && value.anonKey) {
-        return { url: value.url.replace(/\/$/, ""), anonKey: value.anonKey, orderTable: value.orderTable || "bb_stoer" };
-      }
-    }
-  } catch { /* ถ้าค่าใน browser เสีย ให้ลองใช้ค่ากลางของ Deployment */ }
-  return null;
-}
-export function saveSupabaseConfig(config: SupabaseConfig, camp: Camp = getActiveCamp()) { const clean = { url: config.url.trim().replace(/\/$/, ""), anonKey: config.anonKey.trim(), orderTable: config.orderTable?.trim() || defaultOrderView(camp) }; localStorage.setItem(profileKey(camp), JSON.stringify(clean)); client = null; clientSignature = ""; }
-export function clearSupabaseConfig(camp: Camp = getActiveCamp()) { localStorage.removeItem(profileKey(camp)); client = null; clientSignature = ""; }
-export function getSupabase() { const config = getSupabaseConfig(); if (!config) return null; const signature = `${getActiveCamp()}|${config.url}|${config.anonKey}`; if (!client || signature !== clientSignature) { client = createClient(config.url, config.anonKey); clientSignature = signature; } return client; }
-export function subscribeToChatMessages(onChange: () => void) {
-  const api = getSupabase();
-  if (!api) return () => undefined;
-  const channel = api
-    .channel(`chat-live-${getActiveCamp().toLowerCase()}`)
-    .on("postgres_changes", { event: "*", schema: "public", table: "chat_customer_messages" }, onChange)
-    .on("postgres_changes", { event: "*", schema: "public", table: "chat_page_messages" }, onChange)
-    .subscribe();
-  return () => { void api.removeChannel(channel); };
-}
-const CHAT_HISTORY_DAYS = 2;
-function chatHistoryCutoff() { return new Date(Date.now() - CHAT_HISTORY_DAYS * 24 * 60 * 60 * 1000).toISOString(); }
-export const supabase = { from: (table: string) => { const api = getSupabase(); if (!api) throw new Error("ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key"); return api.from(table); } } as any;
-function fail(error: any): never { throw new Error(error?.message || "Supabase connection failed"); }
-function num(v: any) { const n = Number(v); return v == null || v === "" || !Number.isFinite(n) ? null : n; }
-function asText(v: any) { return typeof v === "string" ? v : v == null ? "" : JSON.stringify(v); }
-function parseCod(text: string) { const matches = text.match(/(?:ยอดรวม\s*)?cod\s*[:=]?\s*\[?\s*([\d,]+(?:\.\d+)?)\s*\]?|เก็บปลายทาง[^\d]{0,20}([\d,]+(?:\.\d+)?)/gi) || []; const last = matches[matches.length - 1] || ""; const numberMatch = last.match(/[\d,]+(?:\.\d+)?/); return numberMatch ? Number(numberMatch[0].replace(/,/g, "")) : null; }
-const CORE_SIGNATURE = ["🚨 [สถานะ: ปิดยอดสำเร็จ!]", "[สรุปรายการสั่งซื้อ]", "⚡FLASH EXPRESS", "COD", "📍ที่อยู่จัดส่ง:", "✅:", "🟡MOND GOLD:", "🆔เลขที่ออเดอร์: ORD-2606:", "📱 เบอร์:", "📮 รหัสไปรษณีย์:", "👤 ชื่อ:", "💰 COD:", "เขียว:", "สรุปรายการสั่งซื้อ", "เลขที่ออเดอร์", "ที่อยู่จัดส่ง", "ORD-", "📦 รายการสินค้า:", "คอต.", "ยอดรวม"];
-const PRODUCT_LINE_SIGNAL = /(?:📦\s*)?รายการสินค้า|(?:🟢|🟡|🔴|🟠|🟣|🔵|🟩|🟨|🟥|🟧|🟪|🟦|🍉|🥭)\s*[A-Z_ก-๙]+.*?คอต\.?/i;
-function scoreDailyOrderSignal(text: string, latestCod: number | null) {
-  const value = String(text || ""); const reasons: string[] = [];
-  const lower = value.toLowerCase(); const core = CORE_SIGNATURE.filter(k => lower.includes(k.toLowerCase())); const productLine = PRODUCT_LINE_SIGNAL.test(value);
-  const phone = /(?:เบอร์โทรศัพท์|เบอร์|โทร|tel)\s*[:：.]?\s*\d{9,10}|\b0\d{9}\b/i.test(value); const postal = /\b\d{5}\b/.test(value);
-  const address = /(?:ที่อยู่|จัดส่ง|ตำบล|ต\.|อำเภอ|อ\.|จังหวัด|จ\.)/i.test(value); const orderDate = /\b\d{1,2}[\/.-]\d{1,2}[\/.-]\d{2,4}\b/.test(value) || /order_date|เวลาสั่งซื้อ|วันที่สั่งซื้อ/i.test(value);
-  const cod = latestCod ?? parseCod(value); let score = 0;
-  if (cod != null) { score += 10; reasons.push("COD " + cod); } if (phone) { score += 3; reasons.push("เบอร์โทร"); } if (postal) { score += 4; reasons.push("รหัสไปรษณีย์"); }
-  if (address) { score += 4; reasons.push("ที่อยู่"); } if (orderDate) { score += 5; reasons.push("วันที่/เวลาสั่งซื้อ"); }
-  if (core.length) { score += Math.min(core.length * 3, 12); reasons.push("Core " + core.slice(0, 3).join(" | ")); } if (productLine) { score += 3; reasons.push("บรรทัดสินค้า"); }
-  const qualifiedCod = cod != null && cod >= 200; const qualified = score >= 30 || qualifiedCod || core.length > 0;
-  return { score, qualified, qualifiedCod, reasons: Array.from(new Set(reasons)), coreCount: core.length, flowCount: 0 };
-}export type CanonicalItem = Record<string, any>;
-export type CanonicalOrder = Record<string, any> & { items: CanonicalItem[]; items_text: string; display_for_packer: string | null; is_ready_to_pack: boolean; cod_check_status: string | null; audit_status: string | null; order_status: string | null; telegram_status: string | null };
-const ORDER_SOURCE_TABLE_BY_CAMP: Record<Camp, string> = { BB: "bb_orders" };
-// Direct BB route stays intentionally small so Supabase does not timeout on large chat payloads.
-const ORDER_OPERATIONAL_LIMIT = 300;
-function defaultOrderView(camp: Camp) { return ORDER_SOURCE_TABLE_BY_CAMP[camp]; }
-function currentOrderWindowStart() { const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date()); const values = Object.fromEntries(parts.filter(part => part.type !== "literal").map(part => [part.type, Number(part.value)])); return new Date(Date.UTC(values.year, values.month - 1, values.day - 1, 7, 0, 0)).toISOString(); }
-function normalizeItem(item: CanonicalItem): CanonicalItem { const master = item.product_master && typeof item.product_master === "object" ? item.product_master : {}; const display = String(item.bb_pack_center ?? "").trim() || null; const mapping = item.mapping_status || (item.sku_match_status === "MATCHED_PRODUCT_MASTER" ? "MATCHED" : null); return { ...item, ...master, quantity: num(item.quantity ?? item.extracted_qty ?? item.qty ?? item.master_qty_display ?? item.master_quantity), unit_price: num(item.unit_price_order ?? item.unit_price ?? master.unit_price), expected_cod: num(item.expected_cod), stock_qty: num(item.stock_qty ?? item.inventory?.stock_qty), mapping_status: mapping, display_for_packer: display, label: display, label_display: display }; }
-function parseJsonArray(value: unknown): CanonicalItem[] { if (Array.isArray(value)) return value as CanonicalItem[]; if (typeof value !== "string") return []; try { const parsed = JSON.parse(value); return Array.isArray(parsed) ? parsed : []; } catch { return []; } }
-function orderLocalTimestamp(row: any): string | null {
-  const dateText = String(row.order_date || row.date_th || "");
-  const timeText = String(row.time_th || "");
-  const dateMatch = dateText.match(/(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})/);
-  const timeMatch = timeText.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
-  if (!dateMatch || !timeMatch) return null;
-  const day = Number(dateMatch[1]); const month = Number(dateMatch[2]);
-  let year = Number(dateMatch[3]); if (year < 100) year += 2000; if (year > 2400) year -= 543;
-  const hour = Number(timeMatch[1]); const minute = Number(timeMatch[2]); const second = Number(timeMatch[3] || 0);
-  if (![day, month, year, hour, minute, second].every(Number.isFinite)) return null;
-  // Bangkok local time represented as UTC ISO: 14 Sep 21:00 +07 = 14 Sep 14:00Z.
-  return new Date(Date.UTC(year, month - 1, day, hour - 7, minute, second)).toISOString();
-}
-function effectiveOrderTime(row: any): string | null {
-  // กฎ BB: เวลาของออเดอร์มาจาก order_time_display เท่านั้น ห้าม fallback ไปเวลาอื่น
-  return row.order_time_display || null;
-}
-function displayOrderSortKey(value: unknown): number {
-  const match = String(value ?? "").trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s+(\d{1,2}):(\d{2})/);
-  if (!match) return 0;
-  let year = Number(match[3]);
-  if (year < 100) year = 1957 + year; // Thai short year: 69 = 2026
-  else if (year > 2400) year -= 543;
-  return Number(`${year}${match[2].padStart(2, "0")}${match[1].padStart(2, "0")}${match[4].padStart(2, "0")}${match[5]}`);
-}
-function displayDateKey(value: unknown): string {
-  const match = String(value ?? "").trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
-  if (!match) return "";
-  let year = Number(match[3]);
-  if (year < 100) year = 1957 + year;
-  else if (year > 2400) year -= 543;
-  return `${year}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}`;
-}
-function isoDateKey(value: string | null): string {
-  if (!value) return "";
-  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date(value));
-  const values = Object.fromEntries(parts.filter(part => part.type !== "literal").map(part => [part.type, part.value]));
-  return values.year && values.month && values.day ? `${values.year}-${values.month}-${values.day}` : "";
-}
-function normalizeOrder(row: any, items: CanonicalItem[]): CanonicalOrder { const normalized = items.map(normalizeItem); const cod = num(row.cod_amount); const mapping = row.alien_mapping_status || row.web_mapping_status || row.mapping_status || (normalized.length > 0 && normalized.every(item => item.mapping_status === "MATCHED") ? "MATCHED" : "CHECK_DATA"); const address = row.master_delivery_address || row.address_complete_web || row.web_address_primary || row.address_display_primary || row.full_address || row.address_display_packer || row.addressclean || row.address_display_fallback || row.web_address_fallback || row.web_address_short || [row.address_line_1, row.address_line_2, row.district, row.amphoe, row.province, row.zipcode].filter(Boolean).join(" ") || ""; const productDisplay = String(row.bb_pack_center ?? "").trim() || null; return { ...row, full_address: address, customer_name: row.customer_name, phone: row.phone || row.extracted_phone, address_display_primary: row.web_address_primary || row.address_display_primary || address, address_display_fallback: row.web_address_fallback || row.address_display_fallback || address, items: normalized, mapping_status: mapping, order_number: row.order_number || row.order_number_display || `#${row.upsert_key || "UNKNOWN"}`, order_time: effectiveOrderTime(row), cod_amount: cod, is_ready_to_pack: row.is_ready_to_pack ?? (mapping === "MATCHED"), cod_check_status: row.cod_check_status || (cod == null ? "CHECK" : "PASS"), audit_status: row.alien_audit_status || row.audit_status || mapping, telegram_status: row.telegram_status ?? null, items_text: productDisplay || "", display_for_packer: productDisplay }; }
-// BB ONLY: direct table reads with narrow projections. Do not load the wide row
-// or make the browser execute the Lab view's JSON expansion and matching joins.
-const BB_WEB_ORDER_COLUMNS = [
-  "id", "upsert_key", "order_number", "order_number_display", "order_time_display",
-  "page_id", "page_name", "facebook_name", "customer_name", "phone", "extracted_phone",
-  "address_display_packer", "district", "amphoe", "province", "zipcode",
-  "cod_amount", "expected_cod", "order_status", "audit_flags", "is_ready_to_pack",
-  "cod_check_status", "lock_status", "shipping_carrier", "telegram_sent", "telegram_sent_at",
-  "telegram_status", "delivery_state", "sent_at", "for_packer_bb_display"
-].join(",");
-
-const BB_TELEGRAM_ORDER_COLUMNS = [
-  "id", "upsert_key", "order_number", "order_number_display", "order_time_display",
-  "page_name", "facebook_name", "customer_name", "phone", "extracted_phone",
-  "address_display_packer", "province", "zipcode",
-  "cod_amount", "expected_cod", "order_status", "is_ready_to_pack", "lock_status", "shipping_carrier", "shipping_method",
-  "telegram_sent", "telegram_sent_at", "telegram_status", "delivery_state", "sent_at",
-  "for_packer_bb_display", "telegram_header", "telegram_body", "audit_flags"
-].join(",");
-
-function normalizeBbDirectRow(row: any): CanonicalOrder {
-  const product = typeof row.for_packer_bb_display === "string" ? row.for_packer_bb_display.trim() : "";
-  const mappingStatus = row.is_ready_to_pack === true ? "MATCHED" : null;
-  return normalizeOrder({
-    ...row,
-    bb_pack_center: product || null,
-    stock_notice: row.telegram_header || null,
-    mapping_status: mappingStatus,
-  }, []);
-}
-
-export async function readCanonicalOrders(search = "", since: string | null = null, until: string | null = null) {
-  const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-
-  const limit = search.trim() || since || until ? 500 : 300;
-  const { data, error } = await api
-    .from("bb_orders")
-    .select(BB_WEB_ORDER_COLUMNS)
-    .order("order_time_display", { ascending: false })
-    .limit(limit);
-  if (error) fail(error);
-
-  const query = search.trim().toLowerCase();
-  const fromKey = isoDateKey(since);
-  const untilKey = isoDateKey(until);
-  const orders = (data ?? [])
-    .map((row: any) => ({
-      ...normalizeBbDirectRow(row),
-      source_table: "bb_orders",
-      review_status: row.review_status ?? null,
-    }) as CanonicalOrder)
-    .filter((row: any) => {
-      if (query && !JSON.stringify(row).toLowerCase().includes(query)) return false;
-      const dateKey = displayDateKey(row.order_time_display);
-      return (!fromKey || (dateKey && dateKey >= fromKey)) && (!untilKey || (dateKey && dateKey <= untilKey));
-    });
-  orders.sort((a, b) => displayOrderSortKey(b.order_time_display) - displayOrderSortKey(a.order_time_display));
-  return { orders, itemError: null, sourceTable: "bb_orders", fetchedAt: new Date().toISOString(), since };
-}
-export async function readTelegramDeliveryOrders(search = "", room: "queue" | "today" | "yesterday_after_14" | "sent" = "queue") {
-  const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-
-  const { data, error } = await api
-    .from("bb_orders")
-    .select(BB_TELEGRAM_ORDER_COLUMNS)
-    .order("order_time_display", { ascending: false })
-    .limit(1000);
-  if (error) fail(error);
-  const query = search.trim().toLowerCase();
-  const allOrders = (data ?? [])
-    .map((row: any) => ({ ...normalizeBbDirectRow(row), source_table: "bb_orders" }) as CanonicalOrder)
-    .filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query));
-  const orders = allOrders.sort((a, b) => displayOrderSortKey(b.order_time_display) - displayOrderSortKey(a.order_time_display));
-  return { orders, itemError: null, sourceTable: "bb_orders", fetchedAt: new Date().toISOString(), room };
-}
-
-export async function readBbOrderEvidence(upsertKey: string) {
-  const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  const { data, error } = await api
-    .from("bb_orders")
-    .select("upsert_key,raw_text_with_phone_timed,normalized_chat_timeline")
-    .eq("upsert_key", upsertKey)
-    .maybeSingle();
-  if (error) fail(error);
-  return data ?? {};
-}
-
-export async function readBbOrderEvidenceBatch(upsertKeys: string[]) {
-  const keys = Array.from(new Set(upsertKeys.map((key) => String(key ?? "").trim()).filter(Boolean)));
-  if (!keys.length) return [];
-  const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  const evidence: any[] = [];
-  for (let offset = 0; offset < keys.length; offset += 100) {
-    const { data, error } = await api
-      .from("bb_orders")
-      .select("upsert_key,raw_text_with_phone_timed,normalized_chat_timeline")
-      .in("upsert_key", keys.slice(offset, offset + 100));
-    if (error) fail(error);
-    evidence.push(...(data ?? []));
-  }
-  return evidence;
-}
-
-export async function readBbAlertRoom(search = "") {
-  const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  const { data, error } = await api.from("vw_bb_order_alert_room_v1").select("*").limit(2000);
-  if (error) fail(error);
-  const query = search.trim().toLowerCase();
-  return (data ?? [])
-    .filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query))
-    .sort((a: any, b: any) => String(b.order_time_display ?? "").localeCompare(String(a.order_time_display ?? "")));
-}
-
-export async function updateBbOrder(id: string | number, patch: Record<string, unknown>) {
-  const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  const { data, error } = await api.from("bb_orders").update(patch).eq("id", id).select("*");
-  if (error) fail(error);
-  if (!data?.length) fail({ message: `ไม่พบออเดอร์ id=${id} หรือสิทธิ์ RLS ไม่อนุญาตให้อัปเดต` });
-  if (data.length > 1) fail({ message: `พบออเดอร์ซ้ำ ${data.length} แถวด้วย id=${id}` });
-  return data[0];
-}
-export async function updateBbOrderByKey(upsertKey: string, patch: Record<string, unknown>) {
-  const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  const { data, error } = await api.from("bb_orders").update(patch).eq("upsert_key", upsertKey).select("*");
-  if (error) fail(error);
-  if (!data?.length) fail({ message: `ไม่พบออเดอร์ upsert_key=${upsertKey} หรือสิทธิ์ RLS ไม่อนุญาตให้อัปเดต` });
-  if (data.length > 1) fail({ message: `พบ upsert_key ซ้ำ ${data.length} แถว ต้องตรวจข้อมูลก่อนแก้ไข` });
-  return data[0];
-}
-
-export type StockProduct = { id: number; sku: string; label: string; thName: string; emoji: string; price: number | null; stockQty: number; stockStatus: string | null; outOfStockJoke: string | null; stockNotice: string | null; aliases: string; inventoryId: number | string | null };
-export type ProductMapAlias = { id: string; alias: string; canonicalSku: string; canonicalLabel: string; isActive: boolean };
-
-export async function readProductMapAliases(): Promise<ProductMapAlias[]> {
-  const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  const [{ data: rows, error }, { data: products, error: productError }] = await Promise.all([
-    api.from("product_map_master").select("*").order("sku"),
-    api.from("product_master").select("sku,label_display,display_for_packer,name_standard,th_name,product_name,emoji,unit_price").order("sku")
-  ]);
-  if (error) fail(error);
-  if (productError) fail(productError);
-  const masters = new Map((products ?? []).map((p: any) => [String(p.sku ?? '').trim().toLowerCase(), p]));
-  const output: ProductMapAlias[] = [];
-  for (const row of rows ?? []) {
-    const sku = String(row.sku ?? '').trim();
-    const master = masters.get(sku.toLowerCase()) ?? {};
-    const aliases = [row.alias, row.alias_text].flatMap((v: any) => String(v ?? '').split(/[,\n|]+/)).map((v: string) => v.trim()).filter(Boolean);
-    for (const alias of Array.from(new Set(aliases))) output.push({ id: String(row.id ?? sku + ':' + alias), alias, canonicalSku: sku, canonicalLabel: master.label_display ?? master.display_for_packer ?? master.name_standard ?? master.th_name ?? master.product_name ?? sku, isActive: row.is_active !== false });
-  }
-  return output;
-}
-
-export async function readProductMapCatalog() {
-  const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  const { data, error } = await api.from("product_master").select("sku,label_display,display_for_packer,name_standard,th_name,product_name,emoji,unit_price").order("sku");
-  if (error) fail(error);
-  return (data ?? []).map((p: any) => ({ sku: String(p.sku ?? ''), label: p.label_display ?? p.display_for_packer ?? p.name_standard ?? p.th_name ?? p.product_name ?? p.sku ?? '', emoji: p.emoji ?? '📦', price: num(p.unit_price) }));
-}
-
-export async function saveProductMapAlias(input: { alias: string; canonicalSku: string }) {
-  const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  const alias = input.alias.trim(); const sku = input.canonicalSku.trim();
-  if (!alias || !sku) throw new Error('ต้องมี Alias และ SKU');
-  const { data: existing, error: readError } = await api.from('product_map_master').select('*').eq('sku', sku).maybeSingle();
-  if (readError) fail(readError);
-  const old = [existing?.alias, existing?.alias_text].flatMap((v: any) => String(v ?? '').split(/[,\n|]+/)).map((v: string) => v.trim()).filter(Boolean);
-  const aliases = Array.from(new Set([...old, alias]));
-  const payload: any = { sku, alias: aliases.join(', '), alias_text: aliases.join(', '), alias_norm: aliases.map(v => v.toLowerCase().replace(/\s+/g, '')).join(', ') };
-  const result = existing?.id != null ? await api.from('product_map_master').update(payload).eq('id', existing.id) : await api.from('product_map_master').insert(payload);
-  if (result.error) fail(result.error);
-  return { sku, alias, aliases };
-}
-
-export async function readStockProducts(): Promise<StockProduct[]> {
-  const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  // Stock Room is intentionally a Product Master room for now.
-  // It does not read inventory and it never deducts stock from orders.
-  const { data: products, error } = await api.from("product_master").select("*").order("master_sku");
-  if (error) fail(error);
-  return (products ?? []).map((p: any) => {
-    const sku = String(p.master_sku ?? p.sku ?? "").trim();
-    const stockQty = num(p.stock_qty) ?? 0;
-    return {
-      id: Number(p.id),
-      sku,
-      label: p.master_display_for_packer ?? p.display_for_packer ?? p.name_standard ?? p.th_name ?? sku,
-      thName: p.th_name ?? p.name_standard ?? "",
-      emoji: p.emoji ?? "📦",
-      price: num(p.unit_price),
-      stockQty,
-      stockStatus: p.stock_status ?? (stockQty > 0 ? "IN_STOCK" : "OUT_OF_STOCK"),
-      outOfStockJoke: null,
-      stockNotice: p.stock_notice ?? null,
-      aliases: String(p.alias ?? ""),
-      inventoryId: null,
-    };
-  });
-}
-
-export async function updateInventoryStock(input: { productId: number; sku: string; stockQty: number; stockStatus?: "IN_STOCK" | "OUT_OF_STOCK" }) {
-  const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  const stockQty = Math.max(0, Math.trunc(Number(input.stockQty) || 0));
-  const stockStatus = input.stockStatus ?? (stockQty > 0 ? "IN_STOCK" : "OUT_OF_STOCK");
-  const { error } = await api.from("product_master").update({ stock_qty: stockQty, stock_status: stockStatus, updated_at: new Date().toISOString() }).eq("id", input.productId);
-  if (error) fail(error);
-  return { ...input, stockQty, stockStatus };
-}
-
-export async function setInventoryAvailability(input: { productId: number; sku: string; available: boolean; currentQty: number }) {
-  return updateInventoryStock({
-    ...input,
-    stockQty: input.available ? Math.max(1, input.currentQty || 1) : 0,
-    stockStatus: input.available ? "IN_STOCK" : "OUT_OF_STOCK",
-  });
-}
-
-export async function readDailyOrders(date: string, search = "") { const result = await readCanonicalOrders(search); const [year, month, day] = date.split("-"); const displayPrefix = `${Number(day)}/${Number(month)}/${String(Number(year) % 100)}`; const orders = result.orders.filter((o: any) => String(o.order_time_display ?? "").startsWith(displayPrefix)); return { date, orders, total: orders.length }; }
-async function readChatRows() {
-  const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  // Read the newest window first. Ascending + limit would permanently return
-  // the oldest rows once a chat table grows beyond the limit.
-  const cutoff = chatHistoryCutoff();
-  const customerResult = await api.from("chat_customer_messages").select("*").gte("occurred_at", cutoff).order("occurred_at", { ascending: false }).limit(10000);
-  if (customerResult.error) fail(customerResult.error);
-  const pageResult = await api.from("chat_page_messages").select("*").gte("occurred_at", cutoff).order("occurred_at", { ascending: false }).limit(10000);
-  const customers = customerResult.data ?? [];
-  const pages = pageResult.error ? [] : (pageResult.data ?? []);
-  const rows = [
-    ...customers.map((r: any) => ({ ...r, _speaker: r.speaker_type || r.speaker || "customer", _side: r.side || "left", _name: r.customer_name || r.sender_name, _text: asText(r.message_text ?? r.message_raw), _thread: r.thread_id || r.conversation_key || r.conversation_id, _occurred: r.occurred_at || r.time || r.created_at, _hasAttachment: Boolean(r.has_attachment || r.attachments?.length || r.attachments_json?.length) })),
-    ...pages.map((r: any) => ({ ...r, _speaker: r.speaker_type || r.speaker || "page", _side: r.side || "right", _name: r.page_sender_name || r.sender_name, _text: asText(r.message_text ?? r.message_raw), _thread: r.thread_id || r.conversation_key || r.conversation_id, _occurred: r.occurred_at || r.time || r.created_at, _hasAttachment: Boolean(r.has_attachment || r.attachments?.length || r.attachments_json?.length) })),
-  ];
-  return rows.sort((a, b) => new Date(a._occurred || a.occurred_at || a.synced_at || 0).getTime() - new Date(b._occurred || b.occurred_at || b.synced_at || 0).getTime());
-}
-export async function readChatThreads() { const rows = await readChatRows(); const map = new Map<string, any>(); for (const row of rows) { const key = `${row.page_id ?? ""}:${row._thread ?? ""}`; const current = map.get(key) ?? { key, pageId: row.page_id, threadId: row._thread, customerId: row.customer_id, pageName: row.page_name || "ไม่ระบุเพจ", customerName: row.customer_name || row._name || "ลูกค้า", latestAt: row._occurred || row.occurred_at || row.synced_at, latestOrderNumber: null, preview: row._text || (row._hasAttachment ? "[ไฟล์แนบ]" : ""), orderCount: 0, unread: false, messageCount: 0, orders: [], chatTimeline: [] as string[] }; current.latestAt = row._occurred || row.occurred_at || row.synced_at || current.latestAt; current.preview = row._text || (row._hasAttachment ? "[ไฟล์แนบ]" : current.preview); current.customerId ||= row.customer_id; current.customerName = current.customerName === "ลูกค้า" ? row.customer_name || row._name || current.customerName : current.customerName; current.messageCount += 1; current.chatTimeline.push(`${row._speaker === "page" ? "[เพจ]" : "[ลูกค้า]"} ${row._text || (row._hasAttachment ? "[ไฟล์แนบ]" : "")}`); map.set(key, current); } try { const orders = await readCanonicalOrders(); for (const order of orders.orders) { const key = `${order.page_id ?? ""}:${order.thread_id || order.threadId || ""}`; const current = map.get(key); if (current) { current.orders.push(order); current.orderCount += 1; current.latestOrderNumber = order.order_number; } } } catch { /* ห้องแชทต้องไม่หายเพราะ View ออเดอร์อ่านไม่ได้ */ } return Array.from(map.values()).sort((a, b) => new Date(b.latestAt || 0).getTime() - new Date(a.latestAt || 0).getTime()); }
-export async function readChatMessages(pageId: string, threadId: string) { const rows = await readChatRows(); return rows.filter(row => String(row.page_id) === String(pageId) && String(row._thread) === String(threadId)).map((row: any) => ({ id: row.id, text: row._text || (row._hasAttachment ? "ส่งรูปภาพ" : ""), message_text: row._text, direction: row._speaker === "page" ? "outbound" : "inbound", senderType: row._speaker, senderName: row._name, side: row._side, occurredAt: row._occurred || row.occurred_at || row.synced_at, attachmentsJson: JSON.stringify(row.attachments_json || []), imageUrls: row.image_urls || [] })); }
-export async function readDailyChatSummary(date: string) {
-  const rows = await readChatRows(); let orders: any[] = [];
-  try { const orderResult = await readCanonicalOrders("", new Date(date + "T00:00:00+07:00").toISOString()); orders = orderResult.orders; } catch { /* keep chat summary usable when canonical view is unavailable */ }
-  const ordersByRoom = new Map(orders.map((order: any) => [String(order.page_id ?? "") + ":" + String(order.thread_id ?? ""), order]));
-  const dayRows = rows.filter(row => { const value = row._occurred || row.occurred_at || row.synced_at; return value && new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok" }).format(new Date(value)) === date; });
-  const map = new Map<string, any>();
-  for (const row of dayRows) {
-    const key = String(row.page_id ?? "") + ":" + String(row._thread ?? ""); const current = map.get(key) ?? { customerName: row.customer_name || row._name || "ไม่ระบุชื่อ", customerId: row.customer_id || "", pageName: row.page_name || "ไม่ระบุเพจ", pageId: row.page_id, threadId: row._thread, customerMessages: 0, pageMessages: 0, orderSignals: 0, signalScore: 0, signalReasons: [], coreSignalCount: 0, flowSignalCount: 0, qualifiedSignal: false, snippets: [], latestAt: row._occurred || row.occurred_at || row.synced_at, customerText: [], pageText: [], latestCod: null };
-    const text = row._text || (row._hasAttachment ? "[ไฟล์แนบ]" : ""); if (row._speaker === "customer") { current.customerMessages += 1; current.customerText.push(text); } else { current.pageMessages += 1; current.pageText.push(text); }
-    current.latestAt = row._occurred || row.occurred_at || row.synced_at || current.latestAt; const cod = parseCod(text); if (cod != null) current.latestCod = cod;
-    const signal = scoreDailyOrderSignal(text, cod); if (signal.qualified) current.orderSignals += 1; current.signalScore += signal.score; current.coreSignalCount += signal.coreCount; current.flowSignalCount += signal.flowCount; current.qualifiedSignal ||= signal.qualified; current.signalReasons.push(...signal.reasons);
-    if (text.trim()) current.snippets.push(text.slice(0, 300)); map.set(key, current);
-  }
-  const threads = Array.from(map.values()).map(row => { const order = ordersByRoom.get(String(row.pageId ?? "") + ":" + String(row.threadId ?? "")) as any; return { ...row, sourceText: order?.source_text || order?.source_payload?.source_text || "", productDisplay: order?.display_for_packer || order?.items_text || "", snippets: row.snippets.slice(-8), signalReasons: Array.from(new Set(row.signalReasons)).slice(-12), orderSignalsText: row.latestCod != null ? "COD ล่าสุด " + row.latestCod.toLocaleString("th-TH") + " บาท" : "ไม่พบ COD" }; });
-  return { date, threads, totalMessages: dayRows.length, customerMessages: dayRows.filter(r => r._speaker === "customer").length, pageMessages: dayRows.filter(r => r._speaker === "page").length, threadCount: threads.length, orderSignalThreads: threads.filter(r => r.orderSignals > 0).length };
-}
-export type AlienReviewItem = Record<string, any> & { audit_status: string; raw_display: string; mapped_display: string; customer_history: string[] };
-export async function readAlienReview(search = ''): Promise<AlienReviewItem[]> {
-  const api = getSupabase();
-  if (!api) fail({ message: 'ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key' });
-  const camp = getActiveCamp();
-  const orderTable = 'bb_orders';
-  const inspectorView = 'vw_bb_alien_master_center';
-  const [ordersResult, masterResult, aliasResult, inventoryResult, inspectorResult] = await Promise.all([
-    api.from(orderTable).select('*').order('updated_at', { ascending: false }).limit(1000),
-    // Read the existing tables without assuming a particular SKU column name.
-    // Some Supabase projects use master_sku/product_code instead of sku.
-    api.from('product_master').select('*').limit(1500),
-    api.from('product_map_master').select('*').limit(3000),
-    api.from('inventory').select('*'),
-    api.from(inspectorView).select('*').limit(2000),
-  ]);
-  if (ordersResult.error) fail(ordersResult.error);
-  if (masterResult.error) fail(masterResult.error);
-  if (aliasResult.error) fail(aliasResult.error);
-  // Inventory is supplementary. If the table is not connected yet or RLS
-  // hides it, keep the raw/master inspection alive and report STOCK_UNKNOWN.
-
-  const productKey = (row: any) => String(row.sku ?? row.master_sku ?? row.product_sku ?? row.product_code ?? row.code ?? '').trim();
-  // product_master is shared by BB and has no store_code column. Do not
-  // filter by a non-existent column, otherwise the Master/stock lookup is
-  // coupled to an unsupported schema.
-  const masters: any[] = masterResult.data ?? [];
-  const bySku = new Map<string, any>(masters
-    .map((master: any): [string, any] => [productKey(master).toLowerCase(), master])
-    .filter(([key]) => Boolean(key)));
-  const inventoryByKey = new Map<string, any>();
-  for (const stock of inventoryResult.data ?? []) {
-    if (stock.product_id != null) inventoryByKey.set(`id:${String(stock.product_id)}`, stock);
-    const stockSku = productKey(stock).toLowerCase();
-    if (stockSku) inventoryByKey.set(`sku:${stockSku}`, stock);
-  }
-  const normalize = (value: any) => String(value ?? '').toLowerCase().normalize('NFKC').replace(/[\s_\-.,:;|()[\]{}]+/g, '').trim();
-  const aliasToSku = new Map<string, string>();
-  for (const row of aliasResult.data ?? []) {
-    const sku = productKey(row);
-    if (!sku) continue;
-    for (const value of [row.alias, row.alias_text, row.alias_norm].flatMap((v: any) => String(v ?? '').split(/[,\n|]+/)).map((v: string) => v.trim()).filter(Boolean)) {
-      const key = normalize(value);
-      if (key) aliasToSku.set(key, sku);
-    }
-  }
-
-  const query = search.trim().toLowerCase();
-  const inspectorByKey = new Map<string, any>();
-  for (const item of inspectorResult.data ?? []) {
-    const key = String(item.upsert_key ?? item.order_number ?? '').trim();
-    if (key) inspectorByKey.set(key, item);
-  }
-  return (ordersResult.data ?? []).map((sourceOrder: any) => {
-    // The order table remains the no-drop source. The inspector view only
-    // enriches it with verified Master/quantity/inventory fields.
-    const order = { ...sourceOrder, ...(inspectorByKey.get(String(sourceOrder.upsert_key ?? sourceOrder.order_number ?? '').trim()) ?? {}) };
-    const history = [
-      ...(Array.isArray(order.normalized_chat_timeline) ? order.normalized_chat_timeline : []),
-      ...(Array.isArray(order.chat_timeline) ? order.chat_timeline : []),
-    ].map((value: any) => String(value)).filter(Boolean);
-    const rawCandidates = [
-      order.raw_text,
-      order.raw_item_text,
-      order.raw_product_text,
-      order.extracted_product_raw,
-      order.product_lines,
-      order.sniper_x_text_clean,
-    ].map((value: any) => String(value ?? '').trim()).filter(Boolean);
-    const raw = rawCandidates.find((value: string) => !/CHECK_SKU|ระบุสินค้าไม่ได้/i.test(value)) || rawCandidates[0] || '';
-    const evidenceText = [raw, ...history].join('\n');
-    const rawNormalized = normalize(evidenceText);
-    const aliasSku = Array.from(aliasToSku.entries()).find(([alias]) => alias.length >= 3 && rawNormalized.includes(alias))?.[1] ?? '';
-    const sourceSku = String(order.sku ?? order.extracted_sku ?? '').trim();
-    const resolvedSku = sourceSku || aliasSku;
-    const master: any = bySku.get(resolvedSku.toLowerCase());
-    const inventory: any = master?.id != null
-      ? inventoryByKey.get(`id:${String(master.id)}`) ?? inventoryByKey.get(`sku:${resolvedSku.toLowerCase()}`)
-      : inventoryByKey.get(`sku:${resolvedSku.toLowerCase()}`);
-    // Order product display comes from LAB view bb_pack_center only.
-    // Do not rebuild, translate, or replace the LAB value in the web room.
-    const masterDisplay = String(order.bb_pack_center ?? '').trim();
-    const mappingStatus = String(order.mapping_status ?? order.match_status ?? '').toUpperCase();
-    const matched = Boolean(masterDisplay && (mappingStatus === 'MATCHED' || mappingStatus === 'RESOLVED' || Boolean(aliasSku)));
-    const audit_status = matched ? 'MATCHED' : 'REVIEW';
-    const customerHistory = Array.from(new Set(history));
-    const row = {
-      ...order,
-      store_code: order.store_code ?? camp,
-      sku: resolvedSku || null,
-      raw_display: raw || 'ไม่มีคำดิบ',
-      mapped_display: matched ? masterDisplay : '',
-      master_display_for_packer: masterDisplay || null,
-      audit_status,
-      mapping_status: mappingStatus || 'REVIEW',
-      alias_match: Boolean(aliasSku),
-      alias_match_sku: aliasSku || null,
-      alias_match_method: aliasSku ? 'product_map_master' : null,
-      customer_history: customerHistory,
-      customer_history_count: order.chat_timeline_count ?? customerHistory.length,
-      product_source: order.product_source ?? null,
-      product_evidence: order.product_evidence ?? null,
-      address_completeness: order.address_completeness ?? null,
-      // Inventory is the stock truth; product_master is only the product
-      // catalogue and display source.
-      stock_status: inventory?.stock_status ?? 'STOCK_UNKNOWN',
-      stock_qty: inventory?.stock_qty ?? inventory?.quantity ?? null,
-      available_qty: inventory?.stock_qty ?? inventory?.quantity ?? null,
-      unit_price: order.unit_price ?? master?.unit_price ?? null,
-      price_mismatch: false,
-    };
-    return row;
-  }).filter((row: AlienReviewItem) => !query || JSON.stringify(row).toLowerCase().includes(query));
-}
+diff --git a/client/src/lib/canonical.ts b/client/src/lib/canonical.ts
+index 4af147e..df32097 100644
+--- a/client/src/lib/canonical.ts
++++ b/client/src/lib/canonical.ts
+@@ -62,20 +62,19 @@ function fail(error: any): never { throw new Error(error?.message || "Supabase c
+ function num(v: any) { const n = Number(v); return v == null || v === "" || !Number.isFinite(n) ? null : n; }
+ function asText(v: any) { return typeof v === "string" ? v : v == null ? "" : JSON.stringify(v); }
+ function parseCod(text: string) { const matches = text.match(/(?:ยอดรวม\s*)?cod\s*[:=]?\s*\[?\s*([\d,]+(?:\.\d+)?)\s*\]?|เก็บปลายทาง[^\d]{0,20}([\d,]+(?:\.\d+)?)/gi) || []; const last = matches[matches.length - 1] || ""; const numberMatch = last.match(/[\d,]+(?:\.\d+)?/); return numberMatch ? Number(numberMatch[0].replace(/,/g, "")) : null; }
+-const CORE_SIGNATURE = ["🚨 [สถานะ: ปิดยอดสำเร็จ!]", "[สรุปรายการสั่งซื้อ]", "⚡FLASH EXPRESS", "COD", "📍ที่อยู่จัดส่ง:", "✅:", "🟡MOND GOLD:", "🆔เลขที่ออเดอร์: ORD-2606:", "📱 เบอร์:", "📮 รหัสไปรษณีย์:", "👤 ชื่อ:", "💰 COD:", "เขียว:", "สรุปรายการสั่งซื้อ", "เลขที่ออเดอร์", "ที่อยู่จัดส่ง", "ORD-", "📦 รายการสินค้า:", "คอต.", "ยอดรวม"];
+-const PRODUCT_LINE_SIGNAL = /(?:📦\s*)?รายการสินค้า|(?:🟢|🟡|🔴|🟠|🟣|🔵|🟩|🟨|🟥|🟧|🟪|🟦|🍉|🥭)\s*[A-Z_ก-๙]+.*?คอต\.?/i;
++export function hasCodOrderSignal(text: unknown) { return /\bCOD\b/i.test(String(text ?? "")); }
+ function scoreDailyOrderSignal(text: string, latestCod: number | null) {
+-  const value = String(text || ""); const reasons: string[] = [];
+-  const lower = value.toLowerCase(); const core = CORE_SIGNATURE.filter(k => lower.includes(k.toLowerCase())); const productLine = PRODUCT_LINE_SIGNAL.test(value);
+-  const phone = /(?:เบอร์โทรศัพท์|เบอร์|โทร|tel)\s*[:：.]?\s*\d{9,10}|\b0\d{9}\b/i.test(value); const postal = /\b\d{5}\b/.test(value);
+-  const address = /(?:ที่อยู่|จัดส่ง|ตำบล|ต\.|อำเภอ|อ\.|จังหวัด|จ\.)/i.test(value); const orderDate = /\b\d{1,2}[\/.-]\d{1,2}[\/.-]\d{2,4}\b/.test(value) || /order_date|เวลาสั่งซื้อ|วันที่สั่งซื้อ/i.test(value);
+-  const cod = latestCod ?? parseCod(value); let score = 0;
+-  if (cod != null) { score += 10; reasons.push("COD " + cod); } if (phone) { score += 3; reasons.push("เบอร์โทร"); } if (postal) { score += 4; reasons.push("รหัสไปรษณีย์"); }
+-  if (address) { score += 4; reasons.push("ที่อยู่"); } if (orderDate) { score += 5; reasons.push("วันที่/เวลาสั่งซื้อ"); }
+-  if (core.length) { score += Math.min(core.length * 3, 12); reasons.push("Core " + core.slice(0, 3).join(" | ")); } if (productLine) { score += 3; reasons.push("บรรทัดสินค้า"); }
+-  const qualifiedCod = cod != null && cod >= 200; const qualified = score >= 30 || qualifiedCod || core.length > 0;
+-  return { score, qualified, qualifiedCod, reasons: Array.from(new Set(reasons)), coreCount: core.length, flowCount: 0 };
+-}export type CanonicalItem = Record<string, any>;
++  const qualified = hasCodOrderSignal(text);
++  return {
++    score: qualified ? 1 : 0,
++    qualified,
++    qualifiedCod: qualified && latestCod != null && latestCod >= 200,
++    reasons: qualified ? ["คำว่า COD"] : [],
++    coreCount: 0,
++    flowCount: 0,
++  };
++}
++export type CanonicalItem = Record<string, any>;
+ export type CanonicalOrder = Record<string, any> & { items: CanonicalItem[]; items_text: string; display_for_packer: string | null; is_ready_to_pack: boolean; cod_check_status: string | null; audit_status: string | null; order_status: string | null; telegram_status: string | null };
+ const ORDER_SOURCE_TABLE_BY_CAMP: Record<Camp, string> = { BB: "bb_orders" };
+ // Direct BB route stays intentionally small so Supabase does not timeout on large chat payloads.
+@@ -370,7 +369,86 @@ async function readChatRows() {
+   ];
+   return rows.sort((a, b) => new Date(a._occurred || a.occurred_at || a.synced_at || 0).getTime() - new Date(b._occurred || b.occurred_at || b.synced_at || 0).getTime());
+ }
+-export async function readChatThreads() { const rows = await readChatRows(); const map = new Map<string, any>(); for (const row of rows) { const key = `${row.page_id ?? ""}:${row._thread ?? ""}`; const current = map.get(key) ?? { key, pageId: row.page_id, threadId: row._thread, customerId: row.customer_id, pageName: row.page_name || "ไม่ระบุเพจ", customerName: row.customer_name || row._name || "ลูกค้า", latestAt: row._occurred || row.occurred_at || row.synced_at, latestOrderNumber: null, preview: row._text || (row._hasAttachment ? "[ไฟล์แนบ]" : ""), orderCount: 0, unread: false, messageCount: 0, orders: [], chatTimeline: [] as string[] }; current.latestAt = row._occurred || row.occurred_at || row.synced_at || current.latestAt; current.preview = row._text || (row._hasAttachment ? "[ไฟล์แนบ]" : current.preview); current.customerId ||= row.customer_id; current.customerName = current.customerName === "ลูกค้า" ? row.customer_name || row._name || current.customerName : current.customerName; current.messageCount += 1; current.chatTimeline.push(`${row._speaker === "page" ? "[เพจ]" : "[ลูกค้า]"} ${row._text || (row._hasAttachment ? "[ไฟล์แนบ]" : "")}`); map.set(key, current); } try { const orders = await readCanonicalOrders(); for (const order of orders.orders) { const key = `${order.page_id ?? ""}:${order.thread_id || order.threadId || ""}`; const current = map.get(key); if (current) { current.orders.push(order); current.orderCount += 1; current.latestOrderNumber = order.order_number; } } } catch { /* ห้องแชทต้องไม่หายเพราะ View ออเดอร์อ่านไม่ได้ */ } return Array.from(map.values()).sort((a, b) => new Date(b.latestAt || 0).getTime() - new Date(a.latestAt || 0).getTime()); }
++export function orderThreadAliases(order: any): string[] {
++  return Array.from(new Set([order.thread_id, order.threadId, order.conversation_key, order.conversation_id]
++    .map(value => String(value ?? "").trim()).filter(Boolean)));
++}
++export function orderIdentity(order: any): string {
++  for (const [field, prefix] of [["order_number", "order"], ["upsert_key", "upsert"], ["id", "id"]] as const) {
++    const value = String(order[field] ?? "").trim();
++    if (value) return `${prefix}:${value}`;
++  }
++  return "";
++}
++export function codSignalIdentity(row: any): string {
++  const text = String(row?._text ?? row?.message_text ?? row?.message_raw ?? "");
++  if (!hasCodOrderSignal(text)) return "";
++  const speaker = String(row?._speaker ?? row?.speaker_type ?? row?.speaker ?? "unknown");
++  const messageId = String(row?.source_message_id || row?.message_id || row?.id || "").trim();
++  const identity = messageId || `${row?._occurred || row?.occurred_at || row?.created_at || ""}:${text}`;
++  return `${speaker}:${identity}`;
++}
++export async function readChatThreads() {
++  const rows = await readChatRows();
++  const map = new Map<string, any>();
++  const codMessagesByRoom = new Map<string, Set<string>>();
++  for (const row of rows) {
++    const pageId = String(row.page_id ?? row.pageId ?? "").trim();
++    const threadId = String(row._thread ?? "").trim();
++    const key = `${pageId}:${threadId}`;
++    const current = map.get(key) ?? {
++      key, pageId, threadId, customerId: row.customer_id, pageName: row.page_name || "ไม่ระบุเพจ",
++      customerName: row.customer_name || row._name || "ลูกค้า", latestAt: row._occurred || row.occurred_at || row.synced_at,
++      latestOrderNumber: null, preview: row._text || (row._hasAttachment ? "[ไฟล์แนบ]" : ""),
++      orderCount: 0, codSignalCount: 0, orderCountError: null, unread: false, messageCount: 0, orders: [], chatTimeline: [],
++    };
++    current.latestAt = row._occurred || row.occurred_at || row.synced_at || current.latestAt;
++    current.preview = row._text || (row._hasAttachment ? "[ไฟล์แนบ]" : current.preview);
++    current.customerId ||= row.customer_id;
++    current.customerName = current.customerName === "ลูกค้า" ? row.customer_name || row._name || current.customerName : current.customerName;
++    current.messageCount += 1;
++    current.chatTimeline.push(`${row._speaker === "page" ? "[เพจ]" : "[ลูกค้า]"} ${row._text || (row._hasAttachment ? "[ไฟล์แนบ]" : "")}`);
++
++    // COD keyword only: no template, product, address, phone, amount, or speaker gate.
++    const signalKey = codSignalIdentity(row);
++    if (signalKey) {
++      const seen = codMessagesByRoom.get(key) ?? new Set<string>();
++      if (!seen.has(signalKey)) {
++        seen.add(signalKey);
++        codMessagesByRoom.set(key, seen);
++        current.codSignalCount += 1;
++      }
++    }
++    map.set(key, current);
++  }
++
++  let orderCountError: string | null = null;
++  try {
++    const result = await readCanonicalOrders();
++    const seenOrdersByRoom = new Map<string, Set<string>>();
++    for (const order of result.orders) {
++      const pageId = String(order.page_id ?? order.pageId ?? "").trim();
++      const current = orderThreadAliases(order)
++        .map(id => map.get(`${pageId}:${id}`))
++        .find(Boolean);
++      if (!current) continue;
++      const identity = orderIdentity(order);
++      const seen = seenOrdersByRoom.get(current.key) ?? new Set<string>();
++      if (identity && seen.has(identity)) continue;
++      if (identity) {
++        seen.add(identity);
++        seenOrdersByRoom.set(current.key, seen);
++      }
++      current.orders.push(order);
++      current.orderCount = current.orders.length;
++      if (!current.latestOrderNumber) current.latestOrderNumber = order.order_number || null;
++    }
++  } catch (error) {
++    orderCountError = error instanceof Error ? error.message : String(error || "อ่านรายการออเดอร์ไม่สำเร็จ");
++  }
++  Array.from(map.values()).forEach(thread => { thread.orderCountError = orderCountError; });
++  return Array.from(map.values()).sort((a, b) => new Date(b.latestAt || 0).getTime() - new Date(a.latestAt || 0).getTime());
++}
+ export async function readChatMessages(pageId: string, threadId: string) { const rows = await readChatRows(); return rows.filter(row => String(row.page_id) === String(pageId) && String(row._thread) === String(threadId)).map((row: any) => ({ id: row.id, text: row._text || (row._hasAttachment ? "ส่งรูปภาพ" : ""), message_text: row._text, direction: row._speaker === "page" ? "outbound" : "inbound", senderType: row._speaker, senderName: row._name, side: row._side, occurredAt: row._occurred || row.occurred_at || row.synced_at, attachmentsJson: JSON.stringify(row.attachments_json || []), imageUrls: row.image_urls || [] })); }
+ export async function readDailyChatSummary(date: string) {
+   const rows = await readChatRows(); let orders: any[] = [];
+diff --git a/client/src/pages/ChatHub.tsx b/client/src/pages/ChatHub.tsx
+index 06c9ff2..61d2106 100644
+--- a/client/src/pages/ChatHub.tsx
++++ b/client/src/pages/ChatHub.tsx
+@@ -81,7 +81,7 @@ export default function ChatHub() {
+     const query = search.trim().toLowerCase();
+     return threads.filter(thread => {
+       const matchesPage = selectedPages.length === 0 || Boolean(thread.pageId && selectedPages.includes(thread.pageId));
+-      const matchesStatus = statusFilter === "all" || (statusFilter === "unread" ? thread.unread : thread.orderCount > 0);
++      const matchesStatus = statusFilter === "all" || (statusFilter === "unread" ? thread.unread : thread.codSignalCount > 0);
+       const matchesSearch = !query || [thread.customerName, thread.pageName, thread.preview, thread.searchText, thread.latestOrderNumber].some(value => String(value ?? "").toLowerCase().includes(query));
+       return matchesPage && matchesStatus && matchesSearch;
+     });
+@@ -202,7 +202,7 @@ export default function ChatHub() {
+   </div>;
+ 
+   const conversation = selected ? <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+-    <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-orange-500/10 px-5 py-3"><div className="flex min-w-0 items-center gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500/25 to-red-500/25 text-orange-200"><CircleUserRound className="h-5 w-5" /></div><div className="min-w-0"><h2 className="truncate text-base font-semibold text-white">{selected.customerName || "ลูกค้าใหม่"}</h2><div className="mt-1 flex items-center gap-2 text-[11px] text-orange-100/40"><span className="truncate">{selected.pageName}</span><span>·</span><span>{timeLabel(selected.latestAt)}</span></div></div></div><div className="flex max-w-full flex-wrap items-center justify-end gap-2"><Badge className="hidden border border-emerald-400/25 bg-emerald-400/10 text-emerald-300 sm:inline-flex">● ONLINE</Badge><Button size="sm" variant="outline" onClick={confirmSelectedOrder} disabled={selectedConfirmed || confirmOrder.isPending} className="rounded-xl border-orange-400/25 bg-orange-400/10 text-xs text-amber-200 hover:bg-orange-400/20">{selectedConfirmed ? <><CheckCircle2 className="mr-1 h-3.5 w-3.5" />ยืนยันแล้ว</> : confirmOrder.isPending ? "กำลังบันทึก…" : "ยืนยันเป็นออเดอร์"}</Button><Button size="sm" variant="outline" onClick={() => setOrderDetailOpen(true)} className="rounded-xl border-amber-400/25 bg-amber-400/10 text-xs text-amber-200 hover:bg-amber-400/20">ออเดอร์ ({linkedOrders.length ?? 0})</Button><Button size="sm" onClick={openOrderSummary} className="rounded-xl bg-orange-600/80 text-xs hover:bg-orange-500">สรุปออเดอร์</Button>{isMobile ? <button onClick={() => setMobileOpen(false)} className="rounded-xl p-2 text-orange-100/55 hover:bg-orange-500/10 hover:text-white" aria-label="ปิดห้องแชท"><X className="h-5 w-5" /></button> : null}</div></div>
++    <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-orange-500/10 px-5 py-3"><div className="flex min-w-0 items-center gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500/25 to-red-500/25 text-orange-200"><CircleUserRound className="h-5 w-5" /></div><div className="min-w-0"><h2 className="truncate text-base font-semibold text-white">{selected.customerName || "ลูกค้าใหม่"}</h2><div className="mt-1 flex items-center gap-2 text-[11px] text-orange-100/40"><span className="truncate">{selected.pageName}</span><span>·</span><span>{timeLabel(selected.latestAt)}</span></div></div></div><div className="flex max-w-full flex-wrap items-center justify-end gap-2"><Badge className="hidden border border-emerald-400/25 bg-emerald-400/10 text-emerald-300 sm:inline-flex">● ONLINE</Badge><Button size="sm" variant="outline" onClick={confirmSelectedOrder} disabled={selectedConfirmed || confirmOrder.isPending} className="rounded-xl border-orange-400/25 bg-orange-400/10 text-xs text-amber-200 hover:bg-orange-400/20">{selectedConfirmed ? <><CheckCircle2 className="mr-1 h-3.5 w-3.5" />ยืนยันแล้ว</> : confirmOrder.isPending ? "กำลังบันทึก…" : "ยืนยันเป็นออเดอร์"}</Button><Button size="sm" variant="outline" onClick={() => setOrderDetailOpen(true)} className="rounded-xl border-amber-400/25 bg-amber-400/10 text-xs text-amber-200 hover:bg-amber-400/20" title="นับข้อความที่มีคำว่า COD ในข้อมูลแชทที่โหลด">COD ({selected.codSignalCount ?? 0})</Button><Button size="sm" onClick={openOrderSummary} className="rounded-xl bg-orange-600/80 text-xs hover:bg-orange-500">สรุปออเดอร์</Button>{isMobile ? <button onClick={() => setMobileOpen(false)} className="rounded-xl p-2 text-orange-100/55 hover:bg-orange-500/10 hover:text-white" aria-label="ปิดห้องแชท"><X className="h-5 w-5" /></button> : null}</div></div>
+     <div ref={chatTimelineRef} onScroll={handleTimelineScroll} className="relative min-h-0 flex-1 flex flex-col justify-start gap-3 overflow-y-auto overscroll-contain bg-[radial-gradient(circle_at_70%_20%,rgba(168,85,247,0.09),transparent_32%),#0b0910] p-5 [-webkit-overflow-scrolling:touch]">
+       {showNewMessages ? <button type="button" onClick={jumpToLatest} className="sticky bottom-3 left-1/2 z-20 mx-auto -mb-10 rounded-full border border-orange-300/30 bg-gradient-to-r from-orange-600 to-red-600 px-4 py-2 text-xs font-semibold text-white shadow-[0_0_24px_rgba(168,85,247,0.45)] transition hover:scale-105">ข้อความใหม่ · ลงล่างสุด</button> : null}
+       {messagesQuery.isFetching ? <div className="absolute right-4 top-4 z-10 inline-flex items-center gap-1.5 rounded-full border border-orange-400/20 bg-[#15101d]/90 px-2.5 py-1 text-[10px] text-orange-200"><LoaderCircle className="h-3 w-3 animate-spin" />กำลังอัปเดต</div> : null}
+@@ -215,15 +215,16 @@ export default function ChatHub() {
+   return <div className="min-h-[calc(100vh-2rem)] bg-[#09070d] text-white"><div className="mx-auto max-w-[1600px] space-y-5 p-2 sm:p-4 lg:p-6">
+     <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-orange-500/15 bg-[#100c19] px-4 py-2 text-[11px] text-orange-100/55"><span className="inline-flex items-center gap-1.5 text-emerald-300"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />SYNC OK</span><span>รอบล่าสุด: {threadsQuery.dataUpdatedAt ? new Date(threadsQuery.dataUpdatedAt).toLocaleString("th-TH", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "กำลังโหลด"}</span><span className="text-orange-100/20">·</span><span><Users className="mr-1 inline h-3 w-3" />{totalMessages.toLocaleString("th-TH")} ข้อความจากตารางกลาง</span><span className="text-orange-100/20">·</span><span className={metaErrorsQuery.data?.length ? "text-amber-300" : "text-emerald-300"}>Meta Error {metaErrorsQuery.data?.length ?? 0}</span><span className="ml-auto text-orange-100/30">n8n API รอบละ 1 นาที</span></div>
+     {threadsQuery.isError ? <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-400/20 bg-red-400/[0.06] px-4 py-3 text-xs text-red-200"><span>โหลดห้องแชทไม่สำเร็จ: {threadsQuery.error.message}</span><Button size="sm" variant="outline" onClick={() => threadsQuery.refetch()} className="border-red-300/20 bg-transparent text-red-100">ลองใหม่</Button></div> : null}
++    {threads.find(thread => thread.orderCountError)?.orderCountError ? <div role="alert" className="rounded-2xl border border-amber-400/25 bg-amber-400/[0.06] px-4 py-3 text-xs leading-5 text-amber-200">โหลดแชทได้ แต่การเชื่อมแถวออเดอร์มีปัญหา: {String(threads.find(thread => thread.orderCountError)?.orderCountError)}</div> : null}
+     <header className="relative overflow-hidden rounded-3xl border border-orange-500/20 bg-[#100c19] px-6 py-7 shadow-2xl shadow-orange-950/20 sm:px-8"><div className="pointer-events-none absolute -right-24 -top-36 h-80 w-80 rounded-full bg-orange-600/20 blur-3xl" /><div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between"><div><div className="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.28em] text-orange-300"><Sparkles className="h-4 w-4" /> NIGHTOPS · PAGE CHAT HUB</div><h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">กล่องข้อความรวม</h1><p className="mt-3 max-w-2xl text-sm leading-6 text-orange-100/55">กรองห้องตามเพจ สถานะอ่าน และออเดอร์ได้จากแถบด้านซ้าย</p></div><div className="flex flex-wrap items-center gap-2"><Badge className="border border-emerald-400/30 bg-emerald-400/10 text-emerald-300"><span className="mr-2 h-1.5 w-1.5 rounded-full bg-emerald-400" /> LIVE API · 60s</Badge><Button variant="outline" size="sm" onClick={() => threadsQuery.refetch()} className="border-orange-400/20 bg-orange-400/5 text-orange-100 hover:bg-orange-400/10"><RefreshCw className={`mr-2 h-3.5 w-3.5 ${threadsQuery.isFetching ? "animate-spin" : ""}`} /> รีเฟรช</Button></div></div></header>
+     <div className="grid gap-5 lg:grid-cols-[340px_minmax(0,1fr)]"><Card className="overflow-hidden rounded-3xl border-orange-500/15 bg-[#100d15] shadow-xl shadow-orange-950/10"><CardHeader className="border-b border-orange-500/10 pb-3"><div className="flex items-center justify-between"><CardTitle className="text-base">แชทส่วนตัว <span className="ml-1 text-xs font-normal text-orange-100/35">{filteredThreads.length}</span></CardTitle><button onClick={() => setPageFilterOpen(value => !value)} className={`flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-[11px] ${selectedPages.length ? "bg-orange-500/15 text-orange-200" : "text-orange-100/45 hover:bg-orange-500/10 hover:text-orange-100"}`}><span className="h-2 w-2 rounded-sm border border-current" />เพจ{selectedPages.length ? ` · ${selectedPages.length}` : ""}<ChevronDown className="h-3 w-3" /></button></div>
+       <div className="relative mt-3"><Search className="absolute left-3 top-2.5 h-4 w-4 text-orange-100/30" /><Input value={search} onChange={event => setSearch(event.target.value)} placeholder="ค้นหาชื่อลูกค้าหรือข้อความ…" className="rounded-xl border-orange-500/15 bg-black/20 pl-9 text-white placeholder:text-orange-100/25 focus-visible:ring-fuchsia-400" />{pageFilterOpen ? <div className="absolute right-0 top-12 z-20 w-64 rounded-2xl border border-orange-400/20 bg-[#181020] p-3 shadow-2xl shadow-black/50"><div className="mb-2 flex items-center justify-between"><p className="text-[10px] font-semibold uppercase tracking-wider text-orange-300">เลือกเพจ</p><button onClick={() => setSelectedPages([])} className="text-[10px] text-orange-100/40 hover:text-white">ล้าง</button></div>{availablePages.map(([pageId, pageName]) => <label key={pageId} className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-xs text-orange-50/80 hover:bg-orange-500/10"><input type="checkbox" checked={selectedPages.includes(pageId)} onChange={event => setSelectedPages(current => event.target.checked ? [...current, pageId] : current.filter(item => item !== pageId))} className="accent-fuchsia-500" /> <span className="truncate">{pageName}</span></label>)}{!availablePages.length ? <p className="p-2 text-xs text-orange-100/35">ยังไม่มีรายชื่อเพจ</p> : null}</div> : null}</div>
+-      <div className="mt-3 flex flex-wrap gap-1.5">{([ ["all", "ทั้งหมด"], ["unread", "ยังไม่อ่าน"], ["ordered", "มีออเดอร์"] ] as const).map(([value, label]) => <button key={value} type="button" onClick={() => setStatusFilter(value)} className={`rounded-lg px-2.5 py-1 text-[10px] transition ${statusFilter === value ? "bg-amber-400/15 text-amber-200 ring-1 ring-amber-300/25" : "text-orange-100/45 hover:bg-orange-500/10 hover:text-orange-100"}`}>{label}</button>)}</div></CardHeader><CardContent className="max-h-[calc(100dvh-14rem)] overflow-y-auto overscroll-contain p-2 [-webkit-overflow-scrolling:touch] lg:max-h-[700px]">{threadsQuery.isLoading ? <div className="flex items-center justify-center gap-2 p-12 text-sm text-orange-100/40"><RefreshCw className="h-4 w-4 animate-spin" />กำลังโหลดห้อง…</div> : filteredThreads.length === 0 ? <div className="p-12 text-center text-sm text-orange-100/40"><MessageCircle className="mx-auto mb-3 h-8 w-8 text-orange-100/15" />ยังไม่มีห้องตามตัวกรอง</div> : filteredThreads.map((thread, index) => <button key={thread.key} onClick={() => { setSelectedKey(thread.key); if (isMobile) setMobileOpen(true); }} className={`relative mb-1 flex w-full items-start gap-3 rounded-2xl p-3.5 text-left transition ${selected?.key === thread.key ? "bg-orange-500/[0.10] ring-1 ring-fuchsia-400/35" : "hover:bg-orange-400/[0.06]"}`}><span className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${index % 2 ? "bg-orange-500/20 text-orange-200" : "bg-orange-500/20 text-orange-200"}`}>{(thread.customerName || "ลูกค้า").slice(0, 1)}</span><span className="min-w-0 flex-1"><span className="flex items-center justify-between gap-2"><span className="truncate text-sm font-semibold text-orange-50">{thread.customerName || "ลูกค้าใหม่"}</span><span className="shrink-0 text-[10px] text-orange-100/35">{timeLabel(thread.latestAt)}</span></span><span className="mt-1 flex items-center gap-1.5 truncate text-[10px] text-orange-200/55">{thread.unread ? <span className="rounded bg-amber-400/15 px-1 text-amber-200">ใหม่</span> : null}{thread.orderCount > 0 ? <span className="rounded bg-emerald-400/15 px-1 text-emerald-200">ORD {thread.orderCount}</span> : null}{confirmedKeys.has(`${thread.pageId}:${thread.threadId}`) ? <span className="rounded bg-orange-400/15 px-1 text-amber-200">ยืนยันแล้ว</span> : null}<span className="truncate">{thread.pageName}</span></span><span className="mt-1 block truncate text-xs text-orange-100/45">{thread.preview}</span></span></button>)}</CardContent></Card>
++      <div className="mt-3 flex flex-wrap gap-1.5">{([ ["all", "ทั้งหมด"], ["unread", "ยังไม่อ่าน"], ["ordered", "มีออเดอร์"] ] as const).map(([value, label]) => <button key={value} type="button" onClick={() => setStatusFilter(value)} className={`rounded-lg px-2.5 py-1 text-[10px] transition ${statusFilter === value ? "bg-amber-400/15 text-amber-200 ring-1 ring-amber-300/25" : "text-orange-100/45 hover:bg-orange-500/10 hover:text-orange-100"}`}>{label}</button>)}</div></CardHeader><CardContent className="max-h-[calc(100dvh-14rem)] overflow-y-auto overscroll-contain p-2 [-webkit-overflow-scrolling:touch] lg:max-h-[700px]">{threadsQuery.isLoading ? <div className="flex items-center justify-center gap-2 p-12 text-sm text-orange-100/40"><RefreshCw className="h-4 w-4 animate-spin" />กำลังโหลดห้อง…</div> : filteredThreads.length === 0 ? <div className="p-12 text-center text-sm text-orange-100/40"><MessageCircle className="mx-auto mb-3 h-8 w-8 text-orange-100/15" />ยังไม่มีห้องตามตัวกรอง</div> : filteredThreads.map((thread, index) => <button key={thread.key} onClick={() => { setSelectedKey(thread.key); if (isMobile) setMobileOpen(true); }} className={`relative mb-1 flex w-full items-start gap-3 rounded-2xl p-3.5 text-left transition ${selected?.key === thread.key ? "bg-orange-500/[0.10] ring-1 ring-fuchsia-400/35" : "hover:bg-orange-400/[0.06]"}`}><span className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${index % 2 ? "bg-orange-500/20 text-orange-200" : "bg-orange-500/20 text-orange-200"}`}>{(thread.customerName || "ลูกค้า").slice(0, 1)}</span><span className="min-w-0 flex-1"><span className="flex items-center justify-between gap-2"><span className="truncate text-sm font-semibold text-orange-50">{thread.customerName || "ลูกค้าใหม่"}</span><span className="shrink-0 text-[10px] text-orange-100/35">{timeLabel(thread.latestAt)}</span></span><span className="mt-1 flex items-center gap-1.5 truncate text-[10px] text-orange-200/55">{thread.unread ? <span className="rounded bg-amber-400/15 px-1 text-amber-200">ใหม่</span> : null}{thread.codSignalCount > 0 ? <span title="นับข้อความที่มีคำว่า COD เท่านั้น" className="rounded bg-emerald-400/15 px-1 text-emerald-200">COD {thread.codSignalCount}</span> : null}{thread.orderCount > 0 ? <span title="แถวออเดอร์ที่ผูกกับห้องได้" className="rounded bg-amber-400/15 px-1 text-amber-200">ORD {thread.orderCount}</span> : null}{confirmedKeys.has(`${thread.pageId}:${thread.threadId}`) ? <span className="rounded bg-orange-400/15 px-1 text-amber-200">ยืนยันแล้ว</span> : null}<span className="truncate">{thread.pageName}</span></span><span className="mt-1 block truncate text-xs text-orange-100/45">{thread.preview}</span></span></button>)}</CardContent></Card>
+       <Card className="hidden overflow-hidden rounded-3xl border-orange-500/15 bg-[#100d15] shadow-xl shadow-orange-950/10 lg:block">{conversation}</Card>
+     </div>
+     {isMobile && mobileOpen ? <div className="fixed inset-0 z-50 flex items-end bg-black/75 p-2 backdrop-blur-sm"><div className="flex h-[94dvh] max-h-[94dvh] w-full min-h-0 flex-col overflow-hidden rounded-3xl border border-orange-400/25 bg-[#100d15] shadow-2xl shadow-orange-950/30">{conversation}</div></div> : null}
+     {summaryOpen ? <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"><div className="w-full max-w-2xl rounded-3xl border border-orange-400/25 bg-[#15101d] p-5 shadow-2xl shadow-orange-950/40"><div className="flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-[0.22em] text-orange-300">ADMIN ORDER SUMMARY</p><h3 className="mt-2 text-xl font-semibold text-white">สร้างใบสรุปออเดอร์ในห้องนี้</h3></div><button onClick={() => setSummaryOpen(false)} className="rounded-xl p-2 text-orange-100/50 hover:bg-orange-500/10 hover:text-white"><X className="h-5 w-5" /></button></div><Textarea autoFocus value={summaryText} onChange={event => setSummaryText(event.target.value)} placeholder="วางข้อความลูกค้าที่นี่…" className="mt-4 min-h-48 border-orange-500/20 bg-black/25 text-sm leading-6 text-white placeholder:text-orange-100/25" />{summary ? <div className="mt-4 rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.06] p-4"><div className="flex items-center justify-between gap-3"><p className="text-xs font-semibold uppercase tracking-wider text-emerald-300">PREVIEW · {summary.orderNumber}</p><span className="text-[10px] text-emerald-200/60">ยังไม่ส่ง</span></div><div className="mt-3 grid gap-2 text-sm sm:grid-cols-2"><div><span className="text-[10px] text-orange-100/40">ชื่อลูกค้า</span><p className="text-white">{summary.customerName || "ไม่ระบุชื่อ"}</p></div><div><span className="text-[10px] text-orange-100/40">เบอร์โทร</span><p className="text-white">{summary.phone || "ไม่ระบุเบอร์โทร"}</p></div><div className="sm:col-span-2"><span className="text-[10px] text-orange-100/40">ที่อยู่</span><p className="text-orange-100/80">{summary.address || "ไม่ระบุที่อยู่"}</p></div><div><span className="text-[10px] text-orange-100/40">สินค้า</span><p className="text-orange-200">{summary.product}</p></div><div><span className="text-[10px] text-orange-100/40">COD</span><p className="text-amber-200">{summary.cod === "ไม่ระบุ" ? summary.cod : `${summary.cod} บาท`}</p></div></div><div className="mt-3 border-t border-emerald-400/10 pt-3"><span className="text-[10px] text-orange-100/40">ข้อความที่จะนำไปใส่ช่องตอบกลับ</span><pre className="mt-1 whitespace-pre-wrap text-xs leading-5 text-orange-100/75">{summary.copyText}</pre></div>{summary.timingMs ? <p className="mt-3 border-t border-emerald-400/10 pt-2 text-[10px] text-emerald-200/55">วัดเวลา: รวม {summary.timingMs.total}ms · ดึงข้อมูล {summary.timingMs.dataLookup}ms · แปลงข้อความ {summary.timingMs.parse}ms · Audit {summary.timingMs.audit}ms</p> : null}</div> : null}<div className="mt-4 rounded-xl border border-orange-400/10 bg-black/15 p-3"><p className="text-[10px] font-semibold uppercase tracking-wider text-orange-100/40">ประวัติ Timing ล่าสุด</p>{summaryTimingsQuery.isLoading ? <p className="mt-2 text-[10px] text-orange-100/35">กำลังโหลด…</p> : <div className="mt-2 space-y-1">{summaryTimingsQuery.data?.slice(0, 5).map(row => { const timing = (row.metadata as { timingMs?: { total?: number; dataLookup?: number; parse?: number; audit?: number } }).timingMs; return <p key={row.id} className="text-[10px] text-orange-100/50">{row.orderNumber ?? "draft"} · รวม {timing?.total ?? "—"}ms · data {timing?.dataLookup ?? "—"}ms · parse {timing?.parse ?? "—"}ms</p>; })}</div>}</div><div className="mt-4 flex justify-end gap-2"><Button variant="outline" onClick={() => setSummaryOpen(false)} className="border-orange-400/20 bg-transparent text-orange-100/70">ยกเลิก</Button><Button disabled={!summaryText.trim() || generateSummary.isPending} onClick={() => generateSummary.mutate({ rawText: summaryText, pageId: selectedPageId || undefined, threadId: selectedThreadId || undefined })} className="bg-gradient-to-r from-orange-600 to-red-600">{generateSummary.isPending ? "กำลังอ่าน…" : "สรุปออเดอร์"}</Button></div></div></div> : null}
+-    {orderDetailOpen ? <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"><div className="max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-3xl border border-amber-400/25 bg-[#15101d] p-5 shadow-2xl"><div className="flex items-center justify-between"><div><p className="text-xs uppercase tracking-[0.2em] text-amber-300">LINKED ORDERS</p><h3 className="mt-1 text-xl font-semibold text-white">ออเดอร์ของ {selected?.customerName || "ลูกค้ารายนี้"}</h3></div><button onClick={() => setOrderDetailOpen(false)} className="rounded-xl p-2 text-orange-100/50 hover:bg-orange-500/10 hover:text-white"><X className="h-5 w-5" /></button></div>{threadsQuery.isLoading ? <div className="mt-8 flex items-center justify-center gap-2 text-sm text-orange-100/50"><LoaderCircle className="h-4 w-4 animate-spin text-amber-300" />กำลังค้นหาออเดอร์…</div> : linkedOrders.length ? <div className="mt-4 space-y-3">{linkedOrders.map((order: any) => <div key={order.order_number} className="rounded-2xl border border-amber-400/15 bg-amber-400/[0.05] p-4"><div className="flex flex-wrap items-center justify-between gap-2"><p className="font-semibold text-amber-100">{order.order_number}</p><span className="text-xs text-orange-100/50">COD {order.cod_amount ?? order.expected_cod ?? "—"} บาท</span></div><p className="mt-2 text-sm text-orange-100/75">{order.customer_name || "ไม่ระบุชื่อ"} · {order.phone || "ไม่ระบุเบอร์"}</p><p className="mt-1 text-xs leading-5 text-orange-100/50">{order.full_address || "ไม่ระบุที่อยู่"}</p><p className="mt-2 text-xs text-orange-200/70">{order.lab_product_display_text || "ยังไม่มี master_display_for_packer ใน Lab 88"}</p></div>)}</div> : <p className="mt-5 rounded-2xl border border-orange-500/10 bg-black/20 p-4 text-sm text-orange-100/50">ยังไม่พบออเดอร์ที่เชื่อมกับห้องนี้</p>}{chatEvidenceQuery.isLoading ? <div className="mt-5 flex items-center gap-2 text-xs text-amber-200/70"><LoaderCircle className="h-3.5 w-3.5 animate-spin" />กำลังโหลดหลักฐานแชท…</div> : <div className="mt-5 rounded-2xl border border-orange-400/15 bg-orange-400/[0.04] p-4"><div className="flex items-center justify-between"><p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-200">CHAT EVIDENCE</p><span className="text-[10px] text-amber-100/50">{chatEvidenceQuery.data?.length ?? 0} รายการ</span></div><div className="mt-3 max-h-64 space-y-2 overflow-y-auto">{chatEvidenceQuery.data?.length ? chatEvidenceQuery.data.map(row => <div key={String(row.id)} className="rounded-xl border border-orange-400/10 bg-black/20 p-2.5"><div className="flex justify-between gap-2 text-[10px] text-amber-100/45"><span>{row.speaker_type === "page" ? "[เพจ]" : "[ลูกค้า]"} {String(row.customer_name ?? row.sender_name ?? "ลูกค้า")}</span><span>{timeLabel(String(row.occurred_at ?? row.source_created_at ?? ""))}</span></div><p className="mt-1 whitespace-pre-wrap text-xs leading-5 text-orange-50/80">{String(row.message_text ?? "[ข้อความไม่มีตัวอักษร / มีไฟล์แนบ]")}</p><p className="mt-1 truncate text-[9px] text-amber-100/30">source: {String(row.source_message_id ?? row.dedupe_key ?? "—")}</p></div>) : <p className="text-xs text-amber-100/45">ยังไม่มีหลักฐานจากตารางแชทลูกค้าหรือเพจสำหรับห้องนี้</p>}</div></div>}</div></div> : null}
++    {orderDetailOpen ? <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"><div className="max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-3xl border border-amber-400/25 bg-[#15101d] p-5 shadow-2xl"><div className="flex items-center justify-between"><div><p className="text-xs uppercase tracking-[0.2em] text-amber-300">LINKED ORDERS</p><h3 className="mt-1 text-xl font-semibold text-white">ออเดอร์ของ {selected?.customerName || "ลูกค้ารายนี้"}</h3></div><button onClick={() => setOrderDetailOpen(false)} className="rounded-xl p-2 text-orange-100/50 hover:bg-orange-500/10 hover:text-white"><X className="h-5 w-5" /></button></div><p className="mt-3 rounded-xl border border-amber-400/15 bg-amber-400/[0.04] p-3 text-xs leading-5 text-amber-100/75">ห้องนี้พบข้อความที่มีคำว่า COD {selected?.codSignalCount ?? 0} รายการ (ใช้ COD เป็นเกณฑ์เดียวในข้อความที่โหลดมา) · เชื่อมแถวออเดอร์ได้ {linkedOrders.length} ใบ</p>{threadsQuery.isLoading ? <div className="mt-8 flex items-center justify-center gap-2 text-sm text-orange-100/50"><LoaderCircle className="h-4 w-4 animate-spin text-amber-300" />กำลังค้นหาออเดอร์…</div> : linkedOrders.length ? <div className="mt-4 space-y-3">{linkedOrders.map((order: any) => <div key={order.order_number} className="rounded-2xl border border-amber-400/15 bg-amber-400/[0.05] p-4"><div className="flex flex-wrap items-center justify-between gap-2"><p className="font-semibold text-amber-100">{order.order_number}</p><span className="text-xs text-orange-100/50">COD {order.cod_amount ?? order.expected_cod ?? "—"} บาท</span></div><p className="mt-2 text-sm text-orange-100/75">{order.customer_name || "ไม่ระบุชื่อ"} · {order.phone || "ไม่ระบุเบอร์"}</p><p className="mt-1 text-xs leading-5 text-orange-100/50">{order.full_address || "ไม่ระบุที่อยู่"}</p><p className="mt-2 text-xs text-orange-200/70">{order.lab_product_display_text || "ยังไม่มี master_display_for_packer ใน Lab 88"}</p></div>)}</div> : <p className="mt-5 rounded-2xl border border-orange-500/10 bg-black/20 p-4 text-sm text-orange-100/50">ยังไม่พบออเดอร์ที่เชื่อมกับห้องนี้</p>}{chatEvidenceQuery.isLoading ? <div className="mt-5 flex items-center gap-2 text-xs text-amber-200/70"><LoaderCircle className="h-3.5 w-3.5 animate-spin" />กำลังโหลดหลักฐานแชท…</div> : <div className="mt-5 rounded-2xl border border-orange-400/15 bg-orange-400/[0.04] p-4"><div className="flex items-center justify-between"><p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-200">CHAT EVIDENCE</p><span className="text-[10px] text-amber-100/50">{chatEvidenceQuery.data?.length ?? 0} รายการ</span></div><div className="mt-3 max-h-64 space-y-2 overflow-y-auto">{chatEvidenceQuery.data?.length ? chatEvidenceQuery.data.map(row => <div key={String(row.id)} className="rounded-xl border border-orange-400/10 bg-black/20 p-2.5"><div className="flex justify-between gap-2 text-[10px] text-amber-100/45"><span>{row.speaker_type === "page" ? "[เพจ]" : "[ลูกค้า]"} {String(row.customer_name ?? row.sender_name ?? "ลูกค้า")}</span><span>{timeLabel(String(row.occurred_at ?? row.source_created_at ?? ""))}</span></div><p className="mt-1 whitespace-pre-wrap text-xs leading-5 text-orange-50/80">{String(row.message_text ?? "[ข้อความไม่มีตัวอักษร / มีไฟล์แนบ]")}</p><p className="mt-1 truncate text-[9px] text-amber-100/30">source: {String(row.source_message_id ?? row.dedupe_key ?? "—")}</p></div>) : <p className="text-xs text-amber-100/45">ยังไม่มีหลักฐานจากตารางแชทลูกค้าหรือเพจสำหรับห้องนี้</p>}</div></div>}</div></div> : null}
+     {lightboxUrl ? <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/90 p-4" onClick={() => setLightboxUrl(null)}><img src={lightboxUrl} alt="รูปภาพขนาดเต็ม" className="max-h-[92vh] max-w-[94vw] rounded-2xl object-contain shadow-2xl" /></div> : null}
+     <footer className="flex items-center gap-2 px-2 text-[11px] text-orange-100/30"><MessageCircle className="h-3.5 w-3.5" />n8n API → Supabase ทุก 1 นาที · ห้องแชทอ่านจากตารางกลาง · ทุกการตอบกลับบันทึก Audit Log</footer>
+   </div></div>;
+diff --git a/server/canonical-chat-order-signal.test.ts b/server/canonical-chat-order-signal.test.ts
+new file mode 100644
+index 0000000..a0740d1
+--- /dev/null
++++ b/server/canonical-chat-order-signal.test.ts
+@@ -0,0 +1,31 @@
++import { describe, expect, it } from "vitest";
++import { codSignalIdentity, hasCodOrderSignal, orderIdentity, orderThreadAliases } from "../client/src/lib/canonical";
++
++describe("chat order signals", () => {
++  it("uses the COD keyword alone regardless of template or speaker fields", () => {
++    expect(hasCodOrderSignal("ยอดรวม COD: 250 บาท")).toBe(true);
++    expect(hasCodOrderSignal("แอดมินส่งบิล COD ให้แล้ว")).toBe(true);
++    expect(hasCodOrderSignal("COD พร้อมส่ง")).toBe(true);
++    expect(hasCodOrderSignal("เก็บเงินปลายทาง 250 บาท")).toBe(false);
++    expect(hasCodOrderSignal("MOND_GREEN 1 คอต ยอด 250 บาท")).toBe(false);
++  });
++
++  it("deduplicates a repeated source message id but keeps customer and page messages separate", () => {
++    const page = codSignalIdentity({ _speaker: "page", source_message_id: "m-1", _text: "COD 250" });
++    const repeatedPage = codSignalIdentity({ _speaker: "page", source_message_id: "m-1", _text: "COD 250" });
++    const customer = codSignalIdentity({ _speaker: "customer", source_message_id: "m-1", _text: "COD 250" });
++    expect(page).toBe(repeatedPage);
++    expect(page).not.toBe(customer);
++    expect(codSignalIdentity({ _speaker: "page", source_message_id: "m-2", _text: "รับทราบครับ" })).toBe("");
++  });
++
++  it("matches current and legacy conversation identifiers", () => {
++    expect(orderThreadAliases({ thread_id: "t-main", conversation_key: "t-legacy", conversation_id: "t-alt" })).toEqual(["t-main", "t-legacy", "t-alt"]);
++  });
++
++  it("uses order number, upsert key, then row id as stable de-duplication keys", () => {
++    expect(orderIdentity({ order_number: "ORD-1", upsert_key: "U-1", id: 1 })).toBe("order:ORD-1");
++    expect(orderIdentity({ upsert_key: "U-1", id: 1 })).toBe("upsert:U-1");
++    expect(orderIdentity({ id: 1 })).toBe("id:1");
++  });
++});
