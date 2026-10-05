@@ -14,7 +14,6 @@ import MappingDashboard from "./pages/MappingDashboard";
 import OrderBuckets from "./pages/OrderBuckets";
 import DailyChatSummary from "./pages/DailyChatSummary";
 import OrderHistory from "./pages/OrderHistory";
-import ConnectSupabase from "./pages/ConnectSupabase";
 import AlienRoom from "./pages/AlienRoom";
 import ProductAlienStore from "./pages/ProductAlienStore";
 import ProductAlienMap from "./pages/ProductAlienMap";
@@ -22,19 +21,12 @@ import TelegramDeliveryRoom from "./pages/TelegramDeliveryRoom";
 import AlertRoom from "./pages/AlertRoom";
 import SecretGallery from "./pages/SecretGallery";
 import ParcelMapping from "./pages/ParcelMapping";
-import { getSupabaseConfig } from "./lib/canonical";
-import { useLocation } from "wouter";
 
 function Shell({ children }: { children: React.ReactNode }) { return <DashboardLayout>{children}</DashboardLayout>; }
 function Router() {
-  const [location] = useLocation();
-  const hasSupabaseConfig = Boolean(getSupabaseConfig());
-  // หน้าเว็บใช้การเชื่อมต่อ Supabase เป็นด่านเดียว ไม่ถามรหัสผ่าน
-  // ห้องลับยังแยกล็อกอินของตัวเองใน SecretGallery
-  const setupExempt = location === "/connect" || location === "/secret-gallery" || location === "/secret-gallery/images";
-  if (!hasSupabaseConfig && !setupExempt) return <Redirect to="/connect" />;
   return <Switch>
-    <Route path="/connect"><ConnectSupabase /></Route>
+    <Route path="/connect"><Redirect to="/secret-gallery/connect" /></Route>
+    <Route path="/secret-gallery/connect"><SecretGallery /></Route>
     <Route path="/secret-gallery/images"><SecretGallery /></Route>
     <Route path="/secret-gallery"><SecretGallery /></Route>
     <Route path="/orders"><Shell><OrderControl /></Shell></Route>

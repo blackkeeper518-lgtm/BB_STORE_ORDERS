@@ -33,6 +33,7 @@ import Prism from "prismjs";
 import "prismjs/components/prism-sql";
 import "prismjs/components/prism-java";
 import "prismjs/components/prism-markdown";
+import ConnectSupabase from "./ConnectSupabase";
 import {
   getActiveCamp,
   getSupabase,
@@ -113,7 +114,7 @@ export default function SecretGallery() {
   );
   const [draggedDocId, setDraggedDocId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [view, setView] = useState<"vault" | "images">("vault");
+  const [view, setView] = useState<"vault" | "images" | "connect">("vault");
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
   const [preview, setPreview] = useState<GalleryItem | null>(null);
@@ -121,14 +122,24 @@ export default function SecretGallery() {
   const editorRef = useRef<HTMLTextAreaElement>(null);
   const highlightRef = useRef<HTMLPreElement>(null);
   const [imageMessage, setImageMessage] = useState("");
-  const setGalleryView = (next: "vault" | "images") => {
+  const setGalleryView = (next: "vault" | "images" | "connect") => {
     setView(next);
     setLocation(
-      next === "images" ? "/secret-gallery/images" : "/secret-gallery"
+      next === "images"
+        ? "/secret-gallery/images"
+        : next === "connect"
+          ? "/secret-gallery/connect"
+          : "/secret-gallery"
     );
   };
   useEffect(() => {
-    setView(location === "/secret-gallery/images" ? "images" : "vault");
+    setView(
+      location === "/secret-gallery/images"
+        ? "images"
+        : location === "/secret-gallery/connect"
+          ? "connect"
+          : "vault"
+    );
   }, [location]);
   const activeDoc = docs.find(doc => doc.id === activeId) ?? null;
   const highlightedCode = useMemo(() => {
@@ -550,6 +561,18 @@ export default function SecretGallery() {
               ภาพอ้างอิง · {images.length}
             </Button>
             <Button
+              onClick={() => setGalleryView("connect")}
+              variant="outline"
+              className={
+                view === "connect"
+                  ? "border-emerald-400/50 bg-emerald-500/15 text-emerald-200"
+                  : "border-white/10 bg-transparent text-white/60"
+              }
+            >
+              <LockKeyhole className="mr-2 h-4 w-4" />
+              ฐานค่าย · ตั้งค่าการเชื่อมต่อ
+            </Button>
+            <Button
               onDragOver={e => e.preventDefault()}
               onDrop={e => {
                 e.preventDefault();
@@ -658,7 +681,9 @@ export default function SecretGallery() {
             </div>
           </section>
         ) : null}
-        {view === "images" ? (
+        {view === "connect" ? (
+          <ConnectSupabase />
+        ) : view === "images" ? (
           <Card className="neon-card rounded-3xl border-fuchsia-500/20 bg-[#100817]">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base text-white">

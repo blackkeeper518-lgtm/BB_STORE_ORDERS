@@ -16,7 +16,7 @@ const CONFIG_KEY = "bb-supabase-config";
 export type Camp = "BB";
 const DEPLOYMENT_CAMP: Camp = "BB";
 export type SupabaseConfig = { url: string; anonKey: string; orderTable?: string };
-// ถ้ามีค่าใน Render ให้ทุกเครื่องใช้ฐานเดียวกันได้เลย
+// ค่า Render เป็นแหล่งหลักให้ทุกเครื่องใช้ฐานเดียวกัน; localStorage เป็น fallback เฉพาะ dev/local
 // ห้ามใส่ service_role/secret key ในตัวแปรฝั่งเว็บ ใช้เฉพาะ Anon/Publishable Key
 const DEPLOYMENT_SUPABASE_URL = String(import.meta.env.VITE_SUPABASE_URL ?? "").trim().replace(/\/$/, "");
 const DEPLOYMENT_SUPABASE_ANON_KEY = String(import.meta.env.VITE_SUPABASE_ANON_KEY ?? "").trim();
@@ -26,6 +26,11 @@ export function getActiveCamp(): Camp { return DEPLOYMENT_CAMP; }
 export function setActiveCamp(_camp: Camp) { client = null; clientSignature = ""; }
 function profileKey(_camp: Camp) { return CONFIG_KEY; }
 export function getSupabaseConfig(camp: Camp = getActiveCamp()): SupabaseConfig | null {
+  // Prefer deployment config so a stale browser-local value cannot split devices
+  // across different Supabase projects.
+  if (DEPLOYMENT_SUPABASE_URL && DEPLOYMENT_SUPABASE_ANON_KEY) {
+    return { url: DEPLOYMENT_SUPABASE_URL, anonKey: DEPLOYMENT_SUPABASE_ANON_KEY, orderTable: defaultOrderView(camp) };
+  }
   try {
     const raw = localStorage.getItem(profileKey(camp));
     if (raw) {
@@ -35,9 +40,6 @@ export function getSupabaseConfig(camp: Camp = getActiveCamp()): SupabaseConfig 
       }
     }
   } catch { /* ถ้าค่าใน browser เสีย ให้ลองใช้ค่ากลางของ Deployment */ }
-  if (DEPLOYMENT_SUPABASE_URL && DEPLOYMENT_SUPABASE_ANON_KEY) {
-    return { url: DEPLOYMENT_SUPABASE_URL, anonKey: DEPLOYMENT_SUPABASE_ANON_KEY, orderTable: defaultOrderView(camp) };
-  }
   return null;
 }
 export function saveSupabaseConfig(config: SupabaseConfig, camp: Camp = getActiveCamp()) { const clean = { url: config.url.trim().replace(/\/$/, ""), anonKey: config.anonKey.trim(), orderTable: config.orderTable?.trim() || defaultOrderView(camp) }; localStorage.setItem(profileKey(camp), JSON.stringify(clean)); client = null; clientSignature = ""; }
