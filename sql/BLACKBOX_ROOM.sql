@@ -1,7 +1,7 @@
 -- BLACKBOX ROOM · ORDER TRACE / ALERT SQL
 -- Run in the BB Supabase project only.
 -- Read-only views. They never delete, rewrite, or hide raw order/chat evidence.
--- Telegram room: every bb_orders row is eligible; sent is a visible state only.
+-- Order source: 🗝️HERMES_ARCHIVE; Telegram room: every archive row is eligible.
 -- Alert room: flags possible bot summaries/duplicates and shows customer history.
 
 begin;
@@ -15,10 +15,10 @@ drop view if exists public.vw_bb_telegram_manual_room_v1;
 create view public.vw_bb_telegram_manual_room_v1 as
 with source as (
   select to_jsonb(o) as j
-  from public.bb_orders o
+  from public."🗝️HERMES_ARCHIVE" o
 )
 select
-  nullif(j->>'id', '') as id,
+  coalesce(nullif(j->>'upsert_key', ''), nullif(j->>'order_number', '')) as id,
   nullif(j->>'upsert_key', '') as upsert_key,
   coalesce(nullif(j->>'order_number_display', ''), nullif(j->>'order_number', ''), nullif(j->>'upsert_key', '')) as order_number,
   nullif(j->>'order_number_display', '') as order_number_display,
@@ -38,19 +38,17 @@ select
   nullif(j->>'province', '') as province,
   nullif(j->>'zipcode', '') as zipcode,
   coalesce(
-    nullif(j->>'for_packer_bb_display', ''),
-    nullif(j->>'product_display_for_packer', ''),
+    nullif(j->>'for_packer_st_display', ''),
     nullif(j->>'final_display_for_packer', ''),
-    nullif(j->>'master_display_for_packer', ''),
-    nullif(j->>'single_cleaned_products', ''),
-    nullif(j->>'extracted_product_raw', ''),
-    nullif(j->>'sniper_x_text_clean', '')
+    nullif(j->>'final_product', ''),
+    nullif(j->>'manus_for_packer', ''),
+    nullif(j->>'sku', '')
   ) as for_packer_bb_display,
-  nullif(j->>'sniper_x_text_clean', '') as sniper_x_text_clean,
-  nullif(j->>'normalized_chat_timeline', '') as normalized_chat_timeline_text,
+  nullif(j->>'sniper_reason', '') as sniper_x_text_clean,
+  nullif(j->>'chat_timeline', '') as normalized_chat_timeline_text,
   nullif(j->>'mapping_status', '') as mapping_status,
-  nullif(j->>'stock_notice', '') as stock_notice,
-  nullif(j->>'shipping_method', '') as shipping_method,
+  nullif(j->>'bill_header_playful', '') as stock_notice,
+  nullif(j->>'shipping_carrier', '') as shipping_method,
   nullif(j->>'telegram_sent', '') as telegram_sent,
   nullif(j->>'telegram_status', '') as telegram_status,
   nullif(j->>'delivery_state', '') as delivery_state,
@@ -80,23 +78,25 @@ drop view if exists public.vw_bb_order_alert_room_v1;
 create view public.vw_bb_order_alert_room_v1 as
 with orders as (
   select
-    o.id,
-    to_jsonb(o) as j,
-    lower(regexp_replace(coalesce(nullif(btrim(o.phone), ''), nullif(btrim(o.extracted_phone), ''), ''), '[^0-9]', '', 'g')) as phone_key,
-    lower(regexp_replace(coalesce(nullif(btrim(o.customer_name), ''), nullif(btrim(o.facebook_name), ''), ''), '[[:space:][:punct:]]+', '', 'g')) as customer_key,
-    coalesce(nullif(btrim(o.cod_amount::text), ''), '0')::numeric as cod_value,
-    lower(coalesce(o.for_packer_bb_display, o.product_display_for_packer, o.final_display_for_packer, o.sniper_x_text_clean, '')) as product_key,
-    coalesce(nullif(o.order_time, ''), nullif(o.created_at, ''), '') as event_key
-  from public.bb_orders o
+    coalesce(nullif(j->>'upsert_key', ''), nullif(j->>'order_number', '')) as id,
+    j,
+    lower(regexp_replace(coalesce(nullif(btrim(j->>'phone'), ''), nullif(btrim(j->>'extracted_phone'), ''), ''), '[^0-9]', '', 'g')) as phone_key,
+    lower(regexp_replace(coalesce(nullif(btrim(j->>'customer_name'), ''), nullif(btrim(j->>'facebook_name'), ''), ''), '[[:space:][:punct:]]+', '', 'g')) as customer_key,
+    coalesce(nullif(regexp_replace(coalesce(j->>'cod_amount', ''), '[^0-9.-]', '', 'g'), ''), '0')::numeric as cod_value,
+    lower(coalesce(j->>'for_packer_st_display', j->>'final_display_for_packer', j->>'final_product', j->>'manus_for_packer', j->>'sku', '')) as product_key
+  from (
+    select to_jsonb(o) as j
+    from public."🗝️HERMES_ARCHIVE" o
+  ) source_rows
 ), classified as (
   select
     o.*,
     case
       when o.product_key ~ '(หนูส่งต่อให้ทีม|ส่งต่อให้ทีม|ทีมจะดูแลจัดส่ง|รับทราบว่าพี่ขอรับ|ยอดรวม.*ชำระแบบเก็บเงินปลายทาง|จัดส่งชื่อ)' then true
-      when lower(coalesce(o.j->>'sniper_x_text_clean', '')) ~ '(order summary|bot summary|สรุปออเดอร์|บอทสรุป)' then true
+      when lower(coalesce(o.j->>'telegram_main_bill', o.j->>'telegram_message', o.j->>'sniper_reason', '')) ~ '(order summary|bot summary|สรุปออเดอร์|บอทสรุป)' then true
       else false
     end as is_bot_summary,
-    coalesce(nullif(o.phone_key, ''), nullif(o.customer_key, ''), nullif(o.j->>'thread_id', '')) as person_key
+    coalesce(nullif(o.phone_key, ''), nullif(o.customer_key, ''), nullif(o.j->>'threadId', ''), nullif(o.j->>'thread_id', '')) as person_key
   from orders o
 ), enriched as (
   select
@@ -118,7 +118,7 @@ with orders as (
     from public.chat_customer_messages cm
     where (
       nullif(btrim(cm.thread_id), '') is not null
-      and nullif(btrim(cm.thread_id), '') = nullif(btrim(c.j->>'thread_id'), '')
+      and nullif(btrim(cm.thread_id), '') = nullif(coalesce(c.j->>'threadId', c.j->>'thread_id'), '')
     )
     or (
       nullif(regexp_replace(coalesce(cm.customer_name, ''), '[^0-9]', '', 'g'), '') is not null
@@ -139,15 +139,15 @@ select
   nullif(j->>'customer_name', '') as customer_name,
   nullif(j->>'phone', '') as phone,
   cod_value,
-  nullif(j->>'for_packer_bb_display', '') as for_packer_bb_display,
+  coalesce(nullif(j->>'for_packer_st_display', ''), nullif(j->>'final_display_for_packer', ''), nullif(j->>'final_product', ''), nullif(j->>'manus_for_packer', ''), nullif(j->>'sku', '')) as for_packer_bb_display,
   -- Optional n8n change-trace keys; old rows remain compatible.
   nullif(j->>'changed_from', '') as changed_from,
   nullif(j->>'changed_to', '') as changed_to,
   nullif(j->>'product_before', '') as product_before,
   nullif(j->>'product_after', '') as product_after,
   nullif(j->>'change_decision_minutes', '') as change_decision_minutes,
-  nullif(j->>'sniper_x_text_clean', '') as sniper_x_text_clean,
-  nullif(j->>'thread_id', '') as thread_id,
+  nullif(j->>'sniper_reason', '') as sniper_x_text_clean,
+  coalesce(nullif(j->>'threadId', ''), nullif(j->>'thread_id', '')) as thread_id,
   person_key,
   customer_bill_count,
   customer_cod_total,
