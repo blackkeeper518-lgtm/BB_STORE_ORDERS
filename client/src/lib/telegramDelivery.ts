@@ -10,13 +10,7 @@ export type TelegramDeliveryRow = Record<string, any>;
 export type TelegramMessageSource = "N8N_PAYLOAD" | "CANONICAL_DYNAMIC" | "WEB_OVERRIDE" | "FALLBACK";
 export type TelegramMessageSelection = { text: string; source: TelegramMessageSource; dirty: boolean; body: TelegramBody | null };
 
-function asRecord(value: unknown): TelegramBody | null {
-  if (value && typeof value === "object" && !Array.isArray(value)) return value as TelegramBody;
-  if (typeof value === "string" && value.trim()) {
-    try { const parsed = JSON.parse(value); if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed as TelegramBody; } catch { /* plain text */ }
-  }
-  return null;
-}
+function asRecord(value: unknown): TelegramBody | null { return value && typeof value === "object" && !Array.isArray(value) ? value as TelegramBody : null; }
 export function getTelegramBody(row: TelegramDeliveryRow): TelegramBody | null { return asRecord(row.telegram_body ?? row.telegramBody); }
 export function getTelegramChatId(row: TelegramDeliveryRow): string { const body = getTelegramBody(row); return String(body?.chat_id ?? row.telegram_chat_id ?? row.chat_id ?? "").trim(); }
 export function hasWebOverride(row: TelegramDeliveryRow): boolean { return row.telegram_message_source === "WEB_OVERRIDE" || row.telegram_message_dirty === true || Boolean(String(row.manual_telegram_text ?? "").trim()); }
@@ -25,9 +19,7 @@ export function selectTelegramMessage(row: TelegramDeliveryRow, rebuiltText?: st
   const dynamicText = String(row.telegram_message_dynamic ?? "").trim();
   const overrideText = String(rebuiltText ?? row.manual_telegram_text ?? "").trim();
   if (hasWebOverride(row) && overrideText) return { text: overrideText, source: "WEB_OVERRIDE", dirty: true, body };
-  const builderText = String(row.telegram_main_bill ?? row.telegram_message ?? body?.text ?? "").trim();
-  if (builderText) return { text: builderText, source: "N8N_PAYLOAD", dirty: false, body };
-  // Compatibility with projects that still populate the former dynamic view field.
+  // The dressed SQL view is the source of truth. Raw n8n telegram text is audit-only.
   if (dynamicText && !/\\n|\*\*/.test(dynamicText)) return { text: dynamicText, source: "CANONICAL_DYNAMIC", dirty: false, body };
   return { text: "ยังไม่มีข้อความ Telegram แบบ dynamic จาก View", source: "FALLBACK", dirty: false, body };
 }
