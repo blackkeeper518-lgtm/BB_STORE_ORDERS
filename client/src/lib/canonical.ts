@@ -180,7 +180,7 @@ function normalizeBbDirectRow(row: any): CanonicalOrder {
     extracted_phone: firstText(row.extracted_phone, row.phone),
     packer_obj: packer,
     normalized_chat_timeline: row.chat_timeline ?? null,
-    raw_text_with_phone_timed: row.chat_timeline ?? null,
+    telegram_copy_text: row.telegram_copy_text ?? null,
     bb_pack_center: product || null,
     for_packer_bb_display: product || null,
     master_delivery_address: address,
@@ -252,12 +252,12 @@ export async function readBbOrderEvidence(upsertKey: string) {
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
   const { data, error } = await api
     .from(defaultOrderView("BB"))
-    .select("upsert_key,chat_timeline,customer_change_diff_json")
+    .select("upsert_key,chat_timeline,customer_change_diff_json,telegram_copy_text")
     .eq("upsert_key", upsertKey)
     .maybeSingle();
   if (error) fail(error);
   const row: any = data ?? {};
-  return { ...row, normalized_chat_timeline: row.chat_timeline ?? null, raw_text_with_phone_timed: row.chat_timeline ?? null };
+  return { ...row, normalized_chat_timeline: row.chat_timeline ?? null, telegram_copy_text: row.telegram_copy_text ?? null };
 }
 
 export async function readBbOrderEvidenceBatch(upsertKeys: string[]) {
@@ -269,10 +269,10 @@ export async function readBbOrderEvidenceBatch(upsertKeys: string[]) {
   for (let offset = 0; offset < keys.length; offset += 100) {
     const { data, error } = await api
       .from(defaultOrderView("BB"))
-      .select("upsert_key,chat_timeline,customer_change_diff_json")
+      .select("upsert_key,chat_timeline,customer_change_diff_json,telegram_copy_text")
       .in("upsert_key", keys.slice(offset, offset + 100));
     if (error) fail(error);
-    evidence.push(...(data ?? []).map((row: any) => ({ ...row, normalized_chat_timeline: row.chat_timeline ?? null, raw_text_with_phone_timed: row.chat_timeline ?? null })));
+    evidence.push(...(data ?? []).map((row: any) => ({ ...row, normalized_chat_timeline: row.chat_timeline ?? null, telegram_copy_text: row.telegram_copy_text ?? null })));
   }
   return evidence;
 }

@@ -70,7 +70,7 @@ function evidenceText(value: unknown): string {
 }
 
 function cleanEvidence(row: OrderRow) {
-  return evidenceText(row.normalized_chat_timeline) || evidenceText(row.product_evidence) || evidenceText(row.raw_product_evidence) || evidenceText(row.raw_text_with_phone_timed) || evidenceText(row.raw_text_with_phone) || evidenceText(row.raw_text) || evidenceText(row.source_text) || evidenceText(row.single_cleaned_block) || "ไม่พบแชทต้นทางในแถวนี้";
+  return evidenceText(row.normalized_chat_timeline) || evidenceText(row.product_evidence) || evidenceText(row.raw_product_evidence) || evidenceText(row.telegram_copy_text) || evidenceText(row.raw_text_with_phone) || evidenceText(row.raw_text) || evidenceText(row.source_text) || evidenceText(row.single_cleaned_block) || "ไม่พบแชทต้นทางในแถวนี้";
 }
 
 function laneOf(row: OrderRow) {
@@ -125,7 +125,7 @@ function warningOf(row: OrderRow) {
   const qty = Number(row.total_quantity ?? row.quantity ?? row.extracted_qty ?? row.qty);
   const address = addressOf(row);
   const phone = String(row.master_customer_phone || row.phone || row.extracted_phone || "").replace(/\D/g, "");
-  const raw = String(row.raw_text_with_phone_timed || row.raw_text || row.source_text || "");
+  const raw = String(row.telegram_copy_text || row.raw_text || row.source_text || "");
   const outOfStock = stock.includes("out") || stock.includes("หมด") || row.is_out_of_stock === true || Number(row.stock_qty) === 0;
   if (outOfStock) warnings.push(String(row.master_stock_notice || "❌สินค้าหมดแล้วแม่❌ ตรวจคำเตือนจาก Product Master"));
   if (row.change_order_24h === true || row.order_change_detected === true || /CHANGE ORDER|แก้ไขออเดอร์/i.test(String(row.warning_tag || row.audit_flags || ""))) warnings.push("🔄 [CHANGE ORDER] ตรวจพบการแก้ไขออเดอร์ใน 24 ชม.");
