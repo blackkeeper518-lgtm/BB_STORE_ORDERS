@@ -200,27 +200,87 @@ function normalizeBbDirectRow(row: any): CanonicalOrder {
   }, []);
 }
 
+function productMasterSku(row: any): string {
+  return String(row.master_sku ?? row.sku ?? row.product_sku ?? row.product_code ?? row.code ?? "").trim();
+}
+function cleanProductDisplay(value: unknown): string {
+  return String(value ?? "").trim().replace(/\s*(?:\bx|×|(?:จำนวน|qty)\s*)\s*\d+(?:\.\d+)?\s*(?:คอต\.?|กล่อง|ซอง|ชิ้น|ลัง)?\s*$/i, "").trim();
+}
+function productLineFromOrder(row: any, sku: string): string {
+  const lines = String(row.telegram_copy_text ?? "").split(/\r?\n/).map((line: string) => line.trim()).filter(Boolean);
+  return lines.find((line: string) => /(?:\bx|×|(?:จำนวน|qty)\s*)\s*\d+(?:\.\d+)?/i.test(line))
+    ?? lines.find((line: string) => sku && line.toLowerCase().includes(sku.toLowerCase()))
+    ?? "";
+}
+function quantityFromOrder(row: any, productLine: string, productDisplay: string): number | null {
+  const packer = parseJsonRecord(row.packer_obj);
+  for (const value of [row.quantity, row.qty, row.extracted_qty, packer.quantity, packer.qty, packer.extracted_qty]) {
+    const quantity = num(value);
+    if (quantity != null) return quantity;
+  }
+  const sources = [productLine, productDisplay, row.order_fibo_product, row.for_packer_st_display,
+    row.manus_for_packer, row.google_for_packer, row.packer_tag_display, row.telegram_copy_text];
+  for (const source of sources) {
+    const match = String(source ?? "").match(/(?:\bx|×|(?:จำนวน|qty)\s*)\s*(\d+(?:\.\d+)?)/i);
+    if (match) return num(match[1]);
+  }
+  return null;
+}
+
 export async function readCanonicalOrders(search = "", since: string | null = null, until: string | null = null) {
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
 
   const limit = ORDER_OPERATIONAL_LIMIT;
-  const { data, error } = await api
-    .from(defaultOrderView("BB"))
-    .select(HERMES_WEB_ORDER_COLUMNS)
-    .order("order_time_display", { ascending: false })
-    .limit(limit);
-  if (error) fail(error);
+  const [ordersResult, masterResult] = await Promise.all([
+    api.from(defaultOrderView("BB"))
+      .select(HERMES_WEB_ORDER_COLUMNS)
+      .order("order_time_display", { ascending: false })
+      .limit(limit),
+    api.from("🛒product_master").select("*").limit(1500),
+  ]);
+  if (ordersResult.error) fail(ordersResult.error);
+
+  // Product Master is supplementary: if its read policy is not configured yet,
+  // keep HERMES orders visible and use the product text stored on the bill.
+  const masterBySku = new Map<string, any>();
+  for (const master of (masterResult.error ? [] : masterResult.data ?? [])) {
+    const key = productMasterSku(master).toLowerCase();
+    if (key && !masterBySku.has(key)) masterBySku.set(key, master);
+  }
 
   const query = search.trim().toLowerCase();
   const fromKey = isoDateKey(since);
   const untilKey = isoDateKey(until);
-  const orders = (data ?? [])
-    .map((row: any) => ({
-      ...normalizeBbDirectRow(row),
-      source_table: defaultOrderView("BB"),
-      review_status: row.review_status ?? null,
-    }) as CanonicalOrder)
+  const orders = (ordersResult.data ?? [])
+    .map((row: any) => {
+      const normalized = normalizeBbDirectRow(row);
+      const packer = parseJsonRecord(row.packer_obj);
+      const sku = firstText(row.sku, row.extracted_sku, packer.sku).split(/[\n,|]+/)[0].trim();
+      const master = masterBySku.get(sku.toLowerCase());
+      const productLine = productLineFromOrder(row, sku);
+      const fields = [row.for_packer_st_display, row.manus_for_packer, row.google_for_packer,
+        row.packer_tag_display, packer.for_packer_st_display, packer.manus_for_packer,
+        packer.google_for_packer, packer.packer_tag_display, row.order_fibo_product, packer.order_fibo_product]
+        .map((value: unknown) => String(value ?? "").trim()).filter(Boolean);
+      const richField = fields.find((value: string) => cleanProductDisplay(value).toLowerCase() !== sku.toLowerCase());
+      const masterDisplay = firstText(master?.master_display_for_packer, master?.display_for_packer,
+        master?.name_standard, master?.th_name, master?.product_name);
+      const display = cleanProductDisplay(productLine) || cleanProductDisplay(richField)
+        || masterDisplay || sku || normalized.display_for_packer || null;
+      const quantity = quantityFromOrder(row, productLine, display || "");
+      const unitPrice = num(row.unit_price ?? packer.unit_price) ?? num(master?.unit_price) ?? normalized.unit_price ?? null;
+      return {
+        ...normalized,
+        sku: sku || normalized.sku || null,
+        th_name: firstText(master?.th_name, master?.name_standard, master?.product_name, normalized.th_name) || null,
+        emoji: firstText(master?.emoji, normalized.emoji) || "📦",
+        display_for_packer: display,
+        bb_pack_center: display,
+        quantity: quantity ?? normalized.quantity ?? null,
+        unit_price: unitPrice,
+      } as CanonicalOrder;
+    })
     .filter((row: any) => {
       if (query && !JSON.stringify(row).toLowerCase().includes(query)) return false;
       const dateKey = displayDateKey(row.order_time_display);
@@ -315,7 +375,7 @@ export async function readProductMapAliases(): Promise<ProductMapAlias[]> {
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
   const [{ data: rows, error }, { data: products, error: productError }] = await Promise.all([
     api.from("product_map_master").select("*").order("sku"),
-    api.from("product_master").select("sku,label_display,display_for_packer,name_standard,th_name,product_name,emoji,unit_price").order("sku")
+    api.from("🛒product_master").select("sku,label_display,display_for_packer,name_standard,th_name,product_name,emoji,unit_price").order("sku")
   ]);
   if (error) fail(error);
   if (productError) fail(productError);
@@ -333,7 +393,7 @@ export async function readProductMapAliases(): Promise<ProductMapAlias[]> {
 export async function readProductMapCatalog() {
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  const { data, error } = await api.from("product_master").select("sku,label_display,display_for_packer,name_standard,th_name,product_name,emoji,unit_price").order("sku");
+  const { data, error } = await api.from("🛒product_master").select("sku,label_display,display_for_packer,name_standard,th_name,product_name,emoji,unit_price").order("sku");
   if (error) fail(error);
   return (data ?? []).map((p: any) => ({ sku: String(p.sku ?? ''), label: p.label_display ?? p.display_for_packer ?? p.name_standard ?? p.th_name ?? p.product_name ?? p.sku ?? '', emoji: p.emoji ?? '📦', price: num(p.unit_price) }));
 }
@@ -358,7 +418,7 @@ export async function readStockProducts(): Promise<StockProduct[]> {
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
   // Stock Room is intentionally a Product Master room for now.
   // It does not read inventory and it never deducts stock from orders.
-  const { data: products, error } = await api.from("product_master").select("*").order("master_sku");
+  const { data: products, error } = await api.from("🛒product_master").select("*").order("master_sku");
   if (error) fail(error);
   return (products ?? []).map((p: any) => {
     const sku = String(p.master_sku ?? p.sku ?? "").trim();
@@ -385,7 +445,7 @@ export async function updateInventoryStock(input: { productId: number; sku: stri
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
   const stockQty = Math.max(0, Math.trunc(Number(input.stockQty) || 0));
   const stockStatus = input.stockStatus ?? (stockQty > 0 ? "IN_STOCK" : "OUT_OF_STOCK");
-  const { error } = await api.from("product_master").update({ stock_qty: stockQty, stock_status: stockStatus, updated_at: new Date().toISOString() }).eq("id", input.productId);
+  const { error } = await api.from("🛒product_master").update({ stock_qty: stockQty, stock_status: stockStatus, updated_at: new Date().toISOString() }).eq("id", input.productId);
   if (error) fail(error);
   return { ...input, stockQty, stockStatus };
 }
@@ -524,7 +584,7 @@ export async function readAlienReview(search = ''): Promise<AlienReviewItem[]> {
     api.from(orderTable).select(HERMES_WEB_ORDER_COLUMNS).order('order_time_display', { ascending: false }).limit(ORDER_OPERATIONAL_LIMIT),
     // Read the existing tables without assuming a particular SKU column name.
     // Some Supabase projects use master_sku/product_code instead of sku.
-    api.from('product_master').select('*').limit(1500),
+    api.from("🛒product_master").select('*').limit(1500),
     api.from('product_map_master').select('*').limit(3000),
     api.from('inventory').select('*'),
     api.from(inspectorView).select('*').limit(2000),

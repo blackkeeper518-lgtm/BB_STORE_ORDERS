@@ -29,7 +29,7 @@ export async function createCanonicalFromChat(input: { pageId: string; threadId:
     api.from("chat_customer_messages").select("*").eq("page_id", input.pageId).eq("conversation_key", input.threadId).order("occurred_at", { ascending: true }),
     api.from("chat_page_messages").select("*").eq("page_id", input.pageId).eq("conversation_key", input.threadId).order("occurred_at", { ascending: true }),
     api.from("product_map_master").select("*"),
-    api.from("product_master").select("*")
+    api.from("🛒product_master").select("*")
   ]);
   if (ce) throw ce; if (pe) throw pe; if (ae) throw ae; if (me) throw me;
   const rows: AnyRow[] = ([...(customers ?? []).map((r: AnyRow) => ({ ...r, actor: "customer" })), ...(pages ?? []).map((r: AnyRow) => ({ ...r, actor: "page" }))] as AnyRow[]).sort((a, b) => new Date(a.occurred_at ?? a.created_at ?? 0).getTime() - new Date(b.occurred_at ?? b.created_at ?? 0).getTime());

@@ -30,7 +30,7 @@ export default function StockRoom() {
       const sku = editing.sku;
       await updateInventoryStock({ productId, sku, stockQty: Number(qty), stockStatus: Number(qty) > 0 ? "IN_STOCK" : "OUT_OF_STOCK" });
       if (!supabase) throw new Error("Supabase browser connection is not configured");
-      const { error } = await supabase.from("product_master").update({ unit_price: Number(price), master_display_for_packer: label, alias: alias }).eq("id", productId);
+      const { error } = await supabase.from("🛒product_master").update({ unit_price: Number(price), master_display_for_packer: label, alias: alias }).eq("id", productId);
       if (error) throw error;
     },
     onSuccess: () => { setEditing(null); refresh(); },
