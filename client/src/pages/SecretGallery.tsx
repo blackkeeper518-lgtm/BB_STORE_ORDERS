@@ -97,8 +97,11 @@ export default function SecretGallery() {
   const connection = getSupabaseConfig(camp);
   const [supabaseUrl, setSupabaseUrl] = useState(connection?.url || "");
   const [supabaseKey, setSupabaseKey] = useState(connection?.anonKey || "");
+  const savedOrderTable = connection?.orderTable;
   const [orderTable, setOrderTable] = useState(
-    connection?.orderTable || "vw_bb_orders_all_v2"
+    !savedOrderTable || ["bb_orders", "vw_bb_orders_all_v2"].includes(savedOrderTable)
+      ? "🗝️HERMES_ARCHIVE"
+      : savedOrderTable
   );
   const [connectionMessage, setConnectionMessage] = useState("");
   const [connectionBusy, setConnectionBusy] = useState(false);
@@ -182,7 +185,7 @@ export default function SecretGallery() {
     try {
       const url = supabaseUrl.trim().replace(/\/$/, "");
       const anonKey = supabaseKey.trim();
-      const table = orderTable.trim() || "vw_bb_orders_all_v2";
+      const table = orderTable.trim() || "🗝️HERMES_ARCHIVE";
       if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url))
         throw new Error("URL Supabase ไม่ถูกต้อง");
       if (!anonKey) throw new Error("กรุณาใส่ Anon/Publishable Key");
@@ -501,7 +504,7 @@ export default function SecretGallery() {
             <Input
               value={orderTable}
               onChange={e => setOrderTable(e.target.value)}
-              placeholder="vw_bb_orders_all_v2"
+              placeholder="🗝️HERMES_ARCHIVE"
               className="border-fuchsia-400/20 bg-black/25 font-mono text-white"
             />
             <div className="flex items-center gap-2 md:col-span-3">

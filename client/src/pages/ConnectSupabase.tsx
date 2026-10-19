@@ -26,12 +26,16 @@ function freshChecks(): RoomCheck[] {
 
 export default function ConnectSupabase() {
   const camp: Camp = getActiveCamp();
-  const orderView = "bb_orders";
-  const orderTable = "bb_orders";
+  const orderView = "🗝️HERMES_ARCHIVE";
+  const orderTable = "🗝️HERMES_ARCHIVE";
   const existing = getSupabaseConfig(camp);
+  const savedTable = existing?.orderTable;
+  const initialTable = !savedTable || ["bb_orders", "vw_bb_orders_all_v2"].includes(savedTable)
+    ? orderView
+    : savedTable;
   const [url, setUrl] = useState(existing?.url || "");
   const [anonKey, setAnonKey] = useState(existing?.anonKey || "");
-  const [table, setTable] = useState(existing?.orderTable || orderView);
+  const [table, setTable] = useState(initialTable);
   const [status, setStatus] = useState<RoomStatus>("idle");
   const [message, setMessage] = useState("");
   const [checks, setChecks] = useState<RoomCheck[]>(freshChecks);
