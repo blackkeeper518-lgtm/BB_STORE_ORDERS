@@ -126,7 +126,6 @@ function normalizeOrder(row: any, items: CanonicalItem[]): CanonicalOrder { cons
 // Projection aligned to FOUR_SEND_BILL_BUILDER and the applied HERMES schema.
 // Keep only known columns; upsert_key is the row key (the table has no id column).
 const HERMES_WEB_ORDER_COLUMNS = [
-const HERMES_WEB_ORDER_COLUMNS = [
   "upsert_key",
   "bb_express_send_route",
   "currentThreadTotalBills",
