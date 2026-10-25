@@ -1,27 +1,23 @@
-แพ็กเกจปรับปรุงหน้าค้นหา/ส่งเลขพัสดุ — BB_STORE_ORDERS
+แพ็กเกจ exact lookup พัสดุด้วยเบอร์ — BB_STORE_ORDERS
 
-ในแพ็กเกจมีไฟล์ที่แก้ 4 ไฟล์ พร้อม patch รวมและ SQL สำหรับติดตั้ง
+ไฟล์ในแพ็กเกจ:
+- client/src/pages/ParcelMapping.tsx — ช่องกรอกเบอร์และการ์ดผลพัสดุ
+- server/routers.ts — admin-only findByPhone และ sendTracking
+- server/supabase.ts — lookup แบบ exact ที่คอลัมน์ public.parcels.phone_number
+- BB_STORE_ORDERS_PARCEL_QUICK_SEND.patch — patch รวมสำหรับ working copy ของ Git
 
-วิธีที่ 1: ใช้ GitHub หน้าเว็บ
-1. แตก ZIP ลงเครื่องก่อน (อย่าอัปโหลด ZIP นี้ขึ้น repo เพราะ GitHub จะไม่แตกไฟล์ให้อัตโนมัติ)
-2. เปิด repo BB_STORE_ORDERS บน GitHub แล้วเปิดไฟล์เดิมตาม path ต่อไปนี้
-   - client/src/pages/ParcelMapping.tsx
-   - server/routers.ts
-   - server/supabase.ts
-3. กด Edit ไฟล์เดิม แล้วแทนที่เนื้อหาทั้งไฟล์ด้วยไฟล์ชื่อเดียวกันจากแพ็กเกจ จากนั้น Commit changes
-   ต้องคงโฟลเดอร์เดิมตามรายการข้างบน
-4. ไฟล์ PARCEL_QUICK_SEARCH_RPC.sql ไม่ใช่ source code ของหน้าเว็บ ให้นำ SQL ไปรันใน Supabase SQL Editor แยกต่างหาก
-5. หลังจากอัปเดตไฟล์และรัน SQL แล้ว ให้รอ deployment ตรวจ build และทดสอบค้น/ส่งจากหน้าเว็บ
+วิธีทำงาน: กรอกเบอร์ 10 หลักแล้วกด “เปิดแถวจากเบอร์” ระบบ normalize เบอร์ที่กรอก แล้ว query `phone_number` โดยตรง ไม่โหลดรายการทั้งตารางและไม่ค้นจากชื่อ/ที่อยู่/เลขพัสดุ ถ้าเบอร์นั้นมีหลาย parcel จะแสดงแถวที่ match เรียง pickup_date ล่าสุดก่อน
 
-วิธีที่ 2: ใช้ Git patch ใน working copy
-- ใช้ไฟล์ BB_STORE_ORDERS_PARCEL_QUICK_SEND.patch กับสำเนา repo ที่ตรงกับ commit ต้นทางของ patch
-- คำสั่ง: git apply BB_STORE_ORDERS_PARCEL_QUICK_SEND.patch
-- จากนั้นตรวจ git diff แล้ว commit/push ตามขั้นตอนปกติ
+การ์ดแสดง 5 ฟิลด์: pickup_date, consignee, phone_number, cod_amount และ tracking_number โดย tracking_number อยู่ในแผงแยก มีปุ่มคัดลอกเลขพัสดุ ไม่ดึงหรือแสดง address, order_phone หรือ order_number
 
-ฟังก์ชันที่เพิ่ม:
-- ค้น parcels ด้วยเบอร์โทร ชื่อผู้รับ เลขพัสดุ หรือที่อยู่
-- ค้นและส่งผ่าน server-side admin procedures
-- ใช้ Messenger sender เดิม โดย token ไม่ถูกส่งไปหน้า browser
-- หยุดส่งถ้าเบอร์ตรงหลายห้อง หรือไม่สามารถยืนยันข้อความขาเข้าภายใน 24 ชั่วโมง
+วิธีใช้ GitHub หน้าเว็บ:
+1. แตก ZIP ลงเครื่อง
+2. ใน repo เปิดไฟล์ client/src/pages/ParcelMapping.tsx, server/routers.ts และ server/supabase.ts ตาม path เดิม
+3. แทนที่เนื้อหาไฟล์เดิมด้วยไฟล์จากแพ็กเกจ แล้ว Commit changes
+4. รอ deployment แล้วทดสอบหน้า ParcelMapping ด้วยบัญชี admin
 
-ตรวจใน sandbox แล้ว: TypeScript check ผ่าน, production build ผ่าน, tests ผ่าน 11 รายการ (2 รายการ skipped)
+ไม่ต้องรัน SQL เพิ่ม Backend อ่าน Supabase ด้วย service_role ที่เก็บฝั่ง server และ RPC จำกัดด้วย adminProcedure ห้ามใส่ service_role key ใน browser
+
+ถ้าใช้ Git ในเครื่องและ commit ตรงกับฐาน patch ให้รัน: git apply BB_STORE_ORDERS_PARCEL_QUICK_SEND.patch
+
+ตรวจล่าสุด: pnpm check ผ่าน, pnpm test ผ่าน 11 รายการ (2 skipped), pnpm build ผ่าน
