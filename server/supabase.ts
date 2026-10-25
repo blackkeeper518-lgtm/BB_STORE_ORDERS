@@ -16,6 +16,26 @@ export async function supabaseGet<T>(path: string): Promise<T> {
   try { return JSON.parse(body) as T; } catch { throw new Error(`Supabase returned non-JSON for ${path}: ${body.slice(0, 300)}`); }
 }
 export async function supabasePost<T>(path: string, body: unknown): Promise<T> { const { baseUrl, key } = config(); const response = await fetch(`${baseUrl}/rest/v1/${path}`, { method: "POST", headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify(body) }); if (!response.ok) throw new Error(`Supabase returned HTTP ${response.status}: ${(await response.text()).slice(0, 300)}`); return response.json() as Promise<T>; }
+
+export type ParcelSearchMode = "auto" | "phone" | "name" | "tracking" | "address";
+export type ParcelSearchResult = {
+  tracking_number: string | null;
+  pickup_date: string | null;
+  consignee: string | null;
+  phone_number: string | null;
+  address: string | null;
+  cod_amount: string | null;
+};
+
+export async function searchParcelsQuick(input: { term: string; mode: ParcelSearchMode; limit: number }) {
+  const rows = await supabasePost<ParcelSearchResult[]>("rpc/search_parcels_quick", {
+    p_search: input.term.trim(),
+    p_mode: input.mode,
+    p_limit: input.limit,
+  });
+  return Array.isArray(rows) ? rows : [];
+}
+
 function text(v: unknown) { return v == null ? null : String(v); }
 function num(v: unknown) { const n = Number(v); return v == null || v === "" || !Number.isFinite(n) ? null : n; }
 function bool(v: unknown) { return v === true || v === "true" || v === 1; }
