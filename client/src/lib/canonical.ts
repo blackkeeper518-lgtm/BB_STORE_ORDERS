@@ -244,9 +244,7 @@ const HERMES_WEB_ORDER_COLUMNS = [
   "customer_product_previous",
   "source_table",
   "stock_notice"
-];
-
-].join(",");
+].join(","); 
 
 function parseJsonRecord(value: unknown): Record<string, any> {
   if (value && typeof value === "object" && !Array.isArray(value)) return value as Record<string, any>;
