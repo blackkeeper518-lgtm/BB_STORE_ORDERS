@@ -557,7 +557,13 @@ export async function setInventoryAvailability(input: { productId: number; sku: 
   });
 }
 
-export async function readDailyOrders(date: string, search = "") { const result = await readCanonicalOrders(search); const [year, month, day] = date.split("-"); const displayPrefix = `${Number(day)}/${Number(month)}/${String(Number(year) % 100)}`; const orders = result.orders.filter((o: any) => String(o.order_time_display ?? "").startsWith(displayPrefix)); return { date, orders, total: orders.length }; }
+export async function readDailyOrders(date: string, search = "") { 
+  const result = await readCanonicalOrders(search); 
+  const [year, month, day] = date.split("-"); 
+  const displayPrefix = `${Number(day)}/${Number(month)}/${String(Number(year) % 100)}`; 
+  const orders = result.orders.filter((o: any) => String(o.order_time_display ?? "").startsWith(displayPrefix));
+  return { ...result, orders };
+}
 async function readChatRows() {
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
