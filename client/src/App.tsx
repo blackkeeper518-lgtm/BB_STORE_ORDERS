@@ -1,44 +1,52 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
-import { Route, Switch } from "wouter";
+import { Redirect, Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
+import DashboardLayout from "./components/DashboardLayout";
 import { ThemeProvider } from "./contexts/ThemeContext";
-import Home from "./pages/Home";
-import SystemManual from "./pages/SystemManual";
+import OrderControl from "./pages/OrderControl";
+import ChatHub from "./pages/ChatHub";
+import ProductAliases from "./pages/ProductAliases";
+import OrderPerformance from "./pages/OrderPerformance";
+import StockRoom from "./pages/StockRoom";
+import MappingDashboard from "./pages/MappingDashboard";
+import OrderBuckets from "./pages/OrderBuckets";
+import DailyChatSummary from "./pages/DailyChatSummary";
+import OrderHistory from "./pages/OrderHistory";
+import AlienRoom from "./pages/AlienRoom";
+import ProductAlienStore from "./pages/ProductAlienStore";
+import ProductAlienMap from "./pages/ProductAlienMap";
+import TelegramDeliveryRoom from "./pages/TelegramDeliveryRoom";
+import AlertRoom from "./pages/AlertRoom";
+import SecretGallery from "./pages/SecretGallery";
+import ParcelMapping from "./pages/ParcelMapping";
 
+function Shell({ children }: { children: React.ReactNode }) { return <DashboardLayout>{children}</DashboardLayout>; }
 function Router() {
-  // make sure to consider if you need authentication for certain routes
-  return (
-    <Switch>
-      <Route path={"/"} component={Home} />
-      <Route path={"/system-manual"} component={SystemManual} />
-      <Route path={"/404"} component={NotFound} />
-      {/* Final fallback route */}
-      <Route component={NotFound} />
-    </Switch>
-  );
+  return <Switch>
+    <Route path="/connect"><Redirect to="/secret-gallery/connect" /></Route>
+    <Route path="/secret-gallery/connect"><SecretGallery /></Route>
+    <Route path="/secret-gallery/images"><SecretGallery /></Route>
+    <Route path="/secret-gallery"><SecretGallery /></Route>
+    <Route path="/orders"><Shell><OrderControl /></Shell></Route>
+    <Route path="/parcel-mapping"><Shell><ParcelMapping /></Shell></Route>
+    <Route path="/chats"><Shell><ChatHub /></Shell></Route>
+    <Route path="/alien-room"><Shell><AlienRoom /></Shell></Route>
+    <Route path="/product-alien-store"><Shell><ProductAlienStore /></Shell></Route>
+    <Route path="/product-alien-map"><Shell><ProductAlienMap /></Shell></Route>
+    <Route path="/telegram-delivery"><Shell><TelegramDeliveryRoom /></Shell></Route>
+    <Route path="/alert-room"><Shell><AlertRoom /></Shell></Route>
+    <Route path="/aliases"><Shell><ProductAliases /></Shell></Route>
+    <Route path="/order-performance"><Shell><OrderPerformance /></Shell></Route>
+    <Route path="/stock-room"><Shell><StockRoom /></Shell></Route>
+    <Route path="/mapping-dashboard"><Shell><MappingDashboard /></Shell></Route>
+    <Route path="/order-buckets"><Shell><OrderBuckets /></Shell></Route>
+    <Route path="/daily-chat-summary"><Shell><DailyChatSummary /></Shell></Route>
+    <Route path="/order-history"><Shell><OrderHistory /></Shell></Route>
+    <Route path="/"><Redirect to="/orders" /></Route>
+    <Route path="/404" component={NotFound} />
+    <Route component={NotFound} />
+  </Switch>;
 }
-
-// NOTE: About Theme
-// - First choose a default theme according to your design style (dark or light bg), than change color palette in index.css
-//   to keep consistent foreground/background color across components
-// - If you want to make theme switchable, pass `switchable` ThemeProvider and use `useTheme` hook
-
-function App() {
-  return (
-    <ErrorBoundary>
-      <ThemeProvider
-        defaultTheme="light"
-        // switchable
-      >
-        <TooltipProvider>
-          <Toaster />
-          <Router />
-        </TooltipProvider>
-      </ThemeProvider>
-    </ErrorBoundary>
-  );
-}
-
-export default App;
+export default function App() { return <ErrorBoundary><ThemeProvider defaultTheme="dark"><TooltipProvider><Toaster /><Router /></TooltipProvider></ThemeProvider></ErrorBoundary>; }
