@@ -35,11 +35,23 @@ export async function fetchParcelMappingQueue(input: { status: ParcelMappingStat
   // ให้หน้า Space Vault จัด lane จากข้อมูลที่มีจริงแทนการล้มทั้ง endpoint ด้วย HTTP 400
   const activeQuery = `select=*&limit=${input.limit}`;
   const sentQuery = `select=*&limit=${input.limit}`;
+  const read = async (path: string) => {
+    try {
+      return await supabaseGet<ParcelMappingRow[]>(path);
+    } catch {
+      return [] as ParcelMappingRow[];
+    }
+  };
   const [active, sent] = await Promise.all([
-    input.status === "sent" ? Promise.resolve([] as ParcelMappingRow[]) : supabaseGet<ParcelMappingRow[]>(`${activeView}?${activeQuery}`),
-    input.status === "sent" || input.status === "all" ? supabaseGet<ParcelMappingRow[]>(`${sentView}?${sentQuery}`) : Promise.resolve([] as ParcelMappingRow[]),
+    input.status === "sent" ? Promise.resolve([] as ParcelMappingRow[]) : read(`${activeView}?${activeQuery}`),
+    input.status === "sent" || input.status === "all" ? read(`${sentView}?${sentQuery}`) : Promise.resolve([] as ParcelMappingRow[]),
   ]);
-  return [...active, ...sent].slice(0, input.limit);
+  const combined = [...active, ...sent];
+  if (combined.length > 0 || input.status === "sent") return combined.slice(0, input.limit);
+
+  // Recovery lane: parcels เป็นโต๊ะแกนกลางของสาย 2
+  // ถ้า ROGUE ยังไม่ถูกสร้าง/ชื่อวิวต่างกัน หน้าเว็บยังต้องเห็นเลขที่อัปโหลดแล้ว
+  return read(`parcels?select=*&limit=${input.limit}`);
 }
 
 function text(v: unknown) { return v == null ? null : String(v); }
