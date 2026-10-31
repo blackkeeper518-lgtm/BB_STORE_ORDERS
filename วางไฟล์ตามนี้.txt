@@ -1,0 +1,8 @@
+นำไฟล์ไปวางทับในโปรเจกต์ BB_STORE_ORDERS ที่ Render ใช้ build:
+
+client/src/pages/ParcelMapping.tsx
+client/src/index.css
+server/routers.ts
+server/supabase.ts
+
+ห้ามวางโฟลเดอร์ 01-server หรือ 02-client ไว้ที่ root ของ repository เพราะ Render/Vite จะไม่ import จากตำแหน่งนั้น
