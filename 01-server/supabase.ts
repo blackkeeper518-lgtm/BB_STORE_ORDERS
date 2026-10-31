@@ -17,25 +17,6 @@ export async function supabaseGet<T>(path: string): Promise<T> {
 }
 export async function supabasePost<T>(path: string, body: unknown): Promise<T> { const { baseUrl, key } = config(); const response = await fetch(`${baseUrl}/rest/v1/${path}`, { method: "POST", headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify(body) }); if (!response.ok) throw new Error(`Supabase returned HTTP ${response.status}: ${(await response.text()).slice(0, 300)}`); return response.json() as Promise<T>; }
 
-export type ParcelSearchMode = "auto" | "phone" | "name" | "tracking" | "address";
-export type ParcelSearchResult = {
-  tracking_number: string | null;
-  pickup_date: string | null;
-  consignee: string | null;
-  phone_number: string | null;
-  address: string | null;
-  cod_amount: string | null;
-};
-
-export async function searchParcelsQuick(input: { term: string; mode: ParcelSearchMode; limit: number }) {
-  const rows = await supabasePost<ParcelSearchResult[]>("rpc/search_parcels_quick", {
-    p_search: input.term.trim(),
-    p_mode: input.mode,
-    p_limit: input.limit,
-  });
-  return Array.isArray(rows) ? rows : [];
-}
-
 export type ParcelMappingStatus = "all" | "ready" | "over24" | "over48" | "sent";
 export type ParcelMappingRow = Record<string, unknown> & {
   tracking_number?: string | null;

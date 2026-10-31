@@ -1,5 +1,13 @@
-1. README-TH.md
-2. 01-server/supabase.ts       → server/supabase.ts
-3. 01-server/routers.ts        → server/routers.ts
-4. 02-client/ParcelMapping.tsx → client/src/pages/ParcelMapping.tsx
-5. 03-patch/PARCEL-MAPPING.patch (เก็บเป็นไฟล์สำรอง/ใช้ git apply)
+ลำดับไฟล์สำหรับวางใน Gist / หน้าเว็บ
+
+1. /02-client/ParcelMapping.tsx
+2. /03-patch/PARCEL-MAPPING.patch
+3. GIST-COPY-ORDER.txt
+4. README-TH.md
+5. /01-server/routers.ts
+6. /01-server/supabase.ts
+
+หมายเหตุ:
+- ลำดับด้านบนคือการเรียงไฟล์สำหรับหน้า Gist ตามที่กำหนด
+- ถ้าติดตั้งในโปรเจกต์จริง ให้ลง backend (/01-server) ก่อน frontend (/02-client)
+- ห้ามนำ access_token ไปไว้ในไฟล์ client

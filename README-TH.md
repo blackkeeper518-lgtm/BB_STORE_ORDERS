@@ -1,100 +1,20 @@
-# DK DRAKSIDE — ParcelMapping Packet
+# DK DRAKSIDE — PARCEL MAPPING / SPACE VAULT
 
-แพ็กนี้จัดตามลำดับการวางจริงในโปรเจกต์ `BB_STORE_ORDERS`
+แพ็กนี้เป็นหน้าห้องเลขพัสดุธีมอวกาศ พร้อม queue จากสาย `SHADOW → ROGUE → VOID` และตัวอย่างข้อความลูกค้า
 
-## ลำดับวางไฟล์
+## ไฟล์
 
-### 1) Backend ก่อน
+- `01-server/routers.ts` — endpoint `parcels.mappingQueue` และการส่งที่มีอยู่เดิม
+- `01-server/supabase.ts` — helper ดึงคิวจาก view เดิม
+- `02-client/ParcelMapping.tsx` — หน้า command center ธีม Space Vault
+- `02-client/index.css` — ชั้นภาพดาว วงโคจร HUD และเอฟเฟกต์นีออนที่หน้าใช้
+- `03-patch/PARCEL-MAPPING.patch` — diff รวม frontend/backend
 
-นำไฟล์นี้ไปแทนที่ไฟล์เดิม:
+## ติดตั้ง
 
-```text
-01-server/supabase.ts
-→ server/supabase.ts
-```
+1. คัดลอก `02-client/ParcelMapping.tsx` ทับไฟล์หน้าเดิม
+2. คัดลอกกฎใน `02-client/index.css` เข้า `client/src/index.css` หรือใช้ไฟล์นี้แทนฉบับเดิม โดยรักษา CSS ธีมอื่นไว้
+3. คัดลอก `01-server/routers.ts` และ `01-server/supabase.ts` ตามแพตช์
+4. ตรวจ environment ฝั่ง server ตามเดิม แล้ว build/deploy
 
-```text
-01-server/routers.ts
-→ server/routers.ts
-```
-
-Backend จะเพิ่ม tRPC endpoint:
-
-```text
-parcels.mappingQueue
-```
-
-อ่านข้อมูลจาก:
-
-```text
-🦅ROGUE_xXx_SHIPPINGz
-📓DEAD_xXx_NOTE
-```
-
-และไม่ส่ง `access_token` ไปหน้าเว็บ
-
-### 2) หน้าเว็บทีหลัง
-
-นำไฟล์นี้ไปแทนที่ไฟล์เดิม:
-
-```text
-02-client/ParcelMapping.tsx
-→ client/src/pages/ParcelMapping.tsx
-```
-
-หน้าใหม่จะเป็น:
-
-```text
-PARCEL RADAR
-├── ทั้งหมด
-├── 🟢 พร้อมส่ง
-├── 🟡 เกิน 24 ชม.
-├── 🔴 เกิน 48 ชม.
-├── 🔥 ส่งแล้ว
-├── ORDER INSPECTOR
-└── MESSAGE PREVIEW
-```
-
-### 3) ไฟล์ patch รวม
-
-ถ้าต้องการใช้ patch แทนการคัดลอกไฟล์ ให้ใช้:
-
-```text
-03-patch/PARCEL-MAPPING.patch
-```
-
-รันจาก root repository:
-
-```bash
-git apply 03-patch/PARCEL-MAPPING.patch
-```
-
-## ปุ่มที่เชื่อมไว้แล้ว
-
-```text
-เปิด WarpDrive โยนไฟล์
-https://warpdrivetracking.vercel.app/
-
-เว็บเช็กเลขลูกค้า
-https://bbstorefullv-1.vercel.app/
-
-เปิด FLASH
-https://www.flashexpress.co.th/fle/tracking
-```
-
-## ข้อควรระวัง
-
-- ห้ามนำ `access_token` ไปใส่ใน React/client
-- ห้ามเปิดปุ่มส่ง Messenger ตรงจากหน้า ParcelMapping
-- การส่งจริงยังให้ n8n ผ่าน `⛩️VOID_xXx_GATEWAYz` ทำงาน
-- `delivery_status = '🔥SENT'` ต้องเกิดหลังส่งสำเร็จเท่านั้น
-- ต้อง deploy backend พร้อม frontend เพราะหน้าเว็บเรียก `parcels.mappingQueue`
-
-## ตรวจหลังวางไฟล์
-
-```bash
-pnpm run build
-pnpm run check
-```
-
-ถ้า `pnpm run check` เจอ error ใน `OrderHistory.tsx` เดิมที่เรียก `query.data?.total` ให้แยกจากแพ็กนี้ เพราะไม่เกี่ยวกับ ParcelMapping.
+หน้านี้เป็น preview และ queue console เท่านั้น ไม่เปิดเผย Page Access Token และไม่ยิง Messenger ซ้ำจากหน้าเว็บ

@@ -1,8 +1,44 @@
+[1mdiff --git a/client/src/index.css b/client/src/index.css[m
+[1mindex 76d3797..10a6ab1 100644[m
+[1m--- a/client/src/index.css[m
+[1m+++ b/client/src/index.css[m
+[36m@@ -61,6 +61,23 @@[m [mbody { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se[m
+ .blackbox-room { background: radial-gradient(circle at 76% 0%, rgba(255, 57, 201, .08), transparent 24rem), radial-gradient(circle at 18% 18%, rgba(128, 45, 255, .08), transparent 30rem); }[m
+ .blackbox-hero { background-image: linear-gradient(115deg, rgba(30, 10, 46, .96), rgba(16, 7, 28, .96) 55%, rgba(22, 10, 35, .94)); }[m
+ .hero-scanline { position:absolute; inset:0; pointer-events:none; background: repeating-linear-gradient(0deg, transparent 0, transparent 5px, rgba(255, 82, 210, .035) 6px); opacity:.7; }[m
+[32m+[m[32m.cosmic-stage { position:relative; isolation:isolate; overflow:hidden; background:radial-gradient(circle at 50% -10%,rgba(72,197,255,.12),transparent 25rem); }[m
+[32m+[m[32m.cosmic-stage::before { content:""; position:fixed; z-index:-2; inset:0; pointer-events:none; opacity:.34; background-image:radial-gradient(circle,rgba(255,255,255,.85) 0 1px,transparent 1.5px),radial-gradient(circle,rgba(85,226,255,.65) 0 1px,transparent 1.5px); background-position:12px 26px,84px 118px; background-size:137px 151px,211px 193px; animation:star-drift 28s linear infinite; }[m
+[32m+[m[32m.cosmic-stage::after { content:""; position:fixed; z-index:-1; inset:0; pointer-events:none; background:linear-gradient(115deg,transparent 0 42%,rgba(94,236,255,.035) 47%,transparent 52%),radial-gradient(ellipse at 50% 105%,rgba(184,70,255,.13),transparent 46%); }[m
+[32m+[m[32m.cosmic-corner { position:absolute; pointer-events:none; border-color:rgba(99,232,255,.55); filter:drop-shadow(0 0 7px rgba(99,232,255,.5)); }[m
+[32m+[m[32m.cosmic-corner.tl { top:16px; left:16px; width:42px; height:42px; border-top:1px solid; border-left:1px solid; }[m
+[32m+[m[32m.cosmic-corner.br { right:16px; bottom:16px; width:42px; height:42px; border-right:1px solid; border-bottom:1px solid; }[m
+[32m+[m[32m.hero-orbit { position:absolute; right:-90px; top:-125px; width:380px; height:380px; border:1px solid rgba(93,233,255,.2); border-radius:50%; transform:rotate(-25deg); box-shadow:0 0 35px rgba(93,233,255,.06),inset 0 0 35px rgba(93,233,255,.04); }[m
+[32m+[m[32m.hero-orbit::before,.hero-orbit::after { content:""; position:absolute; inset:32px -24px; border:1px solid rgba(255,90,203,.18); border-radius:50%; transform:rotate(67deg); }[m
+[32m+[m[32m.hero-orbit::after { inset:96px -56px; border-color:rgba(168,117,255,.2); transform:rotate(-28deg); }[m
+[32m+[m[32m.hero-planet { position:absolute; right:83px; top:65px; width:76px; height:76px; border-radius:50%; background:radial-gradient(circle at 32% 28%,#c7fbff 0 4%,#57d8f5 12%,#7355cf 48%,#231044 74%,#090313 100%); box-shadow:0 0 18px #57d8f5,0 0 55px rgba(106,75,255,.55); animation:planet-float 5s ease-in-out infinite; }[m
+[32m+[m[32m.hero-planet::after { content:""; position:absolute; left:-24px; top:31px; width:124px; height:18px; border:2px solid rgba(255,119,213,.55); border-radius:50%; transform:rotate(-22deg); box-shadow:0 0 12px rgba(255,119,213,.35); }[m
+[32m+[m[32m.signal-ticker { overflow:hidden; border-top:1px solid rgba(93,233,255,.12); border-bottom:1px solid rgba(93,233,255,.12); color:rgba(160,245,255,.58); font:600 9px/1.2 'IBM Plex Mono',monospace; letter-spacing:.14em; white-space:nowrap; }[m
+[32m+[m[32m.signal-ticker span { display:inline-block; padding:9px 0; animation:ticker-slide 22s linear infinite; }[m
+[32m+[m[32m.orbit-kicker { color:rgba(255,255,255,.42); font:600 9px/1 'IBM Plex Mono',monospace; letter-spacing:.2em; }[m
+[32m+[m[32m@keyframes star-drift { from { transform:translate3d(0,0,0) scale(1); } to { transform:translate3d(-40px,70px,0) scale(1.04); } }[m
+[32m+[m[32m@keyframes planet-float { 0%,100% { transform:translateY(0) rotate(-4deg); } 50% { transform:translateY(8px) rotate(4deg); } }[m
+[32m+[m[32m@keyframes ticker-slide { from { transform:translateX(100%); } to { transform:translateX(-100%); } }[m
+ .live-chip { display:inline-flex; align-items:center; gap:.45rem; border:1px solid rgba(88,239,255,.28); border-radius:999px; padding:.45rem .7rem; color:#9df5ff; background:rgba(52,218,255,.08); font:600 10px/1 'IBM Plex Mono',monospace; letter-spacing:.08em; }[m
+ .live-dot { width:7px; height:7px; border-radius:50%; background:#69efff; box-shadow:0 0 12px #69efff; animation:bb-live-pulse 1.3s ease-in-out infinite; }[m
+ .signal-metric { position:relative; overflow:hidden; border:1px solid rgba(255,255,255,.08); border-radius:1.1rem; padding:1rem; background:rgba(0,0,0,.22); box-shadow:inset 0 0 25px rgba(255,255,255,.015); }[m
+[36m@@ -78,6 +95,7 @@[m [mbody { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se[m
+ .console-signal { display:flex; gap:10px; border:1px solid rgba(255,255,255,.08); border-radius:14px; padding:11px; background:rgba(0,0,0,.2); } .console-signal-icon { display:grid; flex:none; place-items:center; width:27px; height:27px; border-radius:8px; background:rgba(255,255,255,.06); } .console-signal-icon svg { width:14px; height:14px; } .tone-pink { color:#ff69cd; } .tone-violet { color:#b07bff; } .tone-cyan { color:#63ebff; } .signal-bar { height:3px; overflow:hidden; border-radius:4px; background:rgba(255,255,255,.08); } .signal-bar span { display:block; height:100%; border-radius:4px; background:currentColor; box-shadow:0 0 9px currentColor; transition:width .4s ease; }[m
+ @keyframes bb-live-pulse { 0%,100% { opacity:.55; transform:scale(.8); } 50% { opacity:1; transform:scale(1.15); } } @keyframes bb-arrow-pulse { 0%,100% { transform:translateX(-2px); opacity:.55; } 50% { transform:translateX(3px); opacity:1; } } @keyframes bb-radar-spin { to { transform:rotate(360deg); } } @keyframes bb-blip { 0%,100% { opacity:.55; transform:scale(.75); } 50% { opacity:1; transform:scale(1.35); } }[m
+ @media (prefers-reduced-motion:reduce) { .radar-sweep,.radar-blip,.neon-arrow svg,.live-dot { animation:none; } }[m
+[32m+[m[32m@media (prefers-reduced-motion:reduce) { .cosmic-stage::before,.hero-planet,.signal-ticker span { animation:none; } }[m
+ [m
+ [m
+ /* BLACKBOX ORDER CONTROL — neon status board */[m
 [1mdiff --git a/client/src/pages/ParcelMapping.tsx b/client/src/pages/ParcelMapping.tsx[m
-[1mindex 952776a..bd225bf 100644[m
+[1mindex 952776a..c9c58fe 100644[m
 [1m--- a/client/src/pages/ParcelMapping.tsx[m
 [1m+++ b/client/src/pages/ParcelMapping.tsx[m
-[36m@@ -1,200 +1,187 @@[m
+[36m@@ -1,331 +1,451 @@[m
  import { Badge } from "@/components/ui/badge";[m
  import { Button } from "@/components/ui/button";[m
  import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";[m
@@ -365,8 +401,14 @@
    }[m
  [m
    return ([m
-[36m@@ -203,129 +190,254 @@[m [mexport default function ParcelMapping() {[m
+[31m-    <div className="blackbox-room min-h-full space-y-5 text-white">[m
+[32m+[m[32m    <div className="cosmic-stage blackbox-room min-h-full space-y-5 p-2 text-white sm:p-4 lg:p-6">[m
+       <header className="blackbox-hero relative overflow-hidden rounded-3xl border border-fuchsia-400/30 p-6 shadow-2xl shadow-fuchsia-950/30 sm:p-8">[m
          <div className="hero-scanline" />[m
+[32m+[m[32m        <div className="cosmic-corner tl" />[m
+[32m+[m[32m        <div className="cosmic-corner br" />[m
+[32m+[m[32m        <div className="hero-orbit" aria-hidden="true" />[m
+[32m+[m[32m        <div className="hero-planet" aria-hidden="true" />[m
          <div className="relative flex flex-wrap items-start justify-between gap-5">[m
            <div>[m
 [31m-            <p className="live-chip"><Radar className="h-3.5 w-3.5" /> PARCEL RADAR · DIRECT SEARCH</p>[m
@@ -374,6 +416,7 @@
 [32m+[m[32m            <p className="live-chip">[m
 [32m+[m[32m              <Radar className="h-3.5 w-3.5" /> PARCEL RADAR · LIVE SIGNAL[m
 [32m+[m[32m            </p>[m
+[32m+[m[32m            <p className="orbit-kicker mt-4">DK DRAKSIDE · SPACE VAULT / SECTOR 07</p>[m
 [32m+[m[32m            <h1 className="cyber-title mt-4 text-3xl font-semibold sm:text-4xl">[m
 [32m+[m[32m              ห้องควบคุมเลขพัสดุ[m
 [32m+[m[32m            </h1>[m
@@ -393,6 +436,9 @@
 [31m-          <div className="signal-metric signal-violet"><p className="text-[10px] uppercase tracking-[0.16em] opacity-65">ผลค้นหาปัจจุบัน</p><p className="mt-2 text-2xl font-bold text-white">{parcels.length.toLocaleString("th-TH")}</p></div>[m
 [31m-          <div className="signal-metric signal-cyan"><p className="text-[10px] uppercase tracking-[0.16em] opacity-65">แหล่งข้อมูล</p><p className="mt-2 text-lg font-bold text-white">public.parcels</p></div>[m
 [31m-          <div className="signal-metric signal-pink"><p className="text-[10px] uppercase tracking-[0.16em] opacity-65">Messenger</p><p className="mt-2 text-sm font-bold text-white">เช็กหน้าต่าง 24 ชม.</p></div>[m
+[32m+[m[32m        <div className="signal-ticker relative mt-6">[m
+[32m+[m[32m          <span>SHADOW RECALL // ROGUE MATCH // VOID GATEWAY // TELEGRAM LINK STANDBY // FLASH EXPRESS // TRACKING CAPSULES IN ORBIT //</span>[m
+[32m+[m[32m        </div>[m
 [32m+[m[32m        <div className="mt-5 grid gap-3 sm:grid-cols-5">[m
 [32m+[m[32m          {filters.map(item => {[m
 [32m+[m[32m            const meta = statusMeta(item);[m
@@ -706,7 +752,7 @@
      </div>[m
    );[m
 [1mdiff --git a/server/routers.ts b/server/routers.ts[m
-[1mindex 59219f2..432ac67 100644[m
+[1mindex 59219f2..bcedb33 100644[m
 [1m--- a/server/routers.ts[m
 [1m+++ b/server/routers.ts[m
 [36m@@ -2,7 +2,7 @@[m [mimport { z } from "zod";[m
@@ -714,26 +760,39 @@
  import { COOKIE_NAME } from "../shared/const";[m
  import { sdk } from "./_core/sdk";[m
 [31m-import { createCanonicalAlias, createProductAlienMapReview, createProductAlienTerm, fetchConversationEvidence, fetchDailyChatOrderSummary, fetchDailyOrderHistory, fetchExternalChatMessages, fetchLiveOrders, fetchLiveThreads, fetchStockProducts, fetchStockWarnings, getLiveOrderStats, listCanonicalAliases, listProductAlienMapReviews, listProductAlienTerms, searchParcelsQuick, supabaseGet, supabasePost, updateCanonicalAlias, updateProductMapAlias, updateStockProduct, type LiveOrder, type ParcelSearchMode, type StockProduct } from "./supabase";[m
-[32m+[m[32mimport { createCanonicalAlias, createProductAlienMapReview, createProductAlienTerm, fetchConversationEvidence, fetchDailyChatOrderSummary, fetchDailyOrderHistory, fetchExternalChatMessages, fetchLiveOrders, fetchLiveThreads, fetchStockProducts, fetchStockWarnings, getLiveOrderStats, listCanonicalAliases, listProductAlienMapReviews, listProductAlienTerms, fetchParcelMappingQueue, searchParcelsQuick, supabaseGet, supabasePost, updateCanonicalAlias, updateProductMapAlias, updateStockProduct, type LiveOrder, type ParcelSearchMode, type StockProduct } from "./supabase";[m
+[32m+[m[32mimport { createCanonicalAlias, createProductAlienMapReview, createProductAlienTerm, fetchConversationEvidence, fetchDailyChatOrderSummary, fetchDailyOrderHistory, fetchExternalChatMessages, fetchLiveOrders, fetchLiveThreads, fetchParcelMappingQueue, fetchStockProducts, fetchStockWarnings, getLiveOrderStats, listCanonicalAliases, listProductAlienMapReviews, listProductAlienTerms, supabaseGet, supabasePost, updateCanonicalAlias, updateProductMapAlias, updateStockProduct, type LiveOrder, type StockProduct } from "./supabase";[m
  import { sendMetaMessage } from "./meta";[m
  import { storagePut } from "./storage";[m
  import * as db from "./db";[m
-[36m@@ -43,6 +43,7 @@[m [mexport const appRouter = router({[m
+[36m@@ -43,11 +43,7 @@[m [mexport const appRouter = router({[m
    }),[m
  [m
    parcels: router({[m
+[31m-    quickSearch: adminProcedure.input(z.object({[m
+[31m-      term: z.string().min(1).max(200),[m
+[31m-      mode: z.enum(["auto", "phone", "name", "tracking", "address"]).default("auto"),[m
+[31m-      limit: z.number().int().min(1).max(200).default(150),[m
+[31m-    })).query(({ input }) => searchParcelsQuick({ ...input, mode: input.mode as ParcelSearchMode })),[m
 [32m+[m[32m    mappingQueue: adminProcedure.input(z.object({ status: z.enum(["all", "ready", "over24", "over48", "sent"]).default("all"), limit: z.number().int().min(1).max(500).default(300) })).query(({ input }) => fetchParcelMappingQueue({ status: input.status, limit: input.limit })),[m
-     quickSearch: adminProcedure.input(z.object({[m
-       term: z.string().min(1).max(200),[m
-       mode: z.enum(["auto", "phone", "name", "tracking", "address"]).default("auto"),[m
+     sendTracking: adminProcedure.input(z.object({[m
+       pageId: z.string().min(1),[m
+       threadId: z.string().min(1),[m
 [1mdiff --git a/server/supabase.ts b/server/supabase.ts[m
-[1mindex 1e74e38..ceeb40a 100644[m
+[1mindex 1e74e38..1ccd5b6 100644[m
 [1m--- a/server/supabase.ts[m
 [1m+++ b/server/supabase.ts[m
-[36m@@ -36,6 +36,45 @@[m [mexport async function searchParcelsQuick(input: { term: string; mode: ParcelSear[m
-   return Array.isArray(rows) ? rows : [];[m
+[36m@@ -17,23 +17,43 @@[m [mexport async function supabaseGet<T>(path: string): Promise<T> {[m
  }[m
+ export async function supabasePost<T>(path: string, body: unknown): Promise<T> { const { baseUrl, key } = config(); const response = await fetch(`${baseUrl}/rest/v1/${path}`, { method: "POST", headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify(body) }); if (!response.ok) throw new Error(`Supabase returned HTTP ${response.status}: ${(await response.text()).slice(0, 300)}`); return response.json() as Promise<T>; }[m
  [m
+[31m-export type ParcelSearchMode = "auto" | "phone" | "name" | "tracking" | "address";[m
+[31m-export type ParcelSearchResult = {[m
+[31m-  tracking_number: string | null;[m
+[31m-  pickup_date: string | null;[m
+[31m-  consignee: string | null;[m
+[31m-  phone_number: string | null;[m
+[31m-  address: string | null;[m
+[31m-  cod_amount: string | null;[m
 [32m+[m[32mexport type ParcelMappingStatus = "all" | "ready" | "over24" | "over48" | "sent";[m
 [32m+[m[32mexport type ParcelMappingRow = Record<string, unknown> & {[m
 [32m+[m[32m  tracking_number?: string | null;[m
@@ -743,8 +802,15 @@
 [32m+[m[32m  parcel_delivery_status?: string | null;[m
 [32m+[m[32m  parcel_sent_at?: string | null;[m
 [32m+[m[32m  facebook_tracking_status?: string | null;[m
-[32m+[m[32m};[m
-[32m+[m
+ };[m
+ [m
+[31m-export async function searchParcelsQuick(input: { term: string; mode: ParcelSearchMode; limit: number }) {[m
+[31m-  const rows = await supabasePost<ParcelSearchResult[]>("rpc/search_parcels_quick", {[m
+[31m-    p_search: input.term.trim(),[m
+[31m-    p_mode: input.mode,[m
+[31m-    p_limit: input.limit,[m
+[31m-  });[m
+[31m-  return Array.isArray(rows) ? rows : [];[m
 [32m+[m[32mconst parcelMappingSelect = [[m
 [32m+[m[32m  "tracking_number", "matched_phone", "recipient_name", "parcel_address", "pickup_date",[m
 [32m+[m[32m  "parcel_delivery_status", "parcel_sent_at", "upsert_key", "page_id", "page_name",[m
@@ -771,8 +837,6 @@
 [32m+[m[32m    input.status === "sent" || input.status === "all" ? supabaseGet<ParcelMappingRow[]>(`${sentView}?${sentQuery}`) : Promise.resolve([] as ParcelMappingRow[]),[m
 [32m+[m[32m  ]);[m
 [32m+[m[32m  return [...active, ...sent].slice(0, input.limit);[m
-[32m+[m[32m}[m
-[32m+[m
+ }[m
+ [m
  function text(v: unknown) { return v == null ? null : String(v); }[m
- function num(v: unknown) { const n = Number(v); return v == null || v === "" || !Number.isFinite(n) ? null : n; }[m
- function bool(v: unknown) { return v === true || v === "true" || v === 1; }[m

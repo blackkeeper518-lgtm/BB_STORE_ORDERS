@@ -185,14 +185,19 @@ export default function ParcelMapping() {
   }
 
   return (
-    <div className="blackbox-room min-h-full space-y-5 text-white">
+    <div className="cosmic-stage blackbox-room min-h-full space-y-5 p-2 text-white sm:p-4 lg:p-6">
       <header className="blackbox-hero relative overflow-hidden rounded-3xl border border-fuchsia-400/30 p-6 shadow-2xl shadow-fuchsia-950/30 sm:p-8">
         <div className="hero-scanline" />
+        <div className="cosmic-corner tl" />
+        <div className="cosmic-corner br" />
+        <div className="hero-orbit" aria-hidden="true" />
+        <div className="hero-planet" aria-hidden="true" />
         <div className="relative flex flex-wrap items-start justify-between gap-5">
           <div>
             <p className="live-chip">
               <Radar className="h-3.5 w-3.5" /> PARCEL RADAR · LIVE SIGNAL
             </p>
+            <p className="orbit-kicker mt-4">DK DRAKSIDE · SPACE VAULT / SECTOR 07</p>
             <h1 className="cyber-title mt-4 text-3xl font-semibold sm:text-4xl">
               ห้องควบคุมเลขพัสดุ
             </h1>
@@ -205,6 +210,9 @@ export default function ParcelMapping() {
             <span className="bb-running-light mr-2 inline-block h-2 w-2 rounded-full" />
             {activeCamp} · PIPELINE LINK ONLINE
           </div>
+        </div>
+        <div className="signal-ticker relative mt-6">
+          <span>SHADOW RECALL // ROGUE MATCH // VOID GATEWAY // TELEGRAM LINK STANDBY // FLASH EXPRESS // TRACKING CAPSULES IN ORBIT //</span>
         </div>
         <div className="mt-5 grid gap-3 sm:grid-cols-5">
           {filters.map(item => {
