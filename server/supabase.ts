@@ -29,28 +29,16 @@ export type ParcelMappingRow = Record<string, unknown> & {
 };
 
 export async function fetchParcelMappingQueue(input: { status: ParcelMappingStatus; limit: number }) {
-  // SHADOW เป็นจุดที่ n8n แมปและคัดแถวพร้อมแล้ว ห้องเว็บจึงอ่านจากที่นี่
-  const activeView = encodeURIComponent("🔮SHADOW_xXx_RECALL");
+  const activeView = encodeURIComponent("🦅ROGUE_xXx_SHIPPINGz");
   const sentView = encodeURIComponent("📓DEAD_xXx_NOTE");
   // ดึงทั้งแถวจาก view โดยไม่ระบุชื่อคอลัมน์ตายตัว เพราะแต่ละ view อาจงอก field ไม่เท่ากัน
   // ให้หน้า Space Vault จัด lane จากข้อมูลที่มีจริงแทนการล้มทั้ง endpoint ด้วย HTTP 400
   const activeQuery = `select=*&limit=${input.limit}`;
   const sentQuery = `select=*&limit=${input.limit}`;
-  // ห้องเลขอ่าน SHADOW เป็นแหล่งหลักโดยตรง
-  // ห้ามกลืน error เป็น [] เพราะจะทำให้ข้อมูลที่แมปแล้วดูเหมือนไม่มี
-  const active = input.status === "sent"
-    ? [] as ParcelMappingRow[]
-    : await supabaseGet<ParcelMappingRow[]>(`${activeView}?${activeQuery}`);
-
-  // DEAD เป็นประวัติเสริม: ถ้าวิวนี้ยังไม่พร้อม จะไม่ขวางคิว SHADOW
-  let sent: ParcelMappingRow[] = [];
-  if (input.status === "sent" || input.status === "all") {
-    try {
-      sent = await supabaseGet<ParcelMappingRow[]>(`${sentView}?${sentQuery}`);
-    } catch (error) {
-      console.warn("[ParcelMapping] DEAD view unavailable; keeping SHADOW queue", error instanceof Error ? error.message : error);
-    }
-  }
+  const [active, sent] = await Promise.all([
+    input.status === "sent" ? Promise.resolve([] as ParcelMappingRow[]) : supabaseGet<ParcelMappingRow[]>(`${activeView}?${activeQuery}`),
+    input.status === "sent" || input.status === "all" ? supabaseGet<ParcelMappingRow[]>(`${sentView}?${sentQuery}`) : Promise.resolve([] as ParcelMappingRow[]),
+  ]);
   return [...active, ...sent].slice(0, input.limit);
 }
 
