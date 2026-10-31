@@ -17,6 +17,7 @@ import {
 import { useMemo, useState } from "react";
 
 type QueueFilter = "all" | "ready" | "over24" | "over48" | "sent";
+type OrbitLane = "waiting" | "send" | "expired" | "sent";
 type ParcelMappingRow = {
   tracking_number?: string | null;
   matched_phone?: string | null;
@@ -34,6 +35,11 @@ type ParcelMappingRow = {
   manus_for_packer?: string | null;
   facebook_tracking_status?: string | null;
   send_facebook_route?: string | null;
+  customer_message_time_th?: string | null;
+  customer_latest_message?: string | null;
+  page_latest_message?: string | null;
+  can_send_standard?: boolean | string | number | null;
+  is_within_24h?: boolean | string | number | null;
 };
 
 const flashTrackingUrl = "https://www.flashexpress.co.th/fle/tracking";
@@ -71,7 +77,24 @@ function isSent(row: ParcelMappingRow) {
         "DELIVERED",
         "SENT_TO_TELEGRAM",
       ].includes(value)
-    );
+    ) || clean(row.page_latest_message).includes("📌 แจ้งเลขพัสดุจัดส่ง");
+}
+function asBool(value: unknown) {
+  return value === true || value === "true" || value === 1 || value === "1";
+}
+function orbitLane(row: ParcelMappingRow): OrbitLane {
+  if (isSent(row)) return "sent";
+  if (!clean(row.customer_message_time_th || row.customer_latest_message)) return "waiting";
+  if (clean(row.send_facebook_route).toUpperCase() === "BLOCK_FB_EXPIRED" || (row.can_send_standard != null && !asBool(row.can_send_standard))) return "expired";
+  return "send";
+}
+function orbitMeta(lane: OrbitLane) {
+  return {
+    waiting: { icon: "🛰️", label: "WAITING ORBIT", sub: "ยังไม่พบสัญญาณลูกค้า", color: "border-violet-300/25 bg-violet-300/[.06] text-violet-100" },
+    send: { icon: "🚀", label: "SEND GATE", sub: "พร้อมส่งตามหน้าต่างแชท", color: "border-emerald-300/25 bg-emerald-300/[.06] text-emerald-100" },
+    expired: { icon: "🕳️", label: "EXPIRED VAULT", sub: "เกินหน้าต่างส่ง", color: "border-amber-300/25 bg-amber-300/[.06] text-amber-100" },
+    sent: { icon: "📌", label: "SENT ARCHIVE", sub: "แจ้งเลขแล้ว", color: "border-fuchsia-300/25 bg-fuchsia-300/[.06] text-fuchsia-100" },
+  }[lane];
 }
 function rowStatus(row: ParcelMappingRow): QueueFilter {
   if (isSent(row)) return "sent";
@@ -176,6 +199,7 @@ export default function ParcelMapping() {
       ) as Record<QueueFilter, number>,
     [rows]
   );
+  const orbitLanes: OrbitLane[] = ["waiting", "send", "expired", "sent"];
 
   async function copyMessage(row: ParcelMappingRow) {
     await navigator.clipboard.writeText(buildCustomerMessage(row));
@@ -278,6 +302,21 @@ export default function ParcelMapping() {
           />
         </div>
       </div>
+
+      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {orbitLanes.map(lane => {
+          const meta = orbitMeta(lane);
+          const laneCount = rows.filter(row => orbitLane(row) === lane).length;
+          return (
+            <button key={lane} type="button" onClick={() => setFilter(lane === "sent" ? "sent" : lane === "expired" ? "over24" : "all")} className={`group rounded-2xl border p-4 text-left transition hover:-translate-y-1 hover:shadow-[0_0_28px_rgba(77,218,255,.12)] ${meta.color}`}>
+              <div className="flex items-start justify-between gap-2"><span className="text-xl">{meta.icon}</span><span className="font-mono text-2xl font-black">{laneCount}</span></div>
+              <p className="mt-3 text-[11px] font-bold tracking-[.14em]">{meta.label}</p>
+              <p className="mt-1 text-xs opacity-60">{meta.sub}</p>
+              <div className="mt-3 h-1 overflow-hidden rounded-full bg-white/10"><span className="block h-full w-2/3 rounded-full bg-current opacity-70 transition group-hover:w-full" /></div>
+            </button>
+          );
+        })}
+      </section>
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_390px]">
         <Card className="blackbox-queue overflow-hidden rounded-3xl">

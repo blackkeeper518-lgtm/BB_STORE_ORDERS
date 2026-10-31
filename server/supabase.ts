@@ -28,27 +28,13 @@ export type ParcelMappingRow = Record<string, unknown> & {
   facebook_tracking_status?: string | null;
 };
 
-const parcelMappingSelect = [
-  "tracking_number", "matched_phone", "recipient_name", "parcel_address", "pickup_date",
-  "parcel_delivery_status", "parcel_sent_at", "upsert_key", "page_id", "page_name",
-  "customer_id", "order_number", "order_number_display", "order_time_display", "cod_amount",
-  "shipping_carrier", "manus_for_packer", "carton_count", "is_within_24h", "can_send_standard",
-  "messaging_tag_required", "facebook_tracking_status", "facebook_tracking_sent_at",
-  "send_facebook_route", "customer_latest_message", "page_latest_message", "parcel_row_id",
-].join(",");
-const parcelMappingSentSelect = [
-  "tracking_number", "matched_phone", "recipient_name:flash_consignee", "parcel_address", "pickup_date",
-  "parcel_delivery_status", "parcel_sent_at", "upsert_key", "page_id", "page_name", "customer_id",
-  "order_number", "order_number_display", "order_time_display", "cod_amount", "shipping_carrier",
-  "manus_for_packer", "carton_count", "facebook_tracking_status", "facebook_tracking_sent_at",
-  "send_facebook_route", "message_id", "target_room", "delivery_status",
-].join(",");
-
 export async function fetchParcelMappingQueue(input: { status: ParcelMappingStatus; limit: number }) {
   const activeView = encodeURIComponent("🦅ROGUE_xXx_SHIPPINGz");
   const sentView = encodeURIComponent("📓DEAD_xXx_NOTE");
-  const activeQuery = `select=${parcelMappingSelect}&limit=${input.limit}&order=pickup_date.desc`;
-  const sentQuery = `select=${parcelMappingSentSelect}&limit=${input.limit}&order=pickup_date.desc`;
+  // ดึงทั้งแถวจาก view โดยไม่ระบุชื่อคอลัมน์ตายตัว เพราะแต่ละ view อาจงอก field ไม่เท่ากัน
+  // ให้หน้า Space Vault จัด lane จากข้อมูลที่มีจริงแทนการล้มทั้ง endpoint ด้วย HTTP 400
+  const activeQuery = `select=*&limit=${input.limit}`;
+  const sentQuery = `select=*&limit=${input.limit}`;
   const [active, sent] = await Promise.all([
     input.status === "sent" ? Promise.resolve([] as ParcelMappingRow[]) : supabaseGet<ParcelMappingRow[]>(`${activeView}?${activeQuery}`),
     input.status === "sent" || input.status === "all" ? supabaseGet<ParcelMappingRow[]>(`${sentView}?${sentQuery}`) : Promise.resolve([] as ParcelMappingRow[]),
