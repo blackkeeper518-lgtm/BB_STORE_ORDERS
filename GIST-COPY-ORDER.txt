@@ -1,0 +1,5 @@
+1. README-TH.md
+2. 01-server/supabase.ts       → server/supabase.ts
+3. 01-server/routers.ts        → server/routers.ts
+4. 02-client/ParcelMapping.tsx → client/src/pages/ParcelMapping.tsx
+5. 03-patch/PARCEL-MAPPING.patch (เก็บเป็นไฟล์สำรอง/ใช้ git apply)

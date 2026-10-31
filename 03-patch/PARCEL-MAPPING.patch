@@ -1,0 +1,778 @@
+[1mdiff --git a/client/src/pages/ParcelMapping.tsx b/client/src/pages/ParcelMapping.tsx[m
+[1mindex 952776a..bd225bf 100644[m
+[1m--- a/client/src/pages/ParcelMapping.tsx[m
+[1m+++ b/client/src/pages/ParcelMapping.tsx[m
+[36m@@ -1,200 +1,187 @@[m
+ import { Badge } from "@/components/ui/badge";[m
+ import { Button } from "@/components/ui/button";[m
+ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";[m
+[31m-import { Input } from "@/components/ui/input";[m
+[31m-import { getActiveCamp, readChatMessages } from "@/lib/canonical";[m
+[32m+[m[32mimport { getActiveCamp } from "@/lib/canonical";[m
+ import { trpc } from "@/lib/trpc";[m
+[31m-import { Check, Clipboard, ExternalLink, MapPin, PackageSearch, Phone, Radar, RefreshCw, Search, Send, UserRound } from "lucide-react";[m
+[32m+[m[32mimport {[m
+[32m+[m[32m  Check,[m
+[32m+[m[32m  Clipboard,[m
+[32m+[m[32m  ExternalLink,[m
+[32m+[m[32m  FileUp,[m
+[32m+[m[32m  PackageSearch,[m
+[32m+[m[32m  RefreshCw,[m
+[32m+[m[32m  Radar,[m
+[32m+[m[32m  Search,[m
+[32m+[m[32m  X,[m
+[32m+[m[32m} from "lucide-react";[m
+ import { useMemo, useState } from "react";[m
+ [m
+[31m-type SearchMode = "auto" | "phone" | "name" | "tracking" | "address";[m
+[31m-type ParcelRow = {[m
+[31m-  tracking_number: string | null;[m
+[31m-  pickup_date: string | null;[m
+[31m-  consignee: string | null;[m
+[31m-  phone_number: string | null;[m
+[31m-  address: string | null;[m
+[31m-  cod_amount: string | number | null;[m
+[32m+[m[32mtype QueueFilter = "all" | "ready" | "over24" | "over48" | "sent";[m
+[32m+[m[32mtype ParcelMappingRow = {[m
+[32m+[m[32m  tracking_number?: string | null;[m
+[32m+[m[32m  matched_phone?: string | null;[m
+[32m+[m[32m  recipient_name?: string | null;[m
+[32m+[m[32m  parcel_address?: string | null;[m
+[32m+[m[32m  pickup_date?: string | null;[m
+[32m+[m[32m  parcel_delivery_status?: string | null;[m
+[32m+[m[32m  parcel_sent_at?: string | null;[m
+[32m+[m[32m  page_name?: string | null;[m
+[32m+[m[32m  order_number?: string | null;[m
+[32m+[m[32m  order_number_display?: string | null;[m
+[32m+[m[32m  order_time_display?: string | null;[m
+[32m+[m[32m  cod_amount?: string | number | null;[m
+[32m+[m[32m  shipping_carrier?: string | null;[m
+[32m+[m[32m  manus_for_packer?: string | null;[m
+[32m+[m[32m  facebook_tracking_status?: string | null;[m
+[32m+[m[32m  send_facebook_route?: string | null;[m
+ };[m
+[31m-type SearchRequest = { term: string; mode: SearchMode };[m
+[31m-type ActionState = { kind: "success" | "error"; text: string };[m
+[31m-type MessengerTarget = { pageId: string; threadId: string; recipientId: string; pageName: string; customerName: string };[m
+[31m-[m
+[31m-const searchModes: { key: SearchMode; label: string; placeholder: string }[] = [[m
+[31m-  { key: "auto", label: "อัตโนมัติ", placeholder: "เบอร์ / ชื่อ / เลขพัสดุ / ที่อยู่" },[m
+[31m-  { key: "phone", label: "เบอร์โทร", placeholder: "เช่น 0812345678" },[m
+[31m-  { key: "name", label: "ชื่อผู้รับ", placeholder: "พิมพ์ชื่อผู้รับ" },[m
+[31m-  { key: "tracking", label: "เลขพัสดุ", placeholder: "เช่น TH123456789" },[m
+[31m-  { key: "address", label: "ที่อยู่", placeholder: "พิมพ์บางส่วนของที่อยู่" },[m
+[31m-];[m
+ [m
+ const flashTrackingUrl = "https://www.flashexpress.co.th/fle/tracking";[m
+[32m+[m[32mconst warpDriveUrl = "https://warpdrivetracking.vercel.app/";[m
+[32m+[m[32mconst customerLookupUrl = "https://bbstorefullv-1.vercel.app/";[m
+ const money = new Intl.NumberFormat("th-TH");[m
+[32m+[m[32mconst filters: QueueFilter[] = ["all", "ready", "over24", "over48", "sent"];[m
+ [m
+[31m-function normalizePhone(value: unknown) {[m
+[31m-  const digits = String(value ?? "").replace(/\D/g, "");[m
+[31m-  return digits.startsWith("66") ? `0${digits.slice(2)}` : digits;[m
+[32m+[m[32mfunction clean(value: unknown) {[m
+[32m+[m[32m  return String(value ?? "").trim();[m
+ }[m
+[31m-[m
+[31m-function formatCod(value: ParcelRow["cod_amount"]) {[m
+[31m-  if (value == null || String(value).trim() === "") return "ไม่ระบุ";[m
+[31m-  const amount = Number(String(value).replace(/[^0-9.-]/g, ""));[m
+[31m-  return Number.isFinite(amount) ? money.format(amount) : String(value);[m
+[32m+[m[32mfunction formatCod(value: ParcelMappingRow["cod_amount"]) {[m
+[32m+[m[32m  const amount = Number(String(value ?? "").replace(/[^0-9.-]/g, ""));[m
+[32m+[m[32m  return Number.isFinite(amount) ? money.format(amount) : "ไม่ระบุ";[m
+ }[m
+[31m-[m
+[31m-function parcelKey(row: ParcelRow) {[m
+[31m-  return `${String(row.tracking_number ?? "").trim()}|${String(row.pickup_date ?? "").trim()}`;[m
+[32m+[m[32mfunction parseDate(value: unknown) {[m
+[32m+[m[32m  const timestamp = Date.parse(clean(value));[m
+[32m+[m[32m  return Number.isFinite(timestamp) ? timestamp : null;[m
+ }[m
+[31m-[m
+[31m-function buildCustomerMessage(row: ParcelRow) {[m
+[31m-  const name = String(row.consignee ?? "").trim() || "คุณลูกค้า";[m
+[31m-  const lines = [[m
+[31m-    `สวัสดีค่ะ ${name} 🙏`,[m
+[31m-    "น้องขอแจ้งเลขพัสดุให้นะคะ",[m
+[31m-    `📦 เลขพัสดุ: ${String(row.tracking_number ?? "").trim()}`,[m
+[31m-    "🚚 ขนส่ง: ⚡ FLASH EXPRESS",[m
+[31m-  ];[m
+[31m-  if (row.pickup_date) lines.push(`🗓️ วันที่รับเข้าระบบขนส่ง: ${row.pickup_date}`);[m
+[31m-  if (row.cod_amount != null && String(row.cod_amount).trim()) {[m
+[31m-    lines.push(`💰 ยอดเก็บเงินปลายทาง (COD): ${formatCod(row.cod_amount)} บาท`);[m
+[31m-  }[m
+[31m-  lines.push([m
+[31m-    "",[m
+[31m-    "เพื่อความสบายใจ พี่แกะเช็กก่อนรับได้นะคะ อย่าลืมถ่ายคลิปตอนแกะไว้ค่ะ",[m
+[31m-    "ขอบพระคุณที่อุดหนุนค่ะ ❤️",[m
+[31m-  );[m
+[31m-  return lines.join("\n");[m
+[32m+[m[32mfunction ageHours(row: ParcelMappingRow) {[m
+[32m+[m[32m  const timestamp = parseDate(row.pickup_date);[m
+[32m+[m[32m  return timestamp == null[m
+[32m+[m[32m    ? null[m
+[32m+[m[32m    : Math.max(0, (Date.now() - timestamp) / 36e5);[m
+ }[m
+[31m-[m
+[31m-[m
+[31m-async function resolveMessengerTarget(phoneValue: unknown, threads: any[]): Promise<MessengerTarget> {[m
+[31m-  const phone = normalizePhone(phoneValue);[m
+[31m-  if (phone.length < 9) throw new Error("เบอร์ผู้รับไม่ครบ จึงระบุห้องแชทไม่ได้");[m
+[31m-[m
+[31m-  const matches = threads.filter((thread: any) => {[m
+[31m-    const sameOrderPhone = (thread.orders ?? []).some((order: any) => {[m
+[31m-      const orderPhone = normalizePhone(order.extracted_phone || order.phone || order.customer_phone_current || order.clean_phone);[m
+[31m-      return orderPhone && orderPhone === phone;[m
+[31m-    });[m
+[31m-    return sameOrderPhone && thread.pageId && thread.threadId && thread.customerId;[m
+[31m-  });[m
+[31m-[m
+[31m-  const unique = new Map<string, any>();[m
+[31m-  for (const thread of matches) {[m
+[31m-    const key = `${thread.pageId}:${thread.threadId}:${thread.customerId}`;[m
+[31m-    if (!unique.has(key)) unique.set(key, thread);[m
+[31m-  }[m
+[31m-  const candidates = Array.from(unique.values());[m
+[31m-  if (candidates.length === 0) {[m
+[31m-    throw new Error("ไม่พบห้องแชทที่ยืนยันเบอร์นี้และไม่พบ Customer PSID — เช็กเบอร์/ออเดอร์ก่อนครับ");[m
+[31m-  }[m
+[31m-  if (candidates.length > 1) {[m
+[31m-    const pages = candidates.map((item) => String(item.pageName || item.pageId)).join(", ");[m
+[31m-    throw new Error(`เบอร์นี้พบหลายห้องแชท (${pages}) เพื่อกันส่งผิดคน ระบบยังไม่ส่งครับ`);[m
+[31m-  }[m
+[31m-[m
+[31m-  const thread = candidates[0];[m
+[31m-  const messages = await readChatMessages(String(thread.pageId), String(thread.threadId));[m
+[31m-  const latestInboundMs = messages[m
+[31m-    .filter((message: any) => message.direction === "inbound")[m
+[31m-    .map((message: any) => new Date(String(message.occurredAt ?? "")).getTime())[m
+[31m-    .filter(Number.isFinite)[m
+[31m-    .reduce((latest: number, current: number) => Math.max(latest, current), 0);[m
+[31m-[m
+[31m-  if (!latestInboundMs) {[m
+[31m-    throw new Error("ตรวจไม่พบข้อความขาเข้าล่าสุด จึงยืนยันหน้าต่าง Messenger 24 ชั่วโมงไม่ได้ — ระบบยังไม่ส่งครับ");[m
+[31m-  }[m
+[31m-  const ageMs = Date.now() - latestInboundMs;[m
+[31m-  if (ageMs < -5 * 60 * 1000 || ageMs > 24 * 60 * 60 * 1000) {[m
+[31m-    throw new Error("ลูกค้าทักล่าสุดเกิน 24 ชั่วโมงแล้ว ปุ่มนี้ส่งแบบมาตรฐานไม่ได้ครับ ใช้ workflow ที่มีแท็กส่งนอกหน้าต่างแทน");[m
+[31m-  }[m
+[31m-[m
+[32m+[m[32mfunction isSent(row: ParcelMappingRow) {[m
+[32m+[m[32m  return [row.parcel_delivery_status, row.facebook_tracking_status][m
+[32m+[m[32m    .map(value => clean(value).toUpperCase())[m
+[32m+[m[32m    .some(value =>[m
+[32m+[m[32m      [[m
+[32m+[m[32m        "🔥SENT",[m
+[32m+[m[32m        "SENT",[m
+[32m+[m[32m        "SUCCESS",[m
+[32m+[m[32m        "COMPLETED",[m
+[32m+[m[32m        "DELIVERED",[m
+[32m+[m[32m        "SENT_TO_TELEGRAM",[m
+[32m+[m[32m      ].includes(value)[m
+[32m+[m[32m    );[m
+[32m+[m[32m}[m
+[32m+[m[32mfunction rowStatus(row: ParcelMappingRow): QueueFilter {[m
+[32m+[m[32m  if (isSent(row)) return "sent";[m
+[32m+[m[32m  const age = ageHours(row);[m
+[32m+[m[32m  if (age != null && age >= 48) return "over48";[m
+[32m+[m[32m  if (age != null && age >= 24) return "over24";[m
+[32m+[m[32m  return "ready";[m
+[32m+[m[32m}[m
+[32m+[m[32mfunction statusMeta(status: QueueFilter) {[m
+   return {[m
+[31m-    pageId: String(thread.pageId),[m
+[31m-    threadId: String(thread.threadId),[m
+[31m-    recipientId: String(thread.customerId),[m
+[31m-    pageName: String(thread.pageName || "ไม่ระบุเพจ"),[m
+[31m-    customerName: String(thread.customerName || "ไม่ระบุชื่อ"),[m
+[31m-  };[m
+[32m+[m[32m    all: {[m
+[32m+[m[32m      label: "ทั้งหมด",[m
+[32m+[m[32m      icon: "📦",[m
+[32m+[m[32m      className: "border-white/15 bg-white/[0.04] text-white",[m
+[32m+[m[32m    },[m
+[32m+[m[32m    ready: {[m
+[32m+[m[32m      label: "พร้อมส่ง",[m
+[32m+[m[32m      icon: "🟢",[m
+[32m+[m[32m      className: "border-cyan-300/30 bg-cyan-300/[0.08] text-cyan-100",[m
+[32m+[m[32m    },[m
+[32m+[m[32m    over24: {[m
+[32m+[m[32m      label: "เกิน 24 ชม.",[m
+[32m+[m[32m      icon: "🟡",[m
+[32m+[m[32m      className: "border-amber-300/30 bg-amber-300/[0.08] text-amber-100",[m
+[32m+[m[32m    },[m
+[32m+[m[32m    over48: {[m
+[32m+[m[32m      label: "เกิน 48 ชม.",[m
+[32m+[m[32m      icon: "🔴",[m
+[32m+[m[32m      className: "border-red-300/30 bg-red-300/[0.08] text-red-100",[m
+[32m+[m[32m    },[m
+[32m+[m[32m    sent: {[m
+[32m+[m[32m      label: "ส่งแล้ว",[m
+[32m+[m[32m      icon: "🔥",[m
+[32m+[m[32m      className: "border-emerald-300/30 bg-emerald-300/[0.08] text-emerald-100",[m
+[32m+[m[32m    },[m
+[32m+[m[32m  }[status];[m
+[32m+[m[32m}[m
+[32m+[m[32mfunction buildCustomerMessage(row: ParcelMappingRow) {[m
+[32m+[m[32m  const tracking = clean(row.tracking_number) || "ไม่พบเลขพัสดุ";[m
+[32m+[m[32m  const carrier = clean(row.shipping_carrier) || "⚡FLASH EXPRESS";[m
+[32m+[m[32m  const orderDate =[m
+[32m+[m[32m    clean(row.order_time_display) || clean(row.pickup_date) || "-";[m
+[32m+[m[32m  const product = clean(row.manus_for_packer) || "สินค้าทั่วไป";[m
+[32m+[m[32m  const page = clean(row.page_name) || "ทางร้าน";[m
+[32m+[m[32m  return [[m
+[32m+[m[32m    `📌 แจ้งเลขพัสดุจัดส่ง 🚚: ${tracking}`,[m
+[32m+[m[32m    `🙏 หนูขอแจ้งเลขให้นะคะพี่ ${carrier}`,[m
+[32m+[m[32m    `🗓️ วันที่สั่งซื้อ: ${orderDate}`,[m
+[32m+[m[32m    "",[m
+[32m+[m[32m    "📦 รายการสินค้า:",[m
+[32m+[m[32m    product,[m
+[32m+[m[32m    `💰 ยอดเก็บเงินปลายทาง (COD): ${formatCod(row.cod_amount)} บาท`,[m
+[32m+[m[32m    "",[m
+[32m+[m[32m    "⏰ (เลขพัสดุจะเริ่มเช็คสถานะการเดินทางได้ช่วงเย็นๆ นะคะพี่ 💕)",[m
+[32m+[m[32m    "",[m
+[32m+[m[32m    "เพื่อความสบายใจ พี่สามารถแกะก่อนรับได้นะคะ",[m
+[32m+[m[32m    "แต่ต้องถ่ายคลิปไว้นะคะ มีปัญหาร้านเรา รับผิดชอบให้ค่ะ",[m
+[32m+[m[32m    `ขอบพระคุณที่อุดหนุน ${page} ❤️ ค่ะพี่`,[m
+[32m+[m[32m  ].join("\n");[m
+ }[m
+ [m
+ export default function ParcelMapping() {[m
+[31m-  const [term, setTerm] = useState("");[m
+[31m-  const [mode, setMode] = useState<SearchMode>("auto");[m
+[31m-  const [submitted, setSubmitted] = useState<SearchRequest | null>(null);[m
+[31m-  const [notice, setNotice] = useState("");[m
+[31m-  const [copiedKey, setCopiedKey] = useState("");[m
+[31m-  const [sendingKey, setSendingKey] = useState("");[m
+[31m-  const [actions, setActions] = useState<Record<string, ActionState>>({});[m
+[31m-  const sendReply = trpc.parcels.sendTracking.useMutation();[m
+[31m-  const threadsQuery = trpc.orders.threads.useQuery(undefined, { enabled: false, staleTime: 15_000 });[m
+[32m+[m[32m  const [filter, setFilter] = useState<QueueFilter>("all");[m
+[32m+[m[32m  const [search, setSearch] = useState("");[m
+[32m+[m[32m  const [selected, setSelected] = useState<ParcelMappingRow | null>(null);[m
+[32m+[m[32m  const [copied, setCopied] = useState("");[m
+   const activeCamp = getActiveCamp();[m
+[31m-[m
+[31m-  const query = trpc.parcels.quickSearch.useQuery([m
+[31m-    { term: submitted?.term ?? "", mode: submitted?.mode ?? "auto", limit: 150 },[m
+[31m-    { enabled: Boolean(submitted?.term), staleTime: 15_000 },[m
+[32m+[m[32m  const queueQuery = trpc.parcels.mappingQueue.useQuery([m
+[32m+[m[32m    { status: "all", limit: 300 },[m
+[32m+[m[32m    { staleTime: 15_000 }[m
+[32m+[m[32m  );[m
+[32m+[m[32m  const rows = useMemo([m
+[32m+[m[32m    () => (queueQuery.data ?? []) as ParcelMappingRow[],[m
+[32m+[m[32m    [queueQuery.data][m
+[32m+[m[32m  );[m
+[32m+[m[32m  const visibleRows = useMemo(() => {[m
+[32m+[m[32m    const term = search.trim().toLowerCase();[m
+[32m+[m[32m    return rows.filter(row => {[m
+[32m+[m[32m      const statusMatches = filter === "all" || rowStatus(row) === filter;[m
+[32m+[m[32m      const haystack = [[m
+[32m+[m[32m        row.tracking_number,[m
+[32m+[m[32m        row.recipient_name,[m
+[32m+[m[32m        row.matched_phone,[m
+[32m+[m[32m        row.order_number,[m
+[32m+[m[32m        row.page_name,[m
+[32m+[m[32m      ][m
+[32m+[m[32m        .map(clean)[m
+[32m+[m[32m        .join(" ")[m
+[32m+[m[32m        .toLowerCase();[m
+[32m+[m[32m      return statusMatches && (!term || haystack.includes(term));[m
+[32m+[m[32m    });[m
+[32m+[m[32m  }, [filter, rows, search]);[m
+[32m+[m[32m  const counts = useMemo([m
+[32m+[m[32m    () =>[m
+[32m+[m[32m      Object.fromEntries([m
+[32m+[m[32m        filters.map(item => [[m
+[32m+[m[32m          item,[m
+[32m+[m[32m          item === "all"[m
+[32m+[m[32m            ? rows.length[m
+[32m+[m[32m            : rows.filter(row => rowStatus(row) === item).length,[m
+[32m+[m[32m        ])[m
+[32m+[m[32m      ) as Record<QueueFilter, number>,[m
+[32m+[m[32m    [rows][m
+   );[m
+[31m-  const parcels = useMemo(() => query.data ?? [], [query.data]);[m
+[31m-[m
+[31m-  function runSearch() {[m
+[31m-    const value = term.trim();[m
+[31m-    if (!value) {[m
+[31m-      setNotice("ใส่เบอร์ ชื่อ เลขพัสดุ หรือที่อยู่ก่อนครับ");[m
+[31m-      setSubmitted(null);[m
+[31m-      return;[m
+[31m-    }[m
+[31m-    setNotice("");[m
+[31m-    setActions({});[m
+[31m-    const next = { term: value, mode };[m
+[31m-    if (submitted?.term === value && submitted.mode === mode) void query.refetch();[m
+[31m-    setSubmitted(next);[m
+[31m-  }[m
+[31m-[m
+[31m-  async function copyMessage(row: ParcelRow) {[m
+[31m-    try {[m
+[31m-      await navigator.clipboard.writeText(buildCustomerMessage(row));[m
+[31m-      const key = parcelKey(row);[m
+[31m-      setCopiedKey(key);[m
+[31m-      setNotice("คัดลอกข้อความแจ้งเลขพัสดุแล้วครับ");[m
+[31m-      window.setTimeout(() => setCopiedKey(""), 1600);[m
+[31m-    } catch (error) {[m
+[31m-      setNotice(`คัดลอกไม่สำเร็จ: ${error instanceof Error ? error.message : String(error)}`);[m
+[31m-    }[m
+[31m-  }[m
+ [m
+[31m-  async function sendParcel(row: ParcelRow) {[m
+[31m-    const key = parcelKey(row);[m
+[31m-    if (!row.phone_number) {[m
+[31m-      setActions((current) => ({ ...current, [key]: { kind: "error", text: "ไม่มีเบอร์ผู้รับใน parcels จึงหาระบบแชทไม่ได้" } }));[m
+[31m-      return;[m
+[31m-    }[m
+[31m-    setSendingKey(key);[m
+[31m-    setActions((current) => { const next = { ...current }; delete next[key]; return next; });[m
+[31m-    try {[m
+[31m-      const threadsResult = await threadsQuery.refetch();[m
+[31m-      const target = await resolveMessengerTarget(row.phone_number, threadsResult.data ?? []);[m
+[31m-      const result = await sendReply.mutateAsync({[m
+[31m-        pageId: target.pageId,[m
+[31m-        threadId: target.threadId,[m
+[31m-        recipientId: target.recipientId,[m
+[31m-        text: buildCustomerMessage(row),[m
+[31m-      });[m
+[31m-      const messageId = (result as any)?.message_id;[m
+[31m-      setActions((current) => ({[m
+[31m-        ...current,[m
+[31m-        [key]: {[m
+[31m-          kind: "success",[m
+[31m-          text: `ส่ง Messenger สำเร็จ · ${target.pageName}${messageId ? ` · ${messageId}` : ""}`,[m
+[31m-        },[m
+[31m-      }));[m
+[31m-    } catch (error) {[m
+[31m-      setActions((current) => ({[m
+[31m-        ...current,[m
+[31m-        [key]: { kind: "error", text: error instanceof Error ? error.message : String(error) },[m
+[31m-      }));[m
+[31m-    } finally {[m
+[31m-      setSendingKey("");[m
+[31m-    }[m
+[32m+[m[32m  async function copyMessage(row: ParcelMappingRow) {[m
+[32m+[m[32m    await navigator.clipboard.writeText(buildCustomerMessage(row));[m
+[32m+[m[32m    const key = clean(row.tracking_number);[m
+[32m+[m[32m    setCopied(key);[m
+[32m+[m[32m    window.setTimeout(() => setCopied(""), 1600);[m
+   }[m
+ [m
+   return ([m
+[36m@@ -203,129 +190,254 @@[m [mexport default function ParcelMapping() {[m
+         <div className="hero-scanline" />[m
+         <div className="relative flex flex-wrap items-start justify-between gap-5">[m
+           <div>[m
+[31m-            <p className="live-chip"><Radar className="h-3.5 w-3.5" /> PARCEL RADAR · DIRECT SEARCH</p>[m
+[31m-            <h1 className="cyber-title mt-4 text-3xl font-semibold sm:text-4xl">ห้องค้นหาและส่งเลขพัสดุ</h1>[m
+[32m+[m[32m            <p className="live-chip">[m
+[32m+[m[32m              <Radar className="h-3.5 w-3.5" /> PARCEL RADAR · LIVE SIGNAL[m
+[32m+[m[32m            </p>[m
+[32m+[m[32m            <h1 className="cyber-title mt-4 text-3xl font-semibold sm:text-4xl">[m
+[32m+[m[32m              ห้องควบคุมเลขพัสดุ[m
+[32m+[m[32m            </h1>[m
+             <p className="mt-2 max-w-3xl text-sm leading-6 text-fuchsia-100/65">[m
+[31m-              ค้นจาก parcels โดยตรง เจอแล้วส่ง Messenger ได้ทันที ไม่ต้องนำเข้า Excel หรือรอแมปเลข[m
+[32m+[m[32m              ดึงจากสายส่งเลขเดิม แสดงข้อมูลจับคู่และตัวอย่างข้อความ โดยไม่ยิง[m
+[32m+[m[32m              Messenger ซ้ำกับ workflow หลัก[m
+             </p>[m
+           </div>[m
+           <div className="bb-clock-panel rounded-2xl border px-4 py-3 text-xs">[m
+[31m-            <span className="bb-running-light mr-2 inline-block h-2 w-2 rounded-full" />{activeCamp} · PARCEL LINK ONLINE[m
+[32m+[m[32m            <span className="bb-running-light mr-2 inline-block h-2 w-2 rounded-full" />[m
+[32m+[m[32m            {activeCamp} · PIPELINE LINK ONLINE[m
+           </div>[m
+         </div>[m
+[31m-        <div className="mt-5 grid gap-3 sm:grid-cols-3">[m
+[31m-          <div className="signal-metric signal-violet"><p className="text-[10px] uppercase tracking-[0.16em] opacity-65">ผลค้นหาปัจจุบัน</p><p className="mt-2 text-2xl font-bold text-white">{parcels.length.toLocaleString("th-TH")}</p></div>[m
+[31m-          <div className="signal-metric signal-cyan"><p className="text-[10px] uppercase tracking-[0.16em] opacity-65">แหล่งข้อมูล</p><p className="mt-2 text-lg font-bold text-white">public.parcels</p></div>[m
+[31m-          <div className="signal-metric signal-pink"><p className="text-[10px] uppercase tracking-[0.16em] opacity-65">Messenger</p><p className="mt-2 text-sm font-bold text-white">เช็กหน้าต่าง 24 ชม.</p></div>[m
+[32m+[m[32m        <div className="mt-5 grid gap-3 sm:grid-cols-5">[m
+[32m+[m[32m          {filters.map(item => {[m
+[32m+[m[32m            const meta = statusMeta(item);[m
+[32m+[m[32m            return ([m
+[32m+[m[32m              <button[m
+[32m+[m[32m                key={item}[m
+[32m+[m[32m                type="button"[m
+[32m+[m[32m                onClick={() => setFilter(item)}[m
+[32m+[m[32m                className={`rounded-2xl border p-3 text-left transition hover:-translate-y-0.5 ${meta.className} ${filter === item ? "ring-2 ring-fuchsia-300/50" : ""}`}[m
+[32m+[m[32m              >[m
+[32m+[m[32m                <p className="text-xs opacity-70">[m
+[32m+[m[32m                  {meta.icon} {meta.label}[m
+[32m+[m[32m                </p>[m
+[32m+[m[32m                <p className="mt-2 text-2xl font-black">[m
+[32m+[m[32m                  {counts[item].toLocaleString("th-TH")}[m
+[32m+[m[32m                </p>[m
+[32m+[m[32m              </button>[m
+[32m+[m[32m            );[m
+[32m+[m[32m          })}[m
+         </div>[m
+       </header>[m
+ [m
+[31m-      <div className="grid gap-5 xl:grid-cols-[320px_minmax(0,1fr)]">[m
+[31m-        <Card className="blackbox-queue rounded-3xl">[m
+[31m-          <CardHeader>[m
+[31m-            <CardTitle className="flex items-center gap-2 text-fuchsia-100"><Search className="h-4 w-4 text-cyan-300" /> QUICK SEARCH</CardTitle>[m
+[31m-            <p className="text-xs leading-5 text-white/45">ค้นชื่อ เบอร์ เลขพัสดุ หรือที่อยู่จากโต๊ะ parcels</p>[m
+[31m-          </CardHeader>[m
+[31m-          <CardContent className="space-y-4">[m
+[31m-            <div className="flex flex-wrap gap-2">[m
+[31m-              {searchModes.map((item) => ([m
+[31m-                <button[m
+[31m-                  key={item.key}[m
+[31m-                  type="button"[m
+[31m-                  onClick={() => setMode(item.key)}[m
+[31m-                  className={`rounded-full border px-3 py-1.5 text-xs transition ${mode === item.key ? "border-cyan-300/60 bg-cyan-300/15 text-cyan-100 shadow-[0_0_18px_rgba(34,211,238,0.12)]" : "border-white/10 bg-black/20 text-white/45 hover:border-white/25 hover:text-white/80"}`}[m
+[31m-                >{item.label}</button>[m
+[31m-              ))}[m
+[31m-            </div>[m
+[31m-            <Input[m
+[31m-              value={term}[m
+[31m-              onChange={(event) => setTerm(event.target.value)}[m
+[31m-              onKeyDown={(event) => { if (event.key === "Enter") runSearch(); }}[m
+[31m-              placeholder={searchModes.find((item) => item.key === mode)?.placeholder}[m
+[31m-              className="border-fuchsia-400/25 bg-black/35 text-white placeholder:text-white/30"[m
+[32m+[m[32m      <div className="flex flex-wrap items-center justify-between gap-3">[m
+[32m+[m[32m        <div className="flex flex-wrap gap-2">[m
+[32m+[m[32m          <Button[m
+[32m+[m[32m            onClick={() =>[m
+[32m+[m[32m              window.open(warpDriveUrl, "_blank", "noopener,noreferrer")[m
+[32m+[m[32m            }[m
+[32m+[m[32m            className="bb-send-button"[m
+[32m+[m[32m          >[m
+[32m+[m[32m            <FileUp className="mr-2 h-4 w-4" />[m
+[32m+[m[32m            เปิด WarpDrive โยนไฟล์[m
+[32m+[m[32m          </Button>[m
+[32m+[m[32m          <Button[m
+[32m+[m[32m            onClick={() =>[m
+[32m+[m[32m              window.open(customerLookupUrl, "_blank", "noopener,noreferrer")[m
+[32m+[m[32m            }[m
+[32m+[m[32m            variant="outline"[m
+[32m+[m[32m            className="border-fuchsia-300/25 text-fuchsia-100"[m
+[32m+[m[32m          >[m
+[32m+[m[32m            <ExternalLink className="mr-2 h-4 w-4" />[m
+[32m+[m[32m            เว็บเช็กเลขลูกค้า[m
+[32m+[m[32m          </Button>[m
+[32m+[m[32m          <Button[m
+[32m+[m[32m            onClick={() => void queueQuery.refetch()}[m
+[32m+[m[32m            variant="outline"[m
+[32m+[m[32m            className="border-cyan-300/25 text-cyan-100"[m
+[32m+[m[32m          >[m
+[32m+[m[32m            <RefreshCw[m
+[32m+[m[32m              className={`mr-2 h-4 w-4 ${queueQuery.isFetching ? "animate-spin" : ""}`}[m
+             />[m
+[31m-            <div className="grid grid-cols-2 gap-2">[m
+[31m-              <Button onClick={runSearch} disabled={query.isFetching} className="bb-send-button"><Search className="mr-2 h-4 w-4" />ค้นหา</Button>[m
+[31m-              <Button onClick={() => submitted && void query.refetch()} disabled={!submitted || query.isFetching} variant="outline" className="border-cyan-300/25 text-cyan-100"><RefreshCw className={`mr-2 h-4 w-4 ${query.isFetching ? "animate-spin" : ""}`} />รีเฟรช</Button>[m
+[31m-            </div>[m
+[31m-            {notice ? <p className="rounded-xl border border-cyan-300/20 bg-cyan-400/5 p-3 text-xs leading-5 text-cyan-100">{notice}</p> : null}[m
+[31m-            <div className="rounded-2xl border border-amber-300/15 bg-amber-300/[0.04] p-3 text-[11px] leading-5 text-amber-100/65">[m
+[31m-              ส่ง Messenger ได้เมื่อพบห้องที่เบอร์ตรงและลูกค้าทักเข้ามาภายใน 24 ชั่วโมง หากเบอร์ซ้ำหลายห้องหรือเกินเวลา ระบบจะหยุดก่อนส่งเพื่อกันส่งผิดคน/ผิดนโยบาย[m
+[31m-            </div>[m
+[31m-          </CardContent>[m
+[31m-        </Card>[m
+[32m+[m[32m            รีเฟรชคิว[m
+[32m+[m[32m          </Button>[m
+[32m+[m[32m        </div>[m
+[32m+[m[32m        <div className="flex w-full max-w-md items-center gap-2 rounded-xl border border-white/10 bg-black/25 px-3">[m
+[32m+[m[32m          <Search className="h-4 w-4 text-cyan-300" />[m
+[32m+[m[32m          <input[m
+[32m+[m[32m            value={search}[m
+[32m+[m[32m            onChange={event => setSearch(event.target.value)}[m
+[32m+[m[32m            placeholder="ค้นในคิว: เลข / ชื่อ / เบอร์ / ออเดอร์"[m
+[32m+[m[32m            className="w-full bg-transparent py-3 text-sm text-white outline-none placeholder:text-white/30"[m
+[32m+[m[32m          />[m
+[32m+[m[32m        </div>[m
+[32m+[m[32m      </div>[m
+ [m
+[32m+[m[32m      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_390px]">[m
+         <Card className="blackbox-queue overflow-hidden rounded-3xl">[m
+           <CardHeader className="border-b border-white/5">[m
+[31m-            <div className="flex flex-wrap items-center justify-between gap-3">[m
+[31m-              <CardTitle className="flex items-center gap-2 text-fuchsia-100"><PackageSearch className="h-4 w-4 text-cyan-300" /> PARCEL RESULTS · {parcels.length}</CardTitle>[m
+[31m-              {submitted ? <Badge variant="outline" className="border-cyan-300/25 text-cyan-100">ค้น: {submitted.term}</Badge> : null}[m
+[31m-            </div>[m
+[32m+[m[32m            <CardTitle className="flex items-center gap-2 text-fuchsia-100">[m
+[32m+[m[32m              <PackageSearch className="h-4 w-4 text-cyan-300" /> PARCEL QUEUE ·{" "}[m
+[32m+[m[32m              {visibleRows.length}[m
+[32m+[m[32m            </CardTitle>[m
+           </CardHeader>[m
+[31m-          <CardContent className="max-h-[760px] space-y-3 overflow-auto p-3 sm:p-4">[m
+[31m-            {query.isError ? ([m
+[31m-              <div className="rounded-2xl border border-red-300/25 bg-red-400/5 p-4 text-sm text-red-200">[m
+[31m-                ค้นข้อมูลไม่สำเร็จ: {(query.error as { message?: string } | null)?.message ?? String(query.error)}[m
+[31m-                <p className="mt-2 text-xs text-red-100/60">รันไฟล์ PARCEL_QUICK_SEARCH_RPC.sql และตรวจสิทธิ์ RLS สำหรับผู้ใช้หน้าเว็บครับ</p>[m
+[31m-              </div>[m
+[32m+[m[32m          <CardContent className="max-h-[780px] space-y-3 overflow-auto p-3 sm:p-4">[m
+[32m+[m[32m            {queueQuery.isLoading ? ([m
+[32m+[m[32m              <p className="p-12 text-center text-sm text-cyan-100/60">[m
+[32m+[m[32m                กำลังดึงคิวจากสายส่งเลข…[m
+[32m+[m[32m              </p>[m
+             ) : null}[m
+[31m-            {query.isLoading ? <p className="p-12 text-center text-sm text-cyan-100/60">กำลังค้นโต๊ะ parcels…</p> : null}[m
+[31m-            {!submitted && !query.isLoading ? ([m
+[31m-              <div className="flex min-h-64 flex-col items-center justify-center text-center text-white/40">[m
+[31m-                <PackageSearch className="mb-3 h-9 w-9 text-cyan-300/45" />[m
+[31m-                <p>พิมพ์เบอร์ ชื่อ เลขพัสดุ หรือที่อยู่ แล้วกดค้นหา</p>[m
+[31m-                <p className="mt-1 text-xs text-white/25">ไม่ต้องอัปโหลดไฟล์และไม่ต้องรอแมป</p>[m
+[31m-              </div>[m
+[32m+[m[32m            {queueQuery.isError ? ([m
+[32m+[m[32m              <p className="rounded-2xl border border-red-300/25 bg-red-400/5 p-4 text-sm text-red-200">[m
+[32m+[m[32m                ดึงคิวไม่สำเร็จ: {queueQuery.error.message}[m
+[32m+[m[32m              </p>[m
+             ) : null}[m
+[31m-            {submitted && !query.isLoading && !query.isError && parcels.length === 0 ? ([m
+[32m+[m[32m            {!queueQuery.isLoading && visibleRows.length === 0 ? ([m
+               <div className="flex min-h-56 flex-col items-center justify-center text-center text-white/40">[m
+[31m-                <PackageSearch className="mb-3 h-8 w-8 text-fuchsia-300/40" />[m
+[31m-                <p>ไม่พบพัสดุ ลองค้นด้วยข้อมูลอีกแบบครับ</p>[m
+[32m+[m[32m                <PackageSearch className="mb-3 h-8 w-8 text-cyan-300/45" />[m
+[32m+[m[32m                <p>ไม่พบรายการในสถานะนี้</p>[m
+               </div>[m
+             ) : null}[m
+[31m-            {parcels.map((row) => {[m
+[31m-              const key = parcelKey(row);[m
+[31m-              const action = actions[key];[m
+[31m-              const isSending = sendingKey === key;[m
+[32m+[m[32m            {visibleRows.map((row, index) => {[m
+[32m+[m[32m              const key = `${clean(row.tracking_number)}-${index}`;[m
+[32m+[m[32m              const status = rowStatus(row);[m
+[32m+[m[32m              const meta = statusMeta(status);[m
+[32m+[m[32m              const age = ageHours(row);[m
+               return ([m
+[31m-                <article key={key} className="trace-row rounded-2xl border border-cyan-300/10 bg-black/20 p-4 transition hover:border-cyan-300/25">[m
+[32m+[m[32m                <article[m
+[32m+[m[32m                  key={key}[m
+[32m+[m[32m                  className="trace-row rounded-2xl border border-cyan-300/10 bg-black/20 p-4 transition hover:border-cyan-300/30"[m
+[32m+[m[32m                >[m
+                   <div className="flex flex-wrap items-start justify-between gap-3">[m
+                     <div className="min-w-0">[m
+[31m-                      <p className="text-[10px] uppercase tracking-[0.18em] text-white/35">FLASH TRACKING</p>[m
+[31m-                      <p className="mt-1 break-all font-mono text-lg font-bold tracking-wide text-cyan-200">{row.tracking_number || "ไม่มีเลขพัสดุ"}</p>[m
+[32m+[m[32m                      <p className="text-[10px] uppercase tracking-[0.18em] text-white/35">[m
+[32m+[m[32m                        FLASH TRACKING[m
+[32m+[m[32m                      </p>[m
+[32m+[m[32m                      <p className="mt-1 break-all font-mono text-lg font-bold tracking-wide text-cyan-200">[m
+[32m+[m[32m                        {clean(row.tracking_number) || "ไม่มีเลขพัสดุ"}[m
+[32m+[m[32m                      </p>[m
+                     </div>[m
+[31m-                    <Badge variant="outline" className="border-fuchsia-300/30 bg-fuchsia-300/5 text-fuchsia-100">FLASH EXPRESS</Badge>[m
+[32m+[m[32m                    <Badge variant="outline" className={meta.className}>[m
+[32m+[m[32m                      {meta.icon} {meta.label}[m
+[32m+[m[32m                      {age != null && status !== "sent"[m
+[32m+[m[32m                        ? ` · ${age.toFixed(1)} ชม.`[m
+[32m+[m[32m                        : ""}[m
+[32m+[m[32m                    </Badge>[m
+                   </div>[m
+                   <div className="mt-3 grid gap-2 rounded-xl border border-white/5 bg-white/[0.02] p-3 text-sm sm:grid-cols-2">[m
+[31m-                    <p className="flex items-start gap-2 text-white/80"><UserRound className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" /><span>{row.consignee || "ไม่ระบุชื่อผู้รับ"}</span></p>[m
+[31m-                    <p className="flex items-start gap-2 text-white/80"><Phone className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" /><span>{row.phone_number || "ไม่ระบุเบอร์"}</span></p>[m
+[31m-                    <p className="flex items-start gap-2 text-white/70 sm:col-span-2"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" /><span className="break-words">{row.address || "ไม่ระบุที่อยู่"}</span></p>[m
+[31m-                  </div>[m
+[31m-                  <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-white/45">[m
+[31m-                    <span>รับเข้าระบบ: {row.pickup_date || "ไม่ระบุ"}</span>[m
+[31m-                    <span>COD: {formatCod(row.cod_amount)}{row.cod_amount != null && String(row.cod_amount).trim() ? " บาท" : ""}</span>[m
+[32m+[m[32m                    <p className="text-white/85">[m
+[32m+[m[32m                      👤 {clean(row.recipient_name) || "ไม่ระบุชื่อผู้รับ"}[m
+[32m+[m[32m                    </p>[m
+[32m+[m[32m                    <p className="text-white/70">[m
+[32m+[m[32m                      📞 {clean(row.matched_phone) || "ไม่ระบุเบอร์"}[m
+[32m+[m[32m                    </p>[m
+[32m+[m[32m                    <p className="text-white/60 sm:col-span-2">[m
+[32m+[m[32m                      🧾{" "}[m
+[32m+[m[32m                      {clean(row.order_number_display || row.order_number) ||[m
+[32m+[m[32m                        "ไม่พบเลขออเดอร์"}{" "}[m
+[32m+[m[32m                      · {clean(row.page_name) || "ไม่ระบุเพจ"}[m
+[32m+[m[32m                    </p>[m
+[32m+[m[32m                    <p className="text-white/55 sm:col-span-2">[m
+[32m+[m[32m                      📅 {clean(row.pickup_date) || "ไม่ระบุวันที่"} · COD{" "}[m
+[32m+[m[32m                      {formatCod(row.cod_amount)} บาท[m
+[32m+[m[32m                    </p>[m
+                   </div>[m
+                   <div className="mt-4 flex flex-wrap gap-2 border-t border-white/5 pt-3">[m
+[31m-                    <Button onClick={() => void sendParcel(row)} disabled={isSending || Boolean(actions[key]?.kind === "success")} className="bb-send-button">[m
+[31m-                      <Send className="mr-2 h-4 w-4" />{isSending ? "กำลังส่ง…" : actions[key]?.kind === "success" ? "ส่งแล้ว" : "ส่งให้ลูกค้า"}[m
+[32m+[m[32m                    <Button[m
+[32m+[m[32m                      onClick={() => setSelected(row)}[m
+[32m+[m[32m                      className="bb-send-button"[m
+[32m+[m[32m                    >[m
+[32m+[m[32m                      ดูข้อความที่จะส่ง[m
+                     </Button>[m
+[31m-                    <Button onClick={() => void copyMessage(row)} variant="outline" className="border-cyan-300/25 text-cyan-100">[m
+[31m-                      {copiedKey === key ? <Check className="mr-2 h-4 w-4" /> : <Clipboard className="mr-2 h-4 w-4" />}{copiedKey === key ? "คัดลอกแล้ว" : "คัดลอกข้อความ"}[m
+[32m+[m[32m                    <Button[m
+[32m+[m[32m                      onClick={() => void copyMessage(row)}[m
+[32m+[m[32m                      variant="outline"[m
+[32m+[m[32m                      className="border-cyan-300/25 text-cyan-100"[m
+[32m+[m[32m                    >[m
+[32m+[m[32m                      {copied === clean(row.tracking_number) ? ([m
+[32m+[m[32m                        <Check className="mr-2 h-4 w-4" />[m
+[32m+[m[32m                      ) : ([m
+[32m+[m[32m                        <Clipboard className="mr-2 h-4 w-4" />[m
+[32m+[m[32m                      )}[m
+[32m+[m[32m                      {copied === clean(row.tracking_number)[m
+[32m+[m[32m                        ? "คัดลอกแล้ว"[m
+[32m+[m[32m                        : "คัดลอกข้อความ"}[m
+                     </Button>[m
+[31m-                    <Button onClick={() => window.open(flashTrackingUrl, "_blank", "noopener,noreferrer")} variant="ghost" className="text-white/45 hover:text-white">[m
+[31m-                      <ExternalLink className="mr-2 h-4 w-4" />เปิด FLASH[m
+[32m+[m[32m                    <Button[m
+[32m+[m[32m                      onClick={() =>[m
+[32m+[m[32m                        window.open([m
+[32m+[m[32m                          flashTrackingUrl,[m
+[32m+[m[32m                          "_blank",[m
+[32m+[m[32m                          "noopener,noreferrer"[m
+[32m+[m[32m                        )[m
+[32m+[m[32m                      }[m
+[32m+[m[32m                      variant="ghost"[m
+[32m+[m[32m                      className="text-white/55 hover:text-white"[m
+[32m+[m[32m                    >[m
+[32m+[m[32m                      <ExternalLink className="mr-2 h-4 w-4" />[m
+[32m+[m[32m                      เปิด FLASH[m
+                     </Button>[m
+                   </div>[m
+[31m-                  {action ? <p className={`mt-3 rounded-xl border p-3 text-xs leading-5 ${action.kind === "success" ? "border-emerald-300/25 bg-emerald-400/5 text-emerald-200" : "border-amber-300/25 bg-amber-400/5 text-amber-100"}`}>{action.text}</p> : null}[m
+                 </article>[m
+               );[m
+             })}[m
+           </CardContent>[m
+         </Card>[m
+[32m+[m
+[32m+[m[32m        <Card className="blackbox-queue rounded-3xl xl:sticky xl:top-4 xl:h-fit">[m
+[32m+[m[32m          <CardHeader className="flex flex-row items-center justify-between border-b border-white/5">[m
+[32m+[m[32m            <CardTitle className="text-fuchsia-100">ORDER INSPECTOR</CardTitle>[m
+[32m+[m[32m            {selected ? ([m
+[32m+[m[32m              <Button[m
+[32m+[m[32m                variant="ghost"[m
+[32m+[m[32m                size="icon"[m
+[32m+[m[32m                onClick={() => setSelected(null)}[m
+[32m+[m[32m              >[m
+[32m+[m[32m                <X className="h-4 w-4" />[m
+[32m+[m[32m              </Button>[m
+[32m+[m[32m            ) : null}[m
+[32m+[m[32m          </CardHeader>[m
+[32m+[m[32m          <CardContent className="space-y-4 p-4">[m
+[32m+[m[32m            {!selected ? ([m
+[32m+[m[32m              <div className="flex min-h-64 flex-col items-center justify-center text-center text-white/35">[m
+[32m+[m[32m                <PackageSearch className="mb-3 h-9 w-9 text-cyan-300/40" />[m
+[32m+[m[32m                <p>เลือกเลขพัสดุเพื่อดูข้อความจริง</p>[m
+[32m+[m[32m                <p className="mt-1 text-xs">[m
+[32m+[m[32m                  หน้านี้เป็น Preview เท่านั้น การส่งจริงยังคงให้ n8n ทำงาน[m
+[32m+[m[32m                </p>[m
+[32m+[m[32m              </div>[m
+[32m+[m[32m            ) : ([m
+[32m+[m[32m              <>[m
+[32m+[m[32m                <div className="rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.05] p-4">[m
+[32m+[m[32m                  <p className="text-[10px] uppercase tracking-[0.18em] text-cyan-200/60">[m
+[32m+[m[32m                    MESSAGE PREVIEW[m
+[32m+[m[32m                  </p>[m
+[32m+[m[32m                  <p className="mt-2 break-all font-mono text-lg font-bold text-cyan-100">[m
+[32m+[m[32m                    {clean(selected.tracking_number)}[m
+[32m+[m[32m                  </p>[m
+[32m+[m[32m                  <p className="mt-1 text-sm text-white/60">[m
+[32m+[m[32m                    {clean(selected.recipient_name)} ·{" "}[m
+[32m+[m[32m                    {clean(selected.shipping_carrier) || "FLASH EXPRESS"}[m
+[32m+[m[32m                  </p>[m
+[32m+[m[32m                </div>[m
+[32m+[m[32m                <pre className="max-h-[560px] overflow-auto whitespace-pre-wrap rounded-2xl border border-fuchsia-300/15 bg-black/35 p-4 text-sm leading-7 text-fuchsia-50">[m
+[32m+[m[32m                  {buildCustomerMessage(selected)}[m
+[32m+[m[32m                </pre>[m
+[32m+[m[32m                <div className="rounded-xl border border-amber-300/15 bg-amber-300/[0.04] p-3 text-xs leading-5 text-amber-100/70">[m
+[32m+[m[32m                  การ์ดนี้ไม่ส่ง Messenger โดยตรง เพื่อป้องกันการยิงซ้ำกับ[m
+[32m+[m[32m                  ⛩️VOID_xXx_GATEWAYz และ workflow หลัก[m
+[32m+[m[32m                </div>[m
+[32m+[m[32m              </>[m
+[32m+[m[32m            )}[m
+[32m+[m[32m          </CardContent>[m
+[32m+[m[32m        </Card>[m
+       </div>[m
+       <footer className="flex flex-wrap items-center justify-between gap-3 px-2 text-[10px] text-white/25">[m
+[31m-        <span>DIRECT PARCEL SEARCH · public.parcels · ไม่มีการจับคู่คิวล่วงหน้า</span>[m
+[31m-        <span>Page token ใช้บน server เท่านั้น · Messenger ส่งผ่าน admin tRPC</span>[m
+[32m+[m[32m        <span>SHADOW → ROGUE → VOID · public.parcels</span>[m
+[32m+[m[32m        <span>[m
+[32m+[m[32m          Page token อยู่ฝั่ง server/n8n เท่านั้น ·{" "}[m
+[32m+[m[32m          {queueQuery.dataUpdatedAt[m
+[32m+[m[32m            ? `อัปเดต ${new Date(queueQuery.dataUpdatedAt).toLocaleTimeString("th-TH")}`[m
+[32m+[m[32m            : "ยังไม่อัปเดต"}[m
+[32m+[m[32m        </span>[m
+       </footer>[m
+     </div>[m
+   );[m
+[1mdiff --git a/server/routers.ts b/server/routers.ts[m
+[1mindex 59219f2..432ac67 100644[m
+[1m--- a/server/routers.ts[m
+[1m+++ b/server/routers.ts[m
+[36m@@ -2,7 +2,7 @@[m [mimport { z } from "zod";[m
+ import { adminProcedure, publicProcedure, router } from "./_core/trpc";[m
+ import { COOKIE_NAME } from "../shared/const";[m
+ import { sdk } from "./_core/sdk";[m
+[31m-import { createCanonicalAlias, createProductAlienMapReview, createProductAlienTerm, fetchConversationEvidence, fetchDailyChatOrderSummary, fetchDailyOrderHistory, fetchExternalChatMessages, fetchLiveOrders, fetchLiveThreads, fetchStockProducts, fetchStockWarnings, getLiveOrderStats, listCanonicalAliases, listProductAlienMapReviews, listProductAlienTerms, searchParcelsQuick, supabaseGet, supabasePost, updateCanonicalAlias, updateProductMapAlias, updateStockProduct, type LiveOrder, type ParcelSearchMode, type StockProduct } from "./supabase";[m
+[32m+[m[32mimport { createCanonicalAlias, createProductAlienMapReview, createProductAlienTerm, fetchConversationEvidence, fetchDailyChatOrderSummary, fetchDailyOrderHistory, fetchExternalChatMessages, fetchLiveOrders, fetchLiveThreads, fetchStockProducts, fetchStockWarnings, getLiveOrderStats, listCanonicalAliases, listProductAlienMapReviews, listProductAlienTerms, fetchParcelMappingQueue, searchParcelsQuick, supabaseGet, supabasePost, updateCanonicalAlias, updateProductMapAlias, updateStockProduct, type LiveOrder, type ParcelSearchMode, type StockProduct } from "./supabase";[m
+ import { sendMetaMessage } from "./meta";[m
+ import { storagePut } from "./storage";[m
+ import * as db from "./db";[m
+[36m@@ -43,6 +43,7 @@[m [mexport const appRouter = router({[m
+   }),[m
+ [m
+   parcels: router({[m
+[32m+[m[32m    mappingQueue: adminProcedure.input(z.object({ status: z.enum(["all", "ready", "over24", "over48", "sent"]).default("all"), limit: z.number().int().min(1).max(500).default(300) })).query(({ input }) => fetchParcelMappingQueue({ status: input.status, limit: input.limit })),[m
+     quickSearch: adminProcedure.input(z.object({[m
+       term: z.string().min(1).max(200),[m
+       mode: z.enum(["auto", "phone", "name", "tracking", "address"]).default("auto"),[m
+[1mdiff --git a/server/supabase.ts b/server/supabase.ts[m
+[1mindex 1e74e38..ceeb40a 100644[m
+[1m--- a/server/supabase.ts[m
+[1m+++ b/server/supabase.ts[m
+[36m@@ -36,6 +36,45 @@[m [mexport async function searchParcelsQuick(input: { term: string; mode: ParcelSear[m
+   return Array.isArray(rows) ? rows : [];[m
+ }[m
+ [m
+[32m+[m[32mexport type ParcelMappingStatus = "all" | "ready" | "over24" | "over48" | "sent";[m
+[32m+[m[32mexport type ParcelMappingRow = Record<string, unknown> & {[m
+[32m+[m[32m  tracking_number?: string | null;[m
+[32m+[m[32m  recipient_name?: string | null;[m
+[32m+[m[32m  matched_phone?: string | null;[m
+[32m+[m[32m  pickup_date?: string | null;[m
+[32m+[m[32m  parcel_delivery_status?: string | null;[m
+[32m+[m[32m  parcel_sent_at?: string | null;[m
+[32m+[m[32m  facebook_tracking_status?: string | null;[m
+[32m+[m[32m};[m
+[32m+[m
+[32m+[m[32mconst parcelMappingSelect = [[m
+[32m+[m[32m  "tracking_number", "matched_phone", "recipient_name", "parcel_address", "pickup_date",[m
+[32m+[m[32m  "parcel_delivery_status", "parcel_sent_at", "upsert_key", "page_id", "page_name",[m
+[32m+[m[32m  "customer_id", "order_number", "order_number_display", "order_time_display", "cod_amount",[m
+[32m+[m[32m  "shipping_carrier", "manus_for_packer", "carton_count", "is_within_24h", "can_send_standard",[m
+[32m+[m[32m  "messaging_tag_required", "facebook_tracking_status", "facebook_tracking_sent_at",[m
+[32m+[m[32m  "send_facebook_route", "customer_latest_message", "page_latest_message", "parcel_row_id",[m
+[32m+[m[32m].join(",");[m
+[32m+[m[32mconst parcelMappingSentSelect = [[m
+[32m+[m[32m  "tracking_number", "matched_phone", "recipient_name:flash_consignee", "parcel_address", "pickup_date",[m
+[32m+[m[32m  "parcel_delivery_status", "parcel_sent_at", "upsert_key", "page_id", "page_name", "customer_id",[m
+[32m+[m[32m  "order_number", "order_number_display", "order_time_display", "cod_amount", "shipping_carrier",[m
+[32m+[m[32m  "manus_for_packer", "carton_count", "facebook_tracking_status", "facebook_tracking_sent_at",[m
+[32m+[m[32m  "send_facebook_route", "message_id", "target_room", "delivery_status",[m
+[32m+[m[32m].join(",");[m
+[32m+[m
+[32m+[m[32mexport async function fetchParcelMappingQueue(input: { status: ParcelMappingStatus; limit: number }) {[m
+[32m+[m[32m  const activeView = encodeURIComponent("🦅ROGUE_xXx_SHIPPINGz");[m
+[32m+[m[32m  const sentView = encodeURIComponent("📓DEAD_xXx_NOTE");[m
+[32m+[m[32m  const activeQuery = `select=${parcelMappingSelect}&limit=${input.limit}&order=pickup_date.desc`;[m
+[32m+[m[32m  const sentQuery = `select=${parcelMappingSentSelect}&limit=${input.limit}&order=pickup_date.desc`;[m
+[32m+[m[32m  const [active, sent] = await Promise.all([[m
+[32m+[m[32m    input.status === "sent" ? Promise.resolve([] as ParcelMappingRow[]) : supabaseGet<ParcelMappingRow[]>(`${activeView}?${activeQuery}`),[m
+[32m+[m[32m    input.status === "sent" || input.status === "all" ? supabaseGet<ParcelMappingRow[]>(`${sentView}?${sentQuery}`) : Promise.resolve([] as ParcelMappingRow[]),[m
+[32m+[m[32m  ]);[m
+[32m+[m[32m  return [...active, ...sent].slice(0, input.limit);[m
+[32m+[m[32m}[m
+[32m+[m
+ function text(v: unknown) { return v == null ? null : String(v); }[m
+ function num(v: unknown) { const n = Number(v); return v == null || v === "" || !Number.isFinite(n) ? null : n; }[m
+ function bool(v: unknown) { return v === true || v === "true" || v === 1; }[m
