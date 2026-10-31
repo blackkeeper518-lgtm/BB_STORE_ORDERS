@@ -10,10 +10,21 @@ export type StockWarning = { kind: "duplicate_sku" | "missing_sku"; sku: string 
 function config() { const baseUrl = process.env.SUPABASE_URL?.replace(/\/$/, ""); const key = process.env.SUPABASE_SERVICE_ROLE_KEY; if (!baseUrl || !key) throw new Error("Supabase secrets are not configured"); return { baseUrl, key }; }
 export async function supabaseGet<T>(path: string): Promise<T> {
   const { baseUrl, key } = config();
-  const response = await fetch(`${baseUrl}/rest/v1/${path}`, { headers: { apikey: key, Authorization: `Bearer ${key}`, Accept: "application/json" } });
-  const body = await response.text();
-  if (!response.ok) throw new Error(`Supabase returned HTTP ${response.status} for ${path}: ${body.slice(0, 500)}`);
-  try { return JSON.parse(body) as T; } catch { throw new Error(`Supabase returned non-JSON for ${path}: ${body.slice(0, 300)}`); }
+  const target = `${baseUrl}/rest/v1/${path}`;
+  let lastError: unknown = null;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      const response = await fetch(target, { headers: { apikey: key, Authorization: `Bearer ${key}`, Accept: "application/json", "Cache-Control": "no-cache" } });
+      const body = await response.text();
+      if (!response.ok) throw new Error(`Supabase returned HTTP ${response.status} for ${path}: ${body.slice(0, 500)}`);
+      try { return JSON.parse(body) as T; } catch { throw new Error(`Supabase returned non-JSON for ${path}: ${body.slice(0, 300)}`); }
+    } catch (error) {
+      lastError = error;
+      if (attempt < 3) await new Promise(resolve => setTimeout(resolve, attempt * 500));
+    }
+  }
+  const cause = lastError instanceof Error ? `${lastError.message}${(lastError as Error & { cause?: { code?: string } }).cause?.code ? ` [${(lastError as Error & { cause?: { code?: string } }).cause?.code}]` : ""}` : String(lastError);
+  throw new Error(`Supabase connection failed after 3 attempts (${path}): ${cause}`);
 }
 export async function supabasePost<T>(path: string, body: unknown): Promise<T> { const { baseUrl, key } = config(); const response = await fetch(`${baseUrl}/rest/v1/${path}`, { method: "POST", headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify(body) }); if (!response.ok) throw new Error(`Supabase returned HTTP ${response.status}: ${(await response.text()).slice(0, 300)}`); return response.json() as Promise<T>; }
 
