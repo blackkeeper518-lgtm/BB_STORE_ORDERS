@@ -331,13 +331,20 @@ export async function readCanonicalOrders(search = "", since: string | null = nu
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
 
   const limit = ORDER_OPERATIONAL_LIMIT;
-  const [ordersResult, masterResult] = await Promise.all([
-    api.from(defaultOrderView("BB"))
-      .select(HERMES_WEB_ORDER_COLUMNS)
-      .order("order_time_display", { ascending: false })
-      .limit(limit),
-    api.from("🛒product_master").select("*").limit(1500),
-  ]);
+  let ordersResult = await api.from(defaultOrderView("BB"))
+    .select(HERMES_WEB_ORDER_COLUMNS)
+    .order("order_time_display", { ascending: false })
+    .limit(limit);
+  // บาง deployment ไม่มีชื่อโต๊ะ HERMES ใน schema cache แล้ว แต่ยังมี
+  // canonical_orders ซึ่งเป็น projection เดียวกันสำหรับหน้าเว็บอ่าน
+  if (ordersResult.error) {
+    const fallback = await api.from("canonical_orders")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    if (!fallback.error) ordersResult = fallback;
+  }
+  const masterResult = await api.from("🛒product_master").select("*").limit(1500);
   if (ordersResult.error) fail(ordersResult.error);
 
   // Product Master is supplementary: if its read policy is not configured yet,
@@ -634,31 +641,11 @@ export async function readChatThreads() {
     map.set(key, current);
   }
 
-  let orderCountError: string | null = null;
-  try {
-    const result = await readCanonicalOrders();
-    const seenOrdersByRoom = new Map<string, Set<string>>();
-    for (const order of result.orders) {
-      const pageId = String(order.page_id ?? order.pageId ?? "").trim();
-      const current = orderThreadAliases(order)
-        .map(id => map.get(`${pageId}:${id}`))
-        .find(Boolean);
-      if (!current) continue;
-      const identity = orderIdentity(order);
-      const seen = seenOrdersByRoom.get(current.key) ?? new Set<string>();
-      if (identity && seen.has(identity)) continue;
-      if (identity) {
-        seen.add(identity);
-        seenOrdersByRoom.set(current.key, seen);
-      }
-      current.orders.push(order);
-      current.orderCount = current.orders.length;
-      if (!current.latestOrderNumber) current.latestOrderNumber = order.order_number || null;
-    }
-  } catch (error) {
-    orderCountError = error instanceof Error ? error.message : String(error || "อ่านรายการออเดอร์ไม่สำเร็จ");
-  }
-  Array.from(map.values()).forEach(thread => { thread.orderCountError = orderCountError; });
+  // ChatHub เป็นห้องของสาย 2 เท่านั้น:
+  // parcels → SHADOW → ROGUE → VOID → page_tokens_vault → Messenger
+  // ห้ามอ่าน 🗝️HERMES_ARCHIVE จากห้องนี้ เพราะเป็นสายออเดอร์หลักคนละ pipeline
+  // รายละเอียดออเดอร์/เลขพัสดุจะถูกเติมจาก parcels.mappingQueue ใน ChatHub แทน
+  Array.from(map.values()).forEach(thread => { thread.orderCountError = null; });
   return Array.from(map.values()).sort((a, b) => new Date(b.latestAt || 0).getTime() - new Date(a.latestAt || 0).getTime());
 }
 export async function readChatMessages(pageId: string, threadId: string) { const rows = await readChatRows(); return rows.filter(row => String(row.page_id) === String(pageId) && String(row._thread) === String(threadId)).map((row: any) => ({ id: row.id, text: row._text || (row._hasAttachment ? "ส่งรูปภาพ" : ""), message_text: row._text, direction: row._speaker === "page" ? "outbound" : "inbound", senderType: row._speaker, senderName: row._name, side: row._side, occurredAt: row._occurred || row.occurred_at || row.synced_at, attachmentsJson: JSON.stringify(row.attachments_json || []), imageUrls: row.image_urls || [] })); }
