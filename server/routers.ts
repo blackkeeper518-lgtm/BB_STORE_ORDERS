@@ -2,7 +2,7 @@ import { z } from "zod";
 import { adminProcedure, publicProcedure, router } from "./_core/trpc";
 import { COOKIE_NAME } from "../shared/const";
 import { sdk } from "./_core/sdk";
-import { createCanonicalAlias, createProductAlienMapReview, createProductAlienTerm, fetchConversationEvidence, fetchDailyChatOrderSummary, fetchDailyOrderHistory, fetchExternalChatMessages, fetchLiveOrders, fetchLiveThreads, fetchStockProducts, fetchStockWarnings, getLiveOrderStats, listCanonicalAliases, listProductAlienMapReviews, listProductAlienTerms, searchParcelsQuick, supabaseGet, supabasePost, updateCanonicalAlias, updateProductMapAlias, updateStockProduct, type LiveOrder, type ParcelSearchMode, type StockProduct } from "./supabase";
+import { createCanonicalAlias, createProductAlienMapReview, createProductAlienTerm, fetchConversationEvidence, fetchDailyChatOrderSummary, fetchDailyOrderHistory, fetchExternalChatMessages, fetchLiveOrders, fetchLiveThreads, fetchParcelMappingQueue, fetchStockProducts, fetchStockWarnings, getLiveOrderStats, listCanonicalAliases, listProductAlienMapReviews, listProductAlienTerms, supabaseGet, supabasePost, updateCanonicalAlias, updateProductMapAlias, updateStockProduct, type LiveOrder, type StockProduct } from "./supabase";
 import { sendMetaMessage } from "./meta";
 import { storagePut } from "./storage";
 import * as db from "./db";
@@ -43,11 +43,7 @@ export const appRouter = router({
   }),
 
   parcels: router({
-    quickSearch: adminProcedure.input(z.object({
-      term: z.string().min(1).max(200),
-      mode: z.enum(["auto", "phone", "name", "tracking", "address"]).default("auto"),
-      limit: z.number().int().min(1).max(200).default(150),
-    })).query(({ input }) => searchParcelsQuick({ ...input, mode: input.mode as ParcelSearchMode })),
+    mappingQueue: adminProcedure.input(z.object({ status: z.enum(["all", "ready", "over24", "over48", "sent"]).default("all"), limit: z.number().int().min(1).max(500).default(300) })).query(({ input }) => fetchParcelMappingQueue({ status: input.status, limit: input.limit })),
     sendTracking: adminProcedure.input(z.object({
       pageId: z.string().min(1),
       threadId: z.string().min(1),

@@ -17,23 +17,43 @@ export async function supabaseGet<T>(path: string): Promise<T> {
 }
 export async function supabasePost<T>(path: string, body: unknown): Promise<T> { const { baseUrl, key } = config(); const response = await fetch(`${baseUrl}/rest/v1/${path}`, { method: "POST", headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify(body) }); if (!response.ok) throw new Error(`Supabase returned HTTP ${response.status}: ${(await response.text()).slice(0, 300)}`); return response.json() as Promise<T>; }
 
-export type ParcelSearchMode = "auto" | "phone" | "name" | "tracking" | "address";
-export type ParcelSearchResult = {
-  tracking_number: string | null;
-  pickup_date: string | null;
-  consignee: string | null;
-  phone_number: string | null;
-  address: string | null;
-  cod_amount: string | null;
+export type ParcelMappingStatus = "all" | "ready" | "over24" | "over48" | "sent";
+export type ParcelMappingRow = Record<string, unknown> & {
+  tracking_number?: string | null;
+  recipient_name?: string | null;
+  matched_phone?: string | null;
+  pickup_date?: string | null;
+  parcel_delivery_status?: string | null;
+  parcel_sent_at?: string | null;
+  facebook_tracking_status?: string | null;
 };
 
-export async function searchParcelsQuick(input: { term: string; mode: ParcelSearchMode; limit: number }) {
-  const rows = await supabasePost<ParcelSearchResult[]>("rpc/search_parcels_quick", {
-    p_search: input.term.trim(),
-    p_mode: input.mode,
-    p_limit: input.limit,
-  });
-  return Array.isArray(rows) ? rows : [];
+const parcelMappingSelect = [
+  "tracking_number", "matched_phone", "recipient_name", "parcel_address", "pickup_date",
+  "parcel_delivery_status", "parcel_sent_at", "upsert_key", "page_id", "page_name",
+  "customer_id", "order_number", "order_number_display", "order_time_display", "cod_amount",
+  "shipping_carrier", "manus_for_packer", "carton_count", "is_within_24h", "can_send_standard",
+  "messaging_tag_required", "facebook_tracking_status", "facebook_tracking_sent_at",
+  "send_facebook_route", "customer_latest_message", "page_latest_message", "parcel_row_id",
+].join(",");
+const parcelMappingSentSelect = [
+  "tracking_number", "matched_phone", "recipient_name:flash_consignee", "parcel_address", "pickup_date",
+  "parcel_delivery_status", "parcel_sent_at", "upsert_key", "page_id", "page_name", "customer_id",
+  "order_number", "order_number_display", "order_time_display", "cod_amount", "shipping_carrier",
+  "manus_for_packer", "carton_count", "facebook_tracking_status", "facebook_tracking_sent_at",
+  "send_facebook_route", "message_id", "target_room", "delivery_status",
+].join(",");
+
+export async function fetchParcelMappingQueue(input: { status: ParcelMappingStatus; limit: number }) {
+  const activeView = encodeURIComponent("🦅ROGUE_xXx_SHIPPINGz");
+  const sentView = encodeURIComponent("📓DEAD_xXx_NOTE");
+  const activeQuery = `select=${parcelMappingSelect}&limit=${input.limit}&order=pickup_date.desc`;
+  const sentQuery = `select=${parcelMappingSentSelect}&limit=${input.limit}&order=pickup_date.desc`;
+  const [active, sent] = await Promise.all([
+    input.status === "sent" ? Promise.resolve([] as ParcelMappingRow[]) : supabaseGet<ParcelMappingRow[]>(`${activeView}?${activeQuery}`),
+    input.status === "sent" || input.status === "all" ? supabaseGet<ParcelMappingRow[]>(`${sentView}?${sentQuery}`) : Promise.resolve([] as ParcelMappingRow[]),
+  ]);
+  return [...active, ...sent].slice(0, input.limit);
 }
 
 function text(v: unknown) { return v == null ? null : String(v); }
