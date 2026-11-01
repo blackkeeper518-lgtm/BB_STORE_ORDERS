@@ -2,7 +2,7 @@ import { z } from "zod";
 import { adminProcedure, publicProcedure, router } from "./_core/trpc";
 import { COOKIE_NAME } from "../shared/const";
 import { sdk } from "./_core/sdk";
-import { createCanonicalAlias, createProductAlienMapReview, createProductAlienTerm, fetchConversationEvidence, fetchDailyChatOrderSummary, fetchDailyOrderHistory, fetchExternalChatMessages, fetchLiveOrders, fetchLiveThreads, fetchStockProducts, fetchStockWarnings, getLiveOrderStats, listCanonicalAliases, listProductAlienMapReviews, listProductAlienTerms, supabaseGet, supabasePost, updateCanonicalAlias, updateProductMapAlias, updateStockProduct, type LiveOrder, type StockProduct } from "./supabase";
+import { createCanonicalAlias, createProductAlienMapReview, createProductAlienTerm, fetchConversationEvidence, fetchDailyChatOrderSummary, fetchDailyOrderHistory, fetchExternalChatMessages, fetchLiveOrders, fetchLiveThreads, fetchParcelMappingQueue, fetchStockProducts, fetchStockWarnings, getLiveOrderStats, listCanonicalAliases, listProductAlienMapReviews, listProductAlienTerms, supabaseGet, supabasePost, updateCanonicalAlias, updateProductMapAlias, updateStockProduct, type LiveOrder, type StockProduct } from "./supabase";
 import { sendMetaMessage } from "./meta";
 import { storagePut } from "./storage";
 import * as db from "./db";
@@ -11,24 +11,6 @@ const threadInput = z.object({ pageId: z.string().min(1), threadId: z.string().m
 const ownerId = (ctx: { user: { id: number } | null }) => ctx.user?.id ?? 0;
 const kind = z.enum(["code", "sql", "workflow", "document", "config", "other"]);
 const parcelMappingStatus = z.enum(["all", "sent"]);
-
-async function fetchParcelMappingQueue(input: { status: z.infer<typeof parcelMappingStatus>; limit: number }) {
-  const activeView = encodeURIComponent("🔮SHADOW_xXx_RECALL");
-  const sentView = encodeURIComponent("📓DEAD_xXx_NOTE");
-  const activeQuery = `select=*&limit=${input.limit}`;
-  const sentQuery = `select=*&limit=${input.limit}`;
-
-  const active = input.status === "sent"
-    ? [] as Array<Record<string, unknown>>
-    : await supabaseGet<Array<Record<string, unknown>>>(`${activeView}?${activeQuery}`);
-
-  let sent: Array<Record<string, unknown>> = [];
-  if (input.status === "sent" || input.status === "all") {
-    sent = await supabaseGet<Array<Record<string, unknown>>>(`${sentView}?${sentQuery}`);
-  }
-
-  return [...active, ...sent].slice(0, input.limit);
-}
 
 export const appRouter = router({
   health: publicProcedure.query(() => ({ ok: true, service: "drakside-system", time: new Date().toISOString() })),
