@@ -7,10 +7,18 @@ export type LiveProductMapping = { sku: string; label: string; price: number | n
 export type StockProduct = LiveProductMapping & { id: number; thName: string | null; stockQty: number | null; stockStatus: string | null; status: string | null; updatedAt: string | null };
 export type StockWarning = { kind: "duplicate_sku" | "missing_sku"; sku: string | null; label: string | null; count?: number };
 
-function config() { const baseUrl = process.env.SUPABASE_URL?.replace(/\/$/, ""); const key = process.env.SUPABASE_SERVICE_ROLE_KEY; if (!baseUrl || !key) throw new Error("Supabase secrets are not configured"); return { baseUrl, key }; }
+function config() {
+  const rawUrl = process.env.SUPABASE_URL?.trim();
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  if (!rawUrl || !key) throw new Error("Supabase secrets are not configured");
+  let parsed: URL;
+  try { parsed = new URL(rawUrl); } catch { throw new Error("SUPABASE_URL is not a valid URL"); }
+  if (parsed.protocol !== "https:" || !parsed.hostname.endsWith(".supabase.co")) throw new Error(`Invalid Supabase hostname: ${parsed.hostname}`);
+  return { baseUrl: parsed.toString().replace(/\/$/, ""), key };
+}
 export async function supabaseGet<T>(path: string): Promise<T> {
   const { baseUrl, key } = config();
-  const target = `${baseUrl}/rest/v1/${path}`;
+  const target = `${baseUrl}/rest/v1/${path.replace(/^\/+/, "")}`;
   let lastError: unknown = null;
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     try {
@@ -23,48 +31,9 @@ export async function supabaseGet<T>(path: string): Promise<T> {
       if (attempt < 3) await new Promise(resolve => setTimeout(resolve, attempt * 500));
     }
   }
-  const cause = lastError instanceof Error ? `${lastError.message}${(lastError as Error & { cause?: { code?: string } }).cause?.code ? ` [${(lastError as Error & { cause?: { code?: string } }).cause?.code}]` : ""}` : String(lastError);
-  throw new Error(`Supabase connection failed after 3 attempts (${path}): ${cause}`);
+  throw new Error(`Supabase connection failed after 3 attempts (${path}): ${lastError instanceof Error ? lastError.message : String(lastError)}. Target=${target}`);
 }
 export async function supabasePost<T>(path: string, body: unknown): Promise<T> { const { baseUrl, key } = config(); const response = await fetch(`${baseUrl}/rest/v1/${path}`, { method: "POST", headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify(body) }); if (!response.ok) throw new Error(`Supabase returned HTTP ${response.status}: ${(await response.text()).slice(0, 300)}`); return response.json() as Promise<T>; }
-
-export type ParcelMappingStatus = "all" | "ready" | "over24" | "over48" | "sent";
-export type ParcelMappingRow = Record<string, unknown> & {
-  tracking_number?: string | null;
-  recipient_name?: string | null;
-  matched_phone?: string | null;
-  pickup_date?: string | null;
-  parcel_delivery_status?: string | null;
-  parcel_sent_at?: string | null;
-  facebook_tracking_status?: string | null;
-};
-
-export async function fetchParcelMappingQueue(input: { status: ParcelMappingStatus; limit: number }) {
-  // SHADOW เป็นจุดที่ n8n แมปและคัดแถวพร้อมแล้ว ห้องเว็บจึงอ่านจากที่นี่
-  const activeView = encodeURIComponent("🔮SHADOW_xXx_RECALL");
-  const sentView = encodeURIComponent("📓DEAD_xXx_NOTE");
-  // ดึงทั้งแถวจาก view โดยไม่ระบุชื่อคอลัมน์ตายตัว เพราะแต่ละ view อาจงอก field ไม่เท่ากัน
-  // ให้หน้า Space Vault จัด lane จากข้อมูลที่มีจริงแทนการล้มทั้ง endpoint ด้วย HTTP 400
-  const activeQuery = `select=*&limit=${input.limit}`;
-  const sentQuery = `select=*&limit=${input.limit}`;
-  // ห้องเลขอ่าน SHADOW เป็นแหล่งหลักโดยตรง
-  // ห้ามกลืน error เป็น [] เพราะจะทำให้ข้อมูลที่แมปแล้วดูเหมือนไม่มี
-  const active = input.status === "sent"
-    ? [] as ParcelMappingRow[]
-    : await supabaseGet<ParcelMappingRow[]>(`${activeView}?${activeQuery}`);
-
-  // DEAD เป็นประวัติเสริม: ถ้าวิวนี้ยังไม่พร้อม จะไม่ขวางคิว SHADOW
-  let sent: ParcelMappingRow[] = [];
-  if (input.status === "sent" || input.status === "all") {
-    try {
-      sent = await supabaseGet<ParcelMappingRow[]>(`${sentView}?${sentQuery}`);
-    } catch (error) {
-      console.warn("[ParcelMapping] DEAD view unavailable; keeping SHADOW queue", error instanceof Error ? error.message : error);
-    }
-  }
-  return [...active, ...sent].slice(0, input.limit);
-}
-
 function text(v: unknown) { return v == null ? null : String(v); }
 function num(v: unknown) { const n = Number(v); return v == null || v === "" || !Number.isFinite(n) ? null : n; }
 function bool(v: unknown) { return v === true || v === "true" || v === 1; }
