@@ -34,6 +34,15 @@ export async function supabaseGet<T>(path: string): Promise<T> {
   throw new Error(`Supabase connection failed after 3 attempts (${path}): ${lastError instanceof Error ? lastError.message : String(lastError)}. Target=${target}`);
 }
 export async function supabasePost<T>(path: string, body: unknown): Promise<T> { const { baseUrl, key } = config(); const response = await fetch(`${baseUrl}/rest/v1/${path}`, { method: "POST", headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify(body) }); if (!response.ok) throw new Error(`Supabase returned HTTP ${response.status}: ${(await response.text()).slice(0, 300)}`); return response.json() as Promise<T>; }
+export async function fetchParcelMappingQueue(input: { status: "all" | "sent"; limit: number }) {
+  const activeView = encodeURIComponent("🔮SHADOW_xXx_RECALL");
+  const sentView = encodeURIComponent("📓DEAD_xXx_NOTE");
+  const activeQuery = `select=*&limit=${input.limit}`;
+  const sentQuery = `select=*&limit=${input.limit}`;
+  const active = input.status === "sent" ? [] : await supabaseGet<Array<Record<string, unknown>>>(`${activeView}?${activeQuery}`);
+  const sent = input.status === "sent" || input.status === "all" ? await supabaseGet<Array<Record<string, unknown>>>(`${sentView}?${sentQuery}`) : [];
+  return [...active, ...sent].slice(0, input.limit);
+}
 function text(v: unknown) { return v == null ? null : String(v); }
 function num(v: unknown) { const n = Number(v); return v == null || v === "" || !Number.isFinite(n) ? null : n; }
 function bool(v: unknown) { return v === true || v === "true" || v === 1; }
