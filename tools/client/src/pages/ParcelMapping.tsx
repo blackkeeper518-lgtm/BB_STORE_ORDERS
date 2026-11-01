@@ -45,7 +45,7 @@ function normalizeImportRow(row: Record<string, unknown>) {
     status: textCell(row, ["สถานะ", "status"]),
   };
 }
-
+ 
 function loadImportedRows() {
   try { return JSON.parse(localStorage.getItem(IMPORT_KEY) || "[]") as ReturnType<typeof normalizeImportRow>[]; } catch { return []; }
 }
