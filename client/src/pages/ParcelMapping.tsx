@@ -33,7 +33,10 @@ type ParcelMappingRow = {
   cod_amount?: string | number | null;
   shipping_carrier?: string | null;
   manus_for_packer?: string | null;
+  facebook_tracking_message?: string | null;
+  drakside_tracking_message?: string | null;
   facebook_tracking_status?: string | null;
+  parcel_status_emoji?: string | null;
   send_facebook_route?: string | null;
   customer_message_time_th?: string | null;
   customer_latest_message?: string | null;
@@ -82,7 +85,15 @@ function isSent(row: ParcelMappingRow) {
 function asBool(value: unknown) {
   return value === true || value === "true" || value === 1 || value === "1";
 }
+function parcelStatusEmoji(row: ParcelMappingRow) {
+  return clean(row.parcel_status_emoji);
+}
 function orbitLane(row: ParcelMappingRow): OrbitLane {
+  const status = parcelStatusEmoji(row);
+  if (status.includes("🔥")) return "sent";
+  if (status.includes("🔴")) return "expired";
+  if (status.includes("🟡")) return "send";
+  if (status.includes("🟢")) return "waiting";
   if (isSent(row)) return "sent";
   if (!clean(row.customer_message_time_th || row.customer_latest_message)) return "waiting";
   if (clean(row.send_facebook_route).toUpperCase() === "BLOCK_FB_EXPIRED" || (row.can_send_standard != null && !asBool(row.can_send_standard))) return "expired";
@@ -97,11 +108,19 @@ function orbitMeta(lane: OrbitLane) {
   }[lane];
 }
 function rowStatus(row: ParcelMappingRow): QueueFilter {
+  const status = parcelStatusEmoji(row);
+  if (status.includes("🔥")) return "sent";
+  if (status.includes("🔴")) return "over48";
+  if (status.includes("🟡")) return "over24";
+  if (status.includes("🟢")) return "ready";
   if (isSent(row)) return "sent";
   const age = ageHours(row);
   if (age != null && age >= 48) return "over48";
   if (age != null && age >= 24) return "over24";
   return "ready";
+}
+function messageToCopy(row: ParcelMappingRow) {
+  return clean(row.facebook_tracking_message) || clean(row.drakside_tracking_message);
 }
 function statusMeta(status: QueueFilter) {
   return {
@@ -132,30 +151,6 @@ function statusMeta(status: QueueFilter) {
     },
   }[status];
 }
-function buildCustomerMessage(row: ParcelMappingRow) {
-  const tracking = clean(row.tracking_number) || "ไม่พบเลขพัสดุ";
-  const carrier = clean(row.shipping_carrier) || "⚡FLASH EXPRESS";
-  const orderDate =
-    clean(row.order_time_display) || clean(row.pickup_date) || "-";
-  const product = clean(row.manus_for_packer) || "สินค้าทั่วไป";
-  const page = clean(row.page_name) || "ทางร้าน";
-  return [
-    `📌 แจ้งเลขพัสดุจัดส่ง 🚚: ${tracking}`,
-    `🙏 หนูขอแจ้งเลขให้นะคะพี่ ${carrier}`,
-    `🗓️ วันที่สั่งซื้อ: ${orderDate}`,
-    "",
-    "📦 รายการสินค้า:",
-    product,
-    `💰 ยอดเก็บเงินปลายทาง (COD): ${formatCod(row.cod_amount)} บาท`,
-    "",
-    "⏰ (เลขพัสดุจะเริ่มเช็คสถานะการเดินทางได้ช่วงเย็นๆ นะคะพี่ 💕)",
-    "",
-    "เพื่อความสบายใจ พี่สามารถแกะก่อนรับได้นะคะ",
-    "แต่ต้องถ่ายคลิปไว้นะคะ มีปัญหาร้านเรา รับผิดชอบให้ค่ะ",
-    `ขอบพระคุณที่อุดหนุน ${page} ❤️ ค่ะพี่`,
-  ].join("\n");
-}
-
 export default function ParcelMapping() {
   const [filter, setFilter] = useState<QueueFilter>("all");
   const [search, setSearch] = useState("");
@@ -202,7 +197,9 @@ export default function ParcelMapping() {
   const orbitLanes: OrbitLane[] = ["waiting", "send", "expired", "sent"];
 
   async function copyMessage(row: ParcelMappingRow) {
-    await navigator.clipboard.writeText(buildCustomerMessage(row));
+    const message = messageToCopy(row);
+    if (!message) return;
+    await navigator.clipboard.writeText(message);
     const key = clean(row.tracking_number);
     setCopied(key);
     window.setTimeout(() => setCopied(""), 1600);
@@ -465,9 +462,20 @@ export default function ParcelMapping() {
                     {clean(selected.shipping_carrier) || "FLASH EXPRESS"}
                   </p>
                 </div>
-                <pre className="max-h-[560px] overflow-auto whitespace-pre-wrap rounded-2xl border border-fuchsia-300/15 bg-black/35 p-4 text-sm leading-7 text-fuchsia-50">
-                  {buildCustomerMessage(selected)}
-                </pre>
+                <div className="grid gap-3">
+                  {[
+                    ["facebook_tracking_message", selected.facebook_tracking_message],
+                    ["drakside_tracking_message", selected.drakside_tracking_message],
+                  ].map(([label, value]) => clean(value) ? (
+                    <div key={label}>
+                      <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-fuchsia-200/60">{label}</p>
+                      <pre className="max-h-[360px] overflow-auto whitespace-pre-wrap rounded-2xl border border-fuchsia-300/15 bg-black/35 p-4 text-sm leading-7 text-fuchsia-50">{clean(value)}</pre>
+                    </div>
+                  ) : null)}
+                  {!clean(selected.facebook_tracking_message) && !clean(selected.drakside_tracking_message) ? (
+                    <p className="rounded-2xl border border-amber-300/15 bg-amber-300/[0.04] p-4 text-sm text-amber-100/70">แถวนี้ยังไม่มีข้อความจาก n8n ใน 2 คอลัมน์</p>
+                  ) : null}
+                </div>
                 <div className="rounded-xl border border-amber-300/15 bg-amber-300/[0.04] p-3 text-xs leading-5 text-amber-100/70">
                   การ์ดนี้ไม่ส่ง Messenger โดยตรง เพื่อป้องกันการยิงซ้ำกับ
                   ⛩️VOID_xXx_GATEWAYz และ workflow หลัก
@@ -478,7 +486,7 @@ export default function ParcelMapping() {
         </Card>
       </div>
       <footer className="flex flex-wrap items-center justify-between gap-3 px-2 text-[10px] text-white/25">
-        <span>SHADOW → ROGUE → VOID · public.parcels</span>
+        <span>🔮 SHADOW → 🦅 ROGUE → ⛩️ VOID · n8n-owned tracking pipeline</span>
         <span>
           Page token อยู่ฝั่ง server/n8n เท่านั้น ·{" "}
           {queueQuery.dataUpdatedAt

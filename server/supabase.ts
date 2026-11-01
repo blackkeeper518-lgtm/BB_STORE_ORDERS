@@ -35,8 +35,10 @@ export async function supabaseGet<T>(path: string): Promise<T> {
 }
 export async function supabasePost<T>(path: string, body: unknown): Promise<T> { const { baseUrl, key } = config(); const response = await fetch(`${baseUrl}/rest/v1/${path}`, { method: "POST", headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify(body) }); if (!response.ok) throw new Error(`Supabase returned HTTP ${response.status}: ${(await response.text()).slice(0, 300)}`); return response.json() as Promise<T>; }
 export async function fetchParcelMappingQueue(input: { status: "all" | "sent"; limit: number }) {
-  const activeView = encodeURIComponent("🔮SHADOW_xXx_RECALL");
-  const sentView = encodeURIComponent("📓DEAD_xXx_NOTE");
+  // These are quoted PostgreSQL relation names; keep the space after the emoji.
+  // n8n owns the pipeline mutations. This room only reads the queue and history.
+  const activeView = encodeURIComponent("🔮 SHADOW_xXx_RECALL");
+  const sentView = encodeURIComponent("📓 DEAD_xXx_NOTE");
   const activeQuery = `select=*&limit=${input.limit}`;
   const sentQuery = `select=*&limit=${input.limit}`;
   const active = input.status === "sent" ? [] : await supabaseGet<Array<Record<string, unknown>>>(`${activeView}?${activeQuery}`);

@@ -43,7 +43,7 @@ export const appRouter = router({
   }),
 
   parcels: router({
-    mappingQueue: adminProcedure.input(z.object({ status: z.enum(["all", "ready", "over24", "over48", "sent"]).default("all"), limit: z.number().int().min(1).max(500).default(300) })).query(({ input }) => fetchParcelMappingQueue({ status: input.status, limit: input.limit })),
+    mappingQueue: adminProcedure.input(z.object({ status: z.enum(["all", "ready", "over24", "over48", "sent"]).default("all"), limit: z.number().int().min(1).max(500).default(300) })).query(({ input }) => fetchParcelMappingQueue({ status: input.status === "sent" ? "sent" : "all", limit: input.limit })),
     sendTracking: adminProcedure.input(z.object({
       pageId: z.string().min(1),
       threadId: z.string().min(1),
