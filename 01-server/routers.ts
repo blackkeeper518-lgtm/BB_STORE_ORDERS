@@ -2,7 +2,7 @@ import { z } from "zod";
 import { adminProcedure, publicProcedure, router } from "./_core/trpc";
 import { COOKIE_NAME } from "../shared/const";
 import { sdk } from "./_core/sdk";
-import { createCanonicalAlias, createProductAlienMapReview, createProductAlienTerm, fetchConversationEvidence, fetchDailyChatOrderSummary, fetchDailyOrderHistory, fetchExternalChatMessages, fetchLiveOrders, fetchLiveThreads, fetchParcelMappingQueue, fetchStockProducts, fetchStockWarnings, getLiveOrderStats, listCanonicalAliases, listProductAlienMapReviews, listProductAlienTerms, supabaseGet, supabasePost, updateCanonicalAlias, updateProductMapAlias, updateStockProduct, type LiveOrder, type StockProduct } from "./supabase";
+import { createCanonicalAlias, createProductAlienMapReview, createProductAlienTerm, fetchConversationEvidence, fetchDailyChatOrderSummary, fetchDailyOrderHistory, fetchExternalChatMessages, fetchLiveOrders, fetchLiveThreads, fetchStockProducts, fetchStockWarnings, getLiveOrderStats, listCanonicalAliases, listProductAlienMapReviews, listProductAlienTerms, supabaseGet, supabasePost, updateCanonicalAlias, updateProductMapAlias, updateStockProduct, type LiveOrder, type StockProduct } from "./supabase";
 import { sendMetaMessage } from "./meta";
 import { storagePut } from "./storage";
 import * as db from "./db";
@@ -10,6 +10,25 @@ import * as db from "./db";
 const threadInput = z.object({ pageId: z.string().min(1), threadId: z.string().min(1) });
 const ownerId = (ctx: { user: { id: number } | null }) => ctx.user?.id ?? 0;
 const kind = z.enum(["code", "sql", "workflow", "document", "config", "other"]);
+const parcelMappingStatus = z.enum(["all", "sent"]);
+
+async function fetchParcelMappingQueue(input: { status: z.infer<typeof parcelMappingStatus>; limit: number }) {
+  const activeView = encodeURIComponent("🔮SHADOW_xXx_RECALL");
+  const sentView = encodeURIComponent("📓DEAD_xXx_NOTE");
+  const activeQuery = `select=*&limit=${input.limit}`;
+  const sentQuery = `select=*&limit=${input.limit}`;
+
+  const active = input.status === "sent"
+    ? [] as Array<Record<string, unknown>>
+    : await supabaseGet<Array<Record<string, unknown>>>(`${activeView}?${activeQuery}`);
+
+  let sent: Array<Record<string, unknown>> = [];
+  if (input.status === "sent" || input.status === "all") {
+    sent = await supabaseGet<Array<Record<string, unknown>>>(`${sentView}?${sentQuery}`);
+  }
+
+  return [...active, ...sent].slice(0, input.limit);
+}
 
 export const appRouter = router({
   health: publicProcedure.query(() => ({ ok: true, service: "drakside-system", time: new Date().toISOString() })),
@@ -33,6 +52,12 @@ export const appRouter = router({
     confirmFromChat: publicProcedure.input(threadInput.extend({ customerName: z.string().optional(), customerId: z.string().optional(), evidenceText: z.string().optional() })).mutation(({ input }) => ({ ok: true, ...input })),
   }),
 
+  parcels: router({
+    mappingQueue: adminProcedure
+      .input(z.object({ status: parcelMappingStatus.default("all"), limit: z.number().int().min(1).max(500).default(300) }))
+      .query(({ input }) => fetchParcelMappingQueue(input)),
+  }),
+
   chat: router({
     messages: publicProcedure.input(threadInput).query(({ input }) => fetchExternalChatMessages(input.pageId, input.threadId)),
     sendReply: publicProcedure.input(z.object({ pageId: z.string(), threadId: z.string(), recipientId: z.string(), text: z.string().optional(), imageUrl: z.string().optional(), stickerId: z.string().optional() })).mutation(async ({ input, ctx }) => { const result = await sendMetaMessage(input); await db.saveChatMessage({ pageId: input.pageId, threadId: input.threadId, senderId: input.recipientId, senderType: "admin", direction: "outbound", text: input.text, attachments: input.imageUrl ? [{ url: input.imageUrl }] : undefined, adminUserId: ctx.user?.id }); return result; }),
@@ -40,28 +65,6 @@ export const appRouter = router({
     uploadImage: publicProcedure.input(z.object({ fileName: z.string(), contentType: z.string(), base64: z.string() })).mutation(async ({ input }) => { const comma = input.base64.indexOf(","); const raw = comma >= 0 ? input.base64.slice(comma + 1) : input.base64; return storagePut(`chat/${input.fileName}`, Buffer.from(raw, "base64"), input.contentType); }),
     metaErrors: publicProcedure.query(() => []),
     deliveryHealth: publicProcedure.query(async () => { try { const rows = await supabaseGet<unknown[]>("vw_trial_label_delivery_queue?select=*&limit=100"); return { ok: true, pending: rows.length, rows, failed: [] as unknown[], sent: [] as unknown[] }; } catch (error) { return { ok: false, pending: 0, error: String(error), failed: [] as unknown[], sent: [] as unknown[], rows: [] as unknown[] }; } }),
-  }),
-
-  parcels: router({
-    mappingQueue: adminProcedure.input(z.object({ status: z.enum(["all", "ready", "over24", "over48", "sent"]).default("all"), limit: z.number().int().min(1).max(500).default(300) })).query(({ input }) => fetchParcelMappingQueue({ status: input.status, limit: input.limit })),
-    sendTracking: adminProcedure.input(z.object({
-      pageId: z.string().min(1),
-      threadId: z.string().min(1),
-      recipientId: z.string().min(1),
-      text: z.string().trim().min(1).max(2000),
-    })).mutation(async ({ input, ctx }) => {
-      const result = await sendMetaMessage(input);
-      await db.saveChatMessage({
-        pageId: input.pageId,
-        threadId: input.threadId,
-        senderId: input.recipientId,
-        senderType: "admin",
-        direction: "outbound",
-        text: input.text,
-        adminUserId: ctx.user.id,
-      });
-      return result;
-    }),
   }),
 
   stock: router({
