@@ -1,105 +1,491 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getActiveCamp } from "@/lib/canonical";
 import { trpc } from "@/lib/trpc";
-import { RefreshCw, Search, Truck } from "lucide-react";
+import {
+  Check,
+  Clipboard,
+  ExternalLink,
+  FileUp,
+  PackageSearch,
+  RefreshCw,
+  Radar,
+  Search,
+  X,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 
-type QueueStatus = "all" | "sent";
-type QueueRow = Record<string, unknown>;
+type QueueFilter = "all" | "ready" | "over24" | "over48" | "sent";
+type OrbitLane = "waiting" | "send" | "expired" | "sent";
+type ParcelMappingRow = {
+  tracking_number?: string | null;
+  matched_phone?: string | null;
+  recipient_name?: string | null;
+  parcel_address?: string | null;
+  pickup_date?: string | null;
+  parcel_delivery_status?: string | null;
+  parcel_sent_at?: string | null;
+  page_name?: string | null;
+  order_number?: string | null;
+  order_number_display?: string | null;
+  order_time_display?: string | null;
+  cod_amount?: string | number | null;
+  shipping_carrier?: string | null;
+  manus_for_packer?: string | null;
+  facebook_tracking_status?: string | null;
+  send_facebook_route?: string | null;
+  customer_message_time_th?: string | null;
+  customer_latest_message?: string | null;
+  page_latest_message?: string | null;
+  can_send_standard?: boolean | string | number | null;
+  is_within_24h?: boolean | string | number | null;
+};
 
-const displayFields = [
-  ["tracking_number", "เลขพัสดุ"],
-  ["consignee", "ผู้รับ"],
-  ["phone_number", "เบอร์โทร"],
-  ["page_name", "เพจ"],
-  ["portal_key", "พอร์ทัล"],
-  ["pickup_date", "วันที่รับ"],
-  ["cod_amount", "COD"],
-  ["delivery_status", "สถานะพัสดุ"],
-  ["sent_at", "เวลาส่ง"],
-] as const;
+const flashTrackingUrl = "https://www.flashexpress.co.th/fle/tracking";
+const warpDriveUrl = "https://warpdrivetracking.vercel.app/";
+const customerLookupUrl = "https://bbstorefullv-1.vercel.app/";
+const money = new Intl.NumberFormat("th-TH");
+const filters: QueueFilter[] = ["all", "ready", "over24", "over48", "sent"];
 
-function value(row: QueueRow, key: string) {
-  const raw = row[key];
-  return raw === null || raw === undefined || String(raw).trim() === "" ? "—" : String(raw);
+function clean(value: unknown) {
+  return String(value ?? "").trim();
 }
-
-function statusTone(status: unknown) {
-  const normalized = String(status ?? "").toUpperCase();
-  if (["🔥SENT", "SENT", "SUCCESS", "COMPLETED", "DELIVERED", "SENT_TO_TELEGRAM"].includes(normalized)) return "border-emerald-400/30 bg-emerald-400/10 text-emerald-200";
-  if (normalized === "PENDING" || !normalized) return "border-amber-400/30 bg-amber-400/10 text-amber-200";
-  return "border-white/10 bg-white/5 text-slate-300";
+function formatCod(value: ParcelMappingRow["cod_amount"]) {
+  const amount = Number(String(value ?? "").replace(/[^0-9.-]/g, ""));
+  return Number.isFinite(amount) ? money.format(amount) : "ไม่ระบุ";
+}
+function parseDate(value: unknown) {
+  const timestamp = Date.parse(clean(value));
+  return Number.isFinite(timestamp) ? timestamp : null;
+}
+function ageHours(row: ParcelMappingRow) {
+  const timestamp = parseDate(row.pickup_date);
+  return timestamp == null
+    ? null
+    : Math.max(0, (Date.now() - timestamp) / 36e5);
+}
+function isSent(row: ParcelMappingRow) {
+  return [row.parcel_delivery_status, row.facebook_tracking_status]
+    .map(value => clean(value).toUpperCase())
+    .some(value =>
+      [
+        "🔥SENT",
+        "SENT",
+        "SUCCESS",
+        "COMPLETED",
+        "DELIVERED",
+        "SENT_TO_TELEGRAM",
+      ].includes(value)
+    ) || clean(row.page_latest_message).includes("📌 แจ้งเลขพัสดุจัดส่ง");
+}
+function asBool(value: unknown) {
+  return value === true || value === "true" || value === 1 || value === "1";
+}
+function orbitLane(row: ParcelMappingRow): OrbitLane {
+  if (isSent(row)) return "sent";
+  if (!clean(row.customer_message_time_th || row.customer_latest_message)) return "waiting";
+  if (clean(row.send_facebook_route).toUpperCase() === "BLOCK_FB_EXPIRED" || (row.can_send_standard != null && !asBool(row.can_send_standard))) return "expired";
+  return "send";
+}
+function orbitMeta(lane: OrbitLane) {
+  return {
+    waiting: { icon: "🛰️", label: "WAITING ORBIT", sub: "ยังไม่พบสัญญาณลูกค้า", color: "border-violet-300/25 bg-violet-300/[.06] text-violet-100" },
+    send: { icon: "🚀", label: "SEND GATE", sub: "พร้อมส่งตามหน้าต่างแชท", color: "border-emerald-300/25 bg-emerald-300/[.06] text-emerald-100" },
+    expired: { icon: "🕳️", label: "EXPIRED VAULT", sub: "เกินหน้าต่างส่ง", color: "border-amber-300/25 bg-amber-300/[.06] text-amber-100" },
+    sent: { icon: "📌", label: "SENT ARCHIVE", sub: "แจ้งเลขแล้ว", color: "border-fuchsia-300/25 bg-fuchsia-300/[.06] text-fuchsia-100" },
+  }[lane];
+}
+function rowStatus(row: ParcelMappingRow): QueueFilter {
+  if (isSent(row)) return "sent";
+  const age = ageHours(row);
+  if (age != null && age >= 48) return "over48";
+  if (age != null && age >= 24) return "over24";
+  return "ready";
+}
+function statusMeta(status: QueueFilter) {
+  return {
+    all: {
+      label: "ทั้งหมด",
+      icon: "📦",
+      className: "border-white/15 bg-white/[0.04] text-white",
+    },
+    ready: {
+      label: "พร้อมส่ง",
+      icon: "🟢",
+      className: "border-cyan-300/30 bg-cyan-300/[0.08] text-cyan-100",
+    },
+    over24: {
+      label: "เกิน 24 ชม.",
+      icon: "🟡",
+      className: "border-amber-300/30 bg-amber-300/[0.08] text-amber-100",
+    },
+    over48: {
+      label: "เกิน 48 ชม.",
+      icon: "🔴",
+      className: "border-red-300/30 bg-red-300/[0.08] text-red-100",
+    },
+    sent: {
+      label: "ส่งแล้ว",
+      icon: "🔥",
+      className: "border-emerald-300/30 bg-emerald-300/[0.08] text-emerald-100",
+    },
+  }[status];
+}
+function buildCustomerMessage(row: ParcelMappingRow) {
+  const tracking = clean(row.tracking_number) || "ไม่พบเลขพัสดุ";
+  const carrier = clean(row.shipping_carrier) || "⚡FLASH EXPRESS";
+  const orderDate =
+    clean(row.order_time_display) || clean(row.pickup_date) || "-";
+  const product = clean(row.manus_for_packer) || "สินค้าทั่วไป";
+  const page = clean(row.page_name) || "ทางร้าน";
+  return [
+    `📌 แจ้งเลขพัสดุจัดส่ง 🚚: ${tracking}`,
+    `🙏 หนูขอแจ้งเลขให้นะคะพี่ ${carrier}`,
+    `🗓️ วันที่สั่งซื้อ: ${orderDate}`,
+    "",
+    "📦 รายการสินค้า:",
+    product,
+    `💰 ยอดเก็บเงินปลายทาง (COD): ${formatCod(row.cod_amount)} บาท`,
+    "",
+    "⏰ (เลขพัสดุจะเริ่มเช็คสถานะการเดินทางได้ช่วงเย็นๆ นะคะพี่ 💕)",
+    "",
+    "เพื่อความสบายใจ พี่สามารถแกะก่อนรับได้นะคะ",
+    "แต่ต้องถ่ายคลิปไว้นะคะ มีปัญหาร้านเรา รับผิดชอบให้ค่ะ",
+    `ขอบพระคุณที่อุดหนุน ${page} ❤️ ค่ะพี่`,
+  ].join("\n");
 }
 
 export default function ParcelMapping() {
-  const [status, setStatus] = useState<QueueStatus>("all");
+  const [filter, setFilter] = useState<QueueFilter>("all");
   const [search, setSearch] = useState("");
-  const query = trpc.parcels.mappingQueue.useQuery(
-    { status, limit: 300 },
-    { refetchInterval: 30_000 },
+  const [selected, setSelected] = useState<ParcelMappingRow | null>(null);
+  const [copied, setCopied] = useState("");
+  const activeCamp = getActiveCamp();
+  const queueQuery = trpc.parcels.mappingQueue.useQuery(
+    { status: "all", limit: 300 },
+    { staleTime: 15_000 }
   );
+  const rows = useMemo(
+    () => (queueQuery.data ?? []) as ParcelMappingRow[],
+    [queueQuery.data]
+  );
+  const visibleRows = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return rows.filter(row => {
+      const statusMatches = filter === "all" || rowStatus(row) === filter;
+      const haystack = [
+        row.tracking_number,
+        row.recipient_name,
+        row.matched_phone,
+        row.order_number,
+        row.page_name,
+      ]
+        .map(clean)
+        .join(" ")
+        .toLowerCase();
+      return statusMatches && (!term || haystack.includes(term));
+    });
+  }, [filter, rows, search]);
+  const counts = useMemo(
+    () =>
+      Object.fromEntries(
+        filters.map(item => [
+          item,
+          item === "all"
+            ? rows.length
+            : rows.filter(row => rowStatus(row) === item).length,
+        ])
+      ) as Record<QueueFilter, number>,
+    [rows]
+  );
+  const orbitLanes: OrbitLane[] = ["waiting", "send", "expired", "sent"];
 
-  const rows = useMemo(() => {
-    const needle = search.trim().toLowerCase();
-    const source = Array.isArray(query.data) ? query.data : [];
-    if (!needle) return source;
-    return source.filter((row) => JSON.stringify(row).toLowerCase().includes(needle));
-  }, [query.data, search]);
-
-  const activeCount = rows.filter((row) => !String(row.delivery_status ?? "").toUpperCase().includes("SENT")).length;
-  const sentCount = rows.length - activeCount;
+  async function copyMessage(row: ParcelMappingRow) {
+    await navigator.clipboard.writeText(buildCustomerMessage(row));
+    const key = clean(row.tracking_number);
+    setCopied(key);
+    window.setTimeout(() => setCopied(""), 1600);
+  }
 
   return (
-    <div className="min-h-[calc(100vh-2rem)] bg-[#09090b] text-white">
-      <div className="mx-auto max-w-[1500px] space-y-5 p-3 sm:p-5 lg:p-7">
-        <header className="rounded-3xl border border-cyan-400/20 bg-[#111116] px-6 py-6 shadow-2xl shadow-cyan-950/10 sm:px-8">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <div className="mb-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.3em] text-cyan-300">
-                <Truck className="h-3.5 w-3.5" /> PARCEL QUEUE · VIEW ONLY
-              </div>
-              <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">คิวพัสดุ</h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">หน้านี้อ่านข้อมูลจาก View ที่เตรียมไว้แล้วเท่านั้น ไม่สร้าง mapping และไม่เขียนข้อมูลซ้ำ</p>
-            </div>
-            <Badge className="w-fit border border-cyan-400/30 bg-cyan-400/10 text-cyan-200">SHADOW → DEAD · รีเฟรช 30 วินาที</Badge>
+    <div className="cosmic-stage blackbox-room min-h-full space-y-5 p-2 text-white sm:p-4 lg:p-6">
+      <header className="blackbox-hero relative overflow-hidden rounded-3xl border border-fuchsia-400/30 p-6 shadow-2xl shadow-fuchsia-950/30 sm:p-8">
+        <div className="hero-scanline" />
+        <div className="cosmic-corner tl" />
+        <div className="cosmic-corner br" />
+        <div className="hero-orbit" aria-hidden="true" />
+        <div className="hero-planet" aria-hidden="true" />
+        <div className="relative flex flex-wrap items-start justify-between gap-5">
+          <div>
+            <p className="live-chip">
+              <Radar className="h-3.5 w-3.5" /> PARCEL RADAR · LIVE SIGNAL
+            </p>
+            <p className="orbit-kicker mt-4">DK DRAKSIDE · SPACE VAULT / SECTOR 07</p>
+            <h1 className="cyber-title mt-4 text-3xl font-semibold sm:text-4xl">
+              ห้องควบคุมเลขพัสดุ
+            </h1>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-fuchsia-100/65">
+              ดึงจากสายส่งเลขเดิม แสดงข้อมูลจับคู่และตัวอย่างข้อความ โดยไม่ยิง
+              Messenger ซ้ำกับ workflow หลัก
+            </p>
           </div>
-        </header>
-
-        <div className="grid gap-3 sm:grid-cols-3">
-          <Card className="border-white/10 bg-[#111116]"><CardContent className="p-4"><p className="text-xs text-slate-500">รายการที่แสดง</p><p className="mt-1 text-2xl font-semibold">{rows.length}</p></CardContent></Card>
-          <Card className="border-cyan-400/20 bg-[#111116]"><CardContent className="p-4"><p className="text-xs text-slate-500">คิวพร้อมทำงาน</p><p className="mt-1 text-2xl font-semibold text-cyan-200">{activeCount}</p></CardContent></Card>
-          <Card className="border-emerald-400/20 bg-[#111116]"><CardContent className="p-4"><p className="text-xs text-slate-500">ประวัติส่งแล้ว</p><p className="mt-1 text-2xl font-semibold text-emerald-200">{sentCount}</p></CardContent></Card>
+          <div className="bb-clock-panel rounded-2xl border px-4 py-3 text-xs">
+            <span className="bb-running-light mr-2 inline-block h-2 w-2 rounded-full" />
+            {activeCamp} · PIPELINE LINK ONLINE
+          </div>
         </div>
+        <div className="signal-ticker relative mt-6">
+          <span>SHADOW RECALL // ROGUE MATCH // VOID GATEWAY // TELEGRAM LINK STANDBY // FLASH EXPRESS // TRACKING CAPSULES IN ORBIT //</span>
+        </div>
+        <div className="mt-5 grid gap-3 sm:grid-cols-5">
+          {filters.map(item => {
+            const meta = statusMeta(item);
+            return (
+              <button
+                key={item}
+                type="button"
+                onClick={() => setFilter(item)}
+                className={`rounded-2xl border p-3 text-left transition hover:-translate-y-0.5 ${meta.className} ${filter === item ? "ring-2 ring-fuchsia-300/50" : ""}`}
+              >
+                <p className="text-xs opacity-70">
+                  {meta.icon} {meta.label}
+                </p>
+                <p className="mt-2 text-2xl font-black">
+                  {counts[item].toLocaleString("th-TH")}
+                </p>
+              </button>
+            );
+          })}
+        </div>
+      </header>
 
-        <Card className="border-white/10 bg-[#111116]
-        "><CardContent className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center">
-          <div className="relative flex-1"><Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ค้นหาเลขพัสดุ ชื่อ เบอร์ หรือเพจ" className="border-white/10 bg-black/30 pl-9 text-white placeholder:text-slate-600" /></div>
-          <div className="flex flex-wrap gap-2">
-            {(["all", "sent"] as QueueStatus[]).map((item) => <Button key={item} size="sm" variant={status === item ? "default" : "outline"} onClick={() => setStatus(item)} className={status === item ? "bg-cyan-500 text-black hover:bg-cyan-400" : "border-white/10 bg-white/5 text-slate-300 hover:bg-white/10"}>{item === "all" ? "ทั้งหมด" : "ส่งแล้ว"}</Button>)}
-            <Button size="sm" variant="outline" onClick={() => query.refetch()} className="border-white/10 bg-white/5 text-slate-300 hover:bg-white/10"><RefreshCw className={`mr-2 h-3.5 w-3.5 ${query.isFetching ? "animate-spin" : ""}`} />รีเฟรช</Button>
-          </div>
-        </CardContent></Card>
-
-        {query.isError ? <Card className="border-red-400/20 bg-red-400/5"><CardContent className="p-4 text-sm text-red-200">ดึงคิวไม่สำเร็จ: {query.error.message}</CardContent></Card> : null}
-        {query.isLoading ? <Card className="border-white/10 bg-[#111116]"><CardContent className="p-8 text-center text-sm text-slate-500">กำลังอ่านคิวจาก Supabase…</CardContent></Card> : null}
-        {!query.isLoading && !query.isError && rows.length === 0 ? <Card className="border-white/10 bg-[#111116]"><CardContent className="p-10 text-center text-sm text-slate-500">ไม่พบรายการใน View นี้</CardContent></Card> : null}
-
-        <div className="grid gap-4 xl:grid-cols-2">
-          {rows.map((row, index) => <Card key={String(row.id ?? row.parcel_row_id ?? row.tracking_number ?? index)} className="border-white/10 bg-[#111116]">
-            <CardContent className="space-y-4 p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div><p className="font-mono text-lg font-semibold text-cyan-200">{value(row, "tracking_number")}</p><p className="mt-1 text-sm text-slate-300">{value(row, "consignee")}</p></div>
-                <Badge className={statusTone(row.delivery_status)}>{value(row, "delivery_status")}</Badge>
-              </div>
-              <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
-                {displayFields.slice(1).map(([key, label]) => <div key={key} className="min-w-0"><p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">{label}</p><p className="mt-1 break-words text-sm text-slate-200">{value(row, key)}</p></div>)}
-              </div>
-            </CardContent>
-          </Card>)}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap gap-2">
+          <Button
+            onClick={() =>
+              window.open(warpDriveUrl, "_blank", "noopener,noreferrer")
+            }
+            className="bb-send-button"
+          >
+            <FileUp className="mr-2 h-4 w-4" />
+            เปิด WarpDrive โยนไฟล์
+          </Button>
+          <Button
+            onClick={() =>
+              window.open(customerLookupUrl, "_blank", "noopener,noreferrer")
+            }
+            variant="outline"
+            className="border-fuchsia-300/25 text-fuchsia-100"
+          >
+            <ExternalLink className="mr-2 h-4 w-4" />
+            เว็บเช็กเลขลูกค้า
+          </Button>
+          <Button
+            onClick={() => void queueQuery.refetch()}
+            variant="outline"
+            className="border-cyan-300/25 text-cyan-100"
+          >
+            <RefreshCw
+              className={`mr-2 h-4 w-4 ${queueQuery.isFetching ? "animate-spin" : ""}`}
+            />
+            รีเฟรชคิว
+          </Button>
+        </div>
+        <div className="flex w-full max-w-md items-center gap-2 rounded-xl border border-white/10 bg-black/25 px-3">
+          <Search className="h-4 w-4 text-cyan-300" />
+          <input
+            value={search}
+            onChange={event => setSearch(event.target.value)}
+            placeholder="ค้นในคิว: เลข / ชื่อ / เบอร์ / ออเดอร์"
+            className="w-full bg-transparent py-3 text-sm text-white outline-none placeholder:text-white/30"
+          />
         </div>
       </div>
+
+      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {orbitLanes.map(lane => {
+          const meta = orbitMeta(lane);
+          const laneCount = rows.filter(row => orbitLane(row) === lane).length;
+          return (
+            <button key={lane} type="button" onClick={() => setFilter(lane === "sent" ? "sent" : lane === "expired" ? "over24" : "all")} className={`group rounded-2xl border p-4 text-left transition hover:-translate-y-1 hover:shadow-[0_0_28px_rgba(77,218,255,.12)] ${meta.color}`}>
+              <div className="flex items-start justify-between gap-2"><span className="text-xl">{meta.icon}</span><span className="font-mono text-2xl font-black">{laneCount}</span></div>
+              <p className="mt-3 text-[11px] font-bold tracking-[.14em]">{meta.label}</p>
+              <p className="mt-1 text-xs opacity-60">{meta.sub}</p>
+              <div className="mt-3 h-1 overflow-hidden rounded-full bg-white/10"><span className="block h-full w-2/3 rounded-full bg-current opacity-70 transition group-hover:w-full" /></div>
+            </button>
+          );
+        })}
+      </section>
+
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_390px]">
+        <Card className="blackbox-queue overflow-hidden rounded-3xl">
+          <CardHeader className="border-b border-white/5">
+            <CardTitle className="flex items-center gap-2 text-fuchsia-100">
+              <PackageSearch className="h-4 w-4 text-cyan-300" /> PARCEL QUEUE ·{" "}
+              {visibleRows.length}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="max-h-[780px] space-y-3 overflow-auto p-3 sm:p-4">
+            {queueQuery.isLoading ? (
+              <p className="p-12 text-center text-sm text-cyan-100/60">
+                กำลังดึงคิวจากสายส่งเลข…
+              </p>
+            ) : null}
+            {queueQuery.isError ? (
+              <p className="rounded-2xl border border-red-300/25 bg-red-400/5 p-4 text-sm text-red-200">
+                ดึงคิวไม่สำเร็จ: {queueQuery.error.message}
+              </p>
+            ) : null}
+            {!queueQuery.isLoading && visibleRows.length === 0 ? (
+              <div className="flex min-h-56 flex-col items-center justify-center text-center text-white/40">
+                <PackageSearch className="mb-3 h-8 w-8 text-cyan-300/45" />
+                <p>ไม่พบรายการในสถานะนี้</p>
+              </div>
+            ) : null}
+            {visibleRows.map((row, index) => {
+              const key = `${clean(row.tracking_number)}-${index}`;
+              const status = rowStatus(row);
+              const meta = statusMeta(status);
+              const age = ageHours(row);
+              return (
+                <article
+                  key={key}
+                  className="trace-row rounded-2xl border border-cyan-300/10 bg-black/20 p-4 transition hover:border-cyan-300/30"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[10px] uppercase tracking-[0.18em] text-white/35">
+                        FLASH TRACKING
+                      </p>
+                      <p className="mt-1 break-all font-mono text-lg font-bold tracking-wide text-cyan-200">
+                        {clean(row.tracking_number) || "ไม่มีเลขพัสดุ"}
+                      </p>
+                    </div>
+                    <Badge variant="outline" className={meta.className}>
+                      {meta.icon} {meta.label}
+                      {age != null && status !== "sent"
+                        ? ` · ${age.toFixed(1)} ชม.`
+                        : ""}
+                    </Badge>
+                  </div>
+                  <div className="mt-3 grid gap-2 rounded-xl border border-white/5 bg-white/[0.02] p-3 text-sm sm:grid-cols-2">
+                    <p className="text-white/85">
+                      👤 {clean(row.recipient_name) || "ไม่ระบุชื่อผู้รับ"}
+                    </p>
+                    <p className="text-white/70">
+                      📞 {clean(row.matched_phone) || "ไม่ระบุเบอร์"}
+                    </p>
+                    <p className="text-white/60 sm:col-span-2">
+                      🧾{" "}
+                      {clean(row.order_number_display || row.order_number) ||
+                        "ไม่พบเลขออเดอร์"}{" "}
+                      · {clean(row.page_name) || "ไม่ระบุเพจ"}
+                    </p>
+                    <p className="text-white/55 sm:col-span-2">
+                      📅 {clean(row.pickup_date) || "ไม่ระบุวันที่"} · COD{" "}
+                      {formatCod(row.cod_amount)} บาท
+                    </p>
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-2 border-t border-white/5 pt-3">
+                    <Button
+                      onClick={() => setSelected(row)}
+                      className="bb-send-button"
+                    >
+                      ดูข้อความที่จะส่ง
+                    </Button>
+                    <Button
+                      onClick={() => void copyMessage(row)}
+                      variant="outline"
+                      className="border-cyan-300/25 text-cyan-100"
+                    >
+                      {copied === clean(row.tracking_number) ? (
+                        <Check className="mr-2 h-4 w-4" />
+                      ) : (
+                        <Clipboard className="mr-2 h-4 w-4" />
+                      )}
+                      {copied === clean(row.tracking_number)
+                        ? "คัดลอกแล้ว"
+                        : "คัดลอกข้อความ"}
+                    </Button>
+                    <Button
+                      onClick={() =>
+                        window.open(
+                          flashTrackingUrl,
+                          "_blank",
+                          "noopener,noreferrer"
+                        )
+                      }
+                      variant="ghost"
+                      className="text-white/55 hover:text-white"
+                    >
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                      เปิด FLASH
+                    </Button>
+                  </div>
+                </article>
+              );
+            })}
+          </CardContent>
+        </Card>
+
+        <Card className="blackbox-queue rounded-3xl xl:sticky xl:top-4 xl:h-fit">
+          <CardHeader className="flex flex-row items-center justify-between border-b border-white/5">
+            <CardTitle className="text-fuchsia-100">ORDER INSPECTOR</CardTitle>
+            {selected ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setSelected(null)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            ) : null}
+          </CardHeader>
+          <CardContent className="space-y-4 p-4">
+            {!selected ? (
+              <div className="flex min-h-64 flex-col items-center justify-center text-center text-white/35">
+                <PackageSearch className="mb-3 h-9 w-9 text-cyan-300/40" />
+                <p>เลือกเลขพัสดุเพื่อดูข้อความจริง</p>
+                <p className="mt-1 text-xs">
+                  หน้านี้เป็น Preview เท่านั้น การส่งจริงยังคงให้ n8n ทำงาน
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.05] p-4">
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-cyan-200/60">
+                    MESSAGE PREVIEW
+                  </p>
+                  <p className="mt-2 break-all font-mono text-lg font-bold text-cyan-100">
+                    {clean(selected.tracking_number)}
+                  </p>
+                  <p className="mt-1 text-sm text-white/60">
+                    {clean(selected.recipient_name)} ·{" "}
+                    {clean(selected.shipping_carrier) || "FLASH EXPRESS"}
+                  </p>
+                </div>
+                <pre className="max-h-[560px] overflow-auto whitespace-pre-wrap rounded-2xl border border-fuchsia-300/15 bg-black/35 p-4 text-sm leading-7 text-fuchsia-50">
+                  {buildCustomerMessage(selected)}
+                </pre>
+                <div className="rounded-xl border border-amber-300/15 bg-amber-300/[0.04] p-3 text-xs leading-5 text-amber-100/70">
+                  การ์ดนี้ไม่ส่ง Messenger โดยตรง เพื่อป้องกันการยิงซ้ำกับ
+                  ⛩️VOID_xXx_GATEWAYz และ workflow หลัก
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+      <footer className="flex flex-wrap items-center justify-between gap-3 px-2 text-[10px] text-white/25">
+        <span>SHADOW → ROGUE → VOID · public.parcels</span>
+        <span>
+          Page token อยู่ฝั่ง server/n8n เท่านั้น ·{" "}
+          {queueQuery.dataUpdatedAt
+            ? `อัปเดต ${new Date(queueQuery.dataUpdatedAt).toLocaleTimeString("th-TH")}`
+            : "ยังไม่อัปเดต"}
+        </span>
+      </footer>
     </div>
   );
 }
