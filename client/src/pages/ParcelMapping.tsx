@@ -214,8 +214,8 @@ export default function ParcelMapping() {
   }
 
   return (
-    <div className="cosmic-stage blackbox-room min-h-full space-y-5 p-2 text-white sm:p-4 lg:p-6">
-      <header className="blackbox-hero relative overflow-hidden rounded-3xl border border-fuchsia-400/30 p-4 shadow-2xl shadow-fuchsia-950/30 sm:p-5">
+    <div className="cosmic-stage blackbox-room min-h-full space-y-5 bg-[radial-gradient(ellipse_at_12%_0%,rgba(88,28,135,.22),transparent_34%),radial-gradient(ellipse_at_92%_28%,rgba(8,145,178,.14),transparent_32%)] p-2 text-white sm:space-y-6 sm:p-4 lg:p-6">
+      <header className="blackbox-hero relative overflow-hidden rounded-3xl border border-fuchsia-300/45 bg-[radial-gradient(ellipse_at_top_left,rgba(168,85,247,.20),transparent_45%),radial-gradient(ellipse_at_80%_30%,rgba(34,211,238,.15),transparent_38%),linear-gradient(135deg,#090b20,#11112b_55%,#071a2c)] p-4 shadow-[0_0_18px_rgba(217,70,239,.18),0_18px_60px_rgba(2,6,23,.62)] sm:p-6">
         <div className="hero-scanline" />
         <div className="cosmic-corner tl" />
         <div className="cosmic-corner br" />
@@ -235,7 +235,7 @@ export default function ParcelMapping() {
               Messenger ซ้ำกับ workflow หลัก
             </p>
           </div>
-          <div className="bb-clock-panel rounded-2xl border px-4 py-3 text-xs">
+          <div className="bb-clock-panel rounded-2xl border border-cyan-200/35 bg-slate-950/55 px-4 py-3 text-xs text-cyan-50 shadow-[0_0_22px_rgba(34,211,238,.13)] backdrop-blur-md">
             <span className="bb-running-light mr-2 inline-block h-2 w-2 rounded-full" />
             {activeCamp} · PIPELINE LINK ONLINE
           </div>
@@ -243,7 +243,7 @@ export default function ParcelMapping() {
         <div className="signal-ticker relative mt-6">
           <span>SHADOW RECALL // ROGUE MATCH // VOID GATEWAY // TELEGRAM LINK STANDBY // FLASH EXPRESS // TRACKING CAPSULES IN ORBIT //</span>
         </div>
-        <div className="mt-5 grid gap-3 sm:grid-cols-5">
+        <div className="mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-5">
           {filters.map(item => {
             const meta = statusMeta(item);
             return (
@@ -251,12 +251,12 @@ export default function ParcelMapping() {
                 key={item}
                 type="button"
                 onClick={() => setFilter(item)}
-                className={`rounded-2xl border p-3 text-left transition hover:-translate-y-0.5 ${meta.className} ${filter === item ? "animate-pulse ring-2 ring-fuchsia-300/70 shadow-[0_0_24px_rgba(232,121,249,.25)]" : ""}`}
+                className={`rounded-2xl border p-3.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,.07)] transition duration-200 hover:-translate-y-0.5 hover:brightness-125 ${meta.className} ${filter === item ? "ring-2 ring-fuchsia-200/80 shadow-[0_0_10px_rgba(232,121,249,.45),0_0_28px_rgba(34,211,238,.16)]" : ""}`}
               >
-                <p className="flex items-center gap-1.5 text-xs opacity-70">
-                  <span className={filter === item ? "animate-pulse" : ""}>{meta.icon}</span> {meta.label}
+                <p className="flex items-center gap-1.5 text-xs font-semibold opacity-95">
+                  <span>{meta.icon}</span> {meta.label}
                 </p>
-                <p className="mt-2 text-2xl font-black">
+                <p className="mt-2 text-2xl font-black tabular-nums drop-shadow-[0_0_10px_rgba(255,255,255,.22)] sm:text-3xl">
                   {counts[item].toLocaleString("th-TH")}
                 </p>
               </button>
@@ -281,7 +281,7 @@ export default function ParcelMapping() {
               window.open(customerLookupUrl, "_blank", "noopener,noreferrer")
             }
             variant="outline"
-            className="border-fuchsia-300/25 text-fuchsia-100"
+            className="border-fuchsia-200/45 bg-fuchsia-950/25 text-fuchsia-50 shadow-[0_0_14px_rgba(217,70,239,.10)] hover:bg-fuchsia-900/35"
           >
             <ExternalLink className="mr-2 h-4 w-4" />
             เว็บเช็กเลขลูกค้า
@@ -289,7 +289,7 @@ export default function ParcelMapping() {
           <Button
             onClick={() => void queueQuery.refetch()}
             variant="outline"
-            className="border-cyan-300/25 text-cyan-100"
+            className="border-cyan-200/45 bg-cyan-950/25 text-cyan-50 shadow-[0_0_14px_rgba(34,211,238,.10)] hover:bg-cyan-900/35"
           >
             <RefreshCw
               className={`mr-2 h-4 w-4 ${queueQuery.isFetching ? "animate-spin" : ""}`}
@@ -297,13 +297,13 @@ export default function ParcelMapping() {
             รีเฟรชคิว
           </Button>
         </div>
-        <div className="flex w-full max-w-md items-center gap-2 rounded-xl border border-white/10 bg-black/25 px-3">
-          <Search className="h-4 w-4 text-cyan-300" />
+        <div className="flex w-full max-w-md items-center gap-2 rounded-xl border border-cyan-200/30 bg-slate-950/70 px-3 shadow-[inset_0_0_18px_rgba(34,211,238,.06),0_0_20px_rgba(34,211,238,.08)] backdrop-blur-md focus-within:border-cyan-200/65 focus-within:shadow-[0_0_18px_rgba(34,211,238,.16)]">
+          <Search className="h-4 w-4 shrink-0 text-cyan-200 drop-shadow-[0_0_7px_rgba(34,211,238,.8)]" />
           <input
             value={search}
             onChange={event => setSearch(event.target.value)}
             placeholder="ค้นในคิว: เลข / ชื่อ / เบอร์ / ออเดอร์"
-            className="w-full bg-transparent py-3 text-sm text-white outline-none placeholder:text-white/30"
+            className="w-full bg-transparent py-3 text-sm text-white outline-none placeholder:text-slate-300/65"
           />
           {search ? (
             <button type="button" onClick={() => setSearch("")} className="rounded-md p-1 text-white/45 transition hover:bg-white/10 hover:text-white" aria-label="ล้างการค้นหา">
@@ -318,20 +318,20 @@ export default function ParcelMapping() {
           const meta = orbitMeta(lane);
           const laneCount = rows.filter(row => orbitLane(row) === lane).length;
           return (
-            <button key={lane} type="button" onClick={() => setFilter(lane === "sent" ? "sent" : lane === "expired" ? "over24" : "all")} className={`group rounded-2xl border p-4 text-left transition hover:-translate-y-1 hover:shadow-[0_0_28px_rgba(77,218,255,.12)] ${meta.color}`}>
-              <div className="flex items-start justify-between gap-2"><span className="text-xl">{meta.icon}</span><span className="font-mono text-2xl font-black">{laneCount}</span></div>
-              <p className="mt-3 text-[11px] font-bold tracking-[.14em]">{meta.label}</p>
-              <p className="mt-1 text-xs opacity-60">{meta.sub}</p>
-              <div className="mt-3 h-1 overflow-hidden rounded-full bg-white/10"><span className="block h-full w-2/3 rounded-full bg-current opacity-70 transition group-hover:w-full" /></div>
+            <button key={lane} type="button" onClick={() => setFilter(lane === "sent" ? "sent" : lane === "expired" ? "over24" : "all")} className={`group rounded-2xl border p-4 text-left shadow-[inset_0_1px_0_rgba(255,255,255,.08)] transition duration-200 hover:-translate-y-1 hover:brightness-125 hover:shadow-[0_0_28px_rgba(77,218,255,.20)] ${meta.color}`}>
+              <div className="flex items-start justify-between gap-2"><span className="text-xl drop-shadow-[0_0_9px_rgba(255,255,255,.45)]">{meta.icon}</span><span className="font-mono text-3xl font-black tabular-nums drop-shadow-[0_0_10px_rgba(255,255,255,.24)]">{laneCount}</span></div>
+              <p className="mt-3 text-[11px] font-extrabold tracking-[.14em]">{meta.label}</p>
+              <p className="mt-1 text-xs opacity-90">{meta.sub}</p>
+              <div className="mt-3 h-1 overflow-hidden rounded-full bg-white/15"><span className="block h-full w-2/3 rounded-full bg-current opacity-90 transition group-hover:w-full" /></div>
             </button>
           );
         })}
       </section>
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_390px]">
-        <Card className="blackbox-queue overflow-hidden rounded-3xl">
-          <CardHeader className="border-b border-white/5">
-            <CardTitle className="flex items-center gap-2 text-fuchsia-100">
+        <Card className="blackbox-queue overflow-hidden rounded-3xl border border-cyan-200/20 shadow-[0_0_26px_rgba(34,211,238,.08),0_18px_45px_rgba(2,6,23,.42)]">
+          <CardHeader className="border-b border-cyan-200/15 bg-gradient-to-r from-cyan-400/[.08] via-fuchsia-400/[.06] to-transparent">
+            <CardTitle className="flex items-center gap-2 text-fuchsia-50 drop-shadow-[0_0_8px_rgba(232,121,249,.35)]">
               <PackageSearch className="h-4 w-4 text-cyan-300" /> PARCEL QUEUE ·{" "}
               {visibleRows.length}
             </CardTitle>
@@ -361,15 +361,15 @@ export default function ParcelMapping() {
               return (
                 <article
                   key={key}
-                  className="trace-row rounded-2xl border border-cyan-300/10 bg-black/20 p-4 transition hover:border-cyan-300/30"
+                  className="trace-row rounded-2xl border border-cyan-200/20 bg-[linear-gradient(125deg,rgba(8,47,73,.30),rgba(15,23,42,.62)_50%,rgba(76,29,149,.16))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,.055)] transition duration-200 hover:border-cyan-200/50 hover:shadow-[0_0_22px_rgba(34,211,238,.12)]"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
                       <button type="button" onClick={() => void copyValue(row.tracking_number, `tracking:${clean(row.tracking_number)}`)} disabled={!clean(row.tracking_number)} className="group/tracking text-left disabled:cursor-default">
-                        <p className="flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-white/35">
+                        <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-100/65">
                           <span>FLASH TRACKING</span><Clipboard className="h-3 w-3 text-cyan-300/60 transition group-hover/tracking:text-cyan-200" />
                         </p>
-                        <p className="mt-1 break-all font-mono text-lg font-bold tracking-wide text-cyan-200 group-hover/tracking:text-cyan-100">
+                        <p className="mt-1 break-all font-mono text-lg font-bold tracking-wide text-cyan-100 drop-shadow-[0_0_8px_rgba(34,211,238,.30)] group-hover/tracking:text-white sm:text-xl">
                           {clean(row.tracking_number) || "ไม่มีเลขพัสดุ"}
                         </p>
                         {copied === `tracking:${clean(row.tracking_number)}` ? <span className="text-[10px] text-emerald-300">คัดลอกเลขแล้ว</span> : null}
@@ -382,7 +382,7 @@ export default function ParcelMapping() {
                         : ""}
                     </Badge>
                   </div>
-                  <div className="mt-3 grid gap-2 rounded-xl border border-white/5 bg-white/[0.02] p-3 text-sm sm:grid-cols-2">
+                  <div className="mt-3 grid gap-2 rounded-xl border border-white/10 bg-slate-950/45 p-3 text-sm shadow-[inset_0_0_18px_rgba(148,163,184,.035)] sm:grid-cols-2">
                     <p className="text-white/85">
                       👤 {clean(row.recipient_name) || "ไม่ระบุชื่อผู้รับ"}
                     </p>
@@ -405,14 +405,14 @@ export default function ParcelMapping() {
                       ["FACEBOOK TRACKING MESSAGE", row.facebook_tracking_message, "facebook"],
                       ["DRAKSIDE TRACKING MESSAGE", row.drakside_tracking_message, "drakside"],
                     ].map(([label, value, kind]) => clean(value) ? (
-                      <div key={kind} className="rounded-xl border border-fuchsia-300/10 bg-fuchsia-300/[0.03] p-3">
+                      <div key={kind} className="rounded-xl border border-fuchsia-200/25 bg-[linear-gradient(145deg,rgba(112,26,117,.15),rgba(15,23,42,.46))] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,.05)]">
                         <div className="mb-2 flex items-center justify-between gap-2">
-                          <p className="text-[10px] font-bold tracking-[0.14em] text-fuchsia-200/60">{label}</p>
+                          <p className="text-[10px] font-bold tracking-[0.14em] text-fuchsia-100/85">{label}</p>
                           <button type="button" onClick={() => void copyValue(value, `${kind}:${clean(row.tracking_number)}`)} className="rounded-md p-1 text-fuchsia-200/60 transition hover:bg-fuchsia-200/10 hover:text-fuchsia-100" aria-label={`คัดลอก ${label}`}>
                             {copied === `${kind}:${clean(row.tracking_number)}` ? <Check className="h-3.5 w-3.5 text-emerald-300" /> : <Clipboard className="h-3.5 w-3.5" />}
                           </button>
                         </div>
-                        <pre className="max-h-40 overflow-auto whitespace-pre-wrap text-xs leading-5 text-fuchsia-50/80">{clean(value)}</pre>
+                        <pre className="max-h-40 overflow-auto whitespace-pre-wrap text-xs leading-5 text-fuchsia-50">{clean(value)}</pre>
                       </div>
                     ) : null)}
                   </div>
@@ -421,14 +421,14 @@ export default function ParcelMapping() {
                       {copied === `facebook:${clean(row.tracking_number)}` ? <Check className="mr-2 h-4 w-4" /> : <Clipboard className="mr-2 h-4 w-4" />}
                       {copied === `facebook:${clean(row.tracking_number)}` ? "Facebook คัดลอกแล้ว" : "Facebook ข้อความ"}
                     </Button>
-                    <Button onClick={() => void copyValue(row.drakside_tracking_message, `drakside:${clean(row.tracking_number)}`)} disabled={!clean(row.drakside_tracking_message)} variant="outline" className="border-fuchsia-300/25 text-fuchsia-100">
+                    <Button onClick={() => void copyValue(row.drakside_tracking_message, `drakside:${clean(row.tracking_number)}`)} disabled={!clean(row.drakside_tracking_message)} variant="outline" className="border-fuchsia-200/45 bg-fuchsia-950/20 text-fuchsia-50 hover:bg-fuchsia-900/35">
                       {copied === `drakside:${clean(row.tracking_number)}` ? <Check className="mr-2 h-4 w-4" /> : <Clipboard className="mr-2 h-4 w-4" />}
                       {copied === `drakside:${clean(row.tracking_number)}` ? "Drakside คัดลอกแล้ว" : "Drakside ข้อความ"}
                     </Button>
                     <Button
                       onClick={() => void copyMessage(row)}
                       variant="outline"
-                      className="border-cyan-300/25 text-cyan-100"
+                      className="border-cyan-200/45 bg-cyan-950/20 text-cyan-50 hover:bg-cyan-900/35"
                     >
                       {copied === `message:${clean(row.tracking_number)}` ? (
                         <Check className="mr-2 h-4 w-4" />
@@ -448,7 +448,7 @@ export default function ParcelMapping() {
                         )
                       }
                       variant="ghost"
-                      className="text-white/55 hover:text-white"
+                      className="text-slate-200/80 hover:bg-white/10 hover:text-white"
                     >
                       <ExternalLink className="mr-2 h-4 w-4" />
                       เปิด FLASH
@@ -460,9 +460,9 @@ export default function ParcelMapping() {
           </CardContent>
         </Card>
 
-        <Card className="blackbox-queue rounded-3xl xl:sticky xl:top-4 xl:h-fit">
-          <CardHeader className="flex flex-row items-center justify-between border-b border-white/5">
-            <CardTitle className="text-fuchsia-100">ORDER INSPECTOR</CardTitle>
+        <Card className="blackbox-queue rounded-3xl border border-fuchsia-200/20 shadow-[0_0_26px_rgba(217,70,239,.08),0_18px_45px_rgba(2,6,23,.42)] xl:sticky xl:top-4 xl:h-fit">
+          <CardHeader className="flex flex-row items-center justify-between border-b border-fuchsia-200/15 bg-gradient-to-r from-fuchsia-400/[.09] via-cyan-400/[.04] to-transparent">
+            <CardTitle className="text-fuchsia-50 drop-shadow-[0_0_8px_rgba(232,121,249,.35)]">ORDER INSPECTOR</CardTitle>
             {selected ? (
               <Button
                 variant="ghost"
@@ -484,11 +484,11 @@ export default function ParcelMapping() {
               </div>
             ) : (
               <>
-                <div className="rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.05] p-4">
-                  <p className="text-[10px] uppercase tracking-[0.18em] text-cyan-200/60">
+                <div className="rounded-2xl border border-cyan-200/35 bg-[linear-gradient(135deg,rgba(8,145,178,.13),rgba(15,23,42,.48)_62%,rgba(126,34,206,.12))] p-4 shadow-[0_0_20px_rgba(34,211,238,.08)]">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-100/85">
                     MESSAGE PREVIEW
                   </p>
-                  <p className="mt-2 break-all font-mono text-lg font-bold text-cyan-100">
+                  <p className="mt-2 break-all font-mono text-lg font-bold text-cyan-50 drop-shadow-[0_0_8px_rgba(34,211,238,.28)]">
                     {clean(selected.tracking_number)}
                   </p>
                   <p className="mt-1 text-sm text-white/60">
@@ -502,8 +502,8 @@ export default function ParcelMapping() {
                     ["drakside_tracking_message", selected.drakside_tracking_message],
                   ].map(([label, value]) => clean(value) ? (
                     <div key={label}>
-                      <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-fuchsia-200/60">{label}</p>
-                      <pre className="max-h-[360px] overflow-auto whitespace-pre-wrap rounded-2xl border border-fuchsia-300/15 bg-black/35 p-4 text-sm leading-7 text-fuchsia-50">{clean(value)}</pre>
+                      <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-fuchsia-100/85">{label}</p>
+                      <pre className="max-h-[360px] overflow-auto whitespace-pre-wrap rounded-2xl border border-fuchsia-200/25 bg-slate-950/65 p-4 text-sm leading-7 text-fuchsia-50 shadow-[inset_0_0_18px_rgba(217,70,239,.06)]">{clean(value)}</pre>
                     </div>
                   ) : null)}
                   {!clean(selected.facebook_tracking_message) && !clean(selected.drakside_tracking_message) ? (
@@ -519,7 +519,7 @@ export default function ParcelMapping() {
           </CardContent>
         </Card>
       </div>
-      <footer className="flex flex-wrap items-center justify-between gap-3 px-2 text-[10px] text-white/25">
+      <footer className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/[.07] bg-slate-950/25 px-3 py-2 text-[10px] text-slate-300/65">
         <span>🔮 SHADOW → 🦅 ROGUE → ⛩️ VOID · n8n-owned tracking pipeline</span>
         <span>
           Page token อยู่ฝั่ง server/n8n เท่านั้น ·{" "}
