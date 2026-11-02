@@ -3,8 +3,8 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 export type MetaAttachment = { type: string; url?: string; payload?: Record<string, unknown> };
 
 async function pageToken(pageId: string) {
-  const supabaseUrl = process.env.SUPABASE_URL?.replace(/\/$/, "");
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseUrl = (process.env.TRACKING_SUPABASE_URL || process.env.SUPABASE_URL)?.replace(/\/$/, "");
+  const serviceRoleKey = process.env.TRACKING_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (supabaseUrl && serviceRoleKey) {
     const params = new URLSearchParams({ select: "page_id,page_name,access_token", page_id: `eq.${pageId}`, limit: "1" });
     const response = await fetch(`${supabaseUrl}/rest/v1/page_tokens_vault?${params}`, { headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` } });

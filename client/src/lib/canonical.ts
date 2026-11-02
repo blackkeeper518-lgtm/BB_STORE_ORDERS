@@ -13,41 +13,53 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 const CONFIG_KEY = "bb-supabase-config";
+const TRACKING_CONFIG_KEY = "bb-tracking-supabase-config";
 export type Camp = "BB";
+export type SupabaseProject = "main" | "tracking";
 const DEPLOYMENT_CAMP: Camp = "BB";
 export type SupabaseConfig = { url: string; anonKey: string; orderTable?: string };
-// ค่า Render เป็นแหล่งหลักให้ทุกเครื่องใช้ฐานเดียวกัน; localStorage เป็น fallback เฉพาะ dev/local
-// ห้ามใส่ service_role/secret key ในตัวแปรฝั่งเว็บ ใช้เฉพาะ Anon/Publishable Key
+// Browser connections use public Anon/Publishable keys only; never store service-role keys here.
 const DEPLOYMENT_SUPABASE_URL = String(import.meta.env.VITE_SUPABASE_URL ?? "").trim().replace(/\/$/, "");
 const DEPLOYMENT_SUPABASE_ANON_KEY = String(import.meta.env.VITE_SUPABASE_ANON_KEY ?? "").trim();
-let client: SupabaseClient | null = null;
-let clientSignature = "";
+const DEPLOYMENT_TRACKING_URL = String(import.meta.env.VITE_TRACKING_SUPABASE_URL ?? "").trim().replace(/\/$/, "");
+const DEPLOYMENT_TRACKING_ANON_KEY = String(import.meta.env.VITE_TRACKING_SUPABASE_ANON_KEY ?? "").trim();
+const clients: Partial<Record<SupabaseProject, SupabaseClient>> = {};
+const clientSignatures: Partial<Record<SupabaseProject, string>> = {};
 export function getActiveCamp(): Camp { return DEPLOYMENT_CAMP; }
-export function setActiveCamp(_camp: Camp) { client = null; clientSignature = ""; }
-function profileKey(_camp: Camp) { return CONFIG_KEY; }
-export function getSupabaseConfig(camp: Camp = getActiveCamp()): SupabaseConfig | null {
-  // Secret Gallery is the deliberate per-browser connection selector.
-  // A saved connection must win over deployment defaults so rooms are not fixed
-  // to the server's project when the operator chooses another project.
+export function setActiveCamp(_camp: Camp) { for (const project of ["main", "tracking"] as const) { delete clients[project]; delete clientSignatures[project]; } }
+function profileKey(_camp: Camp, project: SupabaseProject) { return project === "tracking" ? TRACKING_CONFIG_KEY : CONFIG_KEY; }
+export function getSupabaseConfig(camp: Camp = getActiveCamp(), project: SupabaseProject = "main"): SupabaseConfig | null {
   try {
-    const raw = localStorage.getItem(profileKey(camp));
+    const raw = localStorage.getItem(profileKey(camp, project));
     if (raw) {
       const value = JSON.parse(raw) as Partial<SupabaseConfig>;
-      if (value.url && value.anonKey) {
-        return { url: value.url.replace(/\/$/, ""), anonKey: value.anonKey, orderTable: defaultOrderView(camp) };
-      }
+      if (value.url && value.anonKey) return { url: value.url.replace(/\/$/, ""), anonKey: value.anonKey, orderTable: project === "main" ? defaultOrderView(camp) : undefined };
     }
-  } catch { /* ถ้าค่าใน browser เสีย ให้ลองใช้ค่ากลางของ Deployment */ }
-  if (DEPLOYMENT_SUPABASE_URL && DEPLOYMENT_SUPABASE_ANON_KEY) {
-    return { url: DEPLOYMENT_SUPABASE_URL, anonKey: DEPLOYMENT_SUPABASE_ANON_KEY, orderTable: defaultOrderView(camp) };
-  }
-  return null;
+  } catch { /* invalid local value; try deployment defaults */ }
+  const url = project === "tracking" ? DEPLOYMENT_TRACKING_URL : DEPLOYMENT_SUPABASE_URL;
+  const anonKey = project === "tracking" ? DEPLOYMENT_TRACKING_ANON_KEY : DEPLOYMENT_SUPABASE_ANON_KEY;
+  return url && anonKey ? { url, anonKey, orderTable: project === "main" ? defaultOrderView(camp) : undefined } : null;
 }
-export function saveSupabaseConfig(config: SupabaseConfig, camp: Camp = getActiveCamp()) { const clean = { url: config.url.trim().replace(/\/$/, ""), anonKey: config.anonKey.trim(), orderTable: defaultOrderView(camp) }; localStorage.setItem(profileKey(camp), JSON.stringify(clean)); client = null; clientSignature = ""; }
-export function clearSupabaseConfig(camp: Camp = getActiveCamp()) { localStorage.removeItem(profileKey(camp)); client = null; clientSignature = ""; }
-export function getSupabase() { const config = getSupabaseConfig(); if (!config) return null; const signature = `${getActiveCamp()}|${config.url}|${config.anonKey}`; if (!client || signature !== clientSignature) { client = createClient(config.url, config.anonKey); clientSignature = signature; } return client; }
+export function saveSupabaseConfig(config: SupabaseConfig, camp: Camp = getActiveCamp(), project: SupabaseProject = "main") {
+  const clean = { url: config.url.trim().replace(/\/$/, ""), anonKey: config.anonKey.trim(), ...(project === "main" ? { orderTable: defaultOrderView(camp) } : {}) };
+  localStorage.setItem(profileKey(camp, project), JSON.stringify(clean));
+  delete clients[project]; delete clientSignatures[project];
+}
+export function clearSupabaseConfig(camp: Camp = getActiveCamp(), project: SupabaseProject = "main") {
+  localStorage.removeItem(profileKey(camp, project)); delete clients[project]; delete clientSignatures[project];
+}
+export function getSupabase(project: SupabaseProject = "main") {
+  const config = getSupabaseConfig(getActiveCamp(), project);
+  if (!config) return null;
+  const signature = `${getActiveCamp()}|${config.url}|${config.anonKey}`;
+  if (!clients[project] || signature !== clientSignatures[project]) {
+    clients[project] = createClient(config.url, config.anonKey);
+    clientSignatures[project] = signature;
+  }
+  return clients[project] ?? null;
+}
 export function subscribeToChatMessages(onChange: () => void) {
-  const api = getSupabase();
+  const api = getSupabase("tracking");
   if (!api) return () => undefined;
   const channel = api
     .channel(`chat-live-${getActiveCamp().toLowerCase()}`)
@@ -244,8 +256,32 @@ const HERMES_WEB_ORDER_COLUMNS = [
   "customer_product_current",
   "customer_product_previous",
   "source_table",
-  "stock_notice"
-].join(","); 
+  "stock_notice",
+  "order_number_display",
+  "full_address",
+  "final_address_for_bill",
+  "address_fibo_selected_clean",
+  "is_ready_to_pack",
+  "send_eligible",
+  "telegram_bill_send_eligible",
+  "telegram_status",
+  "delivery_state",
+  "delivery_status",
+  "telegram_sent",
+  "telegram_sent_at",
+  "sent_at",
+  "life_status",
+  "status_color",
+  "routing_tag",
+  "product_mapping_status",
+  "mapping_status",
+  "telegram_message_for_send_final",
+  "customer_change_summary",
+  "raw_text",
+  "recipient_id",
+  "expected_cod",
+  "telegram_bill_header"
+].join(",");
 
 function parseJsonRecord(value: unknown): Record<string, any> {
   if (value && typeof value === "object" && !Array.isArray(value)) return value as Record<string, any>;
@@ -332,19 +368,10 @@ export async function readCanonicalOrders(search = "", since: string | null = nu
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
 
   const limit = ORDER_OPERATIONAL_LIMIT;
-  let ordersResult = await api.from(defaultOrderView("BB"))
+  const ordersResult = await api.from("🗝️HERMES_ARCHIVE")
     .select(HERMES_WEB_ORDER_COLUMNS)
     .order("order_time_display", { ascending: false })
     .limit(limit);
-  // บาง deployment ไม่มีชื่อโต๊ะ HERMES ใน schema cache แล้ว แต่ยังมี
-  // canonical_orders ซึ่งเป็น projection เดียวกันสำหรับหน้าเว็บอ่าน
-  if (ordersResult.error) {
-    const fallback = await api.from("canonical_orders")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(limit);
-    if (!fallback.error) ordersResult = fallback;
-  }
   const masterResult = await api.from("🛒product_master").select("*").limit(1500);
   if (ordersResult.error) fail(ordersResult.error);
 
@@ -394,24 +421,24 @@ export async function readCanonicalOrders(search = "", since: string | null = nu
       return (!fromKey || (dateKey && dateKey >= fromKey)) && (!untilKey || (dateKey && dateKey <= untilKey));
     });
   orders.sort((a, b) => displayOrderSortKey(b.order_time_display) - displayOrderSortKey(a.order_time_display));
-  return { orders, itemError: null, sourceTable: defaultOrderView("BB"), fetchedAt: new Date().toISOString(), since };
+  return { orders, itemError: null, sourceTable: "🗝️HERMES_ARCHIVE", fetchedAt: new Date().toISOString(), since };
 }
 export async function readTelegramDeliveryOrders(search = "", room: "queue" | "today" | "yesterday_after_14" | "sent" = "queue") {
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
 
   const { data, error } = await api
-    .from(defaultOrderView("BB"))
-    .select(HERMES_WEB_ORDER_COLUMNS)
+    .from("🌌MULTIVERSE_xXx_NEXUS")
+    .select("*")
     .order("order_time_display", { ascending: false })
     .limit(ORDER_OPERATIONAL_LIMIT);
   if (error) fail(error);
   const query = search.trim().toLowerCase();
   const allOrders = (data ?? [])
-    .map((row: any) => ({ ...normalizeBbDirectRow(row), source_table: defaultOrderView("BB") }) as CanonicalOrder)
+    .map((row: any) => ({ ...normalizeBbDirectRow(row), source_table: "🌌MULTIVERSE_xXx_NEXUS" }) as CanonicalOrder)
     .filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query));
   const orders = allOrders.sort((a, b) => displayOrderSortKey(b.order_time_display) - displayOrderSortKey(a.order_time_display));
-  return { orders, itemError: null, sourceTable: defaultOrderView("BB"), fetchedAt: new Date().toISOString(), room };
+  return { orders, itemError: null, sourceTable: "🌌MULTIVERSE_xXx_NEXUS", fetchedAt: new Date().toISOString(), room };
 }
 
 export async function readBbOrderEvidence(upsertKey: string) {
@@ -447,12 +474,45 @@ export async function readBbOrderEvidenceBatch(upsertKeys: string[]) {
 export async function readBbAlertRoom(search = "") {
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  const { data, error } = await api.from("vw_bb_order_alert_room_v1").select("*").limit(2000);
+  const { data, error } = await api.from("🌀SINGULARITY_xXx_EXCHANGE").select("*").limit(2000);
   if (error) fail(error);
   const query = search.trim().toLowerCase();
-  return (data ?? [])
+  const rows = (data ?? []).map((row: any) => {
+    const changes = [
+      ["สินค้า", row.customer_product_change_detected, row.customer_product_previous, row.customer_product_current],
+      ["สี", row.customer_color_change_detected, row.customer_color_previous, row.customer_color_current],
+      ["จำนวน", row.customer_quantity_change_detected, row.customer_quantity_previous, row.customer_quantity_current],
+      ["ขนส่ง", row.customer_carrier_change_detected, row.customer_carrier_previous, row.customer_carrier_current],
+      ["ที่อยู่", row.customer_address_change_detected, row.customer_address_previous, row.customer_address_current],
+      ["เบอร์", row.customer_phone_change_detected, row.customer_phone_previous, row.customer_phone_current],
+      ["ชื่อ", row.customer_name_change_detected, row.customer_name_previous, row.customer_name_current],
+      ["COD", row.customer_cod_change_detected, row.customer_cod_previous, row.customer_cod_current],
+    ].filter(([, detected, before, after]) => asBoolean(detected) || (String(before ?? "").trim() && String(after ?? "").trim()));
+    const stamp = row.customer_change_current_time || row.order_time;
+    const changeText = firstText(row.customer_change_summary, row.customer_change_admin_footer_text, row.telegram_change_alert);
+    return {
+      ...row,
+      id: row.upsert_key,
+      person_key: row.phone || row.customer_id || row.threadId,
+      alert_status: "PRODUCT_CHANGE_HISTORY",
+      customer_bill_count: row.currentThreadTotalBills || 1,
+      cod_value: row.cod_amount,
+      customer_cod_total: null,
+      is_bot_summary: false,
+      duplicate_signature_count: 1,
+      changed_from: changes.map(([label, , before]) => `${label}: ${String(before || "เดิม")}`).join("\n"),
+      changed_to: changes.map(([label, , , after]) => `${label}: ${String(after || "ใหม่")}`).join("\n"),
+      change_decision_minutes: row.change_decision_minutes,
+      last_chat_at: stamp,
+      last_chat_text: changeText || changes.map(([label]) => `${label}มีการเปลี่ยนแปลง`).join(" · "),
+      chat_message_count: 0,
+      telegram_actual_bill: row.telegram_message_for_send_final || row.telegram_message || row.telegram_main_bill || row.telegram_copy_text,
+      telegram_send_status: row.telegram_status || row.delivery_status || row.telegram_sent,
+    };
+  }).filter((row: any) => row.changed_from || row.changed_to || asBoolean(row.customer_change_detected));
+  return rows
     .filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query))
-    .sort((a: any, b: any) => String(b.order_time_display ?? "").localeCompare(String(a.order_time_display ?? "")));
+    .sort((a: any, b: any) => String(b.order_time_display || b.order_time || "").localeCompare(String(a.order_time_display || a.order_time || "")));
 }
 
 export async function updateBbOrder(upsertKey: string | number, patch: Record<string, unknown>) {
@@ -573,8 +633,8 @@ export async function readDailyOrders(date: string, search = "") {
   return { ...result, orders };
 }
 async function readChatRows() {
-  const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
+  const api = getSupabase("tracking");
+  if (!api) fail({ message: "ยังไม่ได้เชื่อม Tracking & Messenger: ไปที่ /secret-gallery แล้วกรอก URL และ Anon Key" });
   // Read the newest window first. Ascending + limit would permanently return
   // the oldest rows once a chat table grows beyond the limit.
   const cutoff = chatHistoryCutoff();
@@ -658,8 +718,8 @@ export async function readChatThreads() {
 export async function readChatMessages(pageId: string, threadId: string) { const rows = await readChatRows(); return rows.filter(row => String(row.page_id) === String(pageId) && String(row._thread) === String(threadId)).map((row: any) => ({ id: row.id, text: row._text || (row._hasAttachment ? "ส่งรูปภาพ" : ""), message_text: row._text, direction: row._speaker === "page" ? "outbound" : "inbound", senderType: row._speaker, senderName: row._name, side: row._side, occurredAt: row._occurred || row.occurred_at || row.synced_at, attachmentsJson: JSON.stringify(row.attachments_json || []), imageUrls: row.image_urls || [] })); }
 export type CloseJobCase = { id: string; page_id: string; page_name: string; conversation_key: string; customer_id: string; customer_name: string; speaker_type: string; occurred_at: string; message_text: string; case_type: string; area: string; branch: string; carrier_employee: string; tracking_number: string; order_number: string };
 export async function readCloseJobCases(limit = 10000): Promise<CloseJobCase[]> {
-  const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /secret-gallery/connect แล้วบันทึก URL กับ Anon/Publishable Key" });
+  const api = getSupabase("tracking");
+  if (!api) fail({ message: "ยังไม่ได้เชื่อม Tracking & Messenger: ไปที่ /secret-gallery แล้วบันทึก URL กับ Anon/Publishable Key" });
   const [casesResult, notesResult] = await Promise.all([
     api.from("vw_bb_close_job_cases").select("*").order("occurred_at", { ascending: false }).limit(Math.max(1, Math.min(limit, 10000))),
     api.from("bb_delivery_case_notes").select("case_id,branch,carrier_employee,area"),
@@ -678,8 +738,8 @@ export async function readCloseJobCases(limit = 10000): Promise<CloseJobCase[]> 
   });
 }
 export async function saveCloseJobCaseFields(input: { caseId: string; branch: string; carrierEmployee: string; area: string }) {
-  const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /secret-gallery/connect แล้วบันทึก URL กับ Anon/Publishable Key" });
+  const api = getSupabase("tracking");
+  if (!api) fail({ message: "ยังไม่ได้เชื่อม Tracking & Messenger: ไปที่ /secret-gallery แล้วบันทึก URL กับ Anon/Publishable Key" });
   const { error } = await api.from("bb_delivery_case_notes").upsert({
     case_id: input.caseId,
     branch: input.branch.trim(),
@@ -691,8 +751,8 @@ export async function saveCloseJobCaseFields(input: { caseId: string; branch: st
   return { ok: true };
 }
 export async function readParcelMappingQueue(status: "all" | "sent" = "all", limit = 300) {
-  const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /secret-gallery/connect แล้วบันทึก URL กับ Anon/Publishable Key" });
+  const api = getSupabase("tracking");
+  if (!api) fail({ message: "ยังไม่ได้เชื่อม Tracking & Messenger: ไปที่ /secret-gallery แล้วบันทึก URL กับ Anon/Publishable Key" });
   const safeLimit = Math.max(1, Math.min(limit, 500));
   const activeData = status === "sent" ? { data: [], error: null } : (await api.from("🦅ROGUE_xXx_SHIPPINGz").select("*").limit(safeLimit));
   if ("error" in activeData && activeData.error) fail(activeData.error);

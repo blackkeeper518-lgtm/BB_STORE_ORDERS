@@ -7,7 +7,6 @@ import DashboardLayout from "./components/DashboardLayout";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import OrderControl from "./pages/OrderControl";
 import ChatHub from "./pages/ChatHub";
-import ProductAliases from "./pages/ProductAliases";
 import OrderPerformance from "./pages/OrderPerformance";
 import StockRoom from "./pages/StockRoom";
 import MappingDashboard from "./pages/MappingDashboard";
@@ -39,7 +38,7 @@ function Router() {
     <Route path="/product-alien-map"><Shell><ProductAlienMap /></Shell></Route>
     <Route path="/telegram-delivery"><Shell><TelegramDeliveryRoom /></Shell></Route>
     <Route path="/alert-room"><Shell><AlertRoom /></Shell></Route>
-    <Route path="/aliases"><Shell><ProductAliases /></Shell></Route>
+    <Route path="/aliases"><Redirect to="/close-job-history" /></Route>
     <Route path="/order-performance"><Shell><OrderPerformance /></Shell></Route>
     <Route path="/stock-room"><Shell><StockRoom /></Shell></Route>
     <Route path="/mapping-dashboard"><Shell><MappingDashboard /></Shell></Route>

@@ -6,6 +6,7 @@ import {
   Clipboard,
   ClipboardCopy,
   Code2,
+  Database,
   FileCode2,
   FilePlus2,
   FolderArchive,
@@ -35,6 +36,7 @@ import "prismjs/components/prism-java";
 import "prismjs/components/prism-markdown";
 import ConnectSupabase from "./ConnectSupabase";
 import {
+  clearSupabaseConfig,
   getActiveCamp,
   getSupabase,
   getSupabaseConfig,
@@ -100,14 +102,14 @@ export default function SecretGallery() {
   const connection = getSupabaseConfig(camp);
   const [supabaseUrl, setSupabaseUrl] = useState(connection?.url || "");
   const [supabaseKey, setSupabaseKey] = useState(connection?.anonKey || "");
-  const savedOrderTable = connection?.orderTable;
-  const [orderTable, setOrderTable] = useState(
-    !savedOrderTable || ["bb_orders", "vw_bb_orders_all_v2"].includes(savedOrderTable)
-      ? "🗝️HERMES_ARCHIVE"
-      : savedOrderTable
-  );
+  const [orderTable, setOrderTable] = useState("🗝️HERMES_ARCHIVE");
   const [connectionMessage, setConnectionMessage] = useState("");
   const [connectionBusy, setConnectionBusy] = useState(false);
+  const trackingConnection = getSupabaseConfig(camp, "tracking");
+  const [trackingUrl, setTrackingUrl] = useState(trackingConnection?.url || "");
+  const [trackingKey, setTrackingKey] = useState(trackingConnection?.anonKey || "");
+  const [trackingMessage, setTrackingMessage] = useState(trackingConnection ? "ตั้งค่าไว้ในเครื่องนี้แล้ว" : "");
+  const [trackingBusy, setTrackingBusy] = useState(false);
   const [docs, setDocs] = useState<VaultDoc[]>(() => readLocal(DOCS_KEY, []));
   const [images, setImages] = useState<GalleryItem[]>(() =>
     readLocal(IMAGES_KEY, [])
@@ -231,6 +233,35 @@ export default function SecretGallery() {
     } finally {
       setConnectionBusy(false);
     }
+  };
+  const saveTrackingConnection = async () => {
+    setTrackingBusy(true);
+    setTrackingMessage("");
+    try {
+      const url = trackingUrl.trim().replace(/\/$/, "");
+      const anonKey = trackingKey.trim();
+      if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url)) throw new Error("URL โปรเจกต์ Tracking ไม่ถูกต้อง");
+      if (!anonKey) throw new Error("กรุณาใส่ Anon/Publishable Key ของ Tracking");
+      if (/service_role|secret/i.test(anonKey)) throw new Error("ห้ามใส่ service-role หรือ secret key ในหน้าเว็บ");
+      saveSupabaseConfig({ url, anonKey }, camp, "tracking");
+      const api = getSupabase("tracking");
+      if (!api) throw new Error("สร้าง Tracking Supabase client ไม่สำเร็จ");
+      const relations = ["parcels", "chat_customer_messages", "chat_page_messages", "🦅ROGUE_xXx_SHIPPINGz"];
+      const results = await Promise.all(relations.map(async relation => ({ relation, error: (await api.from(relation).select("*", { count: "exact", head: true })).error })));
+      const failed = results.find(result => result.error);
+      if (failed?.error) throw new Error(`${failed.relation}: ${failed.error.message}`);
+      setTrackingMessage(`เชื่อมแล้ว · อ่านผ่าน ${relations.length} จุด`);
+    } catch (e) {
+      setTrackingMessage(e instanceof Error ? e.message : String(e));
+    } finally {
+      setTrackingBusy(false);
+    }
+  };
+  const clearTrackingConnection = () => {
+    clearSupabaseConfig(camp, "tracking");
+    setTrackingUrl("");
+    setTrackingKey("");
+    setTrackingMessage("ล้าง connection Tracking ออกจากเครื่องนี้แล้ว");
   };
   const login = () => {
     if (password === ROOM_PASSWORD) {
@@ -511,7 +542,7 @@ export default function SecretGallery() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-sm text-white">
               <LockKeyhole className="h-4 w-4 text-cyan-300" />
-              การเชื่อมต่อฐาน BB · ใส่ครั้งเดียว
+              MAIN ORDER · HERMES / MULTIVERSE / SINGULARITY
             </CardTitle>
           </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-3">
@@ -544,6 +575,22 @@ export default function SecretGallery() {
               </Button>
               <span className="text-xs text-white/50">{connectionMessage}</span>
             </div>
+          </CardContent>
+        </Card>
+        <Card className="relative overflow-hidden rounded-3xl border-cyan-300/35 bg-[radial-gradient(ellipse_at_top_right,rgba(34,211,238,.18),transparent_42%),linear-gradient(135deg,rgba(12,20,42,.96),rgba(21,10,35,.96))] shadow-[0_0_34px_rgba(34,211,238,.16)]">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-sm text-cyan-100"><Database className="h-4 w-4 text-cyan-300" />TRACKING & MESSENGER · โปรเจกต์ที่สอง</CardTitle>
+            <p className="text-xs leading-5 text-cyan-100/65">ใช้กับห้องแชท พัสดุ และประวัติปิดงาน · เก็บแยกจากฐานออเดอร์ในเบราว์เซอร์เครื่องนี้</p>
+          </CardHeader>
+          <CardContent className="grid gap-3 md:grid-cols-2">
+            <label className="grid gap-1 text-[11px] text-cyan-100/70">TRACKING SUPABASE URL<Input value={trackingUrl} onChange={event => setTrackingUrl(event.target.value)} placeholder="https://tracking-project.supabase.co" className="border-cyan-300/25 bg-black/35 text-white placeholder:text-cyan-100/30" /></label>
+            <label className="grid gap-1 text-[11px] text-cyan-100/70">TRACKING ANON / PUBLISHABLE KEY<Input type="password" value={trackingKey} onChange={event => setTrackingKey(event.target.value)} placeholder="sb_publishable_… หรือ anon key" className="border-cyan-300/25 bg-black/35 font-mono text-white placeholder:text-cyan-100/30" /></label>
+            <div className="flex flex-wrap items-center gap-2 md:col-span-2">
+              <Button type="button" onClick={() => void saveTrackingConnection()} disabled={trackingBusy} className="bg-gradient-to-r from-cyan-500 via-blue-500 to-fuchsia-600 text-[#07111f] shadow-[0_0_18px_rgba(34,211,238,.28)] hover:brightness-110">{trackingBusy ? "กำลังตรวจ…" : "บันทึกและทดสอบ Tracking"}</Button>
+              <Button type="button" variant="outline" onClick={clearTrackingConnection} className="border-cyan-300/25 bg-black/20 text-cyan-100 hover:bg-cyan-300/10">ล้างช่อง Tracking</Button>
+              <span className="text-xs text-cyan-100/70">{trackingMessage}</span>
+            </div>
+            <p className="text-[10px] leading-4 text-cyan-100/45 md:col-span-2">ใส่เฉพาะ Anon/Publishable Key เท่านั้น · ห้ามใส่ service-role, secret key, Page Token หรือ Gateway Token ในช่องนี้</p>
           </CardContent>
         </Card>
         <Card className="neon-card rounded-3xl border-fuchsia-400/20 bg-black/20">
