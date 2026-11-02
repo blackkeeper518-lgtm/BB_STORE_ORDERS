@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useIsMobile } from "@/hooks/useMobile";
-import { getActiveCamp, readChatMessages, readChatThreads, readParcelMappingQueue, subscribeToChatMessages } from "@/lib/canonical";
+import { readChatMessages, readChatThreads, subscribeToChatMessages } from "@/lib/canonical";
 import { useQuery } from "@tanstack/react-query";
 import { trpc } from "@/lib/trpc";
 import { Check, CheckCircle2, ChevronDown, CircleUserRound, Clipboard, ImagePlus, LoaderCircle, MessageCircle, RefreshCw, Search, Send, Sparkles, Users, X } from "lucide-react";
@@ -119,11 +119,6 @@ export default function ChatHub() {
   const selectedThreadId = selected?.threadId ?? "";
   const selectedCustomerId = selected?.customerId ?? "";
   const messagesQuery = useQuery({ queryKey: ["canonical-chat-messages", selectedPageId, selectedThreadId], queryFn: () => readChatMessages(selectedPageId, selectedThreadId), enabled: Boolean(selectedPageId && selectedThreadId), refetchInterval: 5_000 });
-  const trackingQueueQuery = useQuery({
-    queryKey: ["parcel-mapping-queue", getActiveCamp()],
-    queryFn: () => readParcelMappingQueue("all", 500),
-    staleTime: 15_000,
-  });
   useEffect(() => {
     const unsubscribe = subscribeToChatMessages(() => {
       void threadsQuery.refetch();
@@ -147,14 +142,18 @@ export default function ChatHub() {
   }, [messagesQuery.data, selectedPageId, selectedThreadId]);
   const linkedOrders = selected?.orders ?? [];
   const selectedTrackingRows = useMemo(() => {
-    const orderNumbers = new Set(linkedOrders.flatMap((order: any) => [order.order_number, order.order_number_display, order.upsert_key].map(value => String(value ?? "").trim()).filter(Boolean)));
-    return ((trackingQueueQuery.data ?? []) as Array<Record<string, any>>).filter(row => {
-      const samePage = !row.page_id || !selectedPageId || String(row.page_id) === String(selectedPageId);
-      const sameCustomer = !row.customer_id || !selectedCustomerId || String(row.customer_id) === String(selectedCustomerId);
-      const sameOrder = orderNumbers.size > 0 && [row.order_number, row.order_number_display, row.upsert_key].some(value => orderNumbers.has(String(value ?? "").trim()));
-      return samePage && sameOrder;
-    }).slice(0, 6);
-  }, [linkedOrders, selectedCustomerId, selectedPageId, trackingQueueQuery.data]);
+    if (!selected) return [];
+    const room = selected as Record<string, any>;
+    const row = {
+      tracking_number: room.tracking_number ?? room.parcel_tracking_number ?? "",
+      order_number: room.order_number ?? "",
+      order_number_display: room.order_number_display ?? "",
+      shipping_carrier: room.shipping_carrier ?? "",
+      facebook_tracking_message: room.facebook_tracking_message ?? "",
+      drakside_tracking_message: room.drakside_tracking_message ?? "",
+    };
+    return Object.values(row).some(value => String(value ?? "").trim()) ? [row] : [];
+  }, [selected]);
   const chatEvidenceQuery = trpc.orders.chatEvidence.useQuery({ pageId: selectedPageId, threadId: selectedThreadId }, { enabled: Boolean(selectedPageId && selectedThreadId && orderDetailOpen), refetchInterval: 60_000 });
   const totalMessages = useMemo(() => threads.reduce((total, thread) => total + thread.messageCount, 0), [threads]);
   const uploadImage = trpc.chat.uploadImage.useMutation({ onSuccess: result => setReplyImageUrl(`${window.location.origin}${result.url}`) });
@@ -260,8 +259,8 @@ export default function ChatHub() {
 
   const composer = <div className="min-h-0 overflow-hidden border-t border-fuchsia-500/10 pt-2">
     <div className="mb-2 flex shrink-0 flex-wrap items-center gap-2"><input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" className="hidden" onChange={event => { handleImageUpload(event.target.files?.[0]); event.currentTarget.value = ""; }} /><Button type="button" size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploadImage.isPending} className="h-7 border-fuchsia-500/15 bg-black/20 text-[10px] text-fuchsia-100/70"><ImagePlus className="mr-1 h-3.5 w-3.5" />{uploadImage.isPending ? "กำลังอัปโหลด…" : "แนบรูป"}</Button>{replyImageUrl ? <span className="max-w-40 truncate text-[10px] text-emerald-300">รูปพร้อมส่ง</span> : null}</div>
-    <div className="mb-2 flex flex-wrap gap-1.5">{quickReplies.map(reply => <button key={reply} type="button" onClick={() => setReplyText(reply)} className="rounded-lg border border-fuchsia-400/15 bg-fuchsia-500/[0.06] px-2 py-1 text-[10px] text-fuchsia-200/75 transition hover:bg-fuchsia-500/20 hover:text-fuchsia-100">{reply}</button>)}{["😊", "👍", "❤️", "🙏", "📦"].map(emoji => <button key={emoji} type="button" onClick={() => addEmoji(emoji)} className="rounded-lg border border-fuchsia-400/15 bg-fuchsia-500/[0.06] px-2 py-1 text-sm transition hover:bg-fuchsia-500/20">{emoji}</button>)}</div>
-    <div className="flex items-end gap-2"><Textarea value={replyText} onChange={event => setReplyText(event.target.value)} placeholder={selectedCustomerId ? "พิมพ์ตอบลูกค้า…" : "ไม่พบ Customer PSID ของห้องนี้"} disabled={!selectedCustomerId} className="h-28 max-h-28 min-h-28 resize-none overflow-y-auto border-fuchsia-500/15 bg-[#171c21] text-sm leading-6 text-white placeholder:text-fuchsia-100/25" onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); sendCurrentReply(); } }} /><Button aria-label="ส่งข้อความ" disabled={sendReply.isPending || !selectedCustomerId || (!replyText.trim() && !replyImageUrl.trim())} onClick={sendCurrentReply} className="h-11 shrink-0 rounded-xl bg-cyan-500 text-[#1c1302]"><Send className="h-4 w-4" /></Button></div>
+    <div className="mb-2 flex flex-nowrap gap-1.5 overflow-x-auto whitespace-nowrap pb-1">{quickReplies.map(reply => <button key={reply} type="button" onClick={() => setReplyText(reply)} className="shrink-0 rounded-lg border border-fuchsia-400/15 bg-fuchsia-500/[0.06] px-2 py-1 text-[10px] text-fuchsia-200/75 transition hover:bg-fuchsia-500/20 hover:text-fuchsia-100">{reply}</button>)}{["😊", "👍", "❤️", "🙏", "📦"].map(emoji => <button key={emoji} type="button" onClick={() => addEmoji(emoji)} className="shrink-0 rounded-lg border border-fuchsia-400/15 bg-fuchsia-500/[0.06] px-2 py-1 text-sm transition hover:bg-fuchsia-500/20">{emoji}</button>)}</div>
+    <div className="flex items-end gap-2"><Textarea value={replyText} onChange={event => setReplyText(event.target.value)} placeholder={selectedCustomerId ? "พิมพ์ตอบลูกค้า…" : "ไม่พบ Customer PSID ของห้องนี้"} disabled={!selectedCustomerId} className="h-20 max-h-20 min-h-20 resize-none overflow-y-auto border-fuchsia-500/15 bg-[#171c21] text-sm leading-6 text-white placeholder:text-fuchsia-100/25" onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); sendCurrentReply(); } }} /><Button aria-label="ส่งข้อความ" disabled={sendReply.isPending || !selectedCustomerId || (!replyText.trim() && !replyImageUrl.trim())} onClick={sendCurrentReply} className="h-11 shrink-0 rounded-xl bg-cyan-500 text-[#1c1302]"><Send className="h-4 w-4" /></Button></div>
 
 
   </div>;
