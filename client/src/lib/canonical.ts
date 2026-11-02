@@ -625,12 +625,73 @@ export async function setInventoryAvailability(input: { productId: number; sku: 
   });
 }
 
-export async function readDailyOrders(date: string, search = "") { 
-  const result = await readCanonicalOrders(search); 
-  const [year, month, day] = date.split("-"); 
-  const displayPrefix = `${Number(day)}/${Number(month)}/${String(Number(year) % 100)}`; 
-  const orders = result.orders.filter((o: any) => String(o.order_time_display ?? "").startsWith(displayPrefix));
-  return { ...result, orders };
+export async function readDailyOrders(date: string, search = "") {
+  const api = getSupabase();
+  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
+  const { data, error } = await api.from("💀THANATOS_xXx_DEATH_NOTE")
+    .select("*")
+    .order("order_time_display", { ascending: false })
+    .limit(10000);
+  if (error) fail(error);
+
+  const query = search.trim().toLowerCase();
+  const orders = (data ?? []).map((row: any) => {
+    const product = row.final_display_for_packer || row.display_for_packer || row.product_map_mapped_display
+      || row.product_map_display || row.for_packer_st_display || row.manus_for_packer || row.google_for_packer
+      || row.order_fibo_product || row.telegram_product_display || row.telegram_copy_text || row.original || "";
+    const orderTime = row.order_time_bkk_iso || row.order_time || row.order_time_display || row.order_date || null;
+    return {
+      ...row,
+      id: row.id ?? row.upsert_key,
+      order_number: row.order_number_display || row.order_number || row.upsert_key,
+      customer_name: row.customer_name || row.facebook_name,
+      phone: row.phone || row.extracted_phone,
+      full_address: row.final_address_for_bill || row.full_address || row.finalAddress || row.address_display_packer || row.addressclean,
+      sku: row.master_sku || row.product_map_sku || row.sku,
+      display_for_packer: product,
+      lab_product_display_text: product,
+      cod_amount: row.cod_amount ?? row.expected_cod,
+      order_time: orderTime,
+      thread_id: row.thread_id || row.threadId,
+      mapping_status: row.mapping_status || row.product_map_status || row.canonical_status,
+      review_status: row.darkside_completeness_status || row.canonical_status || row.change_status,
+    };
+  }).filter((row: any) => {
+    const displayKey = displayDateKey(row.order_time_display);
+    const dateKey = displayKey || isoDateKey(row.order_time_bkk_iso || row.order_time || row.order_date || null);
+    if (dateKey !== date) return false;
+    return !query || JSON.stringify(row).toLowerCase().includes(query);
+  });
+  return { orders, total: orders.length, sourceTable: "💀THANATOS_xXx_DEATH_NOTE", fetchedAt: new Date().toISOString() };
+}
+export async function readDailyParcels(date: string, search = "") {
+  const api = getSupabase("tracking");
+  if (!api) fail({ message: "ยังไม่ได้เชื่อม Tracking & Messenger: ไปที่ /secret-gallery แล้วบันทึก URL กับ Anon/Publishable Key" });
+  const { data, error } = await api.from("parcels")
+    .select("id,pickup_date,tracking_number,consignee,phone_number,address,cod_amount,order_phone,order_number,delivery_status,sent_at")
+    .order("pickup_date", { ascending: false })
+    .limit(5000);
+  if (error) fail(error);
+  const query = search.trim().toLowerCase();
+  const toDateKey = (value: unknown) => {
+    const raw = String(value ?? "").trim();
+    const iso = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (iso) return `${iso[1]}-${iso[2].padStart(2, "0")}-${iso[3].padStart(2, "0")}`;
+    const thai = raw.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})/);
+    if (thai) {
+      let year = Number(thai[3]);
+      if (year < 100) year += 1957;
+      else if (year > 2400) year -= 543;
+      return `${year}-${thai[2].padStart(2, "0")}-${thai[1].padStart(2, "0")}`;
+    }
+    const parsed = new Date(raw);
+    return Number.isNaN(parsed.getTime()) ? "" : isoDateKey(parsed.toISOString());
+  };
+  const parcels = (data ?? []).filter((row: any) => {
+    if (toDateKey(row.pickup_date) !== date) return false;
+    return !query || JSON.stringify(row).toLowerCase().includes(query);
+  });
+  return { parcels, total: parcels.length, sourceTable: "parcels", fetchedAt: new Date().toISOString() };
 }
 async function readChatRows() {
   const api = getSupabase("tracking");
@@ -715,7 +776,7 @@ export async function readChatThreads() {
   Array.from(map.values()).forEach(thread => { thread.orderCountError = null; });
   return Array.from(map.values()).sort((a, b) => new Date(b.latestAt || 0).getTime() - new Date(a.latestAt || 0).getTime());
 }
-export async function readChatMessages(pageId: string, threadId: string) { const rows = await readChatRows(); return rows.filter(row => String(row.page_id) === String(pageId) && String(row._thread) === String(threadId)).map((row: any) => ({ id: row.id, dedupe_key: row.dedupe_key ?? null, text: row._text || (row._hasAttachment ? "ส่งรูปภาพ" : ""), message_text: row._text, direction: row._speaker === "page" ? "outbound" : "inbound", senderType: row._speaker, senderName: row._name, side: row._side, occurredAt: row._occurred || row.occurred_at || row.synced_at, attachmentsJson: JSON.stringify(row.attachments_json || []), imageUrls: row.image_urls || [] })); }
+export async function readChatMessages(pageId: string, threadId: string) { const rows = await readChatRows(); return rows.filter(row => String(row.page_id) === String(pageId) && String(row._thread) === String(threadId)).map((row: any) => ({ id: row.id, text: row._text || (row._hasAttachment ? "ส่งรูปภาพ" : ""), message_text: row._text, direction: row._speaker === "page" ? "outbound" : "inbound", senderType: row._speaker, senderName: row._name, side: row._side, occurredAt: row._occurred || row.occurred_at || row.synced_at, attachmentsJson: JSON.stringify(row.attachments_json || []), imageUrls: row.image_urls || [] })); }
 export type CloseJobCase = { id: string; page_id: string; page_name: string; conversation_key: string; customer_id: string; customer_name: string; speaker_type: string; occurred_at: string; message_text: string; case_type: string; area: string; branch: string; carrier_employee: string; tracking_number: string; order_number: string };
 export async function readCloseJobCases(limit = 10000): Promise<CloseJobCase[]> {
   const api = getSupabase("tracking");
