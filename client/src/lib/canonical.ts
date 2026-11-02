@@ -628,6 +628,10 @@ export async function readChatThreads() {
     current.customerName = current.customerName === "ลูกค้า" ? row.customer_name || row._name || current.customerName : current.customerName;
     current.messageCount += 1;
     current.chatTimeline.push(`${row._speaker === "page" ? "[เพจ]" : "[ลูกค้า]"} ${row._text || (row._hasAttachment ? "[ไฟล์แนบ]" : "")}`);
+    // Tracking fields are supplied directly on either room-side table; keep the newest non-empty value.
+    for (const field of ["tracking_number", "order_number", "order_number_display", "shipping_carrier", "facebook_tracking_message", "drakside_tracking_message"]) {
+      if (row[field] != null && String(row[field]).trim()) current[field] = row[field];
+    }
 
     // COD keyword only: no template, product, address, phone, amount, or speaker gate.
     const signalKey = codSignalIdentity(row);
