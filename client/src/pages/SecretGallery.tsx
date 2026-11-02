@@ -62,6 +62,9 @@ const ROOM_PASSWORD = "1234";
 const DOCS_KEY = "nightops-secret-vault-v2";
 const IMAGES_KEY = "nightops-secret-gallery-v1";
 const ARCHIVE_KEY = "nightops-secret-archive-v1";
+const SOUND_KEY = "nightops-chat-sound-v1";
+type ChatSoundSettings = { enabled: boolean; tone: "ping" | "bell" | "pop"; volume: number };
+const DEFAULT_SOUND_SETTINGS: ChatSoundSettings = { enabled: true, tone: "ping", volume: 0.35 };
 const languageMeta: Record<
   CodeLanguage,
   { label: string; icon: string; tint: string }
@@ -111,6 +114,9 @@ export default function SecretGallery() {
   );
   const [archives, setArchives] = useState<ArchiveCard[]>(() =>
     readLocal(ARCHIVE_KEY, [])
+  );
+  const [soundSettings, setSoundSettings] = useState<ChatSoundSettings>(() =>
+    readLocal(SOUND_KEY, DEFAULT_SOUND_SETTINGS)
   );
   const [activeId, setActiveId] = useState<string | null>(
     () => readLocal<VaultDoc[]>(DOCS_KEY, [])[0]?.id ?? null
@@ -179,6 +185,27 @@ export default function SecretGallery() {
   useEffect(() => {
     localStorage.setItem(ARCHIVE_KEY, JSON.stringify(archives));
   }, [archives]);
+  useEffect(() => {
+    localStorage.setItem(SOUND_KEY, JSON.stringify(soundSettings));
+  }, [soundSettings]);
+  const previewSound = () => {
+    if (typeof window === "undefined") return;
+    const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextClass) return;
+    const context = new AudioContextClass();
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    const frequency = soundSettings.tone === "bell" ? 880 : soundSettings.tone === "pop" ? 520 : 660;
+    oscillator.type = soundSettings.tone === "pop" ? "square" : "sine";
+    oscillator.frequency.value = frequency;
+    gain.gain.setValueAtTime(0.0001, context.currentTime);
+    gain.gain.exponentialRampToValueAtTime(Math.max(0.01, soundSettings.volume), context.currentTime + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + (soundSettings.tone === "bell" ? 0.42 : 0.18));
+    oscillator.connect(gain).connect(context.destination);
+    oscillator.start();
+    oscillator.stop(context.currentTime + 0.45);
+    window.setTimeout(() => void context.close(), 700);
+  };
   const saveConnection = async () => {
     setConnectionBusy(true);
     setConnectionMessage("");
@@ -517,6 +544,18 @@ export default function SecretGallery() {
               </Button>
               <span className="text-xs text-white/50">{connectionMessage}</span>
             </div>
+          </CardContent>
+        </Card>
+        <Card className="neon-card rounded-3xl border-fuchsia-400/20 bg-black/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-sm text-white"><span className="text-lg">🔔</span> LOCAL VAULT · AUTOSAVE · เสียงแจ้งเตือนแชท</CardTitle>
+            <p className="text-xs text-fuchsia-100/50">ตั้งค่าเก็บไว้ในเครื่องนี้เท่านั้น ไม่ส่งไป Supabase</p>
+          </CardHeader>
+          <CardContent className="grid gap-3 md:grid-cols-[auto_1fr_1fr_auto] md:items-center">
+            <label className="flex items-center gap-2 text-sm text-white"><input type="checkbox" checked={soundSettings.enabled} onChange={event => setSoundSettings(current => ({ ...current, enabled: event.target.checked }))} className="h-4 w-4 accent-fuchsia-500" /> เปิดเสียง</label>
+            <label className="grid gap-1 text-xs text-fuchsia-100/60">โทนเสียง<select value={soundSettings.tone} onChange={event => setSoundSettings(current => ({ ...current, tone: event.target.value as ChatSoundSettings["tone"] }))} className="h-9 rounded-lg border border-fuchsia-400/20 bg-[#160d22] px-2 text-sm text-white"><option value="ping">Ping · ใส</option><option value="bell">Bell · กังวาน</option><option value="pop">Pop · สั้น</option></select></label>
+            <label className="grid gap-1 text-xs text-fuchsia-100/60">ระดับเสียง · {Math.round(soundSettings.volume * 100)}%<input type="range" min="0.05" max="1" step="0.05" value={soundSettings.volume} onChange={event => setSoundSettings(current => ({ ...current, volume: Number(event.target.value) }))} className="accent-cyan-400" /></label>
+            <Button type="button" variant="outline" onClick={previewSound} className="border-cyan-400/25 text-cyan-200">ทดสอบเสียง</Button>
           </CardContent>
         </Card>
         <div className="flex flex-wrap items-center justify-between gap-2">
