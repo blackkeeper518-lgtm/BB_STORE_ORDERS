@@ -50,6 +50,7 @@ export default function ChatHub() {
   const isMobile = useIsMobile();
   const [search, setSearch] = useState("");
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [composerOpen, setComposerOpen] = useState(true);
   const [toolsOpen, setToolsOpen] = useState(true);
   const [toolsWidth, setToolsWidth] = useState(320);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -59,7 +60,6 @@ export default function ChatHub() {
   const [replyText, setReplyText] = useState("");
   const [replyImageUrl, setReplyImageUrl] = useState("");
   const [stickerId, setStickerId] = useState("");
-  const [simulationPreview, setSimulationPreview] = useState<string | null>(null);
   const [deliveryStatus, setDeliveryStatus] = useState<"idle" | "sending" | "sent" | "failed">("idle");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [summaryOpen, setSummaryOpen] = useState(false);
@@ -118,8 +118,17 @@ export default function ChatHub() {
   const chatEvidenceQuery = trpc.orders.chatEvidence.useQuery({ pageId: selectedPageId, threadId: selectedThreadId }, { enabled: Boolean(selectedPageId && selectedThreadId && orderDetailOpen), refetchInterval: 60_000 });
   const totalMessages = useMemo(() => threads.reduce((total, thread) => total + thread.messageCount, 0), [threads]);
   const uploadImage = trpc.chat.uploadImage.useMutation({ onSuccess: result => setReplyImageUrl(`${window.location.origin}${result.url}`) });
-  const sendReply = trpc.chat.sendReply.useMutation({ onMutate: () => setDeliveryStatus("sending"), onSuccess: () => { setDeliveryStatus("sent"); setReplyText(""); setReplyImageUrl(""); setStickerId(""); messagesQuery.refetch(); }, onError: () => setDeliveryStatus("failed") });
-  const simulateSend = trpc.chat.simulateSend.useMutation({ onSuccess: result => setSimulationPreview(JSON.stringify(result.payload, null, 2)) });
+  const sendReply = trpc.chat.sendReply.useMutation({
+    onMutate: () => setDeliveryStatus("sending"),
+    onSuccess: () => {
+      setDeliveryStatus("sent");
+      setReplyText("");
+      setReplyImageUrl("");
+      setStickerId("");
+      void Promise.all([messagesQuery.refetch(), threadsQuery.refetch()]);
+    },
+    onError: () => setDeliveryStatus("failed"),
+  });
   const generateSummary = trpc.orders.generateSummary.useMutation({ onSuccess: result => { setSummary(result); setSummaryText(""); setReplyText(result.copyText); } });
   const summaryTimingsQuery = trpc.orders.summaryTimings.useQuery({ limit: 8 }, { enabled: summaryOpen, refetchInterval: false });
   const metaErrorsQuery = trpc.chat.metaErrors.useQuery(undefined, { refetchInterval: 60_000 });
@@ -181,12 +190,16 @@ export default function ChatHub() {
   };
 
   const sendCurrentReply = () => {
-    if (!selectedPageId || !selectedThreadId || !selectedCustomerId || (!replyText.trim() && !replyImageUrl.trim() && !stickerId.trim())) return;
-    sendReply.mutate({ pageId: selectedPageId, threadId: selectedThreadId, recipientId: selectedCustomerId, text: replyText.trim() || undefined, imageUrl: replyImageUrl.trim() || undefined, stickerId: stickerId.trim() || undefined });
-  };
-  const simulate = (kind: "text" | "image") => {
-    if (!selectedPageId || !selectedThreadId || !selectedCustomerId) return;
-    simulateSend.mutate({ pageId: selectedPageId, threadId: selectedThreadId, recipientId: selectedCustomerId, kind, text: kind === "text" ? (replyText.trim() || "ข้อความทดสอบ NIGHTOPS") : undefined, imageUrl: kind === "image" ? (replyImageUrl.trim() || "https://example.com/test-image.jpg") : undefined });
+    const text = replyText.trim();
+    const imageUrl = replyImageUrl.trim();
+    if (sendReply.isPending || !selectedPageId || !selectedThreadId || !selectedCustomerId || (!text && !imageUrl)) return;
+    sendReply.mutate({
+      pageId: selectedPageId,
+      threadId: selectedThreadId,
+      recipientId: selectedCustomerId,
+      text: text || undefined,
+      imageUrl: imageUrl || undefined,
+    });
   };
   const handleImageUpload = (file?: File) => {
     if (!file) return;
@@ -213,15 +226,15 @@ export default function ChatHub() {
     {sendReply.isError ? <div className="mt-2 max-h-16 overflow-y-auto rounded-xl border border-amber-400/25 bg-amber-950/20 p-2 text-[10px] leading-4 text-amber-200">ส่งไม่สำเร็จ: {sendReply.error.message}</div> : null}
   </div>;
 
-  const conversation = selected ? <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+  const conversation = selected ? <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col justify-between overflow-hidden">
     <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-orange-500/10 px-5 py-3"><div className="flex min-w-0 items-center gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500/25 to-red-500/25 text-orange-200"><CircleUserRound className="h-5 w-5" /></div><div className="min-w-0"><h2 className="truncate text-base font-semibold text-white">{selected.customerName || "ลูกค้าใหม่"}</h2><div className="mt-1 flex items-center gap-2 text-[11px] text-orange-100/40"><span className="truncate">{selected.pageName}</span><span>·</span><span>{timeLabel(selected.latestAt)}</span></div></div></div><div className="flex max-w-full flex-wrap items-center justify-end gap-2"><Badge className="hidden border border-emerald-400/25 bg-emerald-400/10 text-emerald-300 sm:inline-flex">● ONLINE</Badge><Button size="sm" variant="outline" onClick={confirmSelectedOrder} disabled={selectedConfirmed || confirmOrder.isPending} className="rounded-xl border-orange-400/25 bg-orange-400/10 text-xs text-amber-200 hover:bg-orange-400/20">{selectedConfirmed ? <><CheckCircle2 className="mr-1 h-3.5 w-3.5" />ยืนยันแล้ว</> : confirmOrder.isPending ? "กำลังบันทึก…" : "ยืนยันเป็นออเดอร์"}</Button><Button size="sm" variant="outline" onClick={() => setOrderDetailOpen(true)} className="rounded-xl border-amber-400/25 bg-amber-400/10 text-xs text-amber-200 hover:bg-amber-400/20" title="นับข้อความที่มีคำว่า COD ในข้อมูลแชทที่โหลด">COD ({selected.codSignalCount ?? 0})</Button><Button size="sm" onClick={openOrderSummary} className="rounded-xl bg-orange-600/80 text-xs hover:bg-orange-500">สรุปออเดอร์</Button>{isMobile ? <button onClick={() => setMobileOpen(false)} className="rounded-xl p-2 text-orange-100/55 hover:bg-orange-500/10 hover:text-white" aria-label="ปิดห้องแชท"><X className="h-5 w-5" /></button> : null}</div></div>
     <div ref={chatTimelineRef} onScroll={handleTimelineScroll} className="relative min-h-0 flex-1 flex flex-col justify-start gap-3 overflow-y-auto overscroll-contain bg-[radial-gradient(circle_at_70%_20%,rgba(168,85,247,0.09),transparent_32%),#0b0910] p-5 [-webkit-overflow-scrolling:touch]">
       {showNewMessages ? <button type="button" onClick={jumpToLatest} className="sticky bottom-3 left-1/2 z-20 mx-auto -mb-10 rounded-full border border-orange-300/30 bg-gradient-to-r from-orange-600 to-red-600 px-4 py-2 text-xs font-semibold text-white shadow-[0_0_24px_rgba(168,85,247,0.45)] transition hover:scale-105">ข้อความใหม่ · ลงล่างสุด</button> : null}
       {messagesQuery.isFetching ? <div className="absolute right-4 top-4 z-10 inline-flex items-center gap-1.5 rounded-full border border-orange-400/20 bg-[#15101d]/90 px-2.5 py-1 text-[10px] text-orange-200"><LoaderCircle className="h-3 w-3 animate-spin" />กำลังอัปเดต</div> : null}
       {visibleStoredMessages.length === 0 ? <>{visibleTimeline.length ? visibleTimeline.map((line: string, index: number) => <div key={`${line}-${index}`} className={`max-w-[82%] min-w-0 shrink-0 break-words [overflow-wrap:anywhere] rounded-2xl px-4 py-3 text-sm leading-6 shadow-lg ${isPageTimelineLine(line) ? "ml-auto rounded-br-md border border-fuchsia-300/20 bg-[#3a1e48] text-orange-50" : "rounded-bl-md border border-white/10 bg-white/[0.06] text-orange-50/85"}`}><p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{line}</p></div>) : <div className="rounded-2xl border border-orange-500/10 bg-black/20 p-4 text-sm leading-6 text-orange-100/60"><p>{selected.preview}</p></div>}<p className="text-[11px] text-orange-100/30">แชทจากตารางกลาง · n8n API รอบถัดไปจะอัปเดตเข้าห้องนี้อัตโนมัติ</p></> : null}
-      {visibleStoredMessages.map(message => { const isRight = ("side" in message && message.side === "right") || message.direction === "outbound" || message.senderType === "page"; const rawSenderName = "senderName" in message ? String(message.senderName ?? "").trim() : ""; const senderName = isRight ? ((!rawSenderName || /เพจ\s*\/\s*แอดมิน/i.test(rawSenderName)) ? (selected.pageName || "เพจ") : rawSenderName) : ((!rawSenderName || rawSenderName === "ลูกค้า") ? (selected.customerName || "ลูกค้า") : rawSenderName); return <div key={message.id} className={`flex w-full shrink-0 ${isRight ? "justify-end" : "justify-start"}`}><div className={`max-w-[82%] min-w-0 shrink-0 break-words [overflow-wrap:anywhere] rounded-2xl px-4 py-3 text-sm leading-6 shadow-lg ${isRight ? "rounded-br-md border border-fuchsia-300/20 bg-[#3a1e48] text-orange-50" : "rounded-bl-md border border-white/10 bg-white/[0.06] text-orange-50/85"}`}><p className="mb-1 text-[10px] font-semibold uppercase tracking-wide opacity-60">{senderName}</p><p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{message.text || "ส่งรูปภาพ"}</p>{imageUrls(message.attachmentsJson).map(url => <button key={url} type="button" onClick={() => setLightboxUrl(url)} className="mt-2 block cursor-zoom-in text-left"><img src={url} alt="ไฟล์แนบจากแชท คลิกเพื่อขยาย" className="max-h-56 rounded-xl object-cover transition hover:brightness-110" /></button>)}<p className="mt-1 text-[10px] opacity-50">{isRight ? "เพจ / แอดมิน" : "ลูกค้า"} · {timeLabel(String(message.occurredAt))}</p></div></div>; })}
+      {visibleStoredMessages.map(message => { const isRight = ("side" in message && message.side === "right") || message.direction === "outbound" || message.senderType === "page"; const senderName = isRight ? (selected.pageName || "เพจ") : (selected.customerName || "ลูกค้า"); return <div key={message.id} className={`flex w-full shrink-0 ${isRight ? "justify-end" : "justify-start"}`}><div className={`max-w-[82%] min-w-0 shrink-0 break-words [overflow-wrap:anywhere] rounded-2xl px-4 py-3 text-sm leading-6 shadow-lg ${isRight ? "rounded-br-md border border-fuchsia-300/20 bg-[#3a1e48] text-orange-50" : "rounded-bl-md border border-white/10 bg-white/[0.06] text-orange-50/85"}`}><p className="mb-1 text-[10px] font-semibold uppercase tracking-wide opacity-60">{senderName}</p><p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{message.text || "ส่งรูปภาพ"}</p>{imageUrls(message.attachmentsJson).map(url => <button key={url} type="button" onClick={() => setLightboxUrl(url)} className="mt-2 block cursor-zoom-in text-left"><img src={url} alt="ไฟล์แนบจากแชท คลิกเพื่อขยาย" className="max-h-56 rounded-xl object-cover transition hover:brightness-110" /></button>)}<p className="mt-1 text-[10px] opacity-50">{isRight ? "เพจ / แอดมิน" : "ลูกค้า"} · {timeLabel(String(message.occurredAt))}</p></div></div>; })}
     </div>
-    <div className="flex h-[250px] min-h-[250px] shrink-0 flex-col overflow-hidden border-t border-orange-500/10 bg-[#100d15] p-4"><div className="mb-3 flex shrink-0 flex-wrap items-center gap-1.5"><span className="mr-1 text-[10px] uppercase tracking-wider text-orange-100/35">ดูข้อความ</span>{([ ["all", "ทั้งหมด"], ["customer", "ลูกค้า"], ["page", "เพจ"] ] as const).map(([value, label]) => <button key={value} onClick={() => setMessageFilter(value)} className={`rounded-lg px-2.5 py-1 text-[10px] transition ${messageFilter === value ? "bg-orange-500/20 text-orange-200 ring-1 ring-fuchsia-400/30" : "text-orange-100/45 hover:bg-orange-500/10 hover:text-orange-100"}`}>{label}</button>)}</div>{summary ? <div className="mb-3 hidden shrink-0 rounded-2xl border border-orange-400/20 bg-orange-500/[0.06] p-3"><div className="flex items-center justify-between gap-3"><p className="text-xs font-semibold text-orange-200">พรีวิวใบสรุป · {summary.orderNumber}</p><button onClick={() => setSummary(null)} className="text-[10px] text-orange-100/40 hover:text-white">ล้าง</button></div><p className="mt-1 text-[11px] text-orange-100/45">ตรวจข้อความด้านล่างให้ถูกต้องก่อนกดส่งให้ลูกค้า</p><Button variant="outline" size="sm" onClick={copySummary} className="mt-2 h-7 border-orange-400/20 bg-transparent text-[10px] text-orange-200">{copied ? <Check className="mr-1 h-3 w-3" /> : <Clipboard className="mr-1 h-3 w-3" />}{copied ? "คัดลอกแล้ว" : "คัดลอกข้อความสรุป"}</Button></div> : null}<div className="min-h-0 flex-1 overflow-hidden">{composer}</div></div>
+    <div className={`mt-auto flex shrink-0 flex-col overflow-hidden border-t border-orange-500/10 bg-[#100d15] p-4 transition-[height] duration-300 ${composerOpen ? "h-[250px] min-h-[250px]" : "h-12 min-h-12"}`}><div className="mb-2 flex shrink-0 items-center justify-between border-b border-orange-500/10 pb-2"><span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-orange-100/45">กล่องตอบแชท</span><button type="button" onClick={() => setComposerOpen(value => !value)} className="flex h-7 w-7 items-center justify-center rounded-lg border border-orange-400/20 bg-orange-400/[0.06] text-orange-200 transition hover:bg-orange-400/15" title={composerOpen ? "หุบกล่องตอบแชท" : "เปิดกล่องตอบแชท"} aria-label={composerOpen ? "หุบกล่องตอบแชท" : "เปิดกล่องตอบแชท"}><ChevronDown className={`h-4 w-4 transition-transform ${composerOpen ? "rotate-0" : "rotate-180"}`} /></button></div><div className={`min-h-0 flex-1 overflow-hidden ${composerOpen ? "" : "pointer-events-none opacity-0"}`}><div className="mb-3 flex shrink-0 flex-wrap items-center gap-1.5"><span className="mr-1 text-[10px] uppercase tracking-wider text-orange-100/35">ดูข้อความ</span>{([ ["all", "ทั้งหมด"], ["customer", "ลูกค้า"], ["page", "เพจ"] ] as const).map(([value, label]) => <button key={value} onClick={() => setMessageFilter(value)} className={`rounded-lg px-2.5 py-1 text-[10px] transition ${messageFilter === value ? "bg-orange-500/20 text-orange-200 ring-1 ring-fuchsia-400/30" : "text-orange-100/45 hover:bg-orange-500/10 hover:text-orange-100"}`}>{label}</button>)}</div>{summary ? <div className="mb-3 hidden shrink-0 rounded-2xl border border-orange-400/20 bg-orange-500/[0.06] p-3"><div className="flex items-center justify-between gap-3"><p className="text-xs font-semibold text-orange-200">พรีวิวใบสรุป · {summary.orderNumber}</p><button onClick={() => setSummary(null)} className="text-[10px] text-orange-100/40 hover:text-white">ล้าง</button></div><p className="mt-1 text-[11px] text-orange-100/45">ตรวจข้อความด้านล่างให้ถูกต้องก่อนกดส่งให้ลูกค้า</p><Button variant="outline" size="sm" onClick={copySummary} className="mt-2 h-7 border-orange-400/20 bg-transparent text-[10px] text-orange-200">{copied ? <Check className="mr-1 h-3 w-3" /> : <Clipboard className="mr-1 h-3 w-3" />}{copied ? "คัดลอกแล้ว" : "คัดลอกข้อความสรุป"}</Button></div> : null}{composer}</div></div>
   </div> : <div className="flex min-h-[560px] items-center justify-center text-sm text-orange-100/35">เลือกห้องแชทเพื่อเริ่มดูข้อความ</div>;
 
   return <div className="h-full min-h-0 overflow-hidden bg-[#09070d] text-white"><div className="mx-auto flex h-full min-h-0 max-w-[1600px] flex-col gap-3 overflow-hidden p-2 sm:p-4 lg:p-6">
