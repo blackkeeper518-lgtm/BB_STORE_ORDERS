@@ -26,11 +26,9 @@ export function getActiveCamp(): Camp { return DEPLOYMENT_CAMP; }
 export function setActiveCamp(_camp: Camp) { client = null; clientSignature = ""; }
 function profileKey(_camp: Camp) { return CONFIG_KEY; }
 export function getSupabaseConfig(camp: Camp = getActiveCamp()): SupabaseConfig | null {
-  // Prefer deployment config so a stale browser-local value cannot split devices
-  // across different Supabase projects.
-  if (DEPLOYMENT_SUPABASE_URL && DEPLOYMENT_SUPABASE_ANON_KEY) {
-    return { url: DEPLOYMENT_SUPABASE_URL, anonKey: DEPLOYMENT_SUPABASE_ANON_KEY, orderTable: defaultOrderView(camp) };
-  }
+  // Secret Gallery is the deliberate per-browser connection selector.
+  // A saved connection must win over deployment defaults so rooms are not fixed
+  // to the server's project when the operator chooses another project.
   try {
     const raw = localStorage.getItem(profileKey(camp));
     if (raw) {
@@ -40,6 +38,9 @@ export function getSupabaseConfig(camp: Camp = getActiveCamp()): SupabaseConfig 
       }
     }
   } catch { /* ถ้าค่าใน browser เสีย ให้ลองใช้ค่ากลางของ Deployment */ }
+  if (DEPLOYMENT_SUPABASE_URL && DEPLOYMENT_SUPABASE_ANON_KEY) {
+    return { url: DEPLOYMENT_SUPABASE_URL, anonKey: DEPLOYMENT_SUPABASE_ANON_KEY, orderTable: defaultOrderView(camp) };
+  }
   return null;
 }
 export function saveSupabaseConfig(config: SupabaseConfig, camp: Camp = getActiveCamp()) { const clean = { url: config.url.trim().replace(/\/$/, ""), anonKey: config.anonKey.trim(), orderTable: defaultOrderView(camp) }; localStorage.setItem(profileKey(camp), JSON.stringify(clean)); client = null; clientSignature = ""; }
@@ -649,6 +650,16 @@ export async function readChatThreads() {
   return Array.from(map.values()).sort((a, b) => new Date(b.latestAt || 0).getTime() - new Date(a.latestAt || 0).getTime());
 }
 export async function readChatMessages(pageId: string, threadId: string) { const rows = await readChatRows(); return rows.filter(row => String(row.page_id) === String(pageId) && String(row._thread) === String(threadId)).map((row: any) => ({ id: row.id, text: row._text || (row._hasAttachment ? "ส่งรูปภาพ" : ""), message_text: row._text, direction: row._speaker === "page" ? "outbound" : "inbound", senderType: row._speaker, senderName: row._name, side: row._side, occurredAt: row._occurred || row.occurred_at || row.synced_at, attachmentsJson: JSON.stringify(row.attachments_json || []), imageUrls: row.image_urls || [] })); }
+export async function readParcelMappingQueue(status: "all" | "sent" = "all", limit = 300) {
+  const api = getSupabase();
+  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /secret-gallery/connect แล้วบันทึก URL กับ Anon/Publishable Key" });
+  const safeLimit = Math.max(1, Math.min(limit, 500));
+  const activeData = status === "sent" ? [] : (await api.from("🔮 SHADOW_xXx_RECALL").select("*").limit(safeLimit));
+  if ("error" in activeData && activeData.error) fail(activeData.error);
+  const sent = status === "all" || status === "sent" ? await api.from("📓 DEAD_xXx_NOTE").select("*").limit(safeLimit) : { data: [], error: null };
+  if (sent.error) fail(sent.error);
+  return [...("data" in activeData ? (activeData.data ?? []) : []), ...(sent.data ?? [])].slice(0, safeLimit);
+}
 export async function readDailyChatSummary(date: string) {
   const rows = await readChatRows(); let orders: any[] = [];
   try { const orderResult = await readCanonicalOrders("", new Date(date + "T00:00:00+07:00").toISOString()); orders = orderResult.orders; } catch { /* keep chat summary usable when canonical view is unavailable */ }

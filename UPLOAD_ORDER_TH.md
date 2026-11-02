@@ -1,18 +1,27 @@
-# BB_STORE_ORDERS · Parcel Room Package
+# BB_STORE_ORDERS · Secret Gallery Parcel Package
 
-แพ็กเกจนี้มีไฟล์ที่แก้แล้ว 4 ไฟล์ ให้คัดลอกทับไฟล์เดิมใน repository โดยรักษาโครงสร้าง path ตามนี้:
+แพ็กเกจล่าสุดนี้ทำให้ห้อง Parcel และ Tracking Capsule ใช้ Supabase connection ที่บันทึกจาก `/secret-gallery/connect` โดยตรง
 
-- `client/src/pages/OrderHistory.tsx`
+ค่าจาก Secret Gallery มีสิทธิ์เหนือ `VITE_SUPABASE_URL` ของ deployment ดังนั้นโปรเจกต์จะไม่ถูกฟิกจากค่า deployment เมื่อจารย์เลือก connection ใหม่ใน Secret Gallery
+
+## ไฟล์ที่ต้องวางทับตาม path
+
+- `client/src/lib/canonical.ts`
+- `client/src/pages/ChatHub.tsx`
 - `client/src/pages/ParcelMapping.tsx`
+- `client/src/pages/OrderHistory.tsx`
 - `server/routers.ts`
 - `server/supabase.ts`
 
-## วิธีใช้กับ GitHub
+## วิธีใช้งาน
 
-1. แตกไฟล์ ZIP ก่อน
-2. เข้า repository `BB_STORE_ORDERS`
-3. อัปโหลดไฟล์แต่ละไฟล์ไปยัง path เดิมตามรายการด้านบน ไม่ใช่อัปโหลด ZIP เข้า root อย่างเดียว
-4. กด Commit changes
-5. Deploy ตาม workflow เดิม
+1. แตก ZIP
+2. อัปโหลดไฟล์แต่ละไฟล์เข้า path เดิมใน GitHub ไม่ใช่อัปโหลด ZIP เข้า root อย่างเดียว
+3. เปิด `/secret-gallery/connect`
+4. ใส่ URL และ Anon/Publishable Key ของโปรเจกต์ที่ต้องการใช้
+5. กดเชื่อมต่อให้ขึ้นว่าเชื่อมต่อแล้ว
+6. กลับเข้าห้อง Parcel หรือหน้าแชท แล้วกดรีเฟรช
 
-แพ็กเกจนี้ไม่แก้สาย n8n และไม่สร้างข้อความ tracking ใหม่ หน้าเว็บอ่าน `parcel_status_emoji`, `facebook_tracking_message` และ `drakside_tracking_message` จาก view ที่ n8n เตรียมไว้แล้ว
+ห้อง Parcel อ่านตรงจาก `🔮 SHADOW_xXx_RECALL` และ `📓 DEAD_xXx_NOTE` โดยใช้ข้อมูลจาก n8n ตรง ๆ: `parcel_status_emoji`, `facebook_tracking_message`, `drakside_tracking_message`
+
+ไม่สร้างข้อความใหม่ ไม่คำนวณสถานะใหม่ และไม่เปลี่ยนสาย n8n

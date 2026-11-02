@@ -1,8 +1,8 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getActiveCamp } from "@/lib/canonical";
-import { trpc } from "@/lib/trpc";
+import { getActiveCamp, readParcelMappingQueue } from "@/lib/canonical";
+import { useQuery } from "@tanstack/react-query";
 import {
   Check,
   Clipboard,
@@ -157,10 +157,11 @@ export default function ParcelMapping() {
   const [selected, setSelected] = useState<ParcelMappingRow | null>(null);
   const [copied, setCopied] = useState("");
   const activeCamp = getActiveCamp();
-  const queueQuery = trpc.parcels.mappingQueue.useQuery(
-    { status: "all", limit: 300 },
-    { staleTime: 15_000 }
-  );
+  const queueQuery = useQuery({
+    queryKey: ["parcel-mapping-queue", activeCamp],
+    queryFn: () => readParcelMappingQueue("all", 300),
+    staleTime: 15_000,
+  });
   const rows = useMemo(
     () => (queueQuery.data ?? []) as ParcelMappingRow[],
     [queueQuery.data]

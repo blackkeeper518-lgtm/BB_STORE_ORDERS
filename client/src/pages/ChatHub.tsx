@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useIsMobile } from "@/hooks/useMobile";
-import { readChatMessages, readChatThreads, subscribeToChatMessages } from "@/lib/canonical";
+import { getActiveCamp, readChatMessages, readChatThreads, readParcelMappingQueue, subscribeToChatMessages } from "@/lib/canonical";
 import { useQuery } from "@tanstack/react-query";
 import { trpc } from "@/lib/trpc";
 import { Check, CheckCircle2, ChevronDown, CircleUserRound, Clipboard, ImagePlus, LoaderCircle, MessageCircle, RefreshCw, Search, Send, Sparkles, Users, X } from "lucide-react";
@@ -91,7 +91,11 @@ export default function ChatHub() {
   const selectedThreadId = selected?.threadId ?? "";
   const selectedCustomerId = selected?.customerId ?? "";
   const messagesQuery = useQuery({ queryKey: ["canonical-chat-messages", selectedPageId, selectedThreadId], queryFn: () => readChatMessages(selectedPageId, selectedThreadId), enabled: Boolean(selectedPageId && selectedThreadId), refetchInterval: 5_000 });
-  const trackingQueueQuery = trpc.parcels.mappingQueue.useQuery({ status: "all", limit: 500 }, { staleTime: 15_000 });
+  const trackingQueueQuery = useQuery({
+    queryKey: ["parcel-mapping-queue", getActiveCamp()],
+    queryFn: () => readParcelMappingQueue("all", 500),
+    staleTime: 15_000,
+  });
   useEffect(() => {
     const unsubscribe = subscribeToChatMessages(() => {
       void threadsQuery.refetch();
