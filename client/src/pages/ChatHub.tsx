@@ -40,6 +40,31 @@ function isCustomerTimelineLine(line: string) { return /\[\s*ลูกค้า\
 function isThreadControlConflict(message: string) { return /META_THREAD_CONTROL_CONFLICT|another app|currently controlling|ควบคุมเธรด|แอพอื่นกำลังควบคุม/i.test(message); }
 function isTransientMetaInternal(message: string) { return /META_TRANSIENT_INTERNAL|2018012|code=-1/i.test(message); }
 
+
+const CHAT_SOUND_KEY = "nightops-chat-sound-v1";
+function playChatNotificationSound() {
+  try {
+    const settings = JSON.parse(localStorage.getItem(CHAT_SOUND_KEY) || "{}");
+    if (settings.enabled === false) return;
+    const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextClass) return;
+    const context = new AudioContextClass();
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    const tone = settings.tone === "bell" ? 880 : settings.tone === "pop" ? 520 : 660;
+    const duration = settings.tone === "bell" ? 0.42 : 0.18;
+    oscillator.type = settings.tone === "pop" ? "square" : "sine";
+    oscillator.frequency.value = tone;
+    gain.gain.setValueAtTime(0.0001, context.currentTime);
+    gain.gain.exponentialRampToValueAtTime(Math.max(0.01, Number(settings.volume) || 0.35), context.currentTime + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + duration);
+    oscillator.connect(gain).connect(context.destination);
+    oscillator.start();
+    oscillator.stop(context.currentTime + duration + 0.03);
+    window.setTimeout(() => void context.close(), 700);
+  } catch { /* Browser may block audio until a user gesture. */ }
+}
+
 const quickReplies = [
   "สวัสดีค่ะ สนใจรับกี่คอตดีคะ?",
   "มีบริการเก็บเงินปลายทางค่ะ",
@@ -106,6 +131,20 @@ export default function ChatHub() {
     });
     return unsubscribe;
   }, [selectedPageId, selectedThreadId]);
+  const soundSnapshotRef = useRef({ room: "", count: 0 });
+  useEffect(() => {
+    const room = `${selectedPageId}:${selectedThreadId}`;
+    const messages = messagesQuery.data ?? [];
+    if (soundSnapshotRef.current.room !== room) {
+      soundSnapshotRef.current = { room, count: messages.length };
+      return;
+    }
+    if (messages.length > soundSnapshotRef.current.count) {
+      const newest = messages[messages.length - 1];
+      if (newest?.direction === "inbound" || newest?.senderType === "customer") playChatNotificationSound();
+    }
+    soundSnapshotRef.current.count = messages.length;
+  }, [messagesQuery.data, selectedPageId, selectedThreadId]);
   const linkedOrders = selected?.orders ?? [];
   const selectedTrackingRows = useMemo(() => {
     const orderNumbers = new Set(linkedOrders.flatMap((order: any) => [order.order_number, order.order_number_display, order.upsert_key].map(value => String(value ?? "").trim()).filter(Boolean)));
@@ -242,7 +281,7 @@ export default function ChatHub() {
     <div className="flex shrink-0 items-center gap-2 rounded-xl border border-orange-500/15 bg-[#100c19] px-3 py-1.5 text-[10px] text-orange-100/55"><span className="inline-flex items-center gap-1.5 text-emerald-300"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />SYNC OK</span><span className="text-orange-100/20">·</span><span>รอบล่าสุด: {threadsQuery.dataUpdatedAt ? new Date(threadsQuery.dataUpdatedAt).toLocaleString("th-TH", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "กำลังโหลด"}</span></div>
     {threadsQuery.isError ? <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-400/20 bg-red-400/[0.06] px-4 py-3 text-xs text-red-200"><span>โหลดห้องแชทไม่สำเร็จ: {threadsQuery.error.message}</span><Button size="sm" variant="outline" onClick={() => threadsQuery.refetch()} className="border-red-300/20 bg-transparent text-red-100">ลองใหม่</Button></div> : null}
     {threads.find(thread => thread.orderCountError)?.orderCountError ? <div role="alert" className="rounded-2xl border border-amber-400/25 bg-amber-400/[0.06] px-4 py-3 text-xs leading-5 text-amber-200">โหลดแชทได้ แต่การเชื่อมแถวออเดอร์มีปัญหา: {String(threads.find(thread => thread.orderCountError)?.orderCountError)}</div> : null}
-    <header className="shrink-0 rounded-2xl border border-orange-500/20 bg-[#100c19] px-4 py-3 shadow-xl shadow-orange-950/15"><div className="flex items-center justify-between gap-3"><div className="min-w-0"><p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-orange-300">NIGHTOPS · PAGE CHAT HUB</p><h1 className="mt-1 text-xl font-semibold tracking-tight text-white">กล่องข้อความรวม</h1></div><div className="flex items-center gap-2"><span className="hidden text-[10px] text-orange-100/35 sm:inline">เลือกห้องเพื่อเริ่มตอบ</span><Button variant="outline" size="sm" onClick={() => threadsQuery.refetch()} className="h-8 border-orange-400/20 bg-orange-400/5 text-[10px] text-orange-100 hover:bg-orange-400/10"><RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${threadsQuery.isFetching ? "animate-spin" : ""}`} />รีเฟรช</Button></div></div></header>
+    <header className="neon-sign shrink-0 rounded-2xl border border-fuchsia-300/60 bg-[#100c19] px-4 py-3 shadow-[0_0_10px_rgba(236,72,153,.72),0_0_28px_rgba(34,211,238,.28),inset_0_0_16px_rgba(236,72,153,.16)]"><div className="flex items-center justify-between gap-3"><div className="min-w-0"><p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-orange-300">NIGHTOPS · PAGE CHAT HUB</p><h1 className="mt-1 text-xl font-semibold tracking-tight text-white drop-shadow-[0_0_8px_rgba(244,114,182,.95)]">กล่องข้อความรวม</h1></div><div className="flex items-center gap-2"><span className="hidden text-[10px] text-orange-100/35 sm:inline">เลือกห้องเพื่อเริ่มตอบ</span><Button variant="outline" size="sm" onClick={() => threadsQuery.refetch()} className="h-8 border-orange-400/20 bg-orange-400/5 text-[10px] text-orange-100 hover:bg-orange-400/10"><RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${threadsQuery.isFetching ? "animate-spin" : ""}`} />รีเฟรช</Button></div></div></header>
     <div className="relative flex min-h-0 flex-1 gap-3"><Card className="flex w-[300px] min-h-0 shrink-0 flex-col overflow-hidden rounded-3xl border-orange-500/15 bg-[#100d15] shadow-xl shadow-orange-950/10"><CardHeader className="border-b border-orange-500/10 pb-3"><div className="flex items-center justify-between"><CardTitle className="text-base">แชทส่วนตัว <span className="ml-1 text-xs font-normal text-orange-100/35">{filteredThreads.length}</span></CardTitle><button onClick={() => setPageFilterOpen(value => !value)} className={`flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-[11px] ${selectedPages.length ? "bg-orange-500/15 text-orange-200" : "text-orange-100/45 hover:bg-orange-500/10 hover:text-orange-100"}`}><span className="h-2 w-2 rounded-sm border border-current" />เพจ{selectedPages.length ? ` · ${selectedPages.length}` : ""}<ChevronDown className="h-3 w-3" /></button></div>
       <div className="relative mt-3"><Search className="absolute left-3 top-2.5 h-4 w-4 text-orange-100/30" /><Input value={search} onChange={event => setSearch(event.target.value)} placeholder="ค้นหาชื่อลูกค้าหรือข้อความ…" className="rounded-xl border-orange-500/15 bg-black/20 pl-9 text-white placeholder:text-orange-100/25 focus-visible:ring-fuchsia-400" />{pageFilterOpen ? <div className="absolute right-0 top-12 z-20 w-64 rounded-2xl border border-orange-400/20 bg-[#181020] p-3 shadow-2xl shadow-black/50"><div className="mb-2 flex items-center justify-between"><p className="text-[10px] font-semibold uppercase tracking-wider text-orange-300">เลือกเพจ</p><button onClick={() => setSelectedPages([])} className="text-[10px] text-orange-100/40 hover:text-white">ล้าง</button></div>{availablePages.map(([pageId, pageName]) => <label key={pageId} className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-xs text-orange-50/80 hover:bg-orange-500/10"><input type="checkbox" checked={selectedPages.includes(pageId)} onChange={event => setSelectedPages(current => event.target.checked ? [...current, pageId] : current.filter(item => item !== pageId))} className="accent-fuchsia-500" /> <span className="truncate">{pageName}</span></label>)}{!availablePages.length ? <p className="p-2 text-xs text-orange-100/35">ยังไม่มีรายชื่อเพจ</p> : null}</div> : null}</div>
       <div className="mt-3 flex flex-wrap gap-1.5">{([ ["all", "ทั้งหมด"], ["unread", "ยังไม่อ่าน"], ["ordered", "มีออเดอร์"] ] as const).map(([value, label]) => <button key={value} type="button" onClick={() => setStatusFilter(value)} className={`rounded-lg px-2.5 py-1 text-[10px] transition ${statusFilter === value ? "bg-amber-400/15 text-amber-200 ring-1 ring-amber-300/25" : "text-orange-100/45 hover:bg-orange-500/10 hover:text-orange-100"}`}>{label}</button>)}</div></CardHeader><CardContent className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 [-webkit-overflow-scrolling:touch]">{threadsQuery.isLoading ? <div className="flex items-center justify-center gap-2 p-12 text-sm text-orange-100/40"><RefreshCw className="h-4 w-4 animate-spin" />กำลังโหลดห้อง…</div> : filteredThreads.length === 0 ? <div className="p-12 text-center text-sm text-orange-100/40"><MessageCircle className="mx-auto mb-3 h-8 w-8 text-orange-100/15" />ยังไม่มีห้องตามตัวกรอง</div> : filteredThreads.map((thread, index) => <button key={thread.key} onClick={() => { setSelectedKey(thread.key); if (isMobile) setMobileOpen(true); }} className={`relative mb-1 flex w-full items-start gap-3 rounded-2xl p-3.5 text-left transition ${selected?.key === thread.key ? "bg-orange-500/[0.10] ring-1 ring-fuchsia-400/35" : "hover:bg-orange-400/[0.06]"}`}><span className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${index % 2 ? "bg-orange-500/20 text-orange-200" : "bg-orange-500/20 text-orange-200"}`}>{(thread.customerName || "ลูกค้า").slice(0, 1)}</span><span className="min-w-0 flex-1"><span className="flex items-center justify-between gap-2"><span className="truncate text-sm font-semibold text-orange-50">{thread.customerName || "ลูกค้าใหม่"}</span><span className="shrink-0 text-[10px] text-orange-100/35">{timeLabel(thread.latestAt)}</span></span><span className="mt-1 flex items-center gap-1.5 truncate text-[10px] text-orange-200/55">{thread.unread ? <span className="rounded bg-amber-400/15 px-1 text-amber-200">ใหม่</span> : null}{thread.codSignalCount > 0 ? <span title="นับข้อความที่มีคำว่า COD เท่านั้น" className="rounded bg-emerald-400/15 px-1 text-emerald-200">COD {thread.codSignalCount}</span> : null}{thread.orderCount > 0 ? <span title="แถวออเดอร์ที่ผูกกับห้องได้" className="rounded bg-amber-400/15 px-1 text-amber-200">ORD {thread.orderCount}</span> : null}{confirmedKeys.has(`${thread.pageId}:${thread.threadId}`) ? <span className="rounded bg-orange-400/15 px-1 text-amber-200">ยืนยันแล้ว</span> : null}<span className="truncate">{thread.pageName}</span></span><span className="mt-1 block truncate text-xs text-orange-100/45">{thread.preview}</span></span></button>)}</CardContent></Card>
