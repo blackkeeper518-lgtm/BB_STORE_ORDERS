@@ -13,6 +13,7 @@ import { getActiveCamp, getSupabaseConfig, readCanonicalOrders, type Camp } from
 
 const menuItems = [
   { icon: MessageCircle, label: "รวมแชทเพจ", path: "/chats" },
+  { icon: Archive, label: "ประวัติปิดงาน · อัตโนมัติ", path: "/close-job-history" },
   { icon: LayoutDashboard, label: "Order Control", path: "/orders" },
   { icon: Truck, label: "แมปเลขพัสดุ", path: "/parcel-mapping" },
   { icon: BrainCircuit, label: "Alien Inbox · คำดิบ", path: "/alien-room" },

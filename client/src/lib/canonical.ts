@@ -578,9 +578,11 @@ async function readChatRows() {
   // Read the newest window first. Ascending + limit would permanently return
   // the oldest rows once a chat table grows beyond the limit.
   const cutoff = chatHistoryCutoff();
-  const customerResult = await api.from("chat_customer_messages").select("*").gte("occurred_at", cutoff).order("occurred_at", { ascending: false }).limit(10000);
+  const [customerResult, pageResult] = await Promise.all([
+    api.from("chat_customer_messages").select("*").gte("occurred_at", cutoff).order("occurred_at", { ascending: false }).limit(10000),
+    api.from("chat_page_messages").select("*").gte("occurred_at", cutoff).order("occurred_at", { ascending: false }).limit(10000),
+  ]);
   if (customerResult.error) fail(customerResult.error);
-  const pageResult = await api.from("chat_page_messages").select("*").gte("occurred_at", cutoff).order("occurred_at", { ascending: false }).limit(10000);
   const customers = customerResult.data ?? [];
   const pages = pageResult.error ? [] : (pageResult.data ?? []);
   const rows = [
@@ -654,6 +656,40 @@ export async function readChatThreads() {
   return Array.from(map.values()).sort((a, b) => new Date(b.latestAt || 0).getTime() - new Date(a.latestAt || 0).getTime());
 }
 export async function readChatMessages(pageId: string, threadId: string) { const rows = await readChatRows(); return rows.filter(row => String(row.page_id) === String(pageId) && String(row._thread) === String(threadId)).map((row: any) => ({ id: row.id, text: row._text || (row._hasAttachment ? "ส่งรูปภาพ" : ""), message_text: row._text, direction: row._speaker === "page" ? "outbound" : "inbound", senderType: row._speaker, senderName: row._name, side: row._side, occurredAt: row._occurred || row.occurred_at || row.synced_at, attachmentsJson: JSON.stringify(row.attachments_json || []), imageUrls: row.image_urls || [] })); }
+export type CloseJobCase = { id: string; page_id: string; page_name: string; conversation_key: string; customer_id: string; customer_name: string; speaker_type: string; occurred_at: string; message_text: string; case_type: string; area: string; branch: string; carrier_employee: string; tracking_number: string; order_number: string };
+export async function readCloseJobCases(limit = 10000): Promise<CloseJobCase[]> {
+  const api = getSupabase();
+  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /secret-gallery/connect แล้วบันทึก URL กับ Anon/Publishable Key" });
+  const [casesResult, notesResult] = await Promise.all([
+    api.from("vw_bb_close_job_cases").select("*").order("occurred_at", { ascending: false }).limit(Math.max(1, Math.min(limit, 10000))),
+    api.from("bb_delivery_case_notes").select("case_id,branch,carrier_employee,area"),
+  ]);
+  if (casesResult.error) fail(casesResult.error);
+  if (notesResult.error) fail(notesResult.error);
+  const notes = new Map((notesResult.data ?? []).map((note: any) => [String(note.case_id), note]));
+  return (casesResult.data ?? []).map((row: any) => {
+    const note = notes.get(String(row.id));
+    return {
+      ...row,
+      branch: note ? String(note.branch ?? "") : String(row.branch ?? ""),
+      carrier_employee: note ? String(note.carrier_employee ?? "") : String(row.carrier_employee ?? ""),
+      area: note ? String(note.area ?? "") : String(row.area ?? ""),
+    } as CloseJobCase;
+  });
+}
+export async function saveCloseJobCaseFields(input: { caseId: string; branch: string; carrierEmployee: string; area: string }) {
+  const api = getSupabase();
+  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /secret-gallery/connect แล้วบันทึก URL กับ Anon/Publishable Key" });
+  const { error } = await api.from("bb_delivery_case_notes").upsert({
+    case_id: input.caseId,
+    branch: input.branch.trim(),
+    carrier_employee: input.carrierEmployee.trim(),
+    area: input.area.trim(),
+    updated_at: new Date().toISOString(),
+  }, { onConflict: "case_id" });
+  if (error) fail(error);
+  return { ok: true };
+}
 export async function readParcelMappingQueue(status: "all" | "sent" = "all", limit = 300) {
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /secret-gallery/connect แล้วบันทึก URL กับ Anon/Publishable Key" });

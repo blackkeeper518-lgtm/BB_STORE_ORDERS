@@ -21,6 +21,7 @@ import TelegramDeliveryRoom from "./pages/TelegramDeliveryRoom";
 import AlertRoom from "./pages/AlertRoom";
 import SecretGallery from "./pages/SecretGallery";
 import ParcelMapping from "./pages/ParcelMapping";
+import CloseJobHistory from "./pages/CloseJobHistory";
 
 function Shell({ children }: { children: React.ReactNode }) { return <DashboardLayout>{children}</DashboardLayout>; }
 function Router() {
@@ -32,6 +33,7 @@ function Router() {
     <Route path="/orders"><Shell><OrderControl /></Shell></Route>
     <Route path="/parcel-mapping"><Shell><ParcelMapping /></Shell></Route>
     <Route path="/chats"><Shell><ChatHub /></Shell></Route>
+    <Route path="/close-job-history"><Shell><CloseJobHistory /></Shell></Route>
     <Route path="/alien-room"><Shell><AlienRoom /></Shell></Route>
     <Route path="/product-alien-store"><Shell><ProductAlienStore /></Shell></Route>
     <Route path="/product-alien-map"><Shell><ProductAlienMap /></Shell></Route>
