@@ -654,9 +654,9 @@ export async function readParcelMappingQueue(status: "all" | "sent" = "all", lim
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /secret-gallery/connect แล้วบันทึก URL กับ Anon/Publishable Key" });
   const safeLimit = Math.max(1, Math.min(limit, 500));
-  const activeData = status === "sent" ? [] : (await api.from("🔮 SHADOW_xXx_RECALL").select("*").limit(safeLimit));
+  const activeData = status === "sent" ? { data: [], error: null } : (await api.from("🦅ROGUE_xXx_SHIPPINGz").select("*").limit(safeLimit));
   if ("error" in activeData && activeData.error) fail(activeData.error);
-  const sent = status === "all" || status === "sent" ? await api.from("📓 DEAD_xXx_NOTE").select("*").limit(safeLimit) : { data: [], error: null };
+  const sent = status === "sent" ? await api.from("📓DEAD_xXx_NOTE").select("*").limit(safeLimit) : { data: [], error: null };
   if (sent.error) fail(sent.error);
   return [...("data" in activeData ? (activeData.data ?? []) : []), ...(sent.data ?? [])].slice(0, safeLimit);
 }

@@ -37,12 +37,12 @@ export async function supabasePost<T>(path: string, body: unknown): Promise<T> {
 export async function fetchParcelMappingQueue(input: { status: "all" | "sent"; limit: number }) {
   // These are quoted PostgreSQL relation names; keep the space after the emoji.
   // n8n owns the pipeline mutations. This room only reads the queue and history.
-  const activeView = encodeURIComponent("🔮 SHADOW_xXx_RECALL");
-  const sentView = encodeURIComponent("📓 DEAD_xXx_NOTE");
+  const activeView = encodeURIComponent("🦅ROGUE_xXx_SHIPPINGz");
+  const sentView = encodeURIComponent("📓DEAD_xXx_NOTE");
   const activeQuery = `select=*&limit=${input.limit}`;
   const sentQuery = `select=*&limit=${input.limit}`;
   const active = input.status === "sent" ? [] : await supabaseGet<Array<Record<string, unknown>>>(`${activeView}?${activeQuery}`);
-  const sent = input.status === "sent" || input.status === "all" ? await supabaseGet<Array<Record<string, unknown>>>(`${sentView}?${sentQuery}`) : [];
+  const sent = input.status === "sent" ? await supabaseGet<Array<Record<string, unknown>>>(`${sentView}?${sentQuery}`) : [];
   return [...active, ...sent].slice(0, input.limit);
 }
 function text(v: unknown) { return v == null ? null : String(v); }
