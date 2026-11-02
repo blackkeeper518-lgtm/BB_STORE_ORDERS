@@ -201,14 +201,21 @@ export default function ParcelMapping() {
     const message = messageToCopy(row);
     if (!message) return;
     await navigator.clipboard.writeText(message);
-    const key = clean(row.tracking_number);
+    const key = `message:${clean(row.tracking_number)}`;
+    setCopied(key);
+    window.setTimeout(() => setCopied(""), 1600);
+  }
+  async function copyValue(value: unknown, key: string) {
+    const text = clean(value);
+    if (!text) return;
+    await navigator.clipboard.writeText(text);
     setCopied(key);
     window.setTimeout(() => setCopied(""), 1600);
   }
 
   return (
     <div className="cosmic-stage blackbox-room min-h-full space-y-5 p-2 text-white sm:p-4 lg:p-6">
-      <header className="blackbox-hero relative overflow-hidden rounded-3xl border border-fuchsia-400/30 p-6 shadow-2xl shadow-fuchsia-950/30 sm:p-8">
+      <header className="blackbox-hero relative overflow-hidden rounded-3xl border border-fuchsia-400/30 p-4 shadow-2xl shadow-fuchsia-950/30 sm:p-5">
         <div className="hero-scanline" />
         <div className="cosmic-corner tl" />
         <div className="cosmic-corner br" />
@@ -219,11 +226,11 @@ export default function ParcelMapping() {
             <p className="live-chip">
               <Radar className="h-3.5 w-3.5" /> PARCEL RADAR · LIVE SIGNAL
             </p>
-            <p className="orbit-kicker mt-4">DK DRAKSIDE · SPACE VAULT / SECTOR 07</p>
-            <h1 className="cyber-title mt-4 text-3xl font-semibold sm:text-4xl">
+            <p className="orbit-kicker mt-2">DK DRAKSIDE · SPACE VAULT / SECTOR 07</p>
+            <h1 className="cyber-title mt-2 text-2xl font-semibold sm:text-3xl">
               ห้องควบคุมเลขพัสดุ
             </h1>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-fuchsia-100/65">
+            <p className="mt-1 max-w-3xl text-xs leading-5 text-fuchsia-100/65">
               ดึงจากสายส่งเลขเดิม แสดงข้อมูลจับคู่และตัวอย่างข้อความ โดยไม่ยิง
               Messenger ซ้ำกับ workflow หลัก
             </p>
@@ -244,10 +251,10 @@ export default function ParcelMapping() {
                 key={item}
                 type="button"
                 onClick={() => setFilter(item)}
-                className={`rounded-2xl border p-3 text-left transition hover:-translate-y-0.5 ${meta.className} ${filter === item ? "ring-2 ring-fuchsia-300/50" : ""}`}
+                className={`rounded-2xl border p-3 text-left transition hover:-translate-y-0.5 ${meta.className} ${filter === item ? "animate-pulse ring-2 ring-fuchsia-300/70 shadow-[0_0_24px_rgba(232,121,249,.25)]" : ""}`}
               >
-                <p className="text-xs opacity-70">
-                  {meta.icon} {meta.label}
+                <p className="flex items-center gap-1.5 text-xs opacity-70">
+                  <span className={filter === item ? "animate-pulse" : ""}>{meta.icon}</span> {meta.label}
                 </p>
                 <p className="mt-2 text-2xl font-black">
                   {counts[item].toLocaleString("th-TH")}
@@ -298,6 +305,11 @@ export default function ParcelMapping() {
             placeholder="ค้นในคิว: เลข / ชื่อ / เบอร์ / ออเดอร์"
             className="w-full bg-transparent py-3 text-sm text-white outline-none placeholder:text-white/30"
           />
+          {search ? (
+            <button type="button" onClick={() => setSearch("")} className="rounded-md p-1 text-white/45 transition hover:bg-white/10 hover:text-white" aria-label="ล้างการค้นหา">
+              <X className="h-4 w-4" />
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -353,12 +365,15 @@ export default function ParcelMapping() {
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-[10px] uppercase tracking-[0.18em] text-white/35">
-                        FLASH TRACKING
-                      </p>
-                      <p className="mt-1 break-all font-mono text-lg font-bold tracking-wide text-cyan-200">
-                        {clean(row.tracking_number) || "ไม่มีเลขพัสดุ"}
-                      </p>
+                      <button type="button" onClick={() => void copyValue(row.tracking_number, `tracking:${clean(row.tracking_number)}`)} disabled={!clean(row.tracking_number)} className="group/tracking text-left disabled:cursor-default">
+                        <p className="flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-white/35">
+                          <span>FLASH TRACKING</span><Clipboard className="h-3 w-3 text-cyan-300/60 transition group-hover/tracking:text-cyan-200" />
+                        </p>
+                        <p className="mt-1 break-all font-mono text-lg font-bold tracking-wide text-cyan-200 group-hover/tracking:text-cyan-100">
+                          {clean(row.tracking_number) || "ไม่มีเลขพัสดุ"}
+                        </p>
+                        {copied === `tracking:${clean(row.tracking_number)}` ? <span className="text-[10px] text-emerald-300">คัดลอกเลขแล้ว</span> : null}
+                      </button>
                     </div>
                     <Badge variant="outline" className={meta.className}>
                       {meta.icon} {meta.label}
@@ -385,26 +400,44 @@ export default function ParcelMapping() {
                       {formatCod(row.cod_amount)} บาท
                     </p>
                   </div>
+                  <div className="mt-3 grid gap-2 md:grid-cols-2">
+                    {[
+                      ["FACEBOOK TRACKING MESSAGE", row.facebook_tracking_message, "facebook"],
+                      ["DRAKSIDE TRACKING MESSAGE", row.drakside_tracking_message, "drakside"],
+                    ].map(([label, value, kind]) => clean(value) ? (
+                      <div key={kind} className="rounded-xl border border-fuchsia-300/10 bg-fuchsia-300/[0.03] p-3">
+                        <div className="mb-2 flex items-center justify-between gap-2">
+                          <p className="text-[10px] font-bold tracking-[0.14em] text-fuchsia-200/60">{label}</p>
+                          <button type="button" onClick={() => void copyValue(value, `${kind}:${clean(row.tracking_number)}`)} className="rounded-md p-1 text-fuchsia-200/60 transition hover:bg-fuchsia-200/10 hover:text-fuchsia-100" aria-label={`คัดลอก ${label}`}>
+                            {copied === `${kind}:${clean(row.tracking_number)}` ? <Check className="h-3.5 w-3.5 text-emerald-300" /> : <Clipboard className="h-3.5 w-3.5" />}
+                          </button>
+                        </div>
+                        <pre className="max-h-40 overflow-auto whitespace-pre-wrap text-xs leading-5 text-fuchsia-50/80">{clean(value)}</pre>
+                      </div>
+                    ) : null)}
+                  </div>
                   <div className="mt-4 flex flex-wrap gap-2 border-t border-white/5 pt-3">
-                    <Button
-                      onClick={() => setSelected(row)}
-                      className="bb-send-button"
-                    >
-                      ดูข้อความที่จะส่ง
+                    <Button onClick={() => void copyValue(row.facebook_tracking_message, `facebook:${clean(row.tracking_number)}`)} disabled={!clean(row.facebook_tracking_message)} className="bb-send-button">
+                      {copied === `facebook:${clean(row.tracking_number)}` ? <Check className="mr-2 h-4 w-4" /> : <Clipboard className="mr-2 h-4 w-4" />}
+                      {copied === `facebook:${clean(row.tracking_number)}` ? "Facebook คัดลอกแล้ว" : "Facebook ข้อความ"}
+                    </Button>
+                    <Button onClick={() => void copyValue(row.drakside_tracking_message, `drakside:${clean(row.tracking_number)}`)} disabled={!clean(row.drakside_tracking_message)} variant="outline" className="border-fuchsia-300/25 text-fuchsia-100">
+                      {copied === `drakside:${clean(row.tracking_number)}` ? <Check className="mr-2 h-4 w-4" /> : <Clipboard className="mr-2 h-4 w-4" />}
+                      {copied === `drakside:${clean(row.tracking_number)}` ? "Drakside คัดลอกแล้ว" : "Drakside ข้อความ"}
                     </Button>
                     <Button
                       onClick={() => void copyMessage(row)}
                       variant="outline"
                       className="border-cyan-300/25 text-cyan-100"
                     >
-                      {copied === clean(row.tracking_number) ? (
+                      {copied === `message:${clean(row.tracking_number)}` ? (
                         <Check className="mr-2 h-4 w-4" />
                       ) : (
                         <Clipboard className="mr-2 h-4 w-4" />
                       )}
-                      {copied === clean(row.tracking_number)
+                      {copied === `message:${clean(row.tracking_number)}`
                         ? "คัดลอกแล้ว"
-                        : "คัดลอกข้อความ"}
+                        : "คัดลอกรวม"}
                     </Button>
                     <Button
                       onClick={() =>
