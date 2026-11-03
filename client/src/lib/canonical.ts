@@ -337,6 +337,9 @@ function normalizeBbDirectRow(row: any): CanonicalOrder {
     packer.address_display_packer, packer.rescue_address_normalized, packer.full_address);
   const ready = asBoolean(row.is_ready_to_pack ?? row.bill_data_complete);
   const deliveryState = firstText(row.delivery_state, row.delivery_status);
+  const sent = asBoolean(row.telegram_sent) || [deliveryState, row.telegram_status]
+    .map(value => String(value ?? "").trim().toUpperCase().replace(/^🔥\s*/, ""))
+    .some(value => ["SENT", "DELIVERED", "SENT_TO_TELEGRAM", "COMPLETED"].includes(value));
   return normalizeOrder({
     ...row,
     order_number: firstText(row.order_number_display, row.order_number) || `#${row.upsert_key || "UNKNOWN"}`,
@@ -357,7 +360,7 @@ function normalizeBbDirectRow(row: any): CanonicalOrder {
     stock_notice: firstText(row.stock_notice, row.bill_header_playful, row.telegram_bill_header, row.product_master_stock_notice) || null,
     telegram_body: parseJsonRecord(row.telegram_body),
     telegram_status: deliveryState || null,
-    telegram_sent: ["SENT", "DELIVERED", "SENT_TO_TELEGRAM"].includes(deliveryState.toUpperCase()),
+    telegram_sent: sent,
     shipping_method: row.shipping_carrier || "⚡FLASH EXPRESS",
     is_ready_to_pack: ready,
     mapping_status: ready ? "MATCHED" : row.mapping_status || null,
@@ -455,7 +458,10 @@ export async function readTelegramDeliveryOrders(search = "", room: "queue" | "t
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
 
-  const sourceTable = room === "sent" ? "🌟GENESIS_xXx_HISTORY" : "🛰️PIONEER_xXx_CAPSULE";
+  // Telegram is part of the Main Order Pipeline. Read the combined order
+  // projection, then write changes back to the row's real source table by
+  // upsert_key (HERMES or SINGULARITY).
+  const sourceTable = room === "sent" ? "🌟GENESIS_xXx_HISTORY" : "🌌MULTIVERSE_xXx_NEXUS";
   const { data, error } = await api
     .from(sourceTable)
     .select(TELEGRAM_WEB_ORDER_COLUMNS)
