@@ -3,7 +3,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { startLogin } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { Activity, Archive, Bell, BrainCircuit, Boxes, CalendarDays, CheckCircle2, Database, LayoutDashboard, LockKeyhole, MessageCircle, PanelLeft, Send, Tags, Truck, Waypoints } from "lucide-react";
+import { Activity, Archive, Bell, BrainCircuit, Boxes, CalendarDays, Database, LayoutDashboard, LockKeyhole, MessageCircle, PanelLeft, Send, Tags, Truck } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
@@ -16,14 +16,15 @@ const menuItems = [
   { icon: LayoutDashboard, label: "Order Control", path: "/orders" },
   { icon: Truck, label: "แมปเลขพัสดุ", path: "/parcel-mapping" },
   { icon: BrainCircuit, label: "Alien Inbox · คำดิบ", path: "/alien-room" },
+  { icon: Database, label: "Product Alien · เก็บคำ", path: "/product-alien-store" },
+  { icon: Tags, label: "Product Alien · แมป", path: "/product-alien-map" },
   { icon: Send, label: "ห้องส่ง Telegram", path: "/telegram-delivery" },
-  { icon: CheckCircle2, label: "ประวัติ Telegram · ส่งสำเร็จ", path: "/telegram-sent-history" },
   { icon: Bell, label: "ประวัติเปลี่ยนของ", path: "/alert-room" },
   { icon: Archive, label: "ประวัติปิดงาน · ยกเลิก/ไม่รับ", path: "/close-job-history" },
   { icon: Boxes, label: "คลังสินค้าจริง / สต๊อกกลาง", path: "/stock-room" },
-  { icon: Waypoints, label: "System Manual · ผังระบบ", path: "/system-manual" },
+  { icon: Tags, label: "Product Master Health", path: "/mapping-dashboard" },
   { icon: CalendarDays, label: "สรุปออเดอร์รายวัน · Flash", path: "/daily-chat-summary" },
-  { icon: Archive, label: "ประวัติออเดอร์", path: "/order-history" },
+  { icon: Archive, label: "คลังบิลส่งแล้ว · GENESIS", path: "/order-history" },
   { icon: Boxes, label: "แยก 1/2/3 คอต", path: "/order-buckets" },
   { icon: Activity, label: "ประสิทธิภาพดูดออเดอร์", path: "/order-performance" },
   { icon: Database, label: "คลังโปรเจกต์", path: "/" },
