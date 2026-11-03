@@ -357,18 +357,20 @@ try {
 
   setSelected(0);
   void query.refetch();
-} catch (error) {
-  void query.refetch();
-  setSendMessage(
-    `ส่ง Telegram แล้ว แต่เขียน 🔥SENT ไม่สำเร็จ: ${
-      error instanceof Error ? error.message : String(error)
-    }`,
-  );
+  } catch (error) {
+    void query.refetch();
+    setSendMessage(
+      `ส่ง Telegram แล้ว แต่เขียน 🔥SENT ไม่สำเร็จ: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
 }
-
+ 
 function orderKey(row: OrderRow) {
   return String(row.upsert_key);
 }
+
 
   function beginOrderDrag(event: ReactMouseEvent<HTMLButtonElement>, row: OrderRow) {
     if (event.button !== 0) return;
