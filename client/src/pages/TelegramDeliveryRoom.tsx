@@ -57,7 +57,7 @@ function realTime(row: OrderRow) {
   return row.order_time_display || null;
 }
 
-function displayTime(row: OrderRow) { return String(row.order_time_display || "ไม่พบ order_time_display"); }
+function displayTime(row: OrderRow | null | undefined) { return isOrderRow(row) ? String(row.order_time_display || "ไม่พบ order_time_display") : "—"; }
 
 function productOf(row: OrderRow) {
   return evidenceText(row.order_fibo_product) || evidenceText(row.for_packer_st_display) ||

@@ -34,11 +34,12 @@
                   │
                   ▼
        [view 🪐 ANDROMEDA_xXx_SENT] ──► ส่งข้อมูลเข้า Telegram
-                  │                         ส่งแล้วออกจากคิวส่ง
-                  ▼
-       [view 🌟 GENESIS_xXx_HISTORY] (log ออเดอร์ที่จบสถานะ)
-                  ▲
-                  │ ตรวจทวน
+                  ├── ⚪ 🟦 🟨 ส่งแล้ว ──► [view 🌟 GENESIS_xXx_HISTORY]
+                  └── 🟠 ส่ง/บันทึกแล้ว ──► [view 🔸 PARADOX_xXx_EXCHANGE]
+                                                    │
+                                                    ▼
+                                           ห้องประวัติเปลี่ยนของ
+
        [table 💀 THANATOS_xXx_DEATH_NOTE] (ออเดอร์สีดำ/บอททวน)
 ```
 
@@ -51,13 +52,14 @@
 - `🌌 MULTIVERSE_xXx_NEXUS` — รวมออเดอร์ ⚪🟦🟨🟠 และ join หัวบิลจาก `🛒 product_master`
 - `🛰️ PIONEER_xXx_CAPSULE` — คิวเตรียมแพ็กออเดอร์ทุกสี
 - `🪐 ANDROMEDA_xXx_SENT` — วิวส่งข้อมูล Telegram; เมื่อส่งแล้วรายการออกจากวิวส่ง
-- `🌟 GENESIS_xXx_HISTORY` — log สถานะและประวัติออเดอร์ที่จบแล้ว
+- `🌟 GENESIS_xXx_HISTORY` — ประวัติส่งแล้วของ ⚪🟦🟨; ไม่รวม 🟠 จาก SINGULARITY
+- `🔸 PARADOX_xXx_EXCHANGE` — วิวของ 🟠 ที่ส่ง/บันทึกแล้วจาก SINGULARITY สำหรับประวัติเปลี่ยนของ
 
 ### Mapping ห้องเว็บที่ตกลงใช้ตอนนี้
 
 - **Order Control:** อ่าน `🗝️HERMES_ARCHIVE` ชั่วคราว โดยเลือกคอลัมน์ที่มีอยู่จริงและจำเป็นกับบิล/ลูกค้า/เวลา/สินค้า/COD/สถานะ
 - **Telegram:** อ่าน `🌌MULTIVERSE_xXx_NEXUS`
-- **ประวัติเปลี่ยนของ:** ใช้ `🌀SINGULARITY_xXx_EXCHANGE`; หน้าปัจจุบันคงไว้ก่อนและค่อยปรับชื่อ/หน้าจอภายหลัง
+- **ประวัติเปลี่ยนของ:** อ่าน `🔸 PARADOX_xXx_EXCHANGE` เท่านั้น; ไม่อ่านตารางผสม `🌀SINGULARITY_xXx_EXCHANGE` ตรง
 - **ประวัติปิดงาน/ยกเลิก/สั่งแล้วไม่รับ:** อ่านแชทจาก Tracking project และใช้ `vw_bb_close_job_cases` กับ `bb_delivery_case_notes`
 - เมนู `Alien Learning · อนุมัติ Alias` ถูกแทนด้วยประวัติเคส เพราะ `product_map_master` ไม่อยู่ใน schema ปัจจุบัน; หน้าเดิมยังไม่ลบ และ `/aliases` พาไปหน้าประวัติเคส
 - **Secret Gallery:** เก็บ Anon/Publishable Key แยกเป็น Main Order และ Tracking & Messenger; ฝั่งแชท/พัสดุ/ประวัติเคสเลือก Tracking อัตโนมัติ
