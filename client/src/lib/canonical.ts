@@ -491,7 +491,8 @@ export async function readBbOrderEvidenceBatch(upsertKeys: string[]) {
 export async function readBbAlertRoom(search = "") {
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  const { data, error } = await api.from("🌀SINGULARITY_xXx_EXCHANGE").select("*").order("order_time_display", { ascending: false }).limit(2000);
+  // Orange change history is separated from the mixed yellow/orange source table.
+  const { data, error } = await api.from("🔸 PARADOX_xXx_EXCHANGE").select("*").order("order_time_display", { ascending: false }).limit(2000);
   if (error) fail(error);
   const query = search.trim().toLowerCase();
   const rows = (data ?? []).map((row: any) => {
