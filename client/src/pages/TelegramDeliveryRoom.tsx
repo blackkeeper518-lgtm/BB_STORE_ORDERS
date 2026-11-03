@@ -114,6 +114,36 @@ function telegramText(row: OrderRow) {
   return String(row.telegram_message ?? "").trim();
 }
 
+function plainTelegramText(value: unknown) {
+  return String(value ?? "")
+    .replace(/<br\s*\/?\s*>/gi, "\n")
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/\r\n?/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function escapeTelegramHtml(value: string) {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function mappingLabel(row: OrderRow) {
+  if (row.master_matched === true || String(row.mapping_status_fast ?? "").toUpperCase() === "MAPPED_FROM_PRODUCT_MASTER" || String(row.master_display_for_packer ?? "").trim()) return "MAPPED_FROM_PRODUCT_MASTER";
+  return String(row.mapping_status || row.web_mapping_status || "REVIEW_PRODUCT");
+}
+
+function issueOf(row: OrderRow) {
+  const issues: string[] = [];
+  if (!row.upsert_key) issues.push("ไม่มี upsert_key");
+  if (!productOf(row)) issues.push("ไม่พบสินค้า");
+  if (!addressOf(row) || addressOf(row).includes("ยังไม่มี")) issues.push("ไม่พบที่อยู่");
+  return issues;
+}
+
 function warningOf(row: OrderRow) {
   const warnings: string[] = [];
   const cod = Number(row.cod_amount);
@@ -197,6 +227,19 @@ export default function TelegramDeliveryRoom() {
   const [manualMessageOverrides, setManualMessageOverrides] = useState<
     Record<string, string>
   >({});
+  const [header, setHeader] = useState(DEFAULT_HEADER);
+  const [sentAwaitingStatusKeys, setSentAwaitingStatusKeys] = useState<Set<string>>(new Set());
+  const [localSentKeys, setLocalSentKeys] = useState<Set<string>>(new Set());
+  const [room, setRoom] = useState<"queue" | "sent">(() =>
+    new URLSearchParams(window.location.search).get("room") === "sent" ? "sent" : "queue",
+  );
+  const query = useQuery({
+    queryKey: ["telegram-delivery-room", getActiveCamp(), room, search],
+    queryFn: () => readTelegramDeliveryOrders(search, room),
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+  });
 
 
   const allOrders: OrderRow[] = Array.isArray(query.data?.orders)
@@ -255,6 +298,12 @@ const telegramSelection = useMemo(() => {
 
 // เหลือเฉพาะคำเตือนที่เว็บตรวจเพิ่ม
 const selectedWarnings = order ? warningOf(order) : [];
+const selectedIssues = order ? issueOf(order) : [];
+const lane = order ? laneOf(order) : {
+  label: "ยังไม่เลือกโซน",
+  mark: "WAIT",
+  tone: "border-cyan-300/50 bg-cyan-400/10 text-cyan-200",
+};
 
 const messagePreview = useMemo(
   () => (order ? plainTelegramText(message) : ""),
@@ -371,6 +420,15 @@ function orderKey(row: OrderRow) {
   return String(row.upsert_key);
 }
 
+
+  function toggleOrder(row: OrderRow) {
+    const key = orderKey(row);
+    setSelectedKeys((current) => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }
 
   function beginOrderDrag(event: ReactMouseEvent<HTMLButtonElement>, row: OrderRow) {
     if (event.button !== 0) return;
