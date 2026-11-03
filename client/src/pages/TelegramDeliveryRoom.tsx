@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { getActiveCamp, readTelegramDeliveryOrders, searchThailandPostalMaster, updateBbOrderByKey, type PostalMasterMatch } from "@/lib/canonical";
+import { getActiveCamp, markBbOrderSentByKey, readTelegramDeliveryOrders, searchThailandPostalMaster, updateBbOrderByKey, type PostalMasterMatch } from "@/lib/canonical";
 import { AlertTriangle, CheckCircle2, Clipboard, Clock3, Eye, MessageSquareText, RefreshCw, Send, ShieldAlert, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -45,7 +45,8 @@ function orderKey(row: OrderRow) {
 }
 
 function sourceTableOf(row: OrderRow): "🗝️HERMES_ARCHIVE" | "🌀SINGULARITY_xXx_EXCHANGE" {
-  return row.source_table === "🌀SINGULARITY_xXx_EXCHANGE" ? "🌀SINGULARITY_xXx_EXCHANGE" : "🗝️HERMES_ARCHIVE";
+  if (row.source_table === "🗝️HERMES_ARCHIVE" || row.source_table === "🌀SINGULARITY_xXx_EXCHANGE") return row.source_table;
+  throw new Error(`ไม่พบ source_table ที่ชัดเจนสำหรับ ${String(row.upsert_key ?? row.order_number ?? "ออเดอร์นี้")}`);
 }
 
 function deliveryStatus(row: OrderRow) {
@@ -327,14 +328,13 @@ export default function TelegramDeliveryRoom() {
 
   async function markSelectedOrdersSent() {
     if (!selectedOrders.length) { setSendMessage("ยังไม่ได้ติ๊กเลือกออเดอร์"); return; }
+    if (room === "sent") { setSendMessage("รายการอยู่ในประวัติ 🔥SENT แล้ว"); return; }
     try {
-      const rowsToMark = selectedOrders.filter((row) => !isSent(row));
-      if (!rowsToMark.length) { setSendMessage("ออเดอร์ที่เลือกอยู่ในประวัติส่งแล้วแล้ว"); return; }
-      const patch = { delivery_state: "SENT" };
-      for (const row of rowsToMark) {
-        if (row.upsert_key) await updateBbOrderByKey(String(row.upsert_key), patch, sourceTableOf(row));
+      for (const row of selectedOrders) {
+        if (!row.upsert_key) throw new Error("แถวที่เลือกไม่มี upsert_key เลยหยุดก่อน เพื่อไม่ให้ขึ้นว่าส่งแล้วทั้งที่ยังไม่ได้เขียน");
+        await markBbOrderSentByKey(String(row.upsert_key), sourceTableOf(row));
       }
-      setSendMessage(`เก็บเป็น SENT แล้ว ${rowsToMark.length} ออเดอร์ (ข้อมูลออเดอร์เดิมยังอยู่)`);
+      setSendMessage(`เขียน 🔥SENT ลงโต๊ะหลักสำเร็จ ${selectedOrders.length} ออเดอร์ — ออกจากคิวเตือนแล้ว`);
       setSelectedKeys(new Set());
       await query.refetch();
     } catch (error) {
@@ -343,12 +343,11 @@ export default function TelegramDeliveryRoom() {
   }
 
   async function markCurrentOrderSent() {
-    if (isSent(order)) { setSendMessage("ออเดอร์นี้อยู่ในประวัติส่งแล้ว และจะไม่กลับเข้าคิว"); return; }
+    if (room === "sent") { setSendMessage("รายการนี้อยู่ในประวัติ 🔥SENT แล้ว"); return; }
     if (!order?.upsert_key) { setSendMessage("ติ๊กส่งแล้วไม่ได้: ไม่พบ upsert_key"); return; }
     try {
-      const patch = { delivery_state: "SENT" };
-      await updateBbOrderByKey(String(order.upsert_key), patch, sourceTableOf(order));
-      setSendMessage("บันทึก 🔥SENT สำเร็จ — รายการออกจากคิวเตือน");
+      await markBbOrderSentByKey(String(order.upsert_key), sourceTableOf(order));
+      setSendMessage("เขียน 🔥SENT ลงโต๊ะหลักสำเร็จ — รายการออกจากคิวเตือน");
       setSelectedKeys((current) => {
         const next = new Set(current);
         next.delete(orderKey(order));
@@ -493,7 +492,7 @@ export default function TelegramDeliveryRoom() {
         </Card>
 
         <div className="space-y-5">
-          <Card className="rounded-3xl border-fuchsia-400/20 bg-[#10091c]"><CardHeader><div className="flex flex-wrap items-center justify-between gap-3"><CardTitle className="flex items-center gap-2 text-base text-cyan-100"><Eye className="h-4 w-4 text-cyan-300" />ข้อมูลแต่งหล่อสำหรับส่ง <span className="ml-2 text-[10px] font-normal text-cyan-100/55">{displayTime(order)}</span></CardTitle><div className="flex flex-wrap gap-2"><Button onClick={sendCurrentOrder} disabled={!order || room === "sent" || isSent(order) || editMode || sendMessage === "กำลังส่ง Telegram..."} className="bb-send-button"><Send className="mr-2 h-4 w-4" />{sendMessage === "กำลังส่ง Telegram..." ? "กำลังส่ง..." : "กดส่ง Telegram"}</Button><Button onClick={markCurrentOrderSent} disabled={!order || isSent(order)} className="border border-emerald-300/50 bg-emerald-500/20 text-emerald-100 hover:bg-emerald-500/30"><CheckCircle2 className="mr-2 h-4 w-4" />{isSent(order) ? "🔥 SENT แล้ว" : "🔥SENT"}</Button><Button onClick={toggleEditMessage} disabled={!order || editSaving} variant="outline" className="bb-status-button">{editMode ? "ยกเลิกแก้" : "แก้ข้อความส่ง"}</Button><Button onClick={copyMessage} disabled={!order} variant="outline" className="bb-status-button"><Clipboard className="mr-2 h-4 w-4" />{copied ? "คัดลอกแล้ว" : "คัดลอกทั้งบิล"}</Button><Button variant="outline" onClick={() => setShowEvidence((value) => !value)} disabled={!order} className="border-cyan-400/20 text-cyan-200"><MessageSquareText className="mr-2 h-4 w-4" />{showEvidence ? "ซ่อนก้อนออเดอร์แท้" : "ก้อนออเดอร์แท้"}</Button></div></div>{sendMessage && <p className={`mt-3 rounded-xl border p-3 text-xs ${sendMessage.includes("สำเร็จ") ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-200" : "border-red-400/25 bg-red-400/10 text-red-200"}`}>{sendMessage}</p>}</CardHeader><CardContent>
+          <Card className="rounded-3xl border-fuchsia-400/20 bg-[#10091c]"><CardHeader><div className="flex flex-wrap items-center justify-between gap-3"><CardTitle className="flex items-center gap-2 text-base text-cyan-100"><Eye className="h-4 w-4 text-cyan-300" />ข้อมูลแต่งหล่อสำหรับส่ง <span className="ml-2 text-[10px] font-normal text-cyan-100/55">{displayTime(order)}</span></CardTitle><div className="flex flex-wrap gap-2"><Button onClick={sendCurrentOrder} disabled={!order || room === "sent" || isSent(order) || editMode || sendMessage === "กำลังส่ง Telegram..."} className="bb-send-button"><Send className="mr-2 h-4 w-4" />{sendMessage === "กำลังส่ง Telegram..." ? "กำลังส่ง..." : "กดส่ง Telegram"}</Button><Button onClick={markCurrentOrderSent} disabled={!order || room === "sent" || statusSaving} className="border border-emerald-300/50 bg-emerald-500/20 text-emerald-100 hover:bg-emerald-500/30"><CheckCircle2 className="mr-2 h-4 w-4" />{isSent(order) ? "🔥SENT · เขียนลงโต๊ะ" : "🔥SENT"}</Button><Button onClick={toggleEditMessage} disabled={!order || editSaving} variant="outline" className="bb-status-button">{editMode ? "ยกเลิกแก้" : "แก้ข้อความส่ง"}</Button><Button onClick={copyMessage} disabled={!order} variant="outline" className="bb-status-button"><Clipboard className="mr-2 h-4 w-4" />{copied ? "คัดลอกแล้ว" : "คัดลอกทั้งบิล"}</Button><Button variant="outline" onClick={() => setShowEvidence((value) => !value)} disabled={!order} className="border-cyan-400/20 text-cyan-200"><MessageSquareText className="mr-2 h-4 w-4" />{showEvidence ? "ซ่อนก้อนออเดอร์แท้" : "ก้อนออเดอร์แท้"}</Button></div></div>{sendMessage && <p className={`mt-3 rounded-xl border p-3 text-xs ${sendMessage.includes("สำเร็จ") ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-200" : "border-red-400/25 bg-red-400/10 text-red-200"}`}>{sendMessage}</p>}</CardHeader><CardContent>
             {order ? <div className="grid gap-4">{editMode ? <textarea aria-label="ข้อความแต่งหล่อสำหรับส่ง Telegram" value={editText} onChange={(event) => setEditText(event.target.value)} className="min-h-[480px] w-full resize-y whitespace-pre-wrap rounded-2xl border border-cyan-300/70 bg-[#020812] p-5 font-mono text-sm leading-7 text-cyan-50 shadow-[inset_0_0_32px_rgba(34,211,238,.15),0_0_30px_rgba(34,211,238,.25)] outline-none focus:ring-2 focus:ring-fuchsia-300/70" /> : <pre className="min-h-[480px] whitespace-pre-wrap rounded-2xl border border-cyan-300/35 bg-black/55 p-5 text-sm leading-7 text-cyan-50 shadow-[inset_0_0_24px_rgba(34,211,238,.1),0_0_24px_rgba(34,211,238,.12)]">{messagePreview}</pre>}{editMode && <Button onClick={saveOrderEdit} disabled={editSaving || !editText.trim()} className="bb-save-button">{editSaving ? "กำลังบันทึก..." : "บันทึกข้อความส่ง"}</Button>}<div className="space-y-3"><div className="rounded-2xl border relative overflow-hidden border-cyan-300/45 bg-cyan-400/10 p-4 text-sm shadow-[inset_0_0_28px_rgba(34,211,238,.14),0_0_24px_rgba(34,211,238,.18)]"><p className="text-[10px] uppercase tracking-[0.18em] text-cyan-200/80">จุดตรวจ</p><div className="mt-3 space-y-2"><p className="flex items-center gap-2 text-xs text-emerald-200"><CheckCircle2 className="h-4 w-4" />เวลาจริง: {displayTime(order)}</p><p className="flex items-center gap-2 text-xs text-cyan-200"><Sparkles className="h-4 w-4" />สินค้า: {productOf(order)}</p><p className="flex items-center gap-2 text-xs text-orange-100/70"><ShieldAlert className="h-4 w-4" />สถานะข้อมูล: {mappingLabel(order)}</p>{selectedWarnings.length > 0 && <div className="rounded-xl border border-red-300/30 bg-red-400/10 p-3 text-xs text-red-100"><p className="mb-1 flex items-center gap-2 font-semibold"><AlertTriangle className="h-4 w-4" />คำเตือนระบบ</p>{selectedWarnings.map((warning) => <p key={warning}>• {warning}</p>)}</div>}{selectedIssues.length > 0 ? <div className="rounded-xl border border-amber-300/20 bg-amber-400/10 p-3 text-xs text-amber-100"><p className="mb-1 flex items-center gap-2 font-semibold"><AlertTriangle className="h-4 w-4" />พบจุดต้องตรวจ</p>{selectedIssues.map((issue) => <p key={issue}>• {issue}</p>)}</div> : selectedWarnings.length === 0 && <p className="text-xs text-emerald-200">ไม่พบคำเตือนพื้นฐาน</p>}</div></div><div className="rounded-2xl border border-white/10 bg-black/25 p-4 text-xs leading-6 text-orange-100/65"><b className="text-orange-200">สถานะการส่ง</b><br /><span className={`inline-flex rounded-full border px-2.5 py-1 text-sm font-semibold ${deliveryStatus(order).tone}`}>{deliveryStatus(order).label}</span><p className="mt-2">{deliveryStatus(order).slogan}</p><p className="mt-1">{isSent(order) ? "รายการนี้ถูกทำเครื่องหมายส่งแล้ว" : "ยังไม่ควรทำเครื่องหมาย SENT ก่อนตัวส่งตอบกลับ"}</p></div></div></div> : <div className="rounded-2xl border border-dashed border-orange-400/20 p-10 text-center text-sm text-orange-100/55">เลือกออเดอร์จากคิวเพื่อดูรายละเอียด</div>}
           </CardContent></Card>
 
