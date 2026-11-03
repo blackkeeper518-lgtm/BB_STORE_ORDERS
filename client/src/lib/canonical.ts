@@ -477,6 +477,24 @@ export async function readTelegramDeliveryOrders(search = "", room: "queue" | "t
   return { orders, itemError: null, sourceTable, fetchedAt: new Date().toISOString(), room };
 }
 
+export async function readTelegramSentHistory(search = "") {
+  const api = getSupabase();
+  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
+  const sourceTable = "🌟GENESIS_xXx_HISTORY";
+  const { data, error } = await api
+    .from(sourceTable)
+    .select(TELEGRAM_WEB_ORDER_COLUMNS)
+    .order("order_time_display", { ascending: false })
+    .limit(ORDER_OPERATIONAL_LIMIT);
+  if (error) fail(error);
+  const query = search.trim().toLowerCase();
+  const orders = (data ?? [])
+    .map((row: any) => ({ ...normalizeBbDirectRow(row), source_view: sourceTable, source_table: row.source_table || sourceTable }) as CanonicalOrder)
+    .filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query))
+    .sort((a, b) => displayOrderSortKey(b.order_time_display) - displayOrderSortKey(a.order_time_display));
+  return { orders, itemError: null, sourceTable, fetchedAt: new Date().toISOString() };
+}
+
 export async function readBbOrderEvidence(upsertKey: string, sourceTable: "🗝️HERMES_ARCHIVE" | "🌀SINGULARITY_xXx_EXCHANGE" = "🗝️HERMES_ARCHIVE") {
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
@@ -652,18 +670,18 @@ export async function readStockProducts(): Promise<StockProduct[]> {
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
   const { data: products, error } = await api
     .from("🛒product_master")
-    .select("id,sku,master_sku,display_for_packer,master_display_for_packer,name_standard,th_name,product_name,unit_price,price,stock_qty,stock_status")
+    .select("id,master_sku,display_for_packer,master_display_for_packer,name_standard,th_name,unit_price,stock_qty,stock_status")
     .order("master_sku");
   if (error) fail(error);
   return (products ?? []).map((p: any) => {
-    const sku = String(p.master_sku ?? p.sku ?? "").trim();
+    const sku = String(p.master_sku ?? "").trim();
     const stockQty = num(p.stock_qty) ?? 0;
     return {
       id: Number(p.id),
       sku,
-      label: p.master_display_for_packer ?? p.display_for_packer ?? p.name_standard ?? p.th_name ?? p.product_name ?? sku,
+      label: p.master_display_for_packer ?? p.display_for_packer ?? p.name_standard ?? p.th_name ?? sku,
       thName: p.th_name ?? p.name_standard ?? "",
-      price: num(p.unit_price ?? p.price),
+      price: num(p.unit_price),
       stockQty,
       stockStatus: p.stock_status ?? (stockQty > 0 ? "IN_STOCK" : "OUT_OF_STOCK"),
     };
@@ -1055,7 +1073,7 @@ export async function readAlienReview(search = ''): Promise<AlienReviewItem[]> {
       : inventoryByKey.get(`sku:${resolvedSku.toLowerCase()}`);
     // Prefer the final product fields produced by the current bill-builder node.
     // Do not infer or translate product names in the web room.
-    const masterDisplay = firstText(order.manus_for_packer, order.order_fibo_product, order.for_packer_st_display, order.sku);
+    const masterDisplay = firstText(order.master_display_for_packer, order.final_display_for_packer, order.final_product, order.for_packer_st_display, order.manus_for_packer, order.sku);
     const mappingStatus = String(order.mapping_status ?? order.match_status ?? '').toUpperCase();
     const matched = Boolean(masterDisplay && (mappingStatus === 'MATCHED' || mappingStatus === 'RESOLVED' || Boolean(aliasSku)));
     const audit_status = matched ? 'MATCHED' : 'REVIEW';

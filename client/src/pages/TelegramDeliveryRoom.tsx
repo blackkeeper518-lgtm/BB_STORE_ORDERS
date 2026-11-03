@@ -1,11 +1,12 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { getActiveCamp, markBbOrderSentByKey, readTelegramDeliveryOrders, searchThailandPostalMaster, updateBbOrderByKey, type PostalMasterMatch } from "@/lib/canonical";
+import { getActiveCamp, markBbOrderSentByKey, readTelegramDeliveryOrders, readTelegramSentHistory, searchThailandPostalMaster, updateBbOrderByKey, type PostalMasterMatch } from "@/lib/canonical";
 import { AlertTriangle, CheckCircle2, Clipboard, Clock3, Eye, MessageSquareText, RefreshCw, Send, ShieldAlert, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getTelegramBody, selectTelegramMessage, sendTelegramFromN8n } from "@/lib/telegramDelivery";
+import { Link } from "wouter";
 
 const DEFAULT_HEADER = "🚀 [บิลสมบูรณ์ - 🎯ORDER_SNIPER_X]";
 
@@ -218,10 +219,29 @@ export default function TelegramDeliveryRoom() {
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
   });
+  const historyQuery = useQuery({
+    queryKey: ["telegram-delivery-warning-history", getActiveCamp(), search],
+    queryFn: () => readTelegramSentHistory(search),
+    enabled: room !== "sent",
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+  });
 
   const allOrders: OrderRow[] = Array.isArray(query.data?.orders)
     ? query.data.orders.filter(isOrderRow)
     : [];
+  const historyOrders: OrderRow[] = Array.isArray(historyQuery.data?.orders)
+    ? historyQuery.data.orders.filter(isOrderRow)
+    : [];
+  const warningOrders = useMemo(() => {
+    const merged = new Map<string, OrderRow>();
+    for (const row of room === "sent" ? allOrders : [...allOrders, ...historyOrders]) {
+      const key = orderKey(row);
+      if (key) merged.set(key, row);
+    }
+    return Array.from(merged.values());
+  }, [allOrders, historyOrders, room]);
   // Keep the order_time_display ordering supplied by the canonical reader; do not parse display dates again in the browser.
   const waiting = useMemo(() => allOrders.filter((row) => {
     const locallySent = localSentKeys.has(orderKey(row));
@@ -243,8 +263,8 @@ export default function TelegramDeliveryRoom() {
   const selectedIssues = order ? issueOf(order) : [];
   const selectedWarnings = order ? warningOf(order) : [];
   const messagePreview = useMemo(() => order ? plainTelegramText(message) : "", [order, message]);
-  const warningCount = waiting.reduce((sum, row) => sum + warningOf(row).length, 0);
-  const warningBillCount = waiting.reduce((sum, row) => sum + (warningOf(row).length > 0 ? 1 : 0), 0);
+  const warningCount = warningOrders.reduce((sum, row) => sum + warningOf(row).length, 0);
+  const warningBillCount = warningOrders.reduce((sum, row) => sum + (warningOf(row).length > 0 ? 1 : 0), 0);
   const lane = order ? laneOf(order) : { label: "ยังไม่เลือกโซน", mark: "WAIT", tone: "border-cyan-300/50 bg-cyan-400/10 text-cyan-200" };
 
   const provinceSummary = useMemo(() => {
@@ -379,6 +399,7 @@ export default function TelegramDeliveryRoom() {
     if (!warningsOnly) {
       const firstWarningIndex = waiting.findIndex((row) => warningOf(row).length > 0);
       if (firstWarningIndex >= 0) setSelected(firstWarningIndex);
+      else if (room === "queue" && historyOrders.some((row) => warningOf(row).length > 0)) setRoom("sent");
     }
     setWarningsOnly((current) => !current);
   }
@@ -583,13 +604,13 @@ export default function TelegramDeliveryRoom() {
       <div className="grid gap-3 sm:grid-cols-3">
         <div className={`relative overflow-hidden rounded-2xl border border-fuchsia-300/35 bg-[#0b0715]/90 px-4 py-4 text-center text-fuchsia-100 shadow-[inset_0_0_30px_rgba(168,85,247,.12),0_0_28px_rgba(168,85,247,.12)] ${lane.tone}`}><div className="pointer-events-none absolute inset-0 opacity-20 [background-image:linear-gradient(rgba(255,255,255,.12)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.12)_1px,transparent_1px)] [background-size:18px_18px]" /><div className="bb-running-line absolute inset-x-0 top-0 h-px" /><p className="relative text-[10px] font-bold tracking-[0.28em] opacity-70">PACKING ZONE</p><div className="relative mx-auto mt-2 flex h-16 w-16 items-center justify-center rounded-full border-2 border-fuchsia-300/70 text-3xl shadow-[0_0_24px_rgba(217,70,239,.55)] animate-pulse">▣</div><p className="relative mt-2 text-2xl font-black tracking-tight">{lane.label}</p><p className="relative text-[10px] font-bold tracking-[0.35em] opacity-70">{lane.mark}</p></div>
         <div className={`relative overflow-hidden rounded-2xl border border-fuchsia-300/45 bg-[#0b0715]/90 px-4 py-4 text-center text-fuchsia-100 shadow-[inset_0_0_34px_rgba(217,70,239,.18),0_0_34px_rgba(217,70,239,.22)] ${order ? deliveryStatus(order).tone : ""}`}><div className="pointer-events-none absolute inset-0 opacity-20 [background-image:linear-gradient(rgba(255,255,255,.12)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.12)_1px,transparent_1px)] [background-size:18px_18px]" /><div className="bb-running-line absolute inset-x-0 top-0 h-px" /><p className="relative text-[10px] font-bold tracking-[0.28em] opacity-70">DELIVERY STATUS</p><div className="relative mx-auto mt-2 flex h-20 w-20 items-center justify-center rounded-full border-2 border-fuchsia-200 text-4xl font-black shadow-[0_0_18px_rgba(244,114,182,.7),inset_0_0_18px_rgba(217,70,239,.45)] animate-pulse">{order ? (isSent(order) ? "✦" : "◉") : "—"}</div><p className="relative mt-2 text-3xl font-black tracking-tight text-fuchsia-50">{order ? deliveryStatus(order).label : "รอเลือก"}</p><p className="relative text-[10px] font-bold tracking-[0.22em] text-fuchsia-200/65">{order ? (isSent(order) ? "MISSION COMPLETE" : "QUEUE · READY TO LAUNCH") : "STANDBY"}</p></div>
-        <div className={`relative overflow-hidden rounded-2xl border px-4 py-4 text-center text-white shadow-[inset_0_0_38px_rgba(255,30,140,.22),0_0_38px_rgba(255,20,130,.32)] ${selectedWarnings.length ? "border-rose-300/80 bg-gradient-to-br from-rose-950 via-[#190817] to-fuchsia-950" : "border-emerald-300/70 bg-gradient-to-br from-emerald-950 via-[#071a17] to-cyan-950 shadow-[inset_0_0_38px_rgba(52,211,153,.2),0_0_36px_rgba(34,211,238,.28)]"}`}><div className="pointer-events-none absolute inset-0 opacity-25 [background-image:radial-gradient(circle_at_15%_20%,rgba(255,255,255,.8)_1px,transparent_2px),radial-gradient(circle_at_75%_65%,rgba(255,255,255,.7)_1px,transparent_2px)] [background-size:34px_34px,46px_46px]" /><div className="bb-running-line absolute inset-x-0 top-0 h-1" /><p className="relative flex items-center justify-center gap-2 text-[10px] font-black tracking-[0.3em] text-rose-100"><AlertTriangle className="h-4 w-4" />WARNING RADAR</p><div className={`relative mx-auto mt-2 flex h-20 w-20 items-center justify-center rounded-full border-2 text-4xl font-black ${selectedWarnings.length ? "animate-pulse border-rose-200 text-rose-100 shadow-[0_0_34px_rgba(251,113,133,.9),inset_0_0_20px_rgba(244,63,94,.45)]" : "border-emerald-200 text-emerald-100 shadow-[0_0_32px_rgba(52,211,153,.75),inset_0_0_20px_rgba(16,185,129,.35)]"}`}>{selectedWarnings.length ? selectedWarnings.length : "✓"}</div><p className="relative mt-2 text-2xl font-black tracking-tight">{selectedWarnings.length ? `เตือน ${selectedWarnings.length} จุด` : "บิลนี้ผ่าน"}</p><p className="relative text-[10px] font-bold tracking-[0.2em] text-cyan-100/80">{warningCount} จุดเตือนในคิวทั้งหมด</p><div className="relative mt-2 max-h-16 overflow-auto text-left text-[10px] leading-4 text-rose-50/90">{selectedWarnings.length ? selectedWarnings.slice(0, 3).map((item, index) => <p key={`${index}-${item}`} className="truncate">• {item}</p>) : <p className="text-center text-emerald-100">ยังไม่พบจุดเตือนในออเดอร์นี้</p>}</div></div>
+          <div className={`relative overflow-hidden rounded-2xl border px-4 py-4 text-center text-white shadow-[inset_0_0_38px_rgba(255,30,140,.22),0_0_38px_rgba(255,20,130,.32)] ${selectedWarnings.length ? "border-rose-300/80 bg-gradient-to-br from-rose-950 via-[#190817] to-fuchsia-950" : "border-emerald-300/70 bg-gradient-to-br from-emerald-950 via-[#071a17] to-cyan-950 shadow-[inset_0_0_38px_rgba(52,211,153,.2),0_0_36px_rgba(34,211,238,.28)]"}`}><div className="pointer-events-none absolute inset-0 opacity-25 [background-image:radial-gradient(circle_at_15%_20%,rgba(255,255,255,.8)_1px,transparent_2px),radial-gradient(circle_at_75%_65%,rgba(255,255,255,.7)_1px,transparent_2px)] [background-size:34px_34px,46px_46px]" /><div className="bb-running-line absolute inset-x-0 top-0 h-1" /><p className="relative flex items-center justify-center gap-2 text-[10px] font-black tracking-[0.3em] text-rose-100"><AlertTriangle className="h-4 w-4" />WARNING RADAR</p><div className={`relative mx-auto mt-2 flex h-20 w-20 items-center justify-center rounded-full border-2 text-4xl font-black ${selectedWarnings.length ? "animate-pulse border-rose-200 text-rose-100 shadow-[0_0_34px_rgba(251,113,133,.9),inset_0_0_20px_rgba(244,63,94,.45)]" : "border-emerald-200 text-emerald-100 shadow-[0_0_32px_rgba(52,211,153,.75),inset_0_0_20px_rgba(16,185,129,.35)]"}`}>{selectedWarnings.length ? selectedWarnings.length : "✓"}</div><p className="relative mt-2 text-2xl font-black tracking-tight">{selectedWarnings.length ? `เตือน ${selectedWarnings.length} จุด` : "บิลนี้ผ่าน"}</p><p className="relative text-[10px] font-bold tracking-[0.2em] text-cyan-100/80">{warningCount} จุดเตือนจากคิวและประวัติทั้งหมด</p><div className="relative mt-2 max-h-16 overflow-auto text-left text-[10px] leading-4 text-rose-50/90">{selectedWarnings.length ? selectedWarnings.slice(0, 3).map((item, index) => <p key={`${index}-${item}`} className="truncate">• {item}</p>) : <p className="text-center text-emerald-100">ยังไม่พบจุดเตือนในออเดอร์นี้</p>}</div></div>
       </div>
 
       <div className="grid min-w-0 gap-4 xl:grid-cols-[290px_minmax(0,1fr)_340px]">
         <Card className="rounded-3xl border-fuchsia-400/20 bg-[#10091c]">
           <CardHeader className="space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2"><CardTitle className="flex items-center gap-2 text-base text-fuchsia-100"><Clock3 className="h-4 w-4 text-fuchsia-300" />{room === "sent" ? "ประวัติส่งแล้ว" : "คิวตามเวลาจริง"}</CardTitle><div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => setRoom(room === "sent" ? "queue" : "sent")} className={room === "sent" ? "border-cyan-400/30 text-cyan-200" : "border-fuchsia-300/70 bg-fuchsia-600/25 text-fuchsia-50 shadow-[0_0_18px_rgba(217,70,239,.45)]"}>{room === "sent" ? "กลับคิวรอส่ง" : "ประวัติส่งแล้ว"}</Button><Button size="sm" variant="outline" onClick={() => query.refetch()} className="border-orange-400/20 text-orange-200"><RefreshCw className={`mr-1 h-3.5 w-3.5 ${query.isFetching ? "animate-spin" : ""}`} />รีเฟรช</Button></div></div>
+            <div className="flex flex-wrap items-center justify-between gap-2"><CardTitle className="flex items-center gap-2 text-base text-fuchsia-100"><Clock3 className="h-4 w-4 text-fuchsia-300" />{room === "sent" ? "ประวัติส่งแล้ว" : "คิวตามเวลาจริง"}</CardTitle><div className="flex gap-2">{room === "sent" ? <Button size="sm" variant="outline" onClick={() => setRoom("queue")} className="border-cyan-400/30 text-cyan-200">กลับคิวรอส่ง</Button> : <Link href="/telegram-sent-history"><Button size="sm" variant="outline" className="border-fuchsia-300/70 bg-fuchsia-600/25 text-fuchsia-50 shadow-[0_0_18px_rgba(217,70,239,.45)]">ประวัติส่งแล้ว</Button></Link>}<Button size="sm" variant="outline" onClick={() => query.refetch()} className="border-orange-400/20 text-orange-200"><RefreshCw className={`mr-1 h-3.5 w-3.5 ${query.isFetching ? "animate-spin" : ""}`} />รีเฟรช</Button></div></div>
             <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ค้นหาเลขออเดอร์ / ลูกค้า / สินค้า" className="border-orange-400/20 bg-black/40 text-orange-100 placeholder:text-orange-100/30" />
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-orange-100/55"><span>แสดง {visibleWaiting.length} รายการ · เลือกแล้ว {selectedOrders.length}</span><div className="flex flex-wrap items-center gap-2"><Button size="sm" variant="outline" onClick={toggleAllVisible} className="h-7 border-cyan-400/30 px-2 text-[10px] text-cyan-200">{visibleWaiting.length > 0 && visibleWaiting.every((row) => selectedKeys.has(orderKey(row))) ? "ปิดเลือกทั้งหมด" : "เลือกทั้งหมด"}</Button>{selectedOrders.length > 0 && <Button size="sm" variant="outline" onClick={() => setSelectedKeys(new Set())} className="h-7 border-rose-300/30 px-2 text-[10px] text-rose-200">ล้างเลือก</Button>}<Button size="sm" onClick={sendSelectedOrders} disabled={!selectedOrders.length || room === "sent" || statusSaving || editMode || sendMessage.startsWith("กำลังปล่อยรัน")} className="h-7 border-fuchsia-300/50 bg-fuchsia-500/20 px-2 text-[10px] text-fuchsia-100">ปล่อยรัน ({selectedOrders.length})</Button><Button size="sm" onClick={markSelectedOrdersSent} disabled={!selectedOrders.length || room === "sent" || statusSaving} className="h-7 border-emerald-300/50 bg-emerald-500/20 px-2 text-[10px] text-emerald-100">{statusSaving ? "กำลังเขียน..." : "🔥SENT"}</Button><Button size="sm" variant="outline" onClick={toggleWarningFilter} aria-pressed={warningsOnly} disabled={warningBillCount === 0 && !warningsOnly} className={`h-7 border px-2 text-[10px] ${warningsOnly ? "border-rose-300/50 bg-rose-500/20 text-rose-100" : "border-rose-400/30 text-rose-200"}`}><AlertTriangle className="mr-1 h-3 w-3" />{warningsOnly ? "ดูทุกบิล" : `บิลมีเตือน (${warningBillCount})`}</Button></div></div>
           </CardHeader>

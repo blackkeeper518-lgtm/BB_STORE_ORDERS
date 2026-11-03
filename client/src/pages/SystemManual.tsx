@@ -25,21 +25,21 @@ const orderSources = [
   {
     icon: "🗝️",
     name: "HERMES_ARCHIVE",
-    detail: "ตารางหลักรับออเดอร์ปกติ",
+    detail: "ตารางหลักสำหรับจัดเก็บออเดอร์ทั่วไปในเส้นทางสีขาวและสีน้ำเงิน",
     colors: "⚪ 🟦",
     tone: "cyan",
   },
   {
     icon: "🌀",
     name: "SINGULARITY_xXx_EXCHANGE",
-    detail: "ตารางหลักออเดอร์เปลี่ยนของ",
+    detail: "ตารางหลักสำหรับจัดเก็บออเดอร์เปลี่ยนหรือเคลมสินค้าในเส้นทางสีเหลืองและสีส้ม",
     colors: "🟨 🟠",
     tone: "amber",
   },
   {
     icon: "💀",
     name: "THANATOS_xXx_DEATH_NOTE",
-    detail: "ตารางหลักออเดอร์บอททวน",
+    detail: "ตารางหลักสำหรับจัดเก็บรายการที่ระบบบอทส่งกลับมาตรวจสอบซ้ำในเส้นทางสีดำ",
     colors: "⚫",
     tone: "slate",
   },
@@ -54,25 +54,25 @@ const parcelStages: Array<{
   {
     icon: "📦",
     title: "parcels",
-    detail: "คลังเลขพัสดุเพียงแห่งเดียว · รับไฟล์ขนส่ง",
+    detail: "ตารางศูนย์กลางสำหรับรับและจัดเก็บข้อมูลเลขพัสดุจากไฟล์ของผู้ให้บริการขนส่ง",
     type: "table",
   },
   {
     icon: "🔮",
     title: "SHADOW_xXx_RECALL",
-    detail: "ดึงเฉพาะเลขที่ยังไม่เป็น 🔥SENT",
+    detail: "วิวที่คัดเลือกเฉพาะรายการซึ่งยังไม่ได้บันทึกสถานะการส่งสำเร็จ",
     type: "view",
   },
   {
     icon: "🦅",
     title: "ROGUE_xXx_SHIPPINGz",
-    detail: "ประกบเลขกับข้อมูลทำบิลจาก ORDERCONTROL",
+    detail: "วิวที่รวมเลขพัสดุกับข้อมูลออเดอร์ที่จำเป็นต่อการจัดทำข้อความส่ง",
     type: "view",
   },
   {
     icon: "⛩️",
     title: "VOID_xXx_GATEWAYz",
-    detail: "รวมข้อมูล + เลือก Page Token ให้ตรงเพจ",
+    detail: "วิวปลายทางที่รวมข้อมูลและเลือกโทเคนของเพจให้ตรงกับผู้รับข้อความ",
     type: "view",
   },
 ];
@@ -147,11 +147,11 @@ export default function SystemManual() {
                 OPERATIONS MAP
               </div>
               <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-5xl">
-                คู่มือเส้นทางข้อมูล
+                แผนผังสถาปัตยกรรมข้อมูลและกระบวนการปฏิบัติงาน
               </h1>
               <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300/75 sm:text-base">
-                แยกหน้าที่ของออเดอร์ เลขพัสดุ Token และประวัติให้ชัดเจน
-                เพื่อไม่ให้ข้อมูลข้ามห้องหรือปนกันโดยไม่ตั้งใจ
+                เอกสารอ้างอิงสำหรับแสดงเส้นทางข้อมูล เจ้าของข้อมูล และหน้าที่ของตารางและวิว
+                ในระบบออเดอร์ ระบบแชท และระบบส่งเลขพัสดุ เพื่อป้องกันการใช้ข้อมูลข้ามขอบเขต
               </p>
             </div>
             <div className="flex flex-wrap gap-2 lg:max-w-xs lg:justify-end">
@@ -174,7 +174,7 @@ export default function SystemManual() {
             </p>
             <p className="mt-1 text-lg font-semibold text-white">ออเดอร์หลัก</p>
             <p className="mt-1 text-xs leading-5 text-slate-300/60">
-              รับออเดอร์ แยกสี ทำบิล และคุมคิวส่ง
+              รับข้อมูลออเดอร์ แยกเส้นทางตามสถานะสี จัดเตรียมข้อมูลสำหรับส่ง และควบคุมคิวการดำเนินงาน
             </p>
           </div>
           <div className="rounded-2xl border border-fuchsia-300/15 bg-fuchsia-300/[0.045] p-5">
@@ -186,7 +186,7 @@ export default function SystemManual() {
               แชทลูกค้า/เพจ
             </p>
             <p className="mt-1 text-xs leading-5 text-slate-300/60">
-              ข้อความอยู่ในห้องแชท ไม่ผูกซ้ำกับบิล
+              จัดเก็บข้อความลูกค้าและเพจแยกจากข้อมูลออเดอร์ เพื่อป้องกันการบันทึกข้อมูลซ้ำ
             </p>
           </div>
           <div className="rounded-2xl border border-amber-300/15 bg-amber-300/[0.045] p-5">
@@ -196,7 +196,7 @@ export default function SystemManual() {
             </p>
             <p className="mt-1 text-lg font-semibold text-white">เลขพัสดุ</p>
             <p className="mt-1 text-xs leading-5 text-slate-300/60">
-              รับเลขจากไฟล์ขนส่งและส่งกลับลูกค้า
+              รับข้อมูลเลขพัสดุ ประกอบข้อมูลที่จำเป็น และส่งกลับไปยังแชทของลูกค้า
             </p>
           </div>
         </section>
@@ -208,7 +208,7 @@ export default function SystemManual() {
                 LANE 00 · CHAT CORE
               </p>
               <h2 className="mt-2 text-2xl font-semibold text-white">
-                สายแชทต้นทาง · 2 ห้องแยกกัน
+                สายแชทต้นทางและการจัดเก็บข้อความแยกตามผู้ส่ง
               </h2>
             </div>
             <ToneBadge tone="pink">
@@ -219,30 +219,30 @@ export default function SystemManual() {
             <StageCard
               icon="💬"
               title="chat_customer_messages"
-              detail="ห้องข้อความที่ลูกค้าส่งเข้ามา เก็บ message_id, thread_id, customer_id, message และเวลา"
+              detail="ตารางสำหรับจัดเก็บข้อความขาเข้าจากลูกค้า พร้อม message_id, thread_id, customer_id, เนื้อหา และเวลาที่เกิดเหตุการณ์"
               type="table"
             />
             <StageCard
               icon="📣"
               title="chat_page_messages"
-              detail="ห้องข้อความที่เพจ/ระบบส่งออก แยกจากข้อความลูกค้า เพื่อไม่ให้ประวัติซ้ำหรือปนกัน"
+              detail="ตารางสำหรับจัดเก็บข้อความขาออกจากเพจหรือระบบ โดยแยกจากข้อความลูกค้าเพื่อรักษาลำดับเหตุการณ์และป้องกันข้อมูลซ้ำ"
               type="table"
             />
           </div>
           <div className="mt-5 grid gap-3 lg:grid-cols-[1fr_auto_1fr] lg:items-center">
             <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
               <p className="text-sm font-semibold text-white">
-                สิ่งที่สองห้องแชททำ
+                ขอบเขตการทำงานของระบบแชท
               </p>
               <p className="mt-2 text-xs leading-5 text-slate-300/65">
-                เก็บประวัติสนทนา · กันซ้ำด้วย message_id/dedupe_key ·
-                อัปเดตอายุแชทและสิทธิ์ส่ง
+                จัดเก็บประวัติสนทนา ป้องกันข้อความซ้ำด้วย message_id หรือ dedupe_key
+                และคำนวณข้อมูลอายุแชทกับสิทธิ์การส่งตามเงื่อนไขของระบบ
               </p>
             </div>
             <ArrowRight className="mx-auto hidden h-5 w-5 text-fuchsia-300/60 lg:block" />
             <div className="rounded-2xl border border-fuchsia-300/15 bg-fuchsia-300/[0.06] p-4">
               <p className="text-sm font-semibold text-fuchsia-100">
-                ส่งข้ามเฉพาะ Signal
+                ข้อมูลสัญญาณที่อนุญาตให้ระบบอื่นใช้งาน
               </p>
               <div className="mt-2 flex flex-wrap gap-2">
                 <ToneBadge tone="pink">chat_age_hours</ToneBadge>
@@ -255,10 +255,9 @@ export default function SystemManual() {
           <div className="mt-5 flex items-start gap-2 rounded-2xl border border-red-300/15 bg-red-400/[0.04] p-4 text-xs leading-5 text-red-100/75">
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-red-300" />
             <span>
-              <strong className="text-red-200">กฎแยกห้อง:</strong>{" "}
-              แชทไม่เก็บซ้ำเป็นออเดอร์, ไม่สร้างเลขพัสดุ, ไม่ยัด
-              COD/ที่อยู่/สินค้าเข้าแชท
-              และสายออเดอร์ไม่ดึงประวัติแชททั้งก้อนมาปน
+              <strong className="text-red-200">หลักเกณฑ์การแยกข้อมูล:</strong>{" "}
+              ระบบแชทไม่ทำหน้าที่จัดเก็บออเดอร์หรือสร้างเลขพัสดุ และไม่ควรนำ COD ที่อยู่ หรือรายละเอียดสินค้า
+              มาบันทึกซ้ำในตารางข้อความ ส่วนระบบออเดอร์จะไม่ดึงประวัติแชททั้งหมดมาปนเป็นข้อมูลออเดอร์
             </span>
           </div>
         </section>
@@ -270,10 +269,10 @@ export default function SystemManual() {
                 LANE 01 · ORDER CORE
               </p>
               <h2 className="mt-2 text-2xl font-semibold text-white">
-                สายออเดอร์หลัก
+                สายงานออเดอร์หลัก
               </h2>
             </div>
-            <ToneBadge tone="cyan">🌍 ใช้ Token เดียวทั้งโปรเจกต์</ToneBadge>
+            <ToneBadge tone="cyan">🌍 ใช้โทเคนตามขอบเขตโครงการ</ToneBadge>
           </div>
           <div className="mt-6 grid gap-3 lg:grid-cols-3">
             {orderSources.map(source => (
@@ -301,13 +300,13 @@ export default function SystemManual() {
           <div className="mt-5 rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.035] p-4 sm:p-5">
             <div className="mb-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-200/60">
               <RadioTower className="h-4 w-4" /> MAIN ORDER PIPELINE ·
-              ใช้โค้ดอย่างระมัดระวัง
+              เส้นทางประมวลผลออเดอร์หลัก
             </div>
             <div className="grid gap-3 xl:grid-cols-[1.1fr_auto_1.25fr_auto_1.25fr_auto_1.1fr] xl:items-center">
               <StageCard
                 icon="🌍"
                 title="GALACTIC_GATEWAY_TOKEN"
-                detail="ตารางปล่อย Token ให้โฟร์ n8n"
+                detail="ตารางสำหรับจัดเก็บและจัดการโทเคนที่กระบวนการ n8n ใช้เชื่อมต่อระบบ"
                 type="table"
               />
               <ArrowRight className="mx-auto hidden h-5 w-5 text-cyan-300/55 xl:block" />
@@ -325,24 +324,24 @@ export default function SystemManual() {
               <StageCard
                 icon="🌌"
                 title="MULTIVERSE_xXx_NEXUS"
-                detail="วิวรวม 4 สี + ดึงหัวบิลจาก product_master"
+                detail="วิวศูนย์กลางที่รวมออเดอร์ทั้งสี่เส้นทาง และเชื่อมข้อมูลสินค้าจาก product_master ตามโครงสร้างที่กำหนด"
                 type="view"
               />
               <ArrowRight className="mx-auto hidden h-5 w-5 text-cyan-300/55 xl:block" />
               <StageCard
                 icon="🛰️"
                 title="PIONEER_xXx_CAPSULE"
-                detail="คิวส่งออเดอร์รวม ⚪ 🟦 🟨 🟠"
+                detail="วิวคิวสำหรับจัดเรียงออเดอร์ทั้งสี่เส้นทางก่อนส่งต่อไปยังกระบวนการ Telegram"
                 type="view"
               />
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-300/65">
               <ArrowDown className="hidden h-4 w-4 text-cyan-300/60 sm:block" />
-              <span>ส่งต่อเข้า</span>
+              <span>ส่งต่อไปยัง</span>
               <span className="rounded-lg border border-fuchsia-300/20 bg-fuchsia-300/10 px-2 py-1 font-mono text-fuchsia-100">
                 ANDROMEDA_xXx_SENT
               </span>
-              <span>→ ส่งแล้วเด้งออกจากวิวส่ง →</span>
+              <span>→ เมื่อส่งสำเร็จ ระบบจะนำรายการออกจากคิวส่ง →</span>
               <span className="rounded-lg border border-violet-300/20 bg-violet-300/10 px-2 py-1 font-mono text-violet-100">
                 GENESIS_xXx_HISTORY
               </span>
@@ -357,19 +356,19 @@ export default function SystemManual() {
             <StageCard
               icon="🌌"
               title="MULTIVERSE_xXx_NEXUS"
-              detail="วิวกลางรวม ⚪ 🟦 🟨 🟠 และดึง stock_notice จาก product_master"
+              detail="วิวศูนย์กลางสำหรับรวมข้อมูลออเดอร์และข้อมูลสินค้าที่ผ่านการประมวลผลจากต้นทาง"
               type="view"
             />
             <StageCard
               icon="🛒"
               title="product_master"
-              detail="แสดงสินค้าในเว็บ และเป็นแหล่งหัวบิลไดนามิก"
+              detail="ตารางข้อมูลสินค้าและสถานะสต๊อกสำหรับการแสดงผลในระบบที่ได้รับอนุญาต"
               type="table"
             />
             <StageCard
               icon="🛰️"
               title="PIONEER_xXx_CAPSULE"
-              detail="วิวคิวส่ง Telegram รวมเฉพาะรายการที่ยังไม่ส่ง"
+              detail="วิวคิวส่ง Telegram ที่คัดเฉพาะรายการซึ่งยังไม่มีสถานะส่งสำเร็จ"
               type="view"
             />
           </div>
@@ -377,27 +376,28 @@ export default function SystemManual() {
             <StageCard
               icon="🪐"
               title="ANDROMEDA_xXx_SENT"
-              detail="วิวห้องส่ง Telegram รวมทุกสี ⚪ 🟦 🟨 🟠"
+              detail="วิวสำหรับรายการที่ผ่านกระบวนการส่ง Telegram ของทั้งสี่เส้นทาง"
               type="view"
             />
             <StageCard
               icon="🌟"
               title="GENESIS_xXx_HISTORY"
-              detail="วิวบันทึกมรณะ/ออเดอร์จบสถานะ"
+              detail="วิวประวัติถาวรสำหรับออเดอร์ที่ดำเนินการเสร็จสิ้นและไม่อยู่ในคิวส่ง"
               type="view"
             />
             <StageCard
               icon="💀"
               title="THANATOS_xXx_DEATH_NOTE"
-              detail="ตารางบอททวน ⚫ สำหรับตรวจสอบซ้ำ"
+              detail="ตารางสำหรับจัดเก็บรายการที่ต้องทบทวนหรือตรวจสอบสถานะออเดอร์ซ้ำ"
               type="table"
             />
           </div>
           <div className="mt-5 flex flex-wrap items-center gap-2 rounded-2xl border border-amber-300/15 bg-amber-300/[0.045] p-4 text-xs text-amber-100/80">
             <CheckCircle2 className="h-4 w-4 shrink-0 text-amber-300" />
             <span>
-              <strong className="text-amber-200">เขียนกลับตามสี:</strong> ⚪ 🟦
-              → HERMES_ARCHIVE · 🟨 🟠 → SINGULARITY_xXx_EXCHANGE
+              <strong className="text-amber-200">หลักการเขียนข้อมูลกลับ:</strong>{" "}
+              ระบบต้องเขียนกลับไปยังตารางต้นทางตามเส้นทางที่กำหนด โดยสีขาวและสีน้ำเงินเขียนไปที่ HERMES_ARCHIVE
+              ส่วนสีเหลืองและสีส้มเขียนไปที่ SINGULARITY_xXx_EXCHANGE
             </span>
           </div>
         </section>
@@ -409,11 +409,11 @@ export default function SystemManual() {
                 LANE 02 · PARCEL RETURN
               </p>
               <h2 className="mt-2 text-2xl font-semibold text-white">
-                สายเลขพัสดุ
+                สายงานเลขพัสดุและการแจ้งกลับลูกค้า
               </h2>
             </div>
             <ToneBadge tone="amber">
-              <FileUp className="mr-1.5 h-3.5 w-3.5" /> ไฟล์ขนส่ง → parcels
+              <FileUp className="mr-1.5 h-3.5 w-3.5" /> ไฟล์ขนส่งเข้าสู่ parcels
             </ToneBadge>
           </div>
           <div className="mt-6 grid gap-3 lg:grid-cols-4">
@@ -435,7 +435,7 @@ export default function SystemManual() {
                 </p>
               </div>
               <p className="mt-2 text-xs leading-5 text-slate-300/65">
-                เก็บ Token ของแต่ละเพจ สำหรับเลือกเส้นทางส่งกลับให้ถูกห้อง
+                จัดเก็บโทเคนของแต่ละเพจ เพื่อให้ระบบเลือกสิทธิ์และเส้นทางการส่งกลับได้ถูกต้อง
               </p>
             </div>
             <ArrowRight className="mx-auto hidden h-6 w-6 text-fuchsia-300/60 lg:block" />
@@ -443,11 +443,11 @@ export default function SystemManual() {
               <div className="flex items-center gap-3">
                 <Send className="h-5 w-5 text-cyan-300" />
                 <p className="font-mono text-sm font-semibold text-white">
-                  ส่งกลับห้องแชทลูกค้า
+                  ส่งเลขพัสดุกลับไปยังแชทลูกค้า
                 </p>
               </div>
               <p className="mt-2 text-xs leading-5 text-slate-300/65">
-                VOID รวมเลข + ของทำบิล + Token แล้วให้ n8n ยิงส่ง
+                VOID รวมเลขพัสดุ ข้อมูลออเดอร์ และโทเคนเพจ จากนั้นส่งต่อให้ n8n ดำเนินการเรียก API
               </p>
             </div>
           </div>
@@ -455,7 +455,7 @@ export default function SystemManual() {
             <PackageCheck className="h-5 w-5 shrink-0 text-emerald-300" />
             <div>
               <strong className="text-emerald-200">
-                ส่งสำเร็จแล้วอัปเดตกลับที่ parcels เท่านั้น:
+                เมื่อส่งสำเร็จ ให้ปรับปรุงสถานะกลับที่ parcels เท่านั้น:
               </strong>
               <code className="ml-2 rounded bg-black/30 px-2 py-1 text-[11px] text-emerald-100">
                 delivery_status = '🔥SENT'
@@ -476,29 +476,29 @@ export default function SystemManual() {
               </h2>
             </div>
             <p className="mt-3 text-sm leading-6 text-slate-300/70">
-              บันทึกสำเร็จหลังส่งเลขแล้ว เก็บชื่อ ลูกค้า เพจ เลขพัสดุ เวลา
-              และผลการส่งไว้เป็นประวัติ ไม่ใช่แหล่งคิวที่ต้องส่งซ้ำ
+              จัดเก็บประวัติการส่งเลขพัสดุที่เสร็จสิ้น รวมถึงข้อมูลผู้รับ เพจ เลขพัสดุ เวลา
+              และผลการส่ง โดยไม่ทำหน้าที่เป็นคิวสำหรับส่งซ้ำ
             </p>
           </div>
           <div className="rounded-[2rem] border border-violet-300/15 bg-violet-400/[0.035] p-6">
             <div className="flex items-center gap-3">
               <ShieldCheck className="h-5 w-5 text-violet-300" />
               <h2 className="text-lg font-semibold text-white">
-                กฎกันข้อมูลตีกัน
+                หลักเกณฑ์การกำหนดเจ้าของข้อมูล
               </h2>
             </div>
             <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-300/70">
               <li className="flex gap-2">
                 <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-violet-300" />
-                parcels เป็นเจ้าของเลขพัสดุและสถานะส่ง
+                parcels เป็นแหล่งข้อมูลหลักของเลขพัสดุและสถานะการส่ง
               </li>
               <li className="flex gap-2">
                 <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-violet-300" />
-                ORDERCONTROL เป็นเจ้าของข้อมูลทำบิล
+                ORDERCONTROL เป็นแหล่งข้อมูลหลักของข้อมูลที่ใช้จัดทำบิล
               </li>
               <li className="flex gap-2">
                 <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-violet-300" />
-                ทุก View อ่านสถานะจากต้นทาง ไม่สร้างสำเนาสถานะเอง
+                ทุกวิวต้องอ่านสถานะจากแหล่งข้อมูลต้นทาง และไม่สร้างสำเนาสถานะที่ขัดแย้งกัน
               </li>
             </ul>
           </div>

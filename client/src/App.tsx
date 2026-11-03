@@ -22,6 +22,7 @@ import SecretGallery from "./pages/SecretGallery";
 import ParcelMapping from "./pages/ParcelMapping";
 import CloseJobHistory from "./pages/CloseJobHistory";
 import SystemManual from "./pages/SystemManual";
+import TelegramSentHistory from "./pages/TelegramSentHistory";
 
 function Shell({ children }: { children: React.ReactNode }) { return <DashboardLayout>{children}</DashboardLayout>; }
 function Router() {
@@ -38,6 +39,7 @@ function Router() {
     <Route path="/product-alien-store"><Shell><ProductAlienStore /></Shell></Route>
     <Route path="/product-alien-map"><Shell><ProductAlienMap /></Shell></Route>
     <Route path="/telegram-delivery"><Shell><TelegramDeliveryRoom /></Shell></Route>
+    <Route path="/telegram-sent-history"><Shell><TelegramSentHistory /></Shell></Route>
     <Route path="/alert-room"><Shell><AlertRoom /></Shell></Route>
     <Route path="/order-performance"><Shell><OrderPerformance /></Shell></Route>
     <Route path="/stock-room"><Shell><StockRoom /></Shell></Route>

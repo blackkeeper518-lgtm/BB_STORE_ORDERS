@@ -3,7 +3,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { startLogin } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { Activity, Archive, Bell, BrainCircuit, Boxes, CalendarDays, Database, LayoutDashboard, LockKeyhole, MessageCircle, PanelLeft, Send, Tags, Truck, Waypoints } from "lucide-react";
+import { Activity, Archive, Bell, BrainCircuit, Boxes, CalendarDays, CheckCircle2, Database, LayoutDashboard, LockKeyhole, MessageCircle, PanelLeft, Send, Tags, Truck, Waypoints } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
@@ -17,6 +17,7 @@ const menuItems = [
   { icon: Truck, label: "แมปเลขพัสดุ", path: "/parcel-mapping" },
   { icon: BrainCircuit, label: "Alien Inbox · คำดิบ", path: "/alien-room" },
   { icon: Send, label: "ห้องส่ง Telegram", path: "/telegram-delivery" },
+  { icon: CheckCircle2, label: "ประวัติ Telegram · ส่งสำเร็จ", path: "/telegram-sent-history" },
   { icon: Bell, label: "ประวัติเปลี่ยนของ", path: "/alert-room" },
   { icon: Archive, label: "ประวัติปิดงาน · ยกเลิก/ไม่รับ", path: "/close-job-history" },
   { icon: Boxes, label: "คลังสินค้าจริง / สต๊อกกลาง", path: "/stock-room" },
