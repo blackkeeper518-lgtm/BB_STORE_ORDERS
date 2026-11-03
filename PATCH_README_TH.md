@@ -1,10 +1,8 @@
-BB STORE TELEGRAM / SYSTEM PATCH
+BB STORE PATCH FOR COMMIT d0e3faf458eb3221a90fb6071523b544dd0c4565
 
-ไฟล์แพ็กเกจนี้จัดตาม path ของโปรเจกต์หลัก และใช้สำหรับนำไปวางทับใน commit ล่าสุดของ BB_STORE_ORDERS
-เป้าหมายอ้างอิงจาก commit ที่ผู้ใช้แจ้ง:
-d0e3faf458eb3221a90fb6071523b544dd0c4565
+ให้แตก ZIP ก่อนนำไฟล์ไปวางใน repository ห้ามอัปโหลด ZIP เป็นไฟล์เดียวแล้วคาดหวังให้ GitHub แตกไฟล์ให้เอง
 
-ไฟล์ในแพ็กเกจ:
+ไฟล์สำหรับวางทับ:
 - client/src/App.tsx
 - client/src/components/DashboardLayout.tsx
 - client/src/lib/canonical.ts
@@ -13,13 +11,14 @@ d0e3faf458eb3221a90fb6071523b544dd0c4565
 - client/src/pages/TelegramDeliveryRoom.tsx
 - client/src/pages/TelegramSentHistory.tsx
 
-การใช้งาน:
-1. แตกไฟล์ ZIP ที่ root ของ repository BB_STORE_ORDERS
-2. อนุญาตให้ไฟล์ในแพ็กเกจวางทับไฟล์เดิมตาม path
-3. รัน pnpm check
-4. รัน pnpm build
+ไฟล์ที่ต้องลบด้วยตนเองตาม DELETE_FILES.txt:
+- client/src/lib/TelegramDeliveryRoom.tsx
 
-หมายเหตุ:
-- ไม่รวม n8n, tools, .env, node_modules, dist และไฟล์ลับ
-- ไม่รวมไฟล์ Alias/Product Alias ที่ไม่ได้ใช้งาน
-- ไม่ลบไฟล์เก่าใด ๆ
+หลังวางไฟล์:
+1. ตรวจว่า path ตรงกับรายการ
+2. ลบไฟล์ตาม DELETE_FILES.txt
+3. Commit และ push
+4. รัน pnpm check
+5. รัน pnpm build
+
+ไม่รวม n8n, tools, .env, node_modules, dist และไฟล์ลับ
