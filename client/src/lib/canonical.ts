@@ -291,7 +291,7 @@ const TELEGRAM_WEB_ORDER_COLUMNS = [
   "audit_flags", "bill_data_complete", "is_ready_to_pack", "mapping_status",
   "cod_amount", "customer_name", "facebook_name", "page_name", "shipping_carrier", "sku",
   "delivery_state", "delivery_status", "telegram_status", "telegram_sent", "sent_at", "telegram_sent_at",
-  "stock_notice", "telegram_bill_header", "telegram_body", "telegram_copy_text", "telegram_main_bill", "telegram_message", "telegram_message_for_send_final",
+  "stock_notice", "telegram_body", "telegram_copy_text", "telegram_main_bill", "telegram_message", "telegram_message_for_send_final",
   "original"
 ].join(",");
 
@@ -337,9 +337,6 @@ function normalizeBbDirectRow(row: any): CanonicalOrder {
     packer.address_display_packer, packer.rescue_address_normalized, packer.full_address);
   const ready = asBoolean(row.is_ready_to_pack ?? row.bill_data_complete);
   const deliveryState = firstText(row.delivery_state, row.delivery_status);
-  const sent = asBoolean(row.telegram_sent) || [deliveryState, row.telegram_status]
-    .map(value => String(value ?? "").trim().toUpperCase().replace(/^🔥\s*/, ""))
-    .some(value => ["SENT", "DELIVERED", "SENT_TO_TELEGRAM", "COMPLETED"].includes(value));
   return normalizeOrder({
     ...row,
     order_number: firstText(row.order_number_display, row.order_number) || `#${row.upsert_key || "UNKNOWN"}`,
@@ -357,11 +354,10 @@ function normalizeBbDirectRow(row: any): CanonicalOrder {
     address_display_primary: address,
     address_display_packer: address,
     full_address: address,
-    stock_notice: firstText(row.stock_notice, row.product_master_stock_notice) || null,
-    telegram_bill_header: firstText(row.telegram_bill_header) || null,
+    stock_notice: firstText(row.stock_notice, row.bill_header_playful, row.telegram_bill_header, row.product_master_stock_notice) || null,
     telegram_body: parseJsonRecord(row.telegram_body),
     telegram_status: deliveryState || null,
-    telegram_sent: sent,
+    telegram_sent: ["SENT", "DELIVERED", "SENT_TO_TELEGRAM"].includes(deliveryState.toUpperCase()),
     shipping_method: row.shipping_carrier || "⚡FLASH EXPRESS",
     is_ready_to_pack: ready,
     mapping_status: ready ? "MATCHED" : row.mapping_status || null,
@@ -459,9 +455,6 @@ export async function readTelegramDeliveryOrders(search = "", room: "queue" | "t
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
 
-  // Telegram reads only the two operational room views:
-  // PIONEER is the send queue and GENESIS is the sent history. Writes still
-  // target the row's real source table by upsert_key.
   const sourceTable = room === "sent" ? "🌟GENESIS_xXx_HISTORY" : "🛰️PIONEER_xXx_CAPSULE";
   const { data, error } = await api
     .from(sourceTable)
@@ -475,24 +468,6 @@ export async function readTelegramDeliveryOrders(search = "", room: "queue" | "t
     .filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query));
   const orders = allOrders.sort((a, b) => displayOrderSortKey(b.order_time_display) - displayOrderSortKey(a.order_time_display));
   return { orders, itemError: null, sourceTable, fetchedAt: new Date().toISOString(), room };
-}
-
-export async function readTelegramSentHistory(search = "") {
-  const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  const sourceTable = "🌟GENESIS_xXx_HISTORY";
-  const { data, error } = await api
-    .from(sourceTable)
-    .select(TELEGRAM_WEB_ORDER_COLUMNS)
-    .order("order_time_display", { ascending: false })
-    .limit(ORDER_OPERATIONAL_LIMIT);
-  if (error) fail(error);
-  const query = search.trim().toLowerCase();
-  const orders = (data ?? [])
-    .map((row: any) => ({ ...normalizeBbDirectRow(row), source_view: sourceTable, source_table: row.source_table || sourceTable }) as CanonicalOrder)
-    .filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query))
-    .sort((a, b) => displayOrderSortKey(b.order_time_display) - displayOrderSortKey(a.order_time_display));
-  return { orders, itemError: null, sourceTable, fetchedAt: new Date().toISOString() };
 }
 
 export async function readBbOrderEvidence(upsertKey: string, sourceTable: "🗝️HERMES_ARCHIVE" | "🌀SINGULARITY_xXx_EXCHANGE" = "🗝️HERMES_ARCHIVE") {
@@ -590,14 +565,27 @@ export async function updateBbOrderByKey(upsertKey: string, patch: Record<string
   return data[0];
 }
 
+async function withSentWriteTimeout<T>(request: PromiseLike<T>, timeoutMs = 15_000): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error("Supabase ไม่ตอบใน 15 วินาที — สถานะอาจเขียนแล้ว ให้รีเฟรชเช็กก่อนกดซ้ำ")), timeoutMs);
+  });
+  try {
+    return await Promise.race([Promise.resolve(request), timeout]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 export async function markBbOrderSentByKey(upsertKey: string, sourceTable: "🗝️HERMES_ARCHIVE" | "🌀SINGULARITY_xXx_EXCHANGE") {
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
   const patch = { telegram_sent: "true", telegram_status: "SENT", delivery_status: "SENT", delivery_state: "SENT" };
-  const { data, error } = await api.from(sourceTable)
+  const request = api.from(sourceTable)
     .update(patch)
     .eq("upsert_key", upsertKey)
     .select("upsert_key,telegram_sent,telegram_status,delivery_status,delivery_state");
+  const { data, error } = await withSentWriteTimeout(request);
   if (error) fail(error);
   if (!data?.length) fail({ message: `เขียน 🔥SENT ไม่สำเร็จ: ไม่พบ ${upsertKey} ใน ${sourceTable} หรือสิทธิ์ RLS ไม่อนุญาต` });
   if (data.length > 1) fail({ message: `เขียน 🔥SENT ไม่สำเร็จ: พบ ${data.length} แถวสำหรับ ${upsertKey}` });
@@ -611,15 +599,7 @@ export async function markBbOrderSentByKey(upsertKey: string, sourceTable: "🗝
   return row;
 }
 
-export type StockProduct = {
-  id: number;
-  sku: string;
-  label: string;
-  thName: string;
-  price: number | null;
-  stockQty: number;
-  stockStatus: string | null;
-};
+export type StockProduct = { id: number; sku: string; label: string; thName: string; emoji: string; price: number | null; stockQty: number; stockStatus: string | null; outOfStockJoke: string | null; stockNotice: string | null; aliases: string; inventoryId: number | string | null };
 export type ProductMapAlias = { id: string; alias: string; canonicalSku: string; canonicalLabel: string; isActive: boolean };
 
 export async function readProductMapAliases(): Promise<ProductMapAlias[]> {
@@ -627,17 +607,17 @@ export async function readProductMapAliases(): Promise<ProductMapAlias[]> {
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
   const [{ data: rows, error }, { data: products, error: productError }] = await Promise.all([
     api.from("product_map_master").select("*").order("sku"),
-    api.from("🛒product_master").select("sku,label_display,display_for_packer,name_standard,th_name,product_name,emoji,unit_price").order("sku")
+    api.from("🛒product_master").select("master_sku,master_display_for_packer,display_for_packer,name_standard,th_name,emoji,unit_price").order("master_sku")
   ]);
   if (error) fail(error);
   if (productError) fail(productError);
-  const masters = new Map((products ?? []).map((p: any) => [String(p.sku ?? '').trim().toLowerCase(), p]));
+  const masters = new Map((products ?? []).map((p: any) => [String(p.master_sku ?? '').trim().toLowerCase(), p]));
   const output: ProductMapAlias[] = [];
   for (const row of rows ?? []) {
     const sku = String(row.sku ?? '').trim();
     const master = masters.get(sku.toLowerCase()) ?? {};
     const aliases = [row.alias, row.alias_text].flatMap((v: any) => String(v ?? '').split(/[,\n|]+/)).map((v: string) => v.trim()).filter(Boolean);
-    for (const alias of Array.from(new Set(aliases))) output.push({ id: String(row.id ?? sku + ':' + alias), alias, canonicalSku: sku, canonicalLabel: master.label_display ?? master.display_for_packer ?? master.name_standard ?? master.th_name ?? master.product_name ?? sku, isActive: row.is_active !== false });
+    for (const alias of Array.from(new Set(aliases))) output.push({ id: String(row.id ?? sku + ':' + alias), alias, canonicalSku: sku, canonicalLabel: master.master_display_for_packer ?? master.display_for_packer ?? master.name_standard ?? master.th_name ?? sku, isActive: row.is_active !== false });
   }
   return output;
 }
@@ -645,9 +625,9 @@ export async function readProductMapAliases(): Promise<ProductMapAlias[]> {
 export async function readProductMapCatalog() {
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  const { data, error } = await api.from("🛒product_master").select("sku,label_display,display_for_packer,name_standard,th_name,product_name,emoji,unit_price").order("sku");
+  const { data, error } = await api.from("🛒product_master").select("master_sku,master_display_for_packer,display_for_packer,name_standard,th_name,emoji,unit_price").order("master_sku");
   if (error) fail(error);
-  return (data ?? []).map((p: any) => ({ sku: String(p.sku ?? ''), label: p.label_display ?? p.display_for_packer ?? p.name_standard ?? p.th_name ?? p.product_name ?? p.sku ?? '', emoji: p.emoji ?? '📦', price: num(p.unit_price) }));
+  return (data ?? []).map((p: any) => ({ sku: String(p.master_sku ?? ''), label: p.master_display_for_packer ?? p.display_for_packer ?? p.name_standard ?? p.th_name ?? p.master_sku ?? '', emoji: p.emoji ?? '📦', price: num(p.unit_price) }));
 }
 
 export async function saveProductMapAlias(input: { alias: string; canonicalSku: string }) {
@@ -668,22 +648,28 @@ export async function saveProductMapAlias(input: { alias: string; canonicalSku: 
 export async function readStockProducts(): Promise<StockProduct[]> {
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  const { data: products, error } = await api
-    .from("🛒product_master")
-    .select("id,master_sku,display_for_packer,master_display_for_packer,name_standard,th_name,unit_price,stock_qty,stock_status")
+  // Stock Room is intentionally a Product Master room for now.
+  // It does not read inventory and it never deducts stock from orders.
+  const { data: products, error } = await api.from("🛒product_master")
+    .select("id,master_sku,th_name,name_standard,master_display_for_packer,display_for_packer,emoji,unit_price,stock_qty,stock_status,stock_notice,alias")
     .order("master_sku");
   if (error) fail(error);
   return (products ?? []).map((p: any) => {
-    const sku = String(p.master_sku ?? "").trim();
+    const sku = String(p.master_sku ?? p.sku ?? "").trim();
     const stockQty = num(p.stock_qty) ?? 0;
     return {
       id: Number(p.id),
       sku,
       label: p.master_display_for_packer ?? p.display_for_packer ?? p.name_standard ?? p.th_name ?? sku,
       thName: p.th_name ?? p.name_standard ?? "",
+      emoji: p.emoji ?? "📦",
       price: num(p.unit_price),
       stockQty,
       stockStatus: p.stock_status ?? (stockQty > 0 ? "IN_STOCK" : "OUT_OF_STOCK"),
+      outOfStockJoke: null,
+      stockNotice: p.stock_notice ?? null,
+      aliases: String(p.alias ?? ""),
+      inventoryId: null,
     };
   });
 }
@@ -706,44 +692,60 @@ export async function setInventoryAvailability(input: { productId: number; sku: 
   });
 }
 
-export async function readDailyOrders(date: string, search = "") {
+const GENESIS_HISTORY_COLUMNS = [
+  "upsert_key", "order_time_display", "order_number", "order_number_display",
+  "page_id", "page_name", "threadId", "customer_name", "facebook_name",
+  "phone", "extracted_phone", "full_address", "final_address_for_bill",
+  "address_display_packer", "addressclean", "province", "zipcode", "sku",
+  "order_fibo_product", "for_packer_st_display", "manus_for_packer",
+  "google_for_packer", "packer_tag_display", "packer_obj", "telegram_product_display",
+  "telegram_main_bill", "telegram_message", "telegram_message_for_send_final", "original",
+  "cod_amount", "expected_cod", "shipping_carrier", "source_table", "telegram_status",
+  "telegram_sent", "sent_at", "telegram_sent_at"
+].join(",");
+
+export async function readGenesisOrderHistory(date: string) {
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  const { data, error } = await api.from("💀THANATOS_xXx_DEATH_NOTE")
-    .select("*")
+  const match = date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return { orders: [], total: 0, sourceView: "🌟GENESIS_xXx_HISTORY", fetchedAt: new Date().toISOString() };
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const years = new Set([String(year), String(year + 543)]);
+  if (year - 1957 >= 0 && year - 1957 <= 99) years.add(String(year - 1957).padStart(2, "0"));
+  const days = new Set([String(day).padStart(2, "0"), String(day)]);
+  const months = new Set([String(month).padStart(2, "0"), String(month)]);
+  const prefixes = new Set<string>([date]);
+  Array.from(days).forEach((d) => Array.from(months).forEach((m) => Array.from(years).forEach((y) => prefixes.add(`${d}/${m}/${y}`))));
+  const dateFilter = Array.from(prefixes).map((prefix) => `order_time_display.ilike.${prefix}%`).join(",");
+
+  const { data, error } = await api.from("🌟GENESIS_xXx_HISTORY")
+    .select(GENESIS_HISTORY_COLUMNS)
+    .or(dateFilter)
     .order("order_time_display", { ascending: false })
-    .limit(10000);
+    .limit(1000);
   if (error) fail(error);
 
-  const query = search.trim().toLowerCase();
   const orders = (data ?? []).map((row: any) => {
-    const product = row.final_display_for_packer || row.display_for_packer || row.product_map_mapped_display
-      || row.product_map_display || row.for_packer_st_display || row.manus_for_packer || row.google_for_packer
-      || row.order_fibo_product || row.telegram_product_display || row.telegram_copy_text || row.original || "";
-    const orderTime = row.order_time_bkk_iso || row.order_time || row.order_time_display || row.order_date || null;
+    const product = row.telegram_product_display || row.order_fibo_product || row.for_packer_st_display
+      || row.manus_for_packer || row.google_for_packer || row.packer_tag_display || row.sku || row.original || "";
     return {
       ...row,
-      id: row.id ?? row.upsert_key,
+      id: row.upsert_key || row.order_number_display || row.order_number,
       order_number: row.order_number_display || row.order_number || row.upsert_key,
       customer_name: row.customer_name || row.facebook_name,
       phone: row.phone || row.extracted_phone,
-      full_address: row.final_address_for_bill || row.full_address || row.finalAddress || row.address_display_packer || row.addressclean,
-      sku: row.master_sku || row.product_map_sku || row.sku,
-      display_for_packer: product,
-      lab_product_display_text: product,
+      full_address: row.final_address_for_bill || row.full_address || row.address_display_packer || row.addressclean,
+      product_display: product,
       cod_amount: row.cod_amount ?? row.expected_cod,
-      order_time: orderTime,
-      thread_id: row.thread_id || row.threadId,
-      mapping_status: row.mapping_status || row.product_map_status || row.canonical_status,
-      review_status: row.darkside_completeness_status || row.canonical_status || row.change_status,
+      thread_id: row.threadId || row.thread_id,
+      sent_label: "🔥SENT",
     };
-  }).filter((row: any) => {
-    const displayKey = displayDateKey(row.order_time_display);
-    const dateKey = displayKey || isoDateKey(row.order_time_bkk_iso || row.order_time || row.order_date || null);
-    if (dateKey !== date) return false;
-    return !query || JSON.stringify(row).toLowerCase().includes(query);
-  });
-  return { orders, total: orders.length, sourceTable: "💀THANATOS_xXx_DEATH_NOTE", fetchedAt: new Date().toISOString() };
+  }).sort((a: any, b: any) => displayOrderSortKey(b.order_time_display) - displayOrderSortKey(a.order_time_display));
+
+  return { orders, total: orders.length, sourceView: "🌟GENESIS_xXx_HISTORY", fetchedAt: new Date().toISOString() };
 }
 export async function readDailyParcels(date: string, search = "") {
   const api = getSupabase("tracking");
