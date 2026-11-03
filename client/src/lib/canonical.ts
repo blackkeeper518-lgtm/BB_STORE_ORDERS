@@ -1055,7 +1055,7 @@ export async function readAlienReview(search = ''): Promise<AlienReviewItem[]> {
       : inventoryByKey.get(`sku:${resolvedSku.toLowerCase()}`);
     // Prefer the final product fields produced by the current bill-builder node.
     // Do not infer or translate product names in the web room.
-    const masterDisplay = firstText(order.master_display_for_packer, order.final_display_for_packer, order.final_product, order.for_packer_st_display, order.manus_for_packer, order.sku);
+    const masterDisplay = firstText(order.manus_for_packer, order.order_fibo_product, order.for_packer_st_display, order.sku);
     const mappingStatus = String(order.mapping_status ?? order.match_status ?? '').toUpperCase();
     const matched = Boolean(masterDisplay && (mappingStatus === 'MATCHED' || mappingStatus === 'RESOLVED' || Boolean(aliasSku)));
     const audit_status = matched ? 'MATCHED' : 'REVIEW';
