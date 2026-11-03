@@ -291,7 +291,7 @@ const TELEGRAM_WEB_ORDER_COLUMNS = [
   "audit_flags", "bill_data_complete", "is_ready_to_pack", "mapping_status",
   "cod_amount", "customer_name", "facebook_name", "page_name", "shipping_carrier", "sku",
   "delivery_state", "delivery_status", "telegram_status", "telegram_sent", "sent_at", "telegram_sent_at",
-  "stock_notice", "telegram_body", "telegram_copy_text", "telegram_main_bill", "telegram_message", "telegram_message_for_send_final",
+  "stock_notice", "telegram_bill_header", "telegram_body", "telegram_copy_text", "telegram_main_bill", "telegram_message", "telegram_message_for_send_final",
   "original"
 ].join(",");
 
@@ -357,7 +357,8 @@ function normalizeBbDirectRow(row: any): CanonicalOrder {
     address_display_primary: address,
     address_display_packer: address,
     full_address: address,
-    stock_notice: firstText(row.stock_notice, row.bill_header_playful, row.telegram_bill_header, row.product_master_stock_notice) || null,
+    stock_notice: firstText(row.stock_notice, row.product_master_stock_notice) || null,
+    telegram_bill_header: firstText(row.telegram_bill_header) || null,
     telegram_body: parseJsonRecord(row.telegram_body),
     telegram_status: deliveryState || null,
     telegram_sent: sent,
@@ -458,10 +459,10 @@ export async function readTelegramDeliveryOrders(search = "", room: "queue" | "t
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
 
-  // Telegram is part of the Main Order Pipeline. Read the combined order
-  // projection, then write changes back to the row's real source table by
-  // upsert_key (HERMES or SINGULARITY).
-  const sourceTable = room === "sent" ? "🌟GENESIS_xXx_HISTORY" : "🌌MULTIVERSE_xXx_NEXUS";
+  // Telegram reads only the two operational room views:
+  // PIONEER is the send queue and GENESIS is the sent history. Writes still
+  // target the row's real source table by upsert_key.
+  const sourceTable = room === "sent" ? "🌟GENESIS_xXx_HISTORY" : "🛰️PIONEER_xXx_CAPSULE";
   const { data, error } = await api
     .from(sourceTable)
     .select(TELEGRAM_WEB_ORDER_COLUMNS)
@@ -592,7 +593,15 @@ export async function markBbOrderSentByKey(upsertKey: string, sourceTable: "🗝
   return row;
 }
 
-export type StockProduct = { id: number; sku: string; label: string; thName: string; emoji: string; price: number | null; stockQty: number; stockStatus: string | null; outOfStockJoke: string | null; stockNotice: string | null; aliases: string; inventoryId: number | string | null };
+export type StockProduct = {
+  id: number;
+  sku: string;
+  label: string;
+  thName: string;
+  price: number | null;
+  stockQty: number;
+  stockStatus: string | null;
+};
 export type ProductMapAlias = { id: string; alias: string; canonicalSku: string; canonicalLabel: string; isActive: boolean };
 
 export async function readProductMapAliases(): Promise<ProductMapAlias[]> {
@@ -641,9 +650,10 @@ export async function saveProductMapAlias(input: { alias: string; canonicalSku: 
 export async function readStockProducts(): Promise<StockProduct[]> {
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  // Stock Room is intentionally a Product Master room for now.
-  // It does not read inventory and it never deducts stock from orders.
-  const { data: products, error } = await api.from("🛒product_master").select("*").order("master_sku");
+  const { data: products, error } = await api
+    .from("🛒product_master")
+    .select("id,sku,master_sku,display_for_packer,master_display_for_packer,name_standard,th_name,product_name,unit_price,price,stock_qty,stock_status")
+    .order("master_sku");
   if (error) fail(error);
   return (products ?? []).map((p: any) => {
     const sku = String(p.master_sku ?? p.sku ?? "").trim();
@@ -651,16 +661,11 @@ export async function readStockProducts(): Promise<StockProduct[]> {
     return {
       id: Number(p.id),
       sku,
-      label: p.master_display_for_packer ?? p.display_for_packer ?? p.name_standard ?? p.th_name ?? sku,
+      label: p.master_display_for_packer ?? p.display_for_packer ?? p.name_standard ?? p.th_name ?? p.product_name ?? sku,
       thName: p.th_name ?? p.name_standard ?? "",
-      emoji: p.emoji ?? "📦",
-      price: num(p.unit_price),
+      price: num(p.unit_price ?? p.price),
       stockQty,
       stockStatus: p.stock_status ?? (stockQty > 0 ? "IN_STOCK" : "OUT_OF_STOCK"),
-      outOfStockJoke: null,
-      stockNotice: p.stock_notice ?? null,
-      aliases: String(p.alias ?? ""),
-      inventoryId: null,
     };
   });
 }
