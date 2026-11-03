@@ -14,14 +14,14 @@ import OrderBuckets from "./pages/OrderBuckets";
 import DailyChatSummary from "./pages/DailyChatSummary";
 import OrderHistory from "./pages/OrderHistory";
 import AlienRoom from "./pages/AlienRoom";
-import SystemManual  from "./pages/SystemManual";
+import SystemManual from "./pages/SystemManual";
 import ProductAlienMap from "./pages/ProductAlienMap";
-import TelegramDeliveryRoom from "./pages/TelegramDeliveryRoom";
+import ProductAlienStore from "./pages/ProductAlienStore";
+import TelegramDeliveryRoom from "@/lib/TelegramDeliveryRoom";
 import AlertRoom from "./pages/AlertRoom";
 import SecretGallery from "./pages/SecretGallery";
 import ParcelMapping from "./pages/ParcelMapping";
 import CloseJobHistory from "./pages/CloseJobHistory";
-import SystemManual from "./pages/SystemManual";
 import TelegramSentHistory from "./pages/TelegramSentHistory";
 
 function Shell({ children }: { children: React.ReactNode }) { return <DashboardLayout>{children}</DashboardLayout>; }
