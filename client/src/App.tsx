@@ -21,6 +21,7 @@ import AlertRoom from "./pages/AlertRoom";
 import SecretGallery from "./pages/SecretGallery";
 import ParcelMapping from "./pages/ParcelMapping";
 import CloseJobHistory from "./pages/CloseJobHistory";
+import SystemManual from "./pages/SystemManual";
 
 function Shell({ children }: { children: React.ReactNode }) { return <DashboardLayout>{children}</DashboardLayout>; }
 function Router() {
@@ -38,9 +39,9 @@ function Router() {
     <Route path="/product-alien-map"><Shell><ProductAlienMap /></Shell></Route>
     <Route path="/telegram-delivery"><Shell><TelegramDeliveryRoom /></Shell></Route>
     <Route path="/alert-room"><Shell><AlertRoom /></Shell></Route>
-    <Route path="/aliases"><Redirect to="/close-job-history" /></Route>
     <Route path="/order-performance"><Shell><OrderPerformance /></Shell></Route>
     <Route path="/stock-room"><Shell><StockRoom /></Shell></Route>
+    <Route path="/system-manual"><Shell><SystemManual /></Shell></Route>
     <Route path="/mapping-dashboard"><Shell><MappingDashboard /></Shell></Route>
     <Route path="/order-buckets"><Shell><OrderBuckets /></Shell></Route>
     <Route path="/daily-chat-summary"><Shell><DailyChatSummary /></Shell></Route>
