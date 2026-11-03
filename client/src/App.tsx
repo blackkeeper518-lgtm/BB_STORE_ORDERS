@@ -14,7 +14,7 @@ import OrderBuckets from "./pages/OrderBuckets";
 import DailyChatSummary from "./pages/DailyChatSummary";
 import OrderHistory from "./pages/OrderHistory";
 import AlienRoom from "./pages/AlienRoom";
-import ProductAlienStore from "./pages/ProductAlienStore";
+import SystemManual  from "./pages/SystemManual";
 import ProductAlienMap from "./pages/ProductAlienMap";
 import TelegramDeliveryRoom from "./pages/TelegramDeliveryRoom";
 import AlertRoom from "./pages/AlertRoom";
