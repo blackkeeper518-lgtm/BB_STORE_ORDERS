@@ -31,7 +31,6 @@ function textValue(value: unknown): string {
 
 function isSent(row: OrderRow | null | undefined) {
   if (!isOrderRow(row)) return false;
-
   return textValue(row.telegram_status)
     .trim()
     .replace(/^🔥\s*/, "")
@@ -39,15 +38,7 @@ function isSent(row: OrderRow | null | undefined) {
 }
 
 function orderKey(row: OrderRow) {
-  const key = String(row.upsert_key ?? "").trim();
-
-  if (!key) {
-    throw new Error(
-      `ไม่พบ upsert_key สำหรับ ${String(row.order_number ?? "ออเดอร์นี้")}`,
-    );
-  }
-
-  return key;
+  return String(row.upsert_key ?? row.id ?? row.order_number ?? "");
 }
 
 function sourceTableOf(row: OrderRow): "🗝️HERMES_ARCHIVE" | "🌀SINGULARITY_xXx_EXCHANGE" {
@@ -65,21 +56,13 @@ function realTime(row: OrderRow) {
   return row.order_time_display || null;
 }
 
-function displayTime(row: OrderRow | null | undefined) {
-  return isOrderRow(row)
-    ? String(row.order_time_display || "ไม่พบ order_time_display")
-    : "—";
-}
+function displayTime(row: OrderRow | null | undefined) { return isOrderRow(row) ? String(row.order_time_display || "ไม่พบ order_time_display") : "—"; }
 
 function productOf(row: OrderRow) {
-  return evidenceText(row.manus_for_packer) ||
-    evidenceText(row.for_packer_st_display) ||
-    evidenceText(row.order_fibo_product) ||
-    evidenceText(row.google_for_packer) ||
-    evidenceText(row.sku);
+  return evidenceText(row.order_fibo_product) || evidenceText(row.for_packer_st_display) ||
+    evidenceText(row.manus_for_packer) || evidenceText(row.google_for_packer) ||
+    evidenceText(row.packer_tag_display) || evidenceText(row.bb_pack_center);
 }
-
-
 
 function evidenceText(value: unknown): string {
   if (value == null || value === "") return "";
@@ -110,21 +93,56 @@ function provinceOf(row: OrderRow) {
   return String(row.province || row.master_province || "ไม่ระบุจังหวัด").trim();
 }
 
-function telegramText(row: OrderRow) {
-  return String(row.telegram_message ?? "").trim();
+function telegramText(row: OrderRow, header: string) {
+  const builderBill = String(row.telegram_message_for_send_final ?? row.telegram_message ?? getTelegramBody(row)?.text ?? row.telegram_main_bill ?? "").trim();
+  if (builderBill) return withPreferredBillHeader(row, builderBill, header);
+  // สร้างข้อความจากออเดอร์ BB: ใช้ฟิวค่ายตัวเองและไม่พึ่ง master_* เป็นแหล่งหลัก
+  const customer = row.customer_name || "";
+  const phone = row.extracted_phone || row.phone || "";
+  const cod = row.cod_amount;
+  const orderNumber = row.order_number_display || row.order_number || "";
+  const time = row.order_time_display || "";
+  const shipping = String(row.shipping_carrier || "⚡FLASH EXPRESS").trim() || "⚡FLASH EXPRESS";
+  const warnings = warningOf(row);
+  return [row.telegram_bill_header || row.telegram_header || row.product_header || row.bill_header || header, "━━━━━━━━━━━━━━━━━━━━", time && `⏰ วันที่สั่งซื้อ : ${time}`, orderNumber && `🆔 เลขออเดอร์ : ${orderNumber}`, row.page_name && `📢 PAGE : ${row.page_name}`, customer && `👤 FB : ${customer}`, cod !== null && cod !== undefined && cod !== "" && `💰 ยอด COD : ${cod} บาท`, "━━━━━━━━━━━━━━━━━━━━", customer, phone, addressOf(row), "━━━━━━━━━━━━━━━━━━━━", "📦 รายการสินค้าสำหรับจัดของ", productOf(row), warnings.length ? "🚨 ป้ายเตือน" : "", ...warnings, "━━━━━━━━━━━━━━━━━━━━", `🚚 ขนส่ง: ${shipping}`].filter(Boolean).join("\n");
 }
 
 function plainTelegramText(value: unknown) {
   return String(value ?? "")
     .replace(/<br\s*\/?\s*>/gi, "\n")
+    .replace(/<\/(?:p|div|li|tr|h[1-6])\s*>/gi, "\n")
     .replace(/<[^>]*>/g, "")
     .replace(/&nbsp;/gi, " ")
-    .replace(/&amp;/gi, "&")
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&quot;/gi, '"')
     .replace(/&lt;/gi, "<")
     .replace(/&gt;/gi, ">")
+    .replace(/&amp;/gi, "&")
     .replace(/\r\n?/g, "\n")
+    .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+}
+
+function withPreferredBillHeader(row: OrderRow, bill: string, standbyHeader: string) {
+  const dynamicHeader = String(row.telegram_bill_header ?? "").trim();
+  const rawPreferred = dynamicHeader || String(standbyHeader ?? "").trim();
+  const preferred = rawPreferred ? escapeTelegramHtml(rawPreferred) : "";
+  if (!preferred || bill.startsWith(preferred)) return bill;
+
+  const lines = bill.split(/\r?\n/);
+  const firstIndex = lines.findIndex((line) => line.trim());
+  if (firstIndex < 0) return preferred;
+  const firstLine = lines[firstIndex].trim();
+  if (plainTelegramText(firstLine) === rawPreferred) return bill;
+  if (/^[━─—═-]{3,}$/.test(firstLine)) return `${preferred}\n${bill}`;
+
+  // Replace an existing bill title (including an older static builder title).
+  if (/^(?:🚀|╳╳|█▓▒░)|\[บิลสมบูรณ์/i.test(plainTelegramText(firstLine))) {
+    lines[firstIndex] = preferred;
+    return lines.join("\n");
+  }
+  return `${preferred}\n${bill}`;
 }
 
 function escapeTelegramHtml(value: string) {
@@ -139,82 +157,49 @@ function mappingLabel(row: OrderRow) {
 function issueOf(row: OrderRow) {
   const issues: string[] = [];
   if (!row.upsert_key) issues.push("ไม่มี upsert_key");
-  if (!productOf(row)) issues.push("ไม่พบสินค้า");
+  if (!productOf(row) || productOf(row).includes("ยังไม่มี")) issues.push("ไม่พบสินค้า");
   if (!addressOf(row) || addressOf(row).includes("ยังไม่มี")) issues.push("ไม่พบที่อยู่");
+  if (!row.mapping_status && !row.web_mapping_status) issues.push("ยังไม่ระบุผลแมป");
   return issues;
 }
 
 function warningOf(row: OrderRow) {
   const warnings: string[] = [];
+  const stock = String(row.stock_status || row.stock_state || row.inventory_status || "").toLowerCase();
   const cod = Number(row.cod_amount);
-  const qty = Number(row.final_order_qty);
+  const qty = Number(row.total_quantity ?? row.quantity ?? row.extracted_qty ?? row.qty);
   const address = addressOf(row);
-  const phone = String(row.phone || row.extracted_phone || "").replace(/\D/g, "");
-  const raw = String(row.telegram_copy_text || "");
-
-
-  if (
-    row.blacklist === true ||
-    row.blacklisted === true ||
-    /BLACKLIST|แบล็กลิสต์/i.test(String(row.warning_tag || row.audit_flags || ""))
-  ) {
-    warnings.push("⛔ [BLACKLIST] ลูกค้ามีประวัติแบล็กลิสต์ไม่รับของ");
-  }
-
-  if (!String(row.customer_name || row.facebook_name || "").trim()) {
-    warnings.push("👥 ชื่อผู้รับไม่มี");
-  }
-
-  if (!Number.isFinite(cod) || row.cod_amount == null || String(row.cod_amount).trim() === "") {
-    warnings.push("💰 ยอด COD ไม่ครบ");
-  } else {
-    if (cod < 200 && cod > 0) {
-      warnings.push("⚠️ ยอด COD ต่ำกว่าเกณฑ์ (< 200 บาท)");
-    }
-    if (qty === 1 && cod > 500) {
-      warnings.push("🧂 ยอด COD สูงเกินราคา 1 คอต");
-    }
-    if (cod < 0 || cod > 10000) {
-      warnings.push("🚨 [ANOMALY COD] ยอด COD ผิดปกติ");
-    }
-  }
-
-  if (!address || address.includes("ยังไม่มี") || !/^[0-9]{5}$/.test(String(row.zipcode || ""))) {
-    warnings.push("📍 ข้อมูลที่อยู่ไม่สมบูรณ์ (รหัสไปรษณีย์ไม่ถูกต้อง)");
-  }
-
-  if (address.length < 15 || !/[0-9]/.test(address)) {
-    warnings.push("📝 ที่อยู่สั้นผิดปกติ/ขาดบ้านเลขที่");
-  }
-
-  if (phone.length !== 10) {
-    warnings.push("📱 เบอร์โทรศัพท์ไม่ถูกต้อง/ไม่ครบ 10 หลัก");
-  }
-
-  if (
-    row.high_risk_area === true ||
-    /พื้นที่เสี่ยงสูง|RISK AREA/i.test(String(row.warning_tag || row.audit_flags || raw))
-  ) {
-    warnings.push("พื้นที่เสี่ยงสูงสินค้าโดนขโมย");
-  }
-
+  const phone = String(row.master_customer_phone || row.phone || row.extracted_phone || "").replace(/\D/g, "");
+  const raw = String(row.telegram_copy_text || row.raw_text || row.source_text || "");
+  const outOfStock = stock.includes("out") || stock.includes("หมด") || row.is_out_of_stock === true || Number(row.stock_qty) === 0;
+  if (outOfStock) warnings.push(String(row.master_stock_notice || "❌สินค้าหมดแล้วแม่❌ ตรวจคำเตือนจาก Product Master"));
+  if (row.change_order_24h === true || row.order_change_detected === true || /CHANGE ORDER|แก้ไขออเดอร์/i.test(String(row.warning_tag || row.audit_flags || ""))) warnings.push("🔄 [CHANGE ORDER] ตรวจพบการแก้ไขออเดอร์ใน 24 ชม.");
+  if (row.duplicate_order_15m === true || row.duplicate_detected === true || /DUPLICATE|ยิงออเดอร์ซ้ำ/i.test(String(row.warning_tag || row.audit_flags || ""))) warnings.push("🔁 [DUPLICATE] ตรวจพบการยิงออเดอร์ซ้ำภายใน 15 นาที");
+  if (row.blacklist === true || row.blacklisted === true || /BLACKLIST|แบล็กลิสต์/i.test(String(row.warning_tag || row.audit_flags || ""))) warnings.push("⛔ [BLACKLIST] ลูกค้ามีประวัติแบล็กลิสต์ไม่รับของ");
+  if (!String(row.master_customer_name || row.customer_name || row.facebook_name || "").trim()) warnings.push("👥 ชื่อผู้รับไม่มี");
+  if (!Number.isFinite(cod) || row.cod_amount == null || String(row.cod_amount).trim() === "") warnings.push("💰 ยอด COD ไม่ครบ");
+  else { if (cod < 200 && cod > 0) warnings.push("⚠️ ยอด COD ต่ำกว่าเกณฑ์ (< 200 บาท)"); if (qty === 1 && cod > 500) warnings.push("🧂 ยอด COD สูงเกินราคา 1 คอต"); if (cod < 0 || cod > 10000) warnings.push("🚨 [ANOMALY COD] ยอด COD ผิดปกติ"); }
+  if (!address || address.includes("ยังไม่มี") || !String(row.zipcode || "").match(/^[0-9]{5}$/)) warnings.push("📍 ข้อมูลที่อยู่ไม่สมบูรณ์ (รหัสไปรษณีย์ไม่ถูกต้อง)");
+  if (address.length < 15 || !/[0-9]/.test(address)) warnings.push("📝 ที่อยู่สั้นผิดปกติ/ขาดบ้านเลขที่");
+  if (phone.length !== 10) warnings.push("📱 เบอร์โทรศัพท์ไม่ถูกต้อง/ไม่ครบ 10 หลัก");
+  if (row.high_risk_area === true || /พื้นที่เสี่ยงสูง|RISK AREA/i.test(String(row.warning_tag || row.audit_flags || raw))) warnings.push("พื้นที่เสี่ยงสูงสินค้าโดนขโมย");
+  if (row.order_summary_status === "ERROR" || row.summary_status === "ERROR" || row.bot_summary_status === "ERROR") warnings.push("🤖 บอทสรุปออเดอร์มีปัญหา");
   return warnings;
 }
 
-
-
 export default function TelegramDeliveryRoom() {
+  const [header, setHeader] = useState(DEFAULT_HEADER);
   const [now, setNow] = useState(() => new Date());
   const [selected, setSelected] = useState(0);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [dragSelecting, setDragSelecting] = useState(false);
   const dragSelectionRef = useRef<DragSelectionState | null>(null);
+  const [sentAwaitingStatusKeys, setSentAwaitingStatusKeys] = useState<Set<string>>(new Set());
+  const [localSentKeys, setLocalSentKeys] = useState<Set<string>>(new Set());
   const [copied, setCopied] = useState(false);
   const [showEvidence, setShowEvidence] = useState(true);
   const [warningsOnly, setWarningsOnly] = useState(false);
-  const [search, setSearch] = useState(
-    () => new URLSearchParams(window.location.search).get("search") ?? "",
-  );
+  const [search, setSearch] = useState(() => new URLSearchParams(window.location.search).get("search") ?? "");
   const [postalQuery, setPostalQuery] = useState("");
   const [postalMatches, setPostalMatches] = useState<PostalMasterMatch[]>([]);
   const [postalLoading, setPostalLoading] = useState(false);
@@ -224,15 +209,8 @@ export default function TelegramDeliveryRoom() {
   const [editSaving, setEditSaving] = useState(false);
   const [statusSaving, setStatusSaving] = useState(false);
   const [editText, setEditText] = useState("");
-  const [manualMessageOverrides, setManualMessageOverrides] = useState<
-    Record<string, string>
-  >({});
-  const [header, setHeader] = useState(DEFAULT_HEADER);
-  const [sentAwaitingStatusKeys, setSentAwaitingStatusKeys] = useState<Set<string>>(new Set());
-  const [localSentKeys, setLocalSentKeys] = useState<Set<string>>(new Set());
-  const [room, setRoom] = useState<"queue" | "sent">(() =>
-    new URLSearchParams(window.location.search).get("room") === "sent" ? "sent" : "queue",
-  );
+  const [manualMessageOverrides, setManualMessageOverrides] = useState<Record<string, string>>({});
+  const [room, setRoom] = useState<"queue" | "sent">(() => new URLSearchParams(window.location.search).get("room") === "sent" ? "sent" : "queue");
   const query = useQuery({
     queryKey: ["telegram-delivery-room", getActiveCamp(), room, search],
     queryFn: () => readTelegramDeliveryOrders(search, room),
@@ -241,86 +219,33 @@ export default function TelegramDeliveryRoom() {
     refetchOnReconnect: true,
   });
 
-
   const allOrders: OrderRow[] = Array.isArray(query.data?.orders)
-  ? query.data.orders.filter(isOrderRow)
-  : [];
-
-// ใช้ telegram_status จริงเป็นตัวตัดสินเท่านั้น
-const waiting = useMemo(
-  () =>
-    allOrders.filter((row) =>
-      room === "sent" ? isSent(row) : !isSent(row),
-    ),
-  [allOrders, room],
-);
-
-const visibleWaiting = useMemo(
-  () =>
-    warningsOnly
-      ? waiting.filter((row) => warningOf(row).length > 0)
-      : waiting,
-  [waiting, warningsOnly],
-);
-
-const order = waiting[selected];
-
-const selectedOrders = useMemo(
-  () =>
-    visibleWaiting.filter((row) =>
-      selectedKeys.has(orderKey(row)),
-    ),
-  [selectedKeys, visibleWaiting],
-);
-
-const savedManualMessage = order
-  ? manualMessageOverrides[orderKey(order)]
-  : undefined;
-
-// ใช้ telegram_message จาก n8n ตรง ๆ
-const message = useMemo(
-  () =>
-    order
-      ? manualMessageOverrides[orderKey(order)] ?? telegramText(order)
-      : "คิวว่าง — ไม่มีออเดอร์รอส่ง",
-  [order, manualMessageOverrides],
-);
-
-const telegramSelection = useMemo(() => {
-  if (!order) return null;
-
-  const rowForSend = savedManualMessage
-    ? { ...order, telegram_message: savedManualMessage }
-    : order;
-
-  return selectTelegramMessage(rowForSend, message);
-}, [order, message, savedManualMessage]);
-
-// เหลือเฉพาะคำเตือนที่เว็บตรวจเพิ่ม
-const selectedWarnings = order ? warningOf(order) : [];
-const selectedIssues = order ? issueOf(order) : [];
-const lane = order ? laneOf(order) : {
-  label: "ยังไม่เลือกโซน",
-  mark: "WAIT",
-  tone: "border-cyan-300/50 bg-cyan-400/10 text-cyan-200",
-};
-
-const messagePreview = useMemo(
-  () => (order ? plainTelegramText(message) : ""),
-  [order, message],
-);
-
-const warningCount = waiting.reduce(
-  (sum, row) => sum + warningOf(row).length,
-  0,
-);
-
-const warningBillCount = waiting.reduce(
-  (sum, row) => sum + (warningOf(row).length > 0 ? 1 : 0),
-  0,
-);
-
-
+    ? query.data.orders.filter(isOrderRow)
+    : [];
+  // Keep the order_time_display ordering supplied by the canonical reader; do not parse display dates again in the browser.
+  const waiting = useMemo(() => allOrders.filter((row) => {
+    const locallySent = localSentKeys.has(orderKey(row));
+    return room === "sent" ? isSent(row) || locallySent : !isSent(row) && !locallySent;
+  }), [allOrders, localSentKeys, room]);
+  const visibleWaiting = useMemo(() => warningsOnly ? waiting.filter((row) => warningOf(row).length > 0) : waiting, [waiting, warningsOnly]);
+  const order = waiting[selected];
+  const selectedOrders = useMemo(() => visibleWaiting.filter((row) => selectedKeys.has(orderKey(row))), [selectedKeys, visibleWaiting]);
+  const savedManualMessage = order ? manualMessageOverrides[orderKey(order)] : undefined;
+  const message = useMemo(() => order ? (manualMessageOverrides[orderKey(order)] ?? telegramText(order, header || DEFAULT_HEADER)) : "คิวว่าง — ไม่มีออเดอร์รอส่ง", [order, header, manualMessageOverrides]);
+  const telegramSelection = useMemo(() => {
+    if (!order) return null;
+    const savedHtml = savedManualMessage ? escapeTelegramHtml(savedManualMessage) : "";
+    const rowForSend = savedHtml
+      ? { ...order, manual_telegram_text: savedHtml, telegram_message_source: "WEB_OVERRIDE", telegram_message_dirty: true }
+      : order;
+    return selectTelegramMessage(rowForSend, savedHtml || message);
+  }, [order, message, savedManualMessage]);
+  const selectedIssues = order ? issueOf(order) : [];
+  const selectedWarnings = order ? warningOf(order) : [];
+  const messagePreview = useMemo(() => order ? plainTelegramText(message) : "", [order, message]);
+  const warningCount = waiting.reduce((sum, row) => sum + warningOf(row).length, 0);
+  const warningBillCount = waiting.reduce((sum, row) => sum + (warningOf(row).length > 0 ? 1 : 0), 0);
+  const lane = order ? laneOf(order) : { label: "ยังไม่เลือกโซน", mark: "WAIT", tone: "border-cyan-300/50 bg-cyan-400/10 text-cyan-200" };
 
   const provinceSummary = useMemo(() => {
     const map = new Map<string, number>();
@@ -388,41 +313,24 @@ const warningBillCount = waiting.reduce(
       setSendMessage(`ส่งไม่สำเร็จ: ${error instanceof Error ? error.message : String(error)}`);
       return;
     }
-   setSentAwaitingStatusKeys((current) => new Set(current).add(key));
-
-try {
-  await persistOrderSent(order);
-  clearSentAwaitingStatus(key);
-
-  setSendMessage(
-    "ส่ง Telegram แล้ว · เขียน 🔥SENT สำเร็จ — ออกจากคิวแล้ว",
-  );
-
-  setSelectedKeys((current) => {
-    const next = new Set(current);
-    next.delete(key);
-    return next;
-  });
-
-  setSelected(0);
-  void query.refetch();
-  } catch (error) {
-    void query.refetch();
-    setSendMessage(
-      `ส่ง Telegram แล้ว แต่เขียน 🔥SENT ไม่สำเร็จ: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
-    );
+    setSentAwaitingStatusKeys((current) => new Set(current).add(key));
+    try {
+      await persistOrderSent(order);
+      clearSentAwaitingStatus(key);
+      setLocalSentKeys((current) => new Set(current).add(key));
+      setSendMessage("ส่ง Telegram แล้ว · เขียน 🔥SENT สำเร็จ — ออกจากคิวแล้ว");
+      setSelectedKeys((current) => { const next = new Set(current); next.delete(key); return next; });
+      setSelected(0);
+      void query.refetch();
+    } catch (error) {
+      void query.refetch();
+      setSendMessage(`Telegram ส่งออกแล้ว แต่เขียน 🔥SENT ไม่สำเร็จ: ${error instanceof Error ? error.message : String(error)} — อย่าส่งซ้ำ กด 🔥SENT เพื่อปิดรายการ`);
+    }
   }
-}
- 
-function orderKey(row: OrderRow) {
-  return String(row.upsert_key);
-}
-
 
   function toggleOrder(row: OrderRow) {
     const key = orderKey(row);
+    if (!key) return;
     setSelectedKeys((current) => {
       const next = new Set(current);
       if (next.has(key)) next.delete(key); else next.add(key);
@@ -475,85 +383,44 @@ function orderKey(row: OrderRow) {
     setWarningsOnly((current) => !current);
   }
 
- async function sendSelectedOrders() {
-  const rowsToSend = selectedOrders.filter(
-    (row) =>
-      !isSent(row) &&
-      !sentAwaitingStatusKeys.has(orderKey(row)),
-  );
-
-  if (!rowsToSend.length) {
-    setSendMessage(
-      selectedOrders.length
-        ? "รายการที่เลือกเป็น 🔥SENT หรือส่งแล้ว — จะไม่ส่งซ้ำ"
-        : "ลากเลือกบิลก่อนครับ",
-    );
-    return;
-  }
-
-  let completed = 0;
-  setSendMessage(`กำลังปล่อยรัน ${rowsToSend.length} ออเดอร์...`);
-
-  try {
-    for (const row of rowsToSend) {
-      const key = orderKey(row);
-      const savedText = manualMessageOverrides[key];
-      const text = savedText ?? telegramText(row);
-
-      const rowForSend = savedText
-        ? { ...row, telegram_message: savedText }
-        : row;
-
-      await sendTelegramFromN8n(
-        rowForSend,
-        selectTelegramMessage(rowForSend, text),
-      );
-
-      setSentAwaitingStatusKeys((current) => {
-        const next = new Set(current);
-        next.add(key);
-        return next;
-      });
-
-      try {
-        await persistOrderSent(row);
-        clearSentAwaitingStatus(key);
-
-        completed += 1;
-
-        setSelectedKeys((current) => {
-          const next = new Set(current);
-          next.delete(key);
-          return next;
-        });
-      } catch (error) {
-        setSendMessage(
-          `ส่ง Telegram แล้ว แต่เขียน 🔥SENT ไม่สำเร็จ ` +
-          `(${row.order_number || key}) — อย่าส่งซ้ำ ` +
-          `ให้กด 🔥SENT เพื่อปิดรายการ`,
-        );
-        await query.refetch();
-        return;
+  async function sendSelectedOrders() {
+    const rowsToSend = room === "sent" ? [] : selectedOrders.filter((row) => !isSent(row) && !sentAwaitingStatusKeys.has(orderKey(row)));
+    if (!rowsToSend.length) { setSendMessage(room === "sent" || selectedOrders.length ? "รายการที่เลือกเป็น 🔥SENT หรือส่งแล้ว — จะไม่ส่งซ้ำ" : "ลากเลือกบิลก่อนครับ"); return; }
+    let completed = 0;
+    setSendMessage(`กำลังปล่อยรัน ${rowsToSend.length} ออเดอร์...`);
+    try {
+      for (const row of rowsToSend) {
+        const key = orderKey(row);
+        const savedText = manualMessageOverrides[key];
+        const text = savedText ?? telegramText(row, header || DEFAULT_HEADER);
+        const savedHtml = savedText ? escapeTelegramHtml(savedText) : "";
+        const rowForSend = savedHtml
+          ? { ...row, manual_telegram_text: savedHtml, telegram_message_source: "WEB_OVERRIDE", telegram_message_dirty: true }
+          : row;
+        await sendTelegramFromN8n(rowForSend, selectTelegramMessage(rowForSend, savedHtml || text));
+        setSentAwaitingStatusKeys((current) => new Set(current).add(key));
+        try {
+          await persistOrderSent(row);
+          clearSentAwaitingStatus(key);
+          setLocalSentKeys((current) => new Set(current).add(key));
+          completed += 1;
+          setSelectedKeys((current) => { const next = new Set(current); next.delete(key); return next; });
+        } catch (error) {
+          setSendMessage(`ส่ง Telegram แล้ว แต่เขียน 🔥SENT ไม่สำเร็จ (${row.order_number || key}) — อย่าส่งซ้ำ กด 🔥SENT เพื่อปิดรายการ`);
+          await query.refetch();
+          return;
+        }
       }
+      setSendMessage(`ส่งและเขียน 🔥SENT สำเร็จ ${completed} ออเดอร์ — ออกจากคิวแล้ว`);
+      setSelectedKeys(new Set());
+      setSelected(0);
+      void query.refetch();
+    } catch (error) {
+      void query.refetch();
+      setSendMessage(`หยุดส่งหลัง ${completed}/${rowsToSend.length} ออเดอร์: ${error instanceof Error ? error.message : String(error)}`);
+      await query.refetch();
     }
-
-    setSendMessage(
-      `ส่งและเขียน 🔥SENT สำเร็จ ${completed} ออเดอร์ — ออกจากคิวแล้ว`,
-    );
-    setSelectedKeys(new Set());
-    setSelected(0);
-    void query.refetch();
-  } catch (error) {
-    void query.refetch();
-    setSendMessage(
-      `หยุดส่งหลัง ${completed}/${rowsToSend.length} ออเดอร์: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
-    );
   }
-}
-
-
 
   async function markSelectedOrdersSent() {
     if (!selectedOrders.length) { setSendMessage("ยังไม่ได้เลือกออเดอร์"); return; }
@@ -579,48 +446,28 @@ function orderKey(row: OrderRow) {
     } finally { setStatusSaving(false); }
   }
 
- async function markCurrentOrderSent() {
-  if (room === "sent") {
-    setSendMessage("รายการนี้อยู่ในประวัติ 🔥SENT แล้ว");
-    return;
+  async function markCurrentOrderSent() {
+    if (room === "sent") { setSendMessage("รายการนี้อยู่ในประวัติ 🔥SENT แล้ว"); return; }
+    if (!order?.upsert_key) { setSendMessage("ติ๊กส่งแล้วไม่ได้: ไม่พบ upsert_key"); return; }
+    const key = orderKey(order);
+    setStatusSaving(true);
+    try {
+      await persistOrderSent(order);
+      clearSentAwaitingStatus(key);
+      setLocalSentKeys((current) => new Set(current).add(key));
+      setSendMessage("เขียน 🔥SENT ลงโต๊ะหลักสำเร็จ — รายการออกจากคิวเตือน");
+      setSelectedKeys((current) => {
+        const next = new Set(current);
+        next.delete(key);
+        return next;
+      });
+      setSelected(0);
+      void query.refetch();
+    } catch (error) {
+      setSendMessage(`ติ๊ก SENT ไม่สำเร็จ: ${error instanceof Error ? error.message : String(error)}`);
+      void query.refetch();
+    } finally { setStatusSaving(false); }
   }
-
-  if (!order?.upsert_key) {
-    setSendMessage("ติ๊กส่งแล้วไม่ได้: ไม่พบ upsert_key");
-    return;
-  }
-
-  const key = orderKey(order);
-  setStatusSaving(true);
-
-  try {
-    await persistOrderSent(order);
-    clearSentAwaitingStatus(key);
-
-    setSendMessage(
-      "เขียน 🔥SENT ลงโต๊ะหลักสำเร็จ — รายการออกจากคิวเตือน",
-    );
-
-    setSelectedKeys((current) => {
-      const next = new Set(current);
-      next.delete(key);
-      return next;
-    });
-
-    setSelected(0);
-    void query.refetch();
-  } catch (error) {
-    setSendMessage(
-      `ติ๊ก SENT ไม่สำเร็จ: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
-    );
-    void query.refetch();
-  } finally {
-    setStatusSaving(false);
-  }
-}
-
 
   async function returnCurrentOrderToQueue() {
     if (!order?.upsert_key) { setSendMessage("เปลี่ยนสถานะไม่ได้: ไม่พบ upsert_key"); return; }
@@ -660,158 +507,58 @@ function orderKey(row: OrderRow) {
     setEditText(messagePreview);
     setEditMode(true);
   }
-async function saveOrderEdit() {
-  if (!order?.upsert_key) {
-    setSendMessage("บันทึกไม่ได้: ไม่พบ upsert_key ของออเดอร์");
-    return;
+
+  async function saveOrderEdit() {
+    if (!order?.upsert_key) { setSendMessage("บันทึกไม่ได้: ไม่พบ upsert_key ของออเดอร์"); return; }
+    const text = editText.trim();
+    if (!text) { setSendMessage("ข้อความส่งว่างอยู่ ยังบันทึกไม่ได้"); return; }
+    setEditSaving(true);
+    try {
+      // Save only the final outgoing bill text; raw chat evidence and source fields remain untouched.
+      const savedText = escapeTelegramHtml(text);
+      await updateBbOrderByKey(String(order.upsert_key), { telegram_message_for_send_final: savedText }, sourceTableOf(order));
+      setManualMessageOverrides((current) => ({ ...current, [orderKey(order)]: text }));
+      setEditMode(false);
+      setSendMessage(`บันทึกข้อความส่งสำเร็จลง ${sourceTableOf(order)} — ปุ่มส่งจะใช้ก้อนนี้`);
+      await query.refetch();
+    } catch (error) {
+      setSendMessage(`บันทึกไม่สำเร็จ: ${error instanceof Error ? error.message : String(error)}`);
+    } finally { setEditSaving(false); }
   }
 
-  const text = editText.trim();
-
-  if (!text) {
-    setSendMessage("ข้อความส่งว่างอยู่ ยังบันทึกไม่ได้");
-    return;
+  async function runPostalSearch() {
+    if (!postalQuery.trim()) { setPostalMatches([]); setPostalError("วางที่อยู่หรือพิมพ์รหัส ปณ. 5 หลักก่อน"); return; }
+    setPostalLoading(true);
+    setPostalError("");
+    try {
+      const rows = await searchThailandPostalMaster(postalQuery);
+      setPostalMatches(rows);
+      if (!rows.length) setPostalError("ไม่พบพื้นที่หรือรหัส ปณ. ที่ตรงกัน");
+    } catch (error) {
+      setPostalMatches([]);
+      setPostalError(error instanceof Error ? error.message : String(error));
+    } finally { setPostalLoading(false); }
   }
 
-  setEditSaving(true);
-
-  try {
-    const savedText = escapeTelegramHtml(text);
-
-    await updateBbOrderByKey(
-      String(order.upsert_key),
-      {
-        telegram_message: savedText,
-      },
-      sourceTableOf(order),
-    );
-
-    setManualMessageOverrides((current) => ({
-      ...current,
-      [orderKey(order)]: text,
-    }));
-
-    setEditMode(false);
-
-    setSendMessage(
-      `บันทึกข้อความส่งสำเร็จลง ${sourceTableOf(order)} — ใช้ telegram_message`,
-    );
-
-    await query.refetch();
-  } catch (error) {
-    setSendMessage(
-      `บันทึกไม่สำเร็จ: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
-    );
-  } finally {
-    setEditSaving(false);
-  }
-}
-
-
-async function runPostalSearch() {
-  const raw = postalQuery.normalize("NFC").trim();
-
-  if (!raw) {
-    setPostalMatches([]);
-    setPostalError("วางที่อยู่เต็ม หรือพิมพ์ตำบล อำเภอ จังหวัด หรือรหัส ปณ. ก่อน");
-    return;
+  function postalAddressText(row: PostalMasterMatch) {
+    return [
+      row.district ? `ต.${row.district}` : "",
+      row.amphoe ? `อ.${row.amphoe}` : "",
+      row.province ? `จ.${row.province}` : "",
+      row.zipcode || "",
+    ].filter(Boolean).join(" ");
   }
 
-  setPostalLoading(true);
-  setPostalError("");
-
-  try {
-    // ส่งข้อความต้นฉบับทั้งก้อนให้ตัวค้นหาอ่านทุกมิติ
-    const rows = await searchThailandPostalMaster(raw);
-
-    // กันผลลัพธ์ซ้ำ และเรียงผลที่มีข้อมูลครบก่อน
-    const uniqueRows = Array.from(
-      new Map(
-        rows.map((row) => [
-          [
-            row.district,
-            row.amphoe,
-            row.province,
-            row.zipcode,
-          ]
-            .map((value) => String(value ?? "").trim())
-            .join("|"),
-          row,
-        ]),
-      ).values(),
-    ).sort((a, b) => {
-      const completeness = (row: PostalMasterMatch) =>
-        [
-          row.district,
-          row.amphoe,
-          row.province,
-          row.zipcode,
-        ].filter((value) => String(value ?? "").trim()).length;
-
-      return completeness(b) - completeness(a);
-    });
-
-    setPostalMatches(uniqueRows);
-
-    if (!uniqueRows.length) {
-      setPostalError(
-        "ไม่พบพื้นที่ตรงกัน ลองเพิ่มชื่อตำบล อำเภอ จังหวัด หรือเลข ปณ.",
-      );
+  async function copyPostalAddress(row: PostalMasterMatch) {
+    const address = postalAddressText(row);
+    if (!address) return;
+    try {
+      await navigator.clipboard?.writeText(address);
+      setPostalError(`คัดลอกที่อยู่แล้ว: ${address}`);
+    } catch {
+      setPostalError("คัดลอกไม่ได้ — เลือกข้อความที่อยู่แล้วคัดลอกเองได้เลย");
     }
-  } catch (error) {
-    setPostalMatches([]);
-    setPostalError(
-      error instanceof Error
-        ? error.message
-        : "ค้นหาที่อยู่ไม่สำเร็จ",
-    );
-  } finally {
-    setPostalLoading(false);
   }
-}
-
-function postalAddressText(row: PostalMasterMatch) {
-  const parts = [
-    row.district ? `ต.${String(row.district).trim()}` : "",
-    row.amphoe ? `อ.${String(row.amphoe).trim()}` : "",
-    row.province ? `จ.${String(row.province).trim()}` : "",
-    row.zipcode ? String(row.zipcode).trim() : "",
-  ].filter(Boolean);
-
-  return parts.join(" ");
-}
-
-async function copyPostalAddress(row: PostalMasterMatch) {
-  const address = postalAddressText(row);
-
-  if (!address) {
-    setPostalError("ผลแมปนี้ยังไม่มีข้อมูลที่อยู่ให้คัดลอก");
-    return;
-  }
-
-  try {
-    await navigator.clipboard.writeText(address);
-    setPostalError(`คัดลอกที่อยู่ที่แมปแล้ว: ${address}`);
-  } catch {
-    setPostalError(
-      "คัดลอกอัตโนมัติไม่ได้ — ลากเลือกข้อความแล้วคัดลอกเองได้เลย",
-    );
-  }
-}
-
-type PostalMasterMatch = {
-  district: string | null;
-  amphoe: string | null;
-  province: string | null;
-  zipcode: string | null;
-  district_code?: string | null;
-  amphoe_code?: string | null;
-  province_code?: string | null;
-};
-
-
 
   return (
     <div className="bb-telegram-room min-h-full space-y-5 text-white">
