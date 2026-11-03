@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { getActiveCamp, readBbOrderEvidence, readTelegramDeliveryOrders, updateBbOrderByKey } from "@/lib/canonical";
+import { getActiveCamp, readBbOrderEvidence, readTelegramDeliveryOrders, searchThailandPostalMaster, updateBbOrderByKey, type PostalMasterMatch } from "@/lib/canonical";
 import { AlertTriangle, CheckCircle2, Clipboard, Clock3, Eye, MessageSquareText, RefreshCw, Send, ShieldAlert, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -197,9 +197,14 @@ export default function TelegramDeliveryRoom() {
   const [showEvidence, setShowEvidence] = useState(true);
   const [warningsOnly, setWarningsOnly] = useState(false);
   const [search, setSearch] = useState(() => new URLSearchParams(window.location.search).get("search") ?? "");
+  const [postalQuery, setPostalQuery] = useState("");
+  const [postalMatches, setPostalMatches] = useState<PostalMasterMatch[]>([]);
+  const [postalLoading, setPostalLoading] = useState(false);
+  const [postalError, setPostalError] = useState("");
   const [sendMessage, setSendMessage] = useState("");
   const [editMode, setEditMode] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
+  const [statusSaving, setStatusSaving] = useState(false);
   const [editText, setEditText] = useState("");
   const [room, setRoom] = useState<"queue" | "sent">(() => new URLSearchParams(window.location.search).get("room") === "sent" ? "sent" : "queue");
   const query = useQuery({
@@ -345,6 +350,35 @@ export default function TelegramDeliveryRoom() {
     }
   }
 
+  async function returnCurrentOrderToQueue() {
+    if (!order?.upsert_key) { setSendMessage("เปลี่ยนสถานะไม่ได้: ไม่พบ upsert_key"); return; }
+    if (!isSent(order)) { setSendMessage("รายการนี้ยังไม่อยู่ในประวัติส่งแล้ว"); return; }
+    const confirmed = window.confirm("นำรายการนี้กลับเข้าคิวรอส่งใช่ไหม? ถ้าส่งไปแล้ว อาจทำให้ส่งซ้ำได้");
+    if (!confirmed) return;
+    setStatusSaving(true);
+    try {
+      await updateBbOrderByKey(String(order.upsert_key), {
+        telegram_sent: "false",
+        telegram_status: "PENDING",
+        delivery_status: "PENDING",
+        delivery_state: "PENDING",
+        sent_at: null,
+        telegram_sent_at: null,
+      }, sourceTableOf(order));
+      setSendMessage("เปลี่ยนสถานะแล้ว — รายการกลับเข้าคิวรอส่ง");
+      setSelectedKeys((current) => {
+        const next = new Set(current);
+        next.delete(orderKey(order));
+        return next;
+      });
+      setSelected(0);
+      setWarningsOnly(false);
+      setRoom("queue");
+    } catch (error) {
+      setSendMessage(`เปลี่ยนสถานะไม่สำเร็จ: ${error instanceof Error ? error.message : String(error)}`);
+    } finally { setStatusSaving(false); }
+  }
+
   function toggleEditMessage() {
     if (editMode) {
       setEditMode(false);
@@ -368,6 +402,30 @@ export default function TelegramDeliveryRoom() {
     } catch (error) {
       setSendMessage(`บันทึกไม่สำเร็จ: ${error instanceof Error ? error.message : String(error)}`);
     } finally { setEditSaving(false); }
+  }
+
+  async function runPostalSearch() {
+    if (!postalQuery.trim()) { setPostalMatches([]); setPostalError("วางที่อยู่หรือพิมพ์รหัส ปณ. 5 หลักก่อน"); return; }
+    setPostalLoading(true);
+    setPostalError("");
+    try {
+      const rows = await searchThailandPostalMaster(postalQuery);
+      setPostalMatches(rows);
+      if (!rows.length) setPostalError("ไม่พบพื้นที่หรือรหัส ปณ. ที่ตรงกัน");
+    } catch (error) {
+      setPostalMatches([]);
+      setPostalError(error instanceof Error ? error.message : String(error));
+    } finally { setPostalLoading(false); }
+  }
+
+  async function copyPostalCode(zipcode: string | null) {
+    if (!zipcode) return;
+    try {
+      await navigator.clipboard?.writeText(zipcode);
+      setPostalError(`คัดลอกรหัส ปณ. ${zipcode} แล้ว`);
+    } catch {
+      setPostalError("คัดลอกไม่ได้ — เลือกรหัส ปณ. แล้วคัดลอกเองได้เลย");
+    }
   }
 
   return (
@@ -403,6 +461,7 @@ export default function TelegramDeliveryRoom() {
             <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ค้นหาเลขออเดอร์ / ลูกค้า / สินค้า" className="border-orange-400/20 bg-black/40 text-orange-100 placeholder:text-orange-100/30" />
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-orange-100/55"><span>แสดง {visibleWaiting.length} รายการ · เลือกแล้ว {selectedOrders.length}</span><div className="flex flex-wrap items-center gap-2"><Button size="sm" variant="outline" onClick={toggleAllVisible} className="h-7 border-cyan-400/30 px-2 text-[10px] text-cyan-200">{visibleWaiting.length > 0 && visibleWaiting.every((row) => selectedKeys.has(orderKey(row))) ? "ปิดเลือกทั้งหมด" : "เปิดเลือกทั้งหมด"}</Button><Button size="sm" onClick={sendSelectedOrders} disabled={!selectedOrders.length || editMode || sendMessage.startsWith("กำลังปล่อยรัน")} className="h-7 border-fuchsia-300/50 bg-fuchsia-500/20 px-2 text-[10px] text-fuchsia-100">ปล่อยรัน ({selectedOrders.length})</Button><Button size="sm" onClick={markSelectedOrdersSent} disabled={!selectedOrders.length} className="h-7 border-emerald-300/50 bg-emerald-500/20 px-2 text-[10px] text-emerald-100">ติ๊ก SENT</Button><Button size="sm" variant="outline" onClick={toggleWarningFilter} aria-pressed={warningsOnly} disabled={warningBillCount === 0 && !warningsOnly} className={`h-7 border px-2 text-[10px] ${warningsOnly ? "border-rose-300/50 bg-rose-500/20 text-rose-100" : "border-rose-400/30 text-rose-200"}`}><AlertTriangle className="mr-1 h-3 w-3" />{warningsOnly ? "ดูทุกบิล" : `บิลมีเตือน (${warningBillCount})`}</Button></div></div>
           </CardHeader>
+          {room === "sent" && order && isSent(order) && <div className="px-6 pb-3"><Button onClick={returnCurrentOrderToQueue} disabled={statusSaving} className="w-full border border-fuchsia-300/50 bg-fuchsia-500/20 text-fuchsia-100 shadow-[0_0_18px_rgba(217,70,239,.24)] hover:bg-fuchsia-500/30">{statusSaving ? "กำลังเปลี่ยนสถานะ..." : "เปลี่ยนสถานะ · กลับเข้าคิวรอส่ง"}</Button></div>}
           <CardContent><div className="max-h-[640px] space-y-2 overflow-auto pr-1">
             {query.isLoading && <div className="rounded-2xl border border-dashed border-orange-400/20 p-6 text-center text-sm text-orange-100/55">กำลังอ่านห้อง...</div>}
             {query.error && <div className="rounded-2xl border border-red-400/25 bg-red-400/10 p-4 text-sm text-red-200">อ่านข้อมูลไม่สำเร็จ: {String(query.error.message)}</div>}
@@ -426,7 +485,22 @@ export default function TelegramDeliveryRoom() {
           </CardContent></Card>
 
         </div>
-        <div className="min-w-0 xl:sticky xl:top-4 xl:self-start">{order && showEvidence ? <Card className="rounded-3xl border-cyan-400/15 bg-[#0d1015]"><CardHeader><CardTitle className="flex items-center gap-2 text-base text-cyan-100"><MessageSquareText className="h-4 w-4 text-cyan-300" />หลักฐานแชทต้นทาง</CardTitle></CardHeader><CardContent><pre className="max-h-[calc(100vh-280px)] min-h-[360px] overflow-auto whitespace-pre-wrap rounded-2xl border border-cyan-400/25 bg-black/55 p-4 text-xs leading-6 text-cyan-50 shadow-[inset_0_0_24px_rgba(34,211,238,.12)]">{evidenceQuery.isLoading ? "กำลังโหลดหลักฐานแชท…" : cleanEvidence({ ...order, ...evidenceQuery.data })}</pre><p className="mt-3 text-xs text-cyan-100/45">ใช้ส่วนนี้เทียบกับข้อมูลแต่งหล่อก่อนคัดลอกหรือส่ง ไม่เขียนทับหลักฐานต้นทาง</p></CardContent></Card> : <Card className="rounded-3xl border-cyan-300/45 bg-[#06131c] shadow-[inset_0_0_30px_rgba(34,211,238,.15),0_0_32px_rgba(34,211,238,.22)]"><CardHeader><CardTitle className="flex items-center gap-2 text-base text-cyan-100"><MessageSquareText className="h-4 w-4 text-cyan-300" />ประวัติแชท</CardTitle></CardHeader><CardContent><p className="text-sm text-cyan-100/70">{order ? "ประวัติแชทถูกซ่อนไว้" : "เลือกบิลก่อนเพื่อเปิดดูประวัติแชท"}</p><Button onClick={() => setShowEvidence(true)} disabled={!order} className="mt-3 border border-cyan-300/50 bg-cyan-400/15 text-cyan-100 hover:bg-cyan-400/25">เปิดประวัติแชทด้านขวา</Button></CardContent></Card>}</div>
+        <div className="min-w-0 space-y-4 xl:sticky xl:top-4 xl:self-start">
+          <Card className="rounded-3xl border-fuchsia-300/30 bg-[#10091c] shadow-[0_0_24px_rgba(168,85,247,.12)]">
+            <CardHeader className="pb-3"><CardTitle className="text-base text-fuchsia-100">⌕ ค้นหาเลข ปณ.</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              <Input value={postalQuery} onChange={(event) => setPostalQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void runPostalSearch(); } }} placeholder="วางที่อยู่ หรือพิมพ์รหัส ปณ. 5 หลัก" aria-label="ค้นหารหัสไปรษณีย์จากที่อยู่หรือรหัส ปณ." className="border-cyan-300/25 bg-black/40 text-cyan-50 placeholder:text-cyan-100/35" />
+              <div className="flex flex-wrap gap-2">
+                <Button onClick={runPostalSearch} disabled={postalLoading} className="bg-fuchsia-500/25 text-fuchsia-100 hover:bg-fuchsia-500/35">{postalLoading ? "กำลังค้น..." : "ค้นเลข ปณ."}</Button>
+                <Button variant="outline" disabled={!order} onClick={() => { setPostalQuery(String(order?.address_display_packer || order?.full_address || order?.addressclean || "")); setPostalError(""); }} className="border-cyan-300/30 text-cyan-100">ใช้ที่อยู่บิล</Button>
+              </div>
+              <p className="text-[10px] leading-4 text-cyan-100/45">ค้นเฉพาะ district · amphoe · province · zipcode จากตารางใน SB</p>
+              {postalError && <p className={`rounded-lg border px-3 py-2 text-xs ${postalError.startsWith("คัดลอก") ? "border-emerald-300/25 bg-emerald-400/10 text-emerald-200" : "border-orange-300/25 bg-orange-400/10 text-orange-100"}`}>{postalError}</p>}
+              {postalMatches.length > 0 && <div className="max-h-64 space-y-2 overflow-auto pr-1">{postalMatches.map((row, index) => <div key={`${row.zipcode}-${row.district}-${index}`} className="rounded-xl border border-cyan-300/15 bg-black/30 p-3"><p className="text-xs text-cyan-100">{[row.district, row.amphoe, row.province].filter(Boolean).join(" · ") || "ไม่ระบุพื้นที่"}</p><div className="mt-2 flex items-center justify-between"><span className="font-mono text-lg font-semibold tracking-wider text-fuchsia-200">{row.zipcode || "—"}</span><Button size="sm" variant="outline" disabled={!row.zipcode} onClick={() => void copyPostalCode(row.zipcode)} className="h-7 border-fuchsia-300/25 px-2 text-[10px] text-fuchsia-100">คัดลอก</Button></div></div>)}</div>}
+            </CardContent>
+          </Card>
+          {order && showEvidence ? <Card className="rounded-3xl border-cyan-400/15 bg-[#0d1015]"><CardHeader><CardTitle className="flex items-center gap-2 text-base text-cyan-100"><MessageSquareText className="h-4 w-4 text-cyan-300" />หลักฐานแชทต้นทาง</CardTitle></CardHeader><CardContent><pre className="max-h-[calc(100vh-280px)] min-h-[360px] overflow-auto whitespace-pre-wrap rounded-2xl border border-cyan-400/25 bg-black/55 p-4 text-xs leading-6 text-cyan-50 shadow-[inset_0_0_24px_rgba(34,211,238,.12)]">{evidenceQuery.isLoading ? "กำลังโหลดหลักฐานแชท…" : cleanEvidence({ ...order, ...evidenceQuery.data })}</pre><p className="mt-3 text-xs text-cyan-100/45">ใช้ส่วนนี้เทียบกับข้อมูลแต่งหล่อก่อนคัดลอกหรือส่ง ไม่เขียนทับหลักฐานต้นทาง</p></CardContent></Card> : <Card className="rounded-3xl border-cyan-300/45 bg-[#06131c] shadow-[inset_0_0_30px_rgba(34,211,238,.15),0_0_32px_rgba(34,211,238,.22)]"><CardHeader><CardTitle className="flex items-center gap-2 text-base text-cyan-100"><MessageSquareText className="h-4 w-4 text-cyan-300" />ประวัติแชท</CardTitle></CardHeader><CardContent><p className="text-sm text-cyan-100/70">{order ? "ประวัติแชทถูกซ่อนไว้" : "เลือกบิลก่อนเพื่อเปิดดูประวัติแชท"}</p><Button onClick={() => setShowEvidence(true)} disabled={!order} className="mt-3 border border-cyan-300/50 bg-cyan-400/15 text-cyan-100 hover:bg-cyan-400/25">เปิดประวัติแชทด้านขวา</Button></CardContent></Card>}
+        </div>
       </div>
 
       <Card className="rounded-3xl border-fuchsia-400/15 bg-[#100b15]"><CardHeader><CardTitle className="flex items-center gap-2 text-base text-fuchsia-100"><ShieldAlert className="h-4 w-4 text-fuchsia-300" />สรุปคิวตามจังหวัด</CardTitle></CardHeader><CardContent><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{provinceSummary.length === 0 ? <p className="text-sm text-fuchsia-100/55">ยังไม่มีจังหวัดในคิว</p> : provinceSummary.map(([province, count]) => <div key={province} className="flex items-center justify-between rounded-2xl border border-fuchsia-400/10 bg-black/25 px-4 py-3"><span className="text-sm text-fuchsia-100/75">{province}</span><span className="font-mono text-lg text-fuchsia-200">{count}</span></div>)}</div><p className="mt-4 text-xs text-fuchsia-100/40">จังหวัดอยู่ด้านล่างเพื่อไม่แย่งความสำคัญจากงานตรวจและส่งออเดอร์</p></CardContent></Card>
