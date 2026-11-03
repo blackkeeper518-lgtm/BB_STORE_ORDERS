@@ -283,6 +283,17 @@ const HERMES_WEB_ORDER_COLUMNS = [
   "telegram_bill_header"
 ].join(",");
 
+// Only fields used by TelegramDeliveryRoom; avoid returning all 330 view columns.
+const TELEGRAM_WEB_ORDER_COLUMNS = [
+  "upsert_key", "source_table", "order_time_display", "order_number", "order_number_display",
+  "order_fibo_product", "for_packer_st_display", "manus_for_packer", "google_for_packer", "packer_tag_display", "packer_obj",
+  "address_fibo_selected_clean", "address_display_packer", "full_address", "province", "zipcode", "phone", "extracted_phone",
+  "audit_flags", "bill_data_complete", "is_ready_to_pack", "mapping_status",
+  "cod_amount", "customer_name", "facebook_name", "page_name", "shipping_carrier", "sku",
+  "delivery_state", "delivery_status", "telegram_status", "telegram_sent",
+  "stock_notice", "telegram_body", "telegram_copy_text", "telegram_main_bill", "telegram_message", "telegram_message_for_send_final"
+].join(",");
+
 function parseJsonRecord(value: unknown): Record<string, any> {
   if (value && typeof value === "object" && !Array.isArray(value)) return value as Record<string, any>;
   if (typeof value === "string" && value.trim()) {
@@ -342,7 +353,7 @@ function normalizeBbDirectRow(row: any): CanonicalOrder {
     address_display_primary: address,
     address_display_packer: address,
     full_address: address,
-    stock_notice: firstText(row.bill_header_playful, row.telegram_bill_header, row.product_master_stock_notice) || null,
+    stock_notice: firstText(row.stock_notice, row.bill_header_playful, row.telegram_bill_header, row.product_master_stock_notice) || null,
     telegram_body: parseJsonRecord(row.telegram_body),
     telegram_status: deliveryState || null,
     telegram_sent: ["SENT", "DELIVERED", "SENT_TO_TELEGRAM"].includes(deliveryState.toUpperCase()),
@@ -446,7 +457,7 @@ export async function readTelegramDeliveryOrders(search = "", room: "queue" | "t
   const sourceTable = room === "sent" ? "🌟GENESIS_xXx_HISTORY" : "🛰️PIONEER_xXx_CAPSULE";
   const { data, error } = await api
     .from(sourceTable)
-    .select("*")
+    .select(TELEGRAM_WEB_ORDER_COLUMNS)
     .order("order_time_display", { ascending: false })
     .limit(ORDER_OPERATIONAL_LIMIT);
   if (error) fail(error);
@@ -458,11 +469,12 @@ export async function readTelegramDeliveryOrders(search = "", room: "queue" | "t
   return { orders, itemError: null, sourceTable, fetchedAt: new Date().toISOString(), room };
 }
 
-export async function readBbOrderEvidence(upsertKey: string) {
+export async function readBbOrderEvidence(upsertKey: string, sourceTable: "🗝️HERMES_ARCHIVE" | "🌀SINGULARITY_xXx_EXCHANGE" = "🗝️HERMES_ARCHIVE") {
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
+  const safeSourceTable = sourceTable === "🌀SINGULARITY_xXx_EXCHANGE" ? "🌀SINGULARITY_xXx_EXCHANGE" : "🗝️HERMES_ARCHIVE";
   const { data, error } = await api
-    .from(defaultOrderView("BB"))
+    .from(safeSourceTable)
     .select("upsert_key,chat_timeline,customer_change_diff_json,telegram_copy_text")
     .eq("upsert_key", upsertKey)
     .maybeSingle();

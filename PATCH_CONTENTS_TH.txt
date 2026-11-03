@@ -1,0 +1,37 @@
+แพ็กเก็ตนี้รวมเฉพาะไฟล์ที่แก้/เพิ่ม ไม่รวม repository เต็มหรือ credential
+
+ไฟล์ในแพ็กเก็ต:
+- N8N_SYNC_STATUS_TH.txt
+- PATCH_CONTENTS_TH.txt
+- README_INSTALL_PARADOX_TELEGRAM_TH.txt
+- REMOVE_LEGACY_FILES_TH.txt
+- client/src/App.tsx
+- client/src/components/DashboardLayout.tsx
+- client/src/lib/TelegramDeliveryRoom.tsx
+- client/src/lib/canonical.ts
+- client/src/lib/telegramDelivery.ts
+- client/src/pages/AlertRoom.tsx
+- client/src/pages/ChatHub.tsx
+- client/src/pages/CloseJobHistory.tsx
+- client/src/pages/ConnectSupabase.tsx
+- client/src/pages/DailyChatSummary.tsx
+- client/src/pages/OrderControl (8).tsx
+- client/src/pages/OrderHistory.tsx
+- client/src/pages/ParcelMapping.tsx
+- client/src/pages/SecretGallery.tsx
+- client/src/pages/TelegramDeliveryRoom.tsx
+- docs/BB_STORE_PIPELINES.md
+- docs/mapping-room-notes.md
+- server/meta.ts
+- server/routers.ts
+- server/supabase.live.test.ts
+- server/supabase.ts
+- sql/bb-close-job-history.sql
+- sql/bb_paradox_exchange_view.sql
+- sql/bb_parcels_retention_3_days.sql
+- sql/check_order_thread_t_1121182883629618.sql
+- sql/inspect_telegram_columns_pioneer_genesis.sql
+- sql/purge_main_sent_orders_3_days_at_1345.sql
+- PATCH_CONTENTS_TH.txt (ไฟล์นี้)
+
+ไฟล์ที่จะลบจาก repo ปลายทางดูที่ REMOVE_LEGACY_FILES_TH.txt

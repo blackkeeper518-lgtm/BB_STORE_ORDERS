@@ -74,7 +74,7 @@ function evidenceText(value: unknown): string {
 }
 
 function cleanEvidence(row: OrderRow) {
-  return evidenceText(row.normalized_chat_timeline) || evidenceText(row.product_evidence) || evidenceText(row.raw_product_evidence) || evidenceText(row.telegram_copy_text) || evidenceText(row.raw_text_with_phone) || evidenceText(row.raw_text) || evidenceText(row.source_text) || evidenceText(row.single_cleaned_block) || "ไม่พบแชทต้นทางในแถวนี้";
+  return evidenceText(row.normalized_chat_timeline) || evidenceText(row.chat_timeline) || evidenceText(row.product_evidence) || evidenceText(row.raw_product_evidence) || evidenceText(row.telegram_copy_text) || evidenceText(row.raw_text_with_phone) || evidenceText(row.raw_text) || evidenceText(row.source_text) || evidenceText(row.single_cleaned_block) || "ไม่พบแชทต้นทางในแถวนี้";
 }
 
 function laneOf(row: OrderRow) {
@@ -217,7 +217,7 @@ export default function TelegramDeliveryRoom() {
   const order = waiting[selected];
   const evidenceQuery = useQuery({
     queryKey: ["bb-order-evidence", order?.upsert_key],
-    queryFn: () => readBbOrderEvidence(String(order!.upsert_key)),
+    queryFn: () => readBbOrderEvidence(String(order!.upsert_key), sourceTableOf(order!)),
     enabled: Boolean(order?.upsert_key && showEvidence),
     staleTime: 15_000,
     refetchInterval: 30_000,
