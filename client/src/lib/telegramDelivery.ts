@@ -25,7 +25,7 @@ export function selectTelegramMessage(row: TelegramDeliveryRow, rebuiltText?: st
   const dynamicText = String(row.telegram_message_dynamic ?? "").trim();
   const overrideText = String(rebuiltText ?? row.manual_telegram_text ?? "").trim();
   if (hasWebOverride(row) && overrideText) return { text: overrideText, source: "WEB_OVERRIDE", dirty: true, body };
-  const builderText = String(row.telegram_main_bill ?? row.telegram_message ?? body?.text ?? "").trim();
+  const builderText = String(row.telegram_message_for_send_final ?? row.telegram_message ?? body?.text ?? row.telegram_main_bill ?? "").trim();
   if (builderText) return { text: builderText, source: "N8N_PAYLOAD", dirty: false, body };
   // Compatibility with projects that still populate the former dynamic view field.
   if (dynamicText && !/\\n|\*\*/.test(dynamicText)) return { text: dynamicText, source: "CANONICAL_DYNAMIC", dirty: false, body };

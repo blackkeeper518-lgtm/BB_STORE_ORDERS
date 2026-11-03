@@ -19,7 +19,7 @@ const menuItems = [
   { icon: Database, label: "Product Alien · เก็บคำ", path: "/product-alien-store" },
   { icon: Tags, label: "Product Alien · แมป", path: "/product-alien-map" },
   { icon: Send, label: "ห้องส่ง Telegram", path: "/telegram-delivery" },
-  { icon: Bell, label: "ห้องเตือนภัย · ซ้ำ/บอท", path: "/alert-room" },
+  { icon: Bell, label: "ประวัติเปลี่ยนของ", path: "/alert-room" },
   { icon: Archive, label: "ประวัติปิดงาน · ยกเลิก/ไม่รับ", path: "/close-job-history" },
   { icon: Boxes, label: "คลังสินค้าจริง / สต๊อกกลาง", path: "/stock-room" },
   { icon: Tags, label: "Product Master Health", path: "/mapping-dashboard" },

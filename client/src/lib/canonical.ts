@@ -293,6 +293,22 @@ function parseJsonRecord(value: unknown): Record<string, any> {
 function firstText(...values: unknown[]): string {
   return values.map(value => String(value ?? "").trim()).find(Boolean) ?? "";
 }
+function plainTelegramText(value: unknown): string {
+  return String(value ?? "")
+    .replace(/<br\s*\/?\s*>/gi, "\n")
+    .replace(/<\/(?:p|div|li|tr|h[1-6])\s*>/gi, "\n")
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&quot;/gi, '"')
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&amp;/gi, "&")
+    .replace(/\r\n?/g, "\n")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
 function asBoolean(value: unknown): boolean {
   if (value === true || value === 1) return true;
   return ["true", "t", "1", "yes", "ใช่"].includes(String(value ?? "").trim().toLowerCase());
@@ -427,18 +443,19 @@ export async function readTelegramDeliveryOrders(search = "", room: "queue" | "t
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
 
+  const sourceTable = room === "sent" ? "🌟GENESIS_xXx_HISTORY" : "🛰️PIONEER_xXx_CAPSULE";
   const { data, error } = await api
-    .from("🌌MULTIVERSE_xXx_NEXUS")
+    .from(sourceTable)
     .select("*")
     .order("order_time_display", { ascending: false })
     .limit(ORDER_OPERATIONAL_LIMIT);
   if (error) fail(error);
   const query = search.trim().toLowerCase();
   const allOrders = (data ?? [])
-    .map((row: any) => ({ ...normalizeBbDirectRow(row), source_table: "🌌MULTIVERSE_xXx_NEXUS" }) as CanonicalOrder)
+    .map((row: any) => ({ ...normalizeBbDirectRow(row), source_view: sourceTable, source_table: row.source_table || sourceTable }) as CanonicalOrder)
     .filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query));
   const orders = allOrders.sort((a, b) => displayOrderSortKey(b.order_time_display) - displayOrderSortKey(a.order_time_display));
-  return { orders, itemError: null, sourceTable: "🌌MULTIVERSE_xXx_NEXUS", fetchedAt: new Date().toISOString(), room };
+  return { orders, itemError: null, sourceTable, fetchedAt: new Date().toISOString(), room };
 }
 
 export async function readBbOrderEvidence(upsertKey: string) {
@@ -474,7 +491,7 @@ export async function readBbOrderEvidenceBatch(upsertKeys: string[]) {
 export async function readBbAlertRoom(search = "") {
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  const { data, error } = await api.from("🌀SINGULARITY_xXx_EXCHANGE").select("*").limit(2000);
+  const { data, error } = await api.from("🌀SINGULARITY_xXx_EXCHANGE").select("*").order("order_time_display", { ascending: false }).limit(2000);
   if (error) fail(error);
   const query = search.trim().toLowerCase();
   const rows = (data ?? []).map((row: any) => {
@@ -488,8 +505,8 @@ export async function readBbAlertRoom(search = "") {
       ["ชื่อ", row.customer_name_change_detected, row.customer_name_previous, row.customer_name_current],
       ["COD", row.customer_cod_change_detected, row.customer_cod_previous, row.customer_cod_current],
     ].filter(([, detected, before, after]) => asBoolean(detected) || (String(before ?? "").trim() && String(after ?? "").trim()));
-    const stamp = row.customer_change_current_time || row.order_time;
-    const changeText = firstText(row.customer_change_summary, row.customer_change_admin_footer_text, row.telegram_change_alert);
+    const stamp = row.order_time_display;
+    const changeText = plainTelegramText(firstText(row.telegram_change_alert_web, row.telegram_change_alert, row.customer_change_summary, row.customer_change_admin_footer_text));
     return {
       ...row,
       id: row.upsert_key,
@@ -506,13 +523,13 @@ export async function readBbAlertRoom(search = "") {
       last_chat_at: stamp,
       last_chat_text: changeText || changes.map(([label]) => `${label}มีการเปลี่ยนแปลง`).join(" · "),
       chat_message_count: 0,
-      telegram_actual_bill: row.telegram_message_for_send_final || row.telegram_message || row.telegram_main_bill || row.telegram_copy_text,
+      telegram_actual_bill: firstText(row.telegram_message_web, plainTelegramText(firstText(row.telegram_message_for_send_final, row.telegram_message, row.telegram_main_bill, row.telegram_copy_text))),
       telegram_send_status: row.telegram_status || row.delivery_status || row.telegram_sent,
     };
-  }).filter((row: any) => row.changed_from || row.changed_to || asBoolean(row.customer_change_detected));
+  }).filter((row: any) => row.changed_from || row.changed_to || asBoolean(row.customer_change_detected) || Boolean(String(row.telegram_change_alert_web || row.telegram_change_alert || "").trim()));
   return rows
     .filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query))
-    .sort((a: any, b: any) => String(b.order_time_display || b.order_time || "").localeCompare(String(a.order_time_display || a.order_time || "")));
+    .sort((a: any, b: any) => displayOrderSortKey(b.order_time_display) - displayOrderSortKey(a.order_time_display));
 }
 
 export async function updateBbOrder(upsertKey: string | number, patch: Record<string, unknown>) {
@@ -524,10 +541,10 @@ export async function updateBbOrder(upsertKey: string | number, patch: Record<st
   if (data.length > 1) fail({ message: `พบออเดอร์ซ้ำ ${data.length} แถวด้วย upsert_key=${upsertKey}` });
   return data[0];
 }
-export async function updateBbOrderByKey(upsertKey: string, patch: Record<string, unknown>) {
+export async function updateBbOrderByKey(upsertKey: string, patch: Record<string, unknown>, sourceTable: "🗝️HERMES_ARCHIVE" | "🌀SINGULARITY_xXx_EXCHANGE" = "🗝️HERMES_ARCHIVE") {
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  const { data, error } = await api.from(defaultOrderView("BB")).update(patch).eq("upsert_key", upsertKey).select("upsert_key");
+  const { data, error } = await api.from(sourceTable).update(patch).eq("upsert_key", upsertKey).select("upsert_key");
   if (error) fail(error);
   if (!data?.length) fail({ message: `ไม่พบออเดอร์ upsert_key=${upsertKey} หรือสิทธิ์ RLS ไม่อนุญาตให้อัปเดต` });
   if (data.length > 1) fail({ message: `พบ upsert_key ซ้ำ ${data.length} แถว ต้องตรวจข้อมูลก่อนแก้ไข` });
@@ -667,10 +684,30 @@ export async function readDailyOrders(date: string, search = "") {
 export async function readDailyParcels(date: string, search = "") {
   const api = getSupabase("tracking");
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Tracking & Messenger: ไปที่ /secret-gallery แล้วบันทึก URL กับ Anon/Publishable Key" });
+  const parsedDate = date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!parsedDate) return { parcels: [], total: 0, sourceTable: "parcels", fetchedAt: new Date().toISOString() };
+  const todayKey = isoDateKey(new Date().toISOString());
+  const earliestKey = isoDateKey(new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString());
+  if (date < earliestKey || date > todayKey) return { parcels: [], total: 0, sourceTable: "parcels", fetchedAt: new Date().toISOString() };
+  const [, year, month, day] = parsedDate;
+  const yearNumber = Number(year);
+  const thaiYearShort = String((yearNumber - 1957) % 100).padStart(2, "0");
+  const thaiYear = String(yearNumber + 543);
+  const prefixes = Array.from(new Set([
+    `${year}-${month}-${day}`,
+    `${day}/${month}/${thaiYearShort}`,
+    `${Number(day)}/${Number(month)}/${thaiYearShort}`,
+    `${day}/${month}/${year}`,
+    `${Number(day)}/${Number(month)}/${year}`,
+    `${day}/${month}/${thaiYear}`,
+    `${Number(day)}/${Number(month)}/${thaiYear}`,
+  ]));
+  const dateFilter = prefixes.map(prefix => `pickup_date.ilike.${prefix}%`).join(",");
   const { data, error } = await api.from("parcels")
     .select("id,pickup_date,tracking_number,consignee,phone_number,address,cod_amount,order_phone,order_number,delivery_status,sent_at")
+    .or(dateFilter)
     .order("pickup_date", { ascending: false })
-    .limit(5000);
+    .limit(2000);
   if (error) fail(error);
   const query = search.trim().toLowerCase();
   const toDateKey = (value: unknown) => {

@@ -46,6 +46,10 @@ export async function fetchParcelMappingQueue(input: { status: "all" | "sent"; l
   const sent = input.status === "sent" ? await supabaseGet<Array<Record<string, unknown>>>(`${sentView}?${sentQuery}`, "tracking") : [];
   return [...active, ...sent].slice(0, input.limit);
 }
+export async function purgeOldParcels() {
+  const deleted = await supabasePost<number>("rpc/bb_purge_old_parcels_3day", {}, "tracking");
+  return { deleted: Number(deleted) || 0 };
+}
 function text(v: unknown) { return v == null ? null : String(v); }
 function num(v: unknown) { const n = Number(v); return v == null || v === "" || !Number.isFinite(n) ? null : n; }
 function bool(v: unknown) { return v === true || v === "true" || v === 1; }

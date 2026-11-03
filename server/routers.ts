@@ -5,6 +5,7 @@ import { sdk } from "./_core/sdk";
 import { createCanonicalAlias, createProductAlienMapReview, createProductAlienTerm, fetchConversationEvidence, fetchDailyChatOrderSummary, fetchDailyOrderHistory, fetchExternalChatMessages, fetchLiveOrders, fetchLiveThreads, fetchParcelMappingQueue, fetchStockProducts, fetchStockWarnings, getLiveOrderStats, listCanonicalAliases, listProductAlienMapReviews, listProductAlienTerms, supabaseGet, supabasePost, updateCanonicalAlias, updateProductMapAlias, updateStockProduct, type LiveOrder, type StockProduct } from "./supabase";
 import { sendMetaMessage } from "./meta";
 import { storagePut } from "./storage";
+import { purgeOldParcels } from "./supabase";
 import * as db from "./db";
 
 const threadInput = z.object({ pageId: z.string().min(1), threadId: z.string().min(1) });
@@ -44,6 +45,7 @@ export const appRouter = router({
 
   parcels: router({
     mappingQueue: adminProcedure.input(z.object({ status: z.enum(["all", "ready", "over24", "over48", "sent"]).default("all"), limit: z.number().int().min(1).max(500).default(300) })).query(({ input }) => fetchParcelMappingQueue({ status: input.status === "sent" ? "sent" : "all", limit: input.limit })),
+    purgeExpired: adminProcedure.input(z.object({ confirmation: z.literal("DELETE_PARCELS_OLDER_THAN_3_DAYS") })).mutation(() => purgeOldParcels()),
     sendTracking: adminProcedure.input(z.object({
       pageId: z.string().min(1),
       threadId: z.string().min(1),
