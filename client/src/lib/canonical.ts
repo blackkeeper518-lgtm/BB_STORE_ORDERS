@@ -290,8 +290,9 @@ const TELEGRAM_WEB_ORDER_COLUMNS = [
   "address_fibo_selected_clean", "address_display_packer", "full_address", "province", "zipcode", "phone", "extracted_phone",
   "audit_flags", "bill_data_complete", "is_ready_to_pack", "mapping_status",
   "cod_amount", "customer_name", "facebook_name", "page_name", "shipping_carrier", "sku",
-  "delivery_state", "delivery_status", "telegram_status", "telegram_sent",
-  "stock_notice", "telegram_body", "telegram_copy_text", "telegram_main_bill", "telegram_message", "telegram_message_for_send_final"
+  "delivery_state", "delivery_status", "telegram_status", "telegram_sent", "sent_at", "telegram_sent_at",
+  "stock_notice", "telegram_body", "telegram_copy_text", "telegram_main_bill", "telegram_message", "telegram_message_for_send_final",
+  "original"
 ].join(",");
 
 function parseJsonRecord(value: unknown): Record<string, any> {
@@ -888,21 +889,37 @@ export async function searchThailandPostalMaster(raw: string): Promise<PostalMas
   const amphoe = capture("อำเภอ|อ\\.|เขต");
   let province = capture("จังหวัด|จ\\.");
   if (/^(กรุงเทพฯ?|กทม)$/i.test(province.replace(/[.\s]/g, ""))) province = "กรุงเทพมหานคร";
-  const cleanSearch = text.replace(/\d+/g, " ").replace(/(?:หมู่บ้าน|หมู่ที่|หมู่|บ้านเลขที่|เลขที่|ตำบล|ต\.|อำเภอ|อ\.|จังหวัด|จ\.|แขวง|เขต)/gi, " ").replace(/[%_*(),]/g, " ").replace(/[^A-Za-z0-9\u0E00-\u0E7F\s.-]/g, " ").replace(/\s+/g, " ").trim();
-
-  let request = api.from("thailand_address_master").select("district,amphoe,province,zipcode").limit(50);
-  if (postalCode) request = request.eq("zipcode", postalCode);
-  else if (district || amphoe || province) {
-    if (district) request = request.ilike("district", `%${district}%`);
-    if (amphoe) request = request.ilike("amphoe", `%${amphoe}%`);
-    if (province) request = request.ilike("province", `%${province}%`);
-  } else if (cleanSearch) {
-    request = request.or(`district.ilike.%${cleanSearch}%,amphoe.ilike.%${cleanSearch}%,province.ilike.%${cleanSearch}%`);
+  const cleanSearch = text.replace(/\d+/g, " ").replace(/(?:หมู่บ้าน|หมู่ที่|หมู่|บ้านเลขที่|เลขที่|ตำบล|ต\.|อำเภอ|อ\.|จังหวัด|จ\.|แขวง|เขต)/gi, " ").replace(/[^A-Za-z0-9\u0E00-\u0E7F\s]/g, " ").replace(/\s+/g, " ").trim();
+  let data: any[] = [];
+  if (postalCode || district || amphoe || province) {
+    let request = api.from("thailand_address_master").select("district,amphoe,province,zipcode").limit(50);
+    if (postalCode) request = request.eq("zipcode", postalCode);
+    else {
+      if (district) request = request.ilike("district", `%${district}%`);
+      if (amphoe) request = request.ilike("amphoe", `%${amphoe}%`);
+      if (province) request = request.ilike("province", `%${province}%`);
+    }
+    const result = await request.order("province").order("amphoe").order("district");
+    if (result.error) fail(result.error);
+    data = result.data ?? [];
+  } else {
+    // No ต./อ./จ. labels? Search each place word across all three columns,
+    // then keep the rows that match the greatest number of words.
+    const tokens = Array.from(new Set(cleanSearch.split(/\s+/).map((token) => token.trim()).filter((token) => token.length >= 2))).slice(0, 8);
+    if (!tokens.length) return [];
+    const orFilter = tokens.flatMap((token) => ["district", "amphoe", "province"].map((column) => `${column}.ilike.%${token}%`)).join(",");
+    const result = await api.from("thailand_address_master").select("district,amphoe,province,zipcode").or(orFilter).limit(200);
+    if (result.error) fail(result.error);
+    const rows = result.data ?? [];
+    const score = (row: any) => {
+      const fields = [row.district, row.amphoe, row.province].map((value) => String(value ?? "").toLowerCase());
+      return tokens.filter((token) => fields.some((field) => field.includes(token.toLowerCase()))).length;
+    };
+    const bestScore = rows.reduce((best, row) => Math.max(best, score(row)), 0);
+    data = rows.filter((row) => score(row) === bestScore).sort((a, b) => score(b) - score(a));
   }
-  const { data, error } = await request.order("province").order("amphoe").order("district");
-  if (error) fail(error);
   const seen = new Set<string>();
-  return (data ?? []).filter((row: any) => {
+  return data.filter((row: any) => {
     const key = [row.district, row.amphoe, row.province, row.zipcode].map((part) => String(part ?? "").trim()).join("|");
     if (seen.has(key)) return false;
     seen.add(key);
