@@ -645,6 +645,32 @@ export async function readGenesisOrderHistory(date: string) {
 
   return { orders, total: orders.length, sourceView: "🌟GENESIS_xXx_HISTORY", fetchedAt: new Date().toISOString() };
 }
+export async function readTelegramSentHistory(search = "") {
+  const api = getSupabase();
+  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
+
+  const { data, error } = await api.from("🌟GENESIS_xXx_HISTORY")
+    .select(GENESIS_HISTORY_COLUMNS)
+    .order("order_time_display", { ascending: false })
+    .limit(1000);
+  if (error) fail(error);
+
+  const needle = search.trim().toLocaleLowerCase();
+  const orders = (data ?? []).map((row: any) => ({
+    ...row,
+    id: row.upsert_key || row.order_number_display || row.order_number,
+    order_number: row.order_number_display || row.order_number || row.upsert_key,
+    customer_name: row.customer_name || row.facebook_name,
+    phone: row.phone || row.extracted_phone,
+    cod_amount: row.cod_amount ?? row.expected_cod,
+    source_view: "🌟GENESIS_xXx_HISTORY",
+  })).filter((row: Record<string, any>) => !needle || [
+    row.upsert_key, row.order_number, row.order_number_display, row.customer_name,
+    row.facebook_name, row.phone, row.extracted_phone,
+  ].some((value) => asText(value).toLocaleLowerCase().includes(needle)));
+
+  return { orders, total: orders.length, sourceView: "🌟GENESIS_xXx_HISTORY", fetchedAt: new Date().toISOString() };
+}
 export async function readDailyParcels(date: string, search = "") {
   const api = getSupabase("tracking");
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Tracking & Messenger: ไปที่ /secret-gallery แล้วบันทึก URL กับ Anon/Publishable Key" });
