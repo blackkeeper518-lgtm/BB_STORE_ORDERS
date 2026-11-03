@@ -94,25 +94,6 @@ const ORDER_SOURCE_TABLE_BY_CAMP: Record<Camp, string> = { BB: "🗝️HERMES_AR
 const ORDER_OPERATIONAL_LIMIT = 1000;
 function defaultOrderView(camp: Camp) { return ORDER_SOURCE_TABLE_BY_CAMP[camp]; }
 function currentOrderWindowStart() { const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date()); const values = Object.fromEntries(parts.filter(part => part.type !== "literal").map(part => [part.type, Number(part.value)])); return new Date(Date.UTC(values.year, values.month - 1, values.day - 1, 7, 0, 0)).toISOString(); }
-function normalizeItem(item: CanonicalItem): CanonicalItem { const master = item.product_master && typeof item.product_master === "object" ? item.product_master : {}; const display = String(item.bb_pack_center ?? "").trim() || null; const mapping = item.mapping_status || (item.sku_match_status === "MATCHED_PRODUCT_MASTER" ? "MATCHED" : null); return { ...item, ...master, quantity: num(item.quantity ?? item.extracted_qty ?? item.qty ?? item.master_qty_display ?? item.master_quantity), unit_price: num(item.unit_price_order ?? item.unit_price ?? master.unit_price), expected_cod: num(item.expected_cod), stock_qty: num(item.stock_qty ?? item.inventory?.stock_qty), mapping_status: mapping, display_for_packer: display, label: display, label_display: display }; }
-function parseJsonArray(value: unknown): CanonicalItem[] { if (Array.isArray(value)) return value as CanonicalItem[]; if (typeof value !== "string") return []; try { const parsed = JSON.parse(value); return Array.isArray(parsed) ? parsed : []; } catch { return []; } }
-function orderLocalTimestamp(row: any): string | null {
-  const dateText = String(row.order_date || row.date_th || "");
-  const timeText = String(row.time_th || "");
-  const dateMatch = dateText.match(/(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})/);
-  const timeMatch = timeText.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
-  if (!dateMatch || !timeMatch) return null;
-  const day = Number(dateMatch[1]); const month = Number(dateMatch[2]);
-  let year = Number(dateMatch[3]); if (year < 100) year += 2000; if (year > 2400) year -= 543;
-  const hour = Number(timeMatch[1]); const minute = Number(timeMatch[2]); const second = Number(timeMatch[3] || 0);
-  if (![day, month, year, hour, minute, second].every(Number.isFinite)) return null;
-  // Bangkok local time represented as UTC ISO: 14 Sep 21:00 +07 = 14 Sep 14:00Z.
-  return new Date(Date.UTC(year, month - 1, day, hour - 7, minute, second)).toISOString();
-}
-function effectiveOrderTime(row: any): string | null {
-  // กฎ BB: เวลาของออเดอร์มาจาก order_time_display เท่านั้น ห้าม fallback ไปเวลาอื่น
-  return row.order_time_display || null;
-}
 function displayOrderSortKey(value: unknown): number {
   const match = String(value ?? "").trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s+(\d{1,2}):(\d{2})/);
   if (!match) return 0;
@@ -135,7 +116,6 @@ function isoDateKey(value: string | null): string {
   const values = Object.fromEntries(parts.filter(part => part.type !== "literal").map(part => [part.type, part.value]));
   return values.year && values.month && values.day ? `${values.year}-${values.month}-${values.day}` : "";
 }
-function normalizeOrder(row: any, items: CanonicalItem[]): CanonicalOrder { const normalized = items.map(normalizeItem); const cod = num(row.cod_amount); const mapping = row.alien_mapping_status || row.web_mapping_status || row.mapping_status || (normalized.length > 0 && normalized.every(item => item.mapping_status === "MATCHED") ? "MATCHED" : "CHECK_DATA"); const address = row.master_delivery_address || row.address_complete_web || row.web_address_primary || row.address_display_primary || row.full_address || row.address_display_packer || row.addressclean || row.address_display_fallback || row.web_address_fallback || row.web_address_short || [row.address_line_1, row.address_line_2, row.district, row.amphoe, row.province, row.zipcode].filter(Boolean).join(" ") || ""; const productDisplay = String(row.bb_pack_center ?? "").trim() || null; return { ...row, full_address: address, customer_name: row.customer_name, phone: row.phone || row.extracted_phone, address_display_primary: row.web_address_primary || row.address_display_primary || address, address_display_fallback: row.web_address_fallback || row.address_display_fallback || address, items: normalized, mapping_status: mapping, order_number: row.order_number || row.order_number_display || `#${row.upsert_key || "UNKNOWN"}`, order_time: effectiveOrderTime(row), cod_amount: cod, is_ready_to_pack: row.is_ready_to_pack ?? (mapping === "MATCHED"), cod_check_status: row.cod_check_status || (cod == null ? "CHECK" : "PASS"), audit_status: row.alien_audit_status || row.audit_status || mapping, telegram_status: row.telegram_status ?? null, items_text: productDisplay || "", display_for_packer: productDisplay }; }
 // Projection aligned to FOUR_SEND_BILL_BUILDER and the applied HERMES schema.
 // Keep only known columns; upsert_key is the row key (the table has no id column).
 const HERMES_WEB_ORDER_COLUMNS = [
@@ -283,6 +263,12 @@ const HERMES_WEB_ORDER_COLUMNS = [
   "telegram_bill_header"
 ].join(",");
 
+// HERMES_ARCHIVE stores the three aliased view fields with their original names.
+const HERMES_DIRECT_ORDER_COLUMNS = HERMES_WEB_ORDER_COLUMNS
+  .replace("currentThreadTotalBills", "currentthreadtotalbills")
+  .replace("balloonNotice", "balloonnotice")
+  .replace("sniperAuthorClass", "sniperauthorclass");
+
 // Only fields used by TelegramDeliveryRoom; avoid returning all 330 view columns.
 const TELEGRAM_WEB_ORDER_COLUMNS = [
   "upsert_key", "source_table", "order_time_display", "order_number", "order_number_display",
@@ -295,13 +281,6 @@ const TELEGRAM_WEB_ORDER_COLUMNS = [
   "original"
 ].join(",");
 
-function parseJsonRecord(value: unknown): Record<string, any> {
-  if (value && typeof value === "object" && !Array.isArray(value)) return value as Record<string, any>;
-  if (typeof value === "string" && value.trim()) {
-    try { const parsed = JSON.parse(value); if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed; } catch { /* text field, not JSON */ }
-  }
-  return {};
-}
 function firstText(...values: unknown[]): string {
   return values.map(value => String(value ?? "").trim()).find(Boolean) ?? "";
 }
@@ -325,149 +304,68 @@ function asBoolean(value: unknown): boolean {
   if (value === true || value === 1) return true;
   return ["true", "t", "1", "yes", "ใช่"].includes(String(value ?? "").trim().toLowerCase());
 }
-function normalizeBbDirectRow(row: any): CanonicalOrder {
-  const packer = parseJsonRecord(row.packer_obj);
-  const product = firstText(row.order_fibo_product, row.for_packer_st_display, row.manus_for_packer,
-    row.google_for_packer, row.packer_tag_display,
-    packer.order_fibo_product, packer.for_packer_st_display, packer.manus_for_packer,
-    packer.google_for_packer, packer.packer_tag_display);
-  const address = firstText(row.address_fibo_selected_clean, row.telegram_primary_address,
-    row.address_display_packer, row.rescue_address_normalized, row.full_address,
-    packer.address_fibo_selected_clean, packer.telegram_primary_address,
-    packer.address_display_packer, packer.rescue_address_normalized, packer.full_address);
-  const ready = asBoolean(row.is_ready_to_pack ?? row.bill_data_complete);
-  const deliveryState = firstText(row.delivery_state, row.delivery_status);
-  return normalizeOrder({
-    ...row,
-    order_number: firstText(row.order_number_display, row.order_number) || `#${row.upsert_key || "UNKNOWN"}`,
-    phone: firstText(row.extracted_phone, row.phone),
-    extracted_phone: firstText(row.extracted_phone, row.phone),
-    packer_obj: packer,
-    normalized_chat_timeline: row.chat_timeline ?? null,
-    telegram_copy_text: row.telegram_copy_text ?? null,
-    bb_pack_center: product || null,
-    for_packer_bb_display: product || null,
-    master_delivery_address: address,
-    address_complete_web: address,
-    web_address_primary: address,
-    web_address_fallback: address,
-    address_display_primary: address,
-    address_display_packer: address,
-    full_address: address,
-    stock_notice: firstText(row.stock_notice, row.bill_header_playful, row.telegram_bill_header, row.product_master_stock_notice) || null,
-    telegram_body: parseJsonRecord(row.telegram_body),
-    telegram_status: deliveryState || null,
-    telegram_sent: ["SENT", "DELIVERED", "SENT_TO_TELEGRAM"].includes(deliveryState.toUpperCase()),
-    shipping_method: row.shipping_carrier || "⚡FLASH EXPRESS",
-    is_ready_to_pack: ready,
-    mapping_status: ready ? "MATCHED" : row.mapping_status || null,
-  }, []);
-}
-
-function productMasterSku(row: any): string {
-  return String(row.master_sku ?? row.sku ?? row.product_sku ?? row.product_code ?? row.code ?? "").trim();
-}
-function cleanProductDisplay(value: unknown): string {
-  return String(value ?? "").trim().replace(/\s*(?:\bx|×|(?:จำนวน|qty)\s*)\s*\d+(?:\.\d+)?\s*(?:คอต\.?|กล่อง|ซอง|ชิ้น|ลัง)?\s*$/i, "").trim();
-}
-function productLineFromOrder(row: any, sku: string): string {
-  const lines = String(row.telegram_copy_text ?? "").split(/\r?\n/).map((line: string) => line.trim()).filter(Boolean);
-  return lines.find((line: string) => /(?:\bx|×|(?:จำนวน|qty)\s*)\s*\d+(?:\.\d+)?/i.test(line))
-    ?? lines.find((line: string) => sku && line.toLowerCase().includes(sku.toLowerCase()))
-    ?? "";
-}
-function quantityFromOrder(row: any, productLine: string, productDisplay: string): number | null {
-  const packer = parseJsonRecord(row.packer_obj);
-  for (const value of [row.quantity, row.qty, row.extracted_qty, packer.quantity, packer.qty, packer.extracted_qty]) {
-    const quantity = num(value);
-    if (quantity != null) return quantity;
-  }
-  const sources = [productLine, productDisplay, row.order_fibo_product, row.for_packer_st_display,
-    row.manus_for_packer, row.google_for_packer, row.packer_tag_display, row.telegram_copy_text];
-  for (const source of sources) {
-    const match = String(source ?? "").match(/(?:\bx|×|(?:จำนวน|qty)\s*)\s*(\d+(?:\.\d+)?)/i);
-    if (match) return num(match[1]);
-  }
-  return null;
-}
 
 export async function readCanonicalOrders(search = "", since: string | null = null, until: string | null = null) {
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
 
-  const limit = ORDER_OPERATIONAL_LIMIT;
+  // n8n owns parsing, mapping, canonical selection and deduplication.
+  // The browser reads HERMES values as supplied and does not rebuild them.
   const ordersResult = await api.from("🗝️HERMES_ARCHIVE")
-    .select(HERMES_WEB_ORDER_COLUMNS)
-    .order("order_time_display", { ascending: false })
-    .limit(limit);
-  const masterResult = await api.from("🛒product_master").select("*").limit(1500);
+    .select(HERMES_DIRECT_ORDER_COLUMNS)
+    .limit(ORDER_OPERATIONAL_LIMIT);
   if (ordersResult.error) fail(ordersResult.error);
-
-  // Product Master is supplementary: if its read policy is not configured yet,
-  // keep HERMES orders visible and use the product text stored on the bill.
-  const masterBySku = new Map<string, any>();
-  for (const master of (masterResult.error ? [] : masterResult.data ?? [])) {
-    const key = productMasterSku(master).toLowerCase();
-    if (key && !masterBySku.has(key)) masterBySku.set(key, master);
-  }
 
   const query = search.trim().toLowerCase();
   const fromKey = isoDateKey(since);
   const untilKey = isoDateKey(until);
   const orders = (ordersResult.data ?? [])
-    .map((row: any) => {
-      const normalized = normalizeBbDirectRow(row);
-      const packer = parseJsonRecord(row.packer_obj);
-      const sku = firstText(row.sku, row.extracted_sku, packer.sku).split(/[\n,|]+/)[0].trim();
-      const master = masterBySku.get(sku.toLowerCase());
-      const productLine = productLineFromOrder(row, sku);
-      const fields = [row.for_packer_st_display, row.manus_for_packer, row.google_for_packer,
-        row.packer_tag_display, packer.for_packer_st_display, packer.manus_for_packer,
-        packer.google_for_packer, packer.packer_tag_display, row.order_fibo_product, packer.order_fibo_product]
-        .map((value: unknown) => String(value ?? "").trim()).filter(Boolean);
-      const richField = fields.find((value: string) => cleanProductDisplay(value).toLowerCase() !== sku.toLowerCase());
-      const masterDisplay = firstText(master?.master_display_for_packer, master?.display_for_packer,
-        master?.name_standard, master?.th_name, master?.product_name);
-      const display = cleanProductDisplay(productLine) || cleanProductDisplay(richField)
-        || masterDisplay || sku || normalized.display_for_packer || null;
-      const quantity = quantityFromOrder(row, productLine, display || "");
-      const unitPrice = num(row.unit_price ?? packer.unit_price) ?? num(master?.unit_price) ?? normalized.unit_price ?? null;
-      return {
-        ...normalized,
-        sku: sku || normalized.sku || null,
-        th_name: firstText(master?.th_name, master?.name_standard, master?.product_name, normalized.th_name) || null,
-        emoji: firstText(master?.emoji, normalized.emoji) || "📦",
-        display_for_packer: display,
-        bb_pack_center: display,
-        quantity: quantity ?? normalized.quantity ?? null,
-        unit_price: unitPrice,
-      } as CanonicalOrder;
-    })
+    .map((row: any) => ({
+      ...row,
+      // Keep the UI shape without deriving business values.
+      items: Array.isArray(row.orderItems) ? row.orderItems : [],
+      items_text: row.final_display_for_packer ?? row.final_product ?? null,
+      display_for_packer: row.final_display_for_packer ?? null,
+      is_ready_to_pack: row.is_ready_to_pack === true || String(row.is_ready_to_pack ?? "").toLowerCase() === "true",
+      cod_check_status: row.cod_check_status ?? null,
+      audit_status: row.audit_flags ?? null,
+      order_status: row.life_status ?? null,
+      telegram_status: row.delivery_state ?? null,
+    }) as CanonicalOrder)
     .filter((row: any) => {
       if (query && !JSON.stringify(row).toLowerCase().includes(query)) return false;
       const dateKey = displayDateKey(row.order_time_display);
       return (!fromKey || (dateKey && dateKey >= fromKey)) && (!untilKey || (dateKey && dateKey <= untilKey));
     });
-  orders.sort((a, b) => displayOrderSortKey(b.order_time_display) - displayOrderSortKey(a.order_time_display));
   return { orders, itemError: null, sourceTable: "🗝️HERMES_ARCHIVE", fetchedAt: new Date().toISOString(), since };
 }
 export async function readTelegramDeliveryOrders(search = "", room: "queue" | "today" | "yesterday_after_14" | "sent" = "queue") {
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
 
-  const sourceTable = room === "sent" ? "🌟GENESIS_xXx_HISTORY" : "🛰️PIONEER_xXx_CAPSULE";
+  const sourceTable = room === "sent" ? "🪐ANDROMEDA_xXx_SENT" : "🛰️PIONEER_xXx_CAPSULE";
   const { data, error } = await api
     .from(sourceTable)
     .select(TELEGRAM_WEB_ORDER_COLUMNS)
-    .order("order_time_display", { ascending: false })
     .limit(ORDER_OPERATIONAL_LIMIT);
   if (error) fail(error);
   const query = search.trim().toLowerCase();
   const allOrders = (data ?? [])
-    .map((row: any) => ({ ...normalizeBbDirectRow(row), source_view: sourceTable, source_table: row.source_table || sourceTable }) as CanonicalOrder)
+    .map((row: any) => ({
+      ...row,
+      source_view: sourceTable,
+      source_table: row.source_table || sourceTable,
+      items: Array.isArray(row.orderItems) ? row.orderItems : [],
+      items_text: row.final_display_for_packer ?? row.final_product ?? null,
+      display_for_packer: row.final_display_for_packer ?? null,
+      is_ready_to_pack: row.is_ready_to_pack === true || String(row.is_ready_to_pack ?? "").toLowerCase() === "true",
+      cod_check_status: row.cod_check_status ?? null,
+      audit_status: row.audit_flags ?? null,
+      order_status: row.life_status ?? null,
+      telegram_status: row.delivery_state ?? null,
+    }) as CanonicalOrder)
     .filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query));
-  const orders = allOrders.sort((a, b) => displayOrderSortKey(b.order_time_display) - displayOrderSortKey(a.order_time_display));
-  return { orders, itemError: null, sourceTable, fetchedAt: new Date().toISOString(), room };
+  return { orders: allOrders, itemError: null, sourceTable, fetchedAt: new Date().toISOString(), room };
 }
 
 export async function readBbOrderEvidence(upsertKey: string, sourceTable: "🗝️HERMES_ARCHIVE" | "🌀SINGULARITY_xXx_EXCHANGE" = "🗝️HERMES_ARCHIVE") {
