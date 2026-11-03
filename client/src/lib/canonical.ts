@@ -565,6 +565,27 @@ export async function updateBbOrderByKey(upsertKey: string, patch: Record<string
   return data[0];
 }
 
+export async function markBbOrderSentByKey(upsertKey: string, sourceTable: "🗝️HERMES_ARCHIVE" | "🌀SINGULARITY_xXx_EXCHANGE") {
+  const api = getSupabase();
+  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
+  const patch = { telegram_sent: "true", telegram_status: "SENT", delivery_status: "SENT", delivery_state: "SENT" };
+  const { data, error } = await api.from(sourceTable)
+    .update(patch)
+    .eq("upsert_key", upsertKey)
+    .select("upsert_key,telegram_sent,telegram_status,delivery_status,delivery_state");
+  if (error) fail(error);
+  if (!data?.length) fail({ message: `เขียน 🔥SENT ไม่สำเร็จ: ไม่พบ ${upsertKey} ใน ${sourceTable} หรือสิทธิ์ RLS ไม่อนุญาต` });
+  if (data.length > 1) fail({ message: `เขียน 🔥SENT ไม่สำเร็จ: พบ ${data.length} แถวสำหรับ ${upsertKey}` });
+  const row = data[0] as Record<string, unknown>;
+  const sentFlag = String(row.telegram_sent ?? "").trim().toLowerCase();
+  const sentStates = [row.telegram_status, row.delivery_status, row.delivery_state]
+    .map((value) => String(value ?? "").trim().toLowerCase().replace(/^🔥\s*/, ""));
+  if (!(["true", "t", "1", "yes"].includes(sentFlag)) || sentStates.some((value) => value !== "sent")) {
+    fail({ message: `อัปเดต ${upsertKey} แล้วแต่ตรวจค่ากลับไม่ครบ — ไม่ซ่อนรายการจากคิว` });
+  }
+  return row;
+}
+
 export type StockProduct = { id: number; sku: string; label: string; thName: string; emoji: string; price: number | null; stockQty: number; stockStatus: string | null; outOfStockJoke: string | null; stockNotice: string | null; aliases: string; inventoryId: number | string | null };
 export type ProductMapAlias = { id: string; alias: string; canonicalSku: string; canonicalLabel: string; isActive: boolean };
 
