@@ -871,6 +871,44 @@ export async function readParcelMappingQueue(status: "all" | "sent" = "all", lim
   if (sent.error) fail(sent.error);
   return [...("data" in activeData ? (activeData.data ?? []) : []), ...(sent.data ?? [])].slice(0, safeLimit);
 }
+export type PostalMasterMatch = { district: string | null; amphoe: string | null; province: string | null; zipcode: string | null };
+export async function searchThailandPostalMaster(raw: string): Promise<PostalMasterMatch[]> {
+  const api = getSupabase("tracking");
+  if (!api) fail({ message: "ยังไม่ได้เชื่อม Tracking & Messenger: ไปที่ /secret-gallery แล้วบันทึก URL กับ Anon/Publishable Key" });
+  const input = String(raw ?? "").normalize("NFC").trim().slice(0, 160);
+  if (!input) return [];
+  const postalCode = input.match(/(?:^|\D)(\d{5})(?!\d)/)?.[1] ?? "";
+  const text = input.replace(/[,;|\n]+/g, " ");
+  const stops = "(?:ตำบล|ต\\.|แขวง|อำเภอ|อ\\.|เขต|จังหวัด|จ\\.|รหัสไปรษณีย์|รหัสปณ)";
+  const capture = (labels: string) => {
+    const match = text.match(new RegExp(`(?:${labels})\\s*([^,;|]*?)(?=\\s*${stops}|\\d{5}|$)`, "i"));
+    return String(match?.[1] ?? "").replace(/\d+/g, " ").replace(/[%_*(),]/g, " ").replace(/[^A-Za-z0-9\u0E00-\u0E7F\s.-]/g, " ").replace(/\s+/g, " ").trim();
+  };
+  const district = capture("ตำบล|ต\\.|แขวง");
+  const amphoe = capture("อำเภอ|อ\\.|เขต");
+  let province = capture("จังหวัด|จ\\.");
+  if (/^(กรุงเทพฯ?|กทม)$/i.test(province.replace(/[.\s]/g, ""))) province = "กรุงเทพมหานคร";
+  const cleanSearch = text.replace(/\d+/g, " ").replace(/(?:หมู่บ้าน|หมู่ที่|หมู่|บ้านเลขที่|เลขที่|ตำบล|ต\.|อำเภอ|อ\.|จังหวัด|จ\.|แขวง|เขต)/gi, " ").replace(/[%_*(),]/g, " ").replace(/[^A-Za-z0-9\u0E00-\u0E7F\s.-]/g, " ").replace(/\s+/g, " ").trim();
+
+  let request = api.from("thailand_address_master").select("district,amphoe,province,zipcode").limit(50);
+  if (postalCode) request = request.eq("zipcode", postalCode);
+  else if (district || amphoe || province) {
+    if (district) request = request.ilike("district", `%${district}%`);
+    if (amphoe) request = request.ilike("amphoe", `%${amphoe}%`);
+    if (province) request = request.ilike("province", `%${province}%`);
+  } else if (cleanSearch) {
+    request = request.or(`district.ilike.%${cleanSearch}%,amphoe.ilike.%${cleanSearch}%,province.ilike.%${cleanSearch}%`);
+  }
+  const { data, error } = await request.order("province").order("amphoe").order("district");
+  if (error) fail(error);
+  const seen = new Set<string>();
+  return (data ?? []).filter((row: any) => {
+    const key = [row.district, row.amphoe, row.province, row.zipcode].map((part) => String(part ?? "").trim()).join("|");
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }) as PostalMasterMatch[];
+}
 export async function readDailyChatSummary(date: string) {
   const rows = await readChatRows(); let orders: any[] = [];
   try { const orderResult = await readCanonicalOrders("", new Date(date + "T00:00:00+07:00").toISOString()); orders = orderResult.orders; } catch { /* keep chat summary usable when canonical view is unavailable */ }
