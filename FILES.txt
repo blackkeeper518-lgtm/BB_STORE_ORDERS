@@ -1,0 +1,7 @@
+ไฟล์แก้เฉพาะชุดนี้ 6 ไฟล์:
+client/src/pages/OrderControl.tsx
+client/src/pages/OrderEditor.tsx
+client/src/pages/AlertRoom.tsx
+client/src/lib/canonical.ts
+client/src/components/DashboardLayout.tsx
+client/src/App.tsx

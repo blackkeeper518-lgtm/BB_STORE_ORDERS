@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { readCanonicalOrders } from "@/lib/canonical";
 import { useQuery } from "@tanstack/react-query";
-import { Clock3, Database, ExternalLink, RefreshCw, Search } from "lucide-react";
+import { CalendarDays, CheckCircle2, Clock3, Database, ExternalLink, MessageCircle, Pencil, RefreshCw, Search, Send, ShoppingCart, WalletCards, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 
@@ -22,6 +22,31 @@ function directText(value: unknown) {
   return value == null || value === "" ? "—" : String(value);
 }
 
+function numeric(value: unknown) {
+  const amount = Number(String(value ?? "").replace(/,/g, ""));
+  return Number.isFinite(amount) ? amount : 0;
+}
+
+function truthy(value: unknown) {
+  return value === true || ["true", "t", "1", "yes", "พร้อมส่ง", "ส่งได้", "pass"].includes(String(value ?? "").trim().toLowerCase());
+}
+
+function isToday(row: CanonicalOrderRow) {
+  const raw = row.order_time_bkk_iso || row.order_time || row.order_time_display;
+  const parsed = new Date(String(raw ?? ""));
+  if (!Number.isNaN(parsed.getTime())) return parsed.toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" }) === new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok" }).format(new Date());
+  const today = new Intl.DateTimeFormat("th-TH", { timeZone: "Asia/Bangkok", day: "2-digit", month: "2-digit" }).format(new Date());
+  return String(raw ?? "").includes(today.replace("/", "/"));
+}
+
+function isSent(row: CanonicalOrderRow) {
+  return truthy(row.telegram_sent) || ["SENT", "DELIVERED", "SENT_TO_TELEGRAM", "ไปแล้วไปลับ"].includes(String(row.telegram_status ?? row.delivery_status ?? "").trim().toUpperCase());
+}
+
+function canSend(row: CanonicalOrderRow) {
+  return !isSent(row) && (truthy(row.is_ready_to_pack) || truthy(row.send_eligible) || truthy(row.telegram_bill_send_eligible) || String(row.cod_check_status ?? "").toUpperCase() === "PASS");
+}
+
 export default function OrderControl() {
   const [search, setSearch] = useState("");
   const [selectedKey, setSelectedKey] = useState("");
@@ -33,6 +58,12 @@ export default function OrderControl() {
   });
   const orders = (query.data?.orders ?? []) as CanonicalOrderRow[];
   const selectedOrder = orders.find((row) => row.upsert_key === selectedKey) ?? orders[0] ?? null;
+  const todayOrders = orders.filter(isToday);
+  const sentOrders = orders.filter(isSent);
+  const sendableOrders = orders.filter(canSend);
+  const blockedOrders = orders.filter((row) => !isSent(row) && !canSend(row));
+  const totalCod = orders.reduce((sum, row) => sum + numeric(row.cod_amount), 0);
+  const todayCod = todayOrders.reduce((sum, row) => sum + numeric(row.cod_amount), 0);
 
   useEffect(() => {
     if (!selectedOrder) {
@@ -61,6 +92,16 @@ export default function OrderControl() {
       </header>
 
       <div className="signal-ticker rounded-xl"><span>✦ HERMES ARCHIVE // ORDER SIGNAL // COD VERIFIED // PRODUCT MAP ONLINE // TELEGRAM ROUTE READY // </span></div>
+
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+        <Metric icon={ShoppingCart} label="ออเดอร์ทั้งหมด" value={orders.length} suffix="รายการ" tone="pink" />
+        <Metric icon={CalendarDays} label="ออเดอร์วันนี้" value={todayOrders.length} suffix="รายการ" tone="violet" />
+        <Metric icon={WalletCards} label="ยอด COD ทั้งหมด" value={money(totalCod)} tone="cyan" />
+        <Metric icon={WalletCards} label="ยอด COD วันนี้" value={money(todayCod)} tone="green" />
+        <Metric icon={CheckCircle2} label="ส่งแล้ว" value={sentOrders.length} suffix="รายการ" tone="green" />
+        <Metric icon={Send} label="ส่งได้" value={sendableOrders.length} suffix="รายการ" tone="cyan" />
+        <Metric icon={XCircle} label="ส่งไม่ได้ / ต้องตรวจ" value={blockedOrders.length} suffix="รายการ" tone="pink" />
+      </section>
 
       <div className="relative cyber-grid rounded-2xl">
         <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-cyan-300/70" />
@@ -107,7 +148,9 @@ export default function OrderControl() {
               <section><p className="mb-2 text-xs font-semibold uppercase tracking-wider text-violet-200/60">ก้อนออเดอร์ต้นทาง</p><pre className="max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-xl border border-violet-300/15 bg-black/20 p-4 text-xs leading-5 text-slate-300">{directText(selectedOrder.original)}</pre></section>
               <div className="flex flex-wrap gap-2">
                 <Link href={`/order-history?search=${encodeURIComponent(selectedOrder.upsert_key)}`}><Button variant="outline" className="border-cyan-300/25 bg-cyan-400/5 text-cyan-100"><ExternalLink className="mr-2 h-4 w-4" />ประวัติ</Button></Link>
-                <Link href={`/telegram-delivery?search=${encodeURIComponent(selectedOrder.upsert_key)}&room=queue`}><Button variant="outline" className="border-fuchsia-300/25 bg-fuchsia-400/5 text-fuchsia-100"><ExternalLink className="mr-2 h-4 w-4" />ข้อมูลส่ง Telegram</Button></Link>
+                <Link href={`/telegram-delivery?search=${encodeURIComponent(selectedOrder.upsert_key)}&room=queue`}><Button variant="outline" className="border-fuchsia-300/25 bg-fuchsia-400/5 text-fuchsia-100"><Send className="mr-2 h-4 w-4" />ส่งไป Telegram</Button></Link>
+                <Link href={`/chats?search=${encodeURIComponent(selectedOrder.customer_name ?? selectedOrder.order_number ?? "")}`}><Button variant="outline" className="border-emerald-300/25 bg-emerald-400/5 text-emerald-100"><MessageCircle className="mr-2 h-4 w-4" />ไปห้องแชท</Button></Link>
+                <Link href={`/telegram-delivery?search=${encodeURIComponent(selectedOrder.upsert_key)}&room=queue&edit=1`}><Button variant="outline" className="border-pink-300/25 bg-pink-400/5 text-pink-100"><Pencil className="mr-2 h-4 w-4" />แก้ไขข้อมูลส่ง</Button></Link>
               </div>
             </>}
           </CardContent>
@@ -119,4 +162,8 @@ export default function OrderControl() {
 
 function Info({ label, value }: { label: string; value: unknown }) {
   return <div className="rounded-xl border border-white/5 bg-black/15 p-3"><p className="text-[10px] uppercase tracking-wider text-slate-500">{label}</p><p className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-200">{directText(value)}</p></div>;
+}
+
+function Metric({ icon: Icon, label, value, suffix, tone }: { icon: typeof ShoppingCart; label: string; value: string | number; suffix?: string; tone: "pink" | "violet" | "cyan" | "green" }) {
+  return <div className={`signal-metric signal-${tone}`}><div className="flex items-start justify-between gap-2"><div><p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-300/65">{label}</p><p className="mt-2 text-xl font-semibold tracking-tight text-white">{value} <span className="text-[10px] font-normal text-slate-300/55">{suffix}</span></p></div><span className="metric-icon"><Icon /></span></div></div>;
 }

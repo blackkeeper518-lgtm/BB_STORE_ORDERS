@@ -20,6 +20,7 @@ import SecretGallery from "./pages/SecretGallery";
 import ParcelMapping from "./pages/ParcelMapping";
 import CloseJobHistory from "./pages/CloseJobHistory";
 import TelegramSentHistory from "./pages/TelegramSentHistory";
+import OrderEditor from "./pages/OrderEditor";
 
 function Shell({ children }: { children: React.ReactNode }) { return <DashboardLayout>{children}</DashboardLayout>; }
 function Router() {
@@ -29,6 +30,7 @@ function Router() {
     <Route path="/secret-gallery/images"><SecretGallery /></Route>
     <Route path="/secret-gallery"><SecretGallery /></Route>
     <Route path="/orders"><Shell><OrderControl /></Shell></Route>
+    <Route path="/order-editor"><Shell><OrderEditor /></Shell></Route>
     <Route path="/parcel-mapping"><Shell><ParcelMapping /></Shell></Route>
     <Route path="/chats"><Shell><ChatHub /></Shell></Route>
     <Route path="/close-job-history"><Shell><CloseJobHistory /></Shell></Route>
