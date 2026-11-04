@@ -40,12 +40,18 @@ function truthy(value: unknown) {
   return value === true || ["true", "t", "1", "yes", "พร้อมส่ง", "ส่งได้", "pass"].includes(String(value ?? "").trim().toLowerCase());
 }
 
+// ⫘ BUSINESS DAY · “วันนี้” ของร้านตัดรอบ 14:00 น. ไม่ใช่วันปฏิทิน
+// รอบปัจจุบัน: เมื่อวาน 14:00 → วันนี้ 14:00 (Asia/Bangkok)
 function isToday(row: CanonicalOrderRow) {
+  const now = new Date();
+  const bkk = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hour12: false }).formatToParts(now);
+  const part = (name: string) => Number(bkk.find((item) => item.type === name)?.value ?? 0);
+  const todayCutoffUtc = Date.UTC(part("year"), part("month") - 1, part("day"), 7, 0, 0);
+  const end = now.getTime() >= todayCutoffUtc ? todayCutoffUtc + 24 * 60 * 60 * 1000 : todayCutoffUtc;
+  const start = end - 24 * 60 * 60 * 1000;
   const raw = row.order_time_bkk_iso || row.order_time || row.order_time_display;
   const parsed = new Date(String(raw ?? ""));
-  if (!Number.isNaN(parsed.getTime())) return parsed.toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" }) === new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok" }).format(new Date());
-  const today = new Intl.DateTimeFormat("th-TH", { timeZone: "Asia/Bangkok", day: "2-digit", month: "2-digit" }).format(new Date());
-  return String(raw ?? "").includes(today.replace("/", "/"));
+  return !Number.isNaN(parsed.getTime()) && parsed.getTime() >= start && parsed.getTime() < end;
 }
 
 function isSent(row: CanonicalOrderRow) {
@@ -111,9 +117,9 @@ export default function OrderControl() {
       {/* ⫘ SUMMARY CARDS · การ์ดสรุปยอดด้านบน: แก้สี/ขนาดที่ component Metric ด้านล่าง */}
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
         <Metric icon={ShoppingCart} label="ออเดอร์ทั้งหมด" value={orders.length} suffix="รายการ" tone="pink" />
-        <Metric icon={CalendarDays} label="ออเดอร์วันนี้" value={todayOrders.length} suffix="รายการ" tone="violet" />
+        <Metric icon={CalendarDays} label="ออเดอร์วันนี้" value={todayOrders.length} suffix="รายการ · รอบ 14:00" tone="violet" />
         <Metric icon={WalletCards} label="ยอด COD ทั้งหมด" value={money(totalCod)} tone="cyan" />
-        <Metric icon={WalletCards} label="ยอด COD วันนี้" value={money(todayCod)} tone="green" />
+        <Metric icon={WalletCards} label="ยอด COD วันนี้" value={`${money(todayCod)} · รอบ 14:00`} tone="green" />
         <Metric icon={CheckCircle2} label="ส่งแล้ว" value={sentOrders.length} suffix="รายการ" tone="green" />
         <Metric icon={Send} label="ส่งได้" value={sendableOrders.length} suffix="รายการ" tone="cyan" />
         <Metric icon={XCircle} label="ส่งไม่ได้ / ต้องตรวจ" value={blockedOrders.length} suffix="รายการ" tone="pink" />
