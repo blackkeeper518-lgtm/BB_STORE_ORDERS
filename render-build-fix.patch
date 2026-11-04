@@ -1,0 +1,59 @@
+[1mdiff --git a/client/src/App.tsx b/client/src/App.tsx[m
+[1mindex 616c6dd..b31c026 100644[m
+[1m--- a/client/src/App.tsx[m
+[1m+++ b/client/src/App.tsx[m
+[36m@@ -14,14 +14,14 @@[m [mimport OrderBuckets from "./pages/OrderBuckets";[m
+ import DailyChatSummary from "./pages/DailyChatSummary";[m
+ import OrderHistory from "./pages/OrderHistory";[m
+ import AlienRoom from "./pages/AlienRoom";[m
+[31m-import SystemManual  from "./pages/SystemManual";[m
+[32m+[m[32mimport SystemManual from "./pages/SystemManual";[m
+ import ProductAlienMap from "./pages/ProductAlienMap";[m
+[31m-import TelegramDeliveryRoom from "./pages/TelegramDeliveryRoom";[m
+[32m+[m[32mimport ProductAlienStore from "./pages/ProductAlienStore";[m
+[32m+[m[32mimport TelegramDeliveryRoom from "@/lib/TelegramDeliveryRoom";[m
+ import AlertRoom from "./pages/AlertRoom";[m
+ import SecretGallery from "./pages/SecretGallery";[m
+ import ParcelMapping from "./pages/ParcelMapping";[m
+ import CloseJobHistory from "./pages/CloseJobHistory";[m
+[31m-import SystemManual from "./pages/SystemManual";[m
+ import TelegramSentHistory from "./pages/TelegramSentHistory";[m
+ [m
+ function Shell({ children }: { children: React.ReactNode }) { return <DashboardLayout>{children}</DashboardLayout>; }[m
+[1mdiff --git a/client/src/lib/canonical.ts b/client/src/lib/canonical.ts[m
+[1mindex cf4f02f..7687a42 100644[m
+[1m--- a/client/src/lib/canonical.ts[m
+[1m+++ b/client/src/lib/canonical.ts[m
+[36m@@ -645,6 +645,32 @@[m [mexport async function readGenesisOrderHistory(date: string) {[m
+ [m
+   return { orders, total: orders.length, sourceView: "🌟GENESIS_xXx_HISTORY", fetchedAt: new Date().toISOString() };[m
+ }[m
+[32m+[m[32mexport async function readTelegramSentHistory(search = "") {[m
+[32m+[m[32m  const api = getSupabase();[m
+[32m+[m[32m  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });[m
+[32m+[m
+[32m+[m[32m  const { data, error } = await api.from("🌟GENESIS_xXx_HISTORY")[m
+[32m+[m[32m    .select(GENESIS_HISTORY_COLUMNS)[m
+[32m+[m[32m    .order("order_time_display", { ascending: false })[m
+[32m+[m[32m    .limit(1000);[m
+[32m+[m[32m  if (error) fail(error);[m
+[32m+[m
+[32m+[m[32m  const needle = search.trim().toLocaleLowerCase();[m
+[32m+[m[32m  const orders = (data ?? []).map((row: any) => ({[m
+[32m+[m[32m    ...row,[m
+[32m+[m[32m    id: row.upsert_key || row.order_number_display || row.order_number,[m
+[32m+[m[32m    order_number: row.order_number_display || row.order_number || row.upsert_key,[m
+[32m+[m[32m    customer_name: row.customer_name || row.facebook_name,[m
+[32m+[m[32m    phone: row.phone || row.extracted_phone,[m
+[32m+[m[32m    cod_amount: row.cod_amount ?? row.expected_cod,[m
+[32m+[m[32m    source_view: "🌟GENESIS_xXx_HISTORY",[m
+[32m+[m[32m  })).filter((row: Record<string, any>) => !needle || [[m
+[32m+[m[32m    row.upsert_key, row.order_number, row.order_number_display, row.customer_name,[m
+[32m+[m[32m    row.facebook_name, row.phone, row.extracted_phone,[m
+[32m+[m[32m  ].some((value) => asText(value).toLocaleLowerCase().includes(needle)));[m
+[32m+[m
+[32m+[m[32m  return { orders, total: orders.length, sourceView: "🌟GENESIS_xXx_HISTORY", fetchedAt: new Date().toISOString() };[m
+[32m+[m[32m}[m
+ export async function readDailyParcels(date: string, search = "") {[m
+   const api = getSupabase("tracking");[m
+   if (!api) fail({ message: "ยังไม่ได้เชื่อม Tracking & Messenger: ไปที่ /secret-gallery แล้วบันทึก URL กับ Anon/Publishable Key" });[m
