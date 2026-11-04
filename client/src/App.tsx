@@ -36,7 +36,6 @@ function Router() {
     <Route path="/chats"><Shell><ChatHub /></Shell></Route>
     <Route path="/close-job-history"><Shell><CloseJobHistory /></Shell></Route>
     <Route path="/telegram-delivery"><Shell><TelegramDeliveryRoom /></Shell></Route>
-    <Route path="/andromeda"><Shell><TelegramDeliveryRoom /></Shell></Route>
     <Route path="/telegram-sent-history"><Shell><TelegramSentHistory /></Shell></Route>
     <Route path="/alert-room"><Shell><AlertRoom /></Shell></Route>
     <Route path="/blackbox"><Shell><BlackboxRoom /></Shell></Route>
