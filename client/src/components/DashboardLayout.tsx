@@ -23,7 +23,6 @@ const menuItems = [
   { icon: Archive, label: "ประวัติปิดงาน · ยกเลิก/ไม่รับ", path: "/close-job-history" },
   { icon: Boxes, label: "คลังสินค้าจริง / สต๊อกกลาง", path: "/stock-room" },
   { icon: CalendarDays, label: "สรุปออเดอร์รายวัน · Flash", path: "/daily-chat-summary" },
-  { icon: Send, label: "ANDROMEDA · ห้องส่ง Telegram", path: "/andromeda" },
   { icon: Archive, label: "GENESIS · Log สุดท้าย", path: "/order-history" },
   { icon: Boxes, label: "แยก 1/2/3 คอต", path: "/order-buckets" },
   { icon: Activity, label: "ประสิทธิภาพดูดออเดอร์", path: "/order-performance" },
