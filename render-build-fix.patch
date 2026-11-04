@@ -1,8 +1,8 @@
 [1mdiff --git a/client/src/App.tsx b/client/src/App.tsx[m
-[1mindex 616c6dd..b31c026 100644[m
+[1mindex 616c6dd..c8687e8 100644[m
 [1m--- a/client/src/App.tsx[m
 [1m+++ b/client/src/App.tsx[m
-[36m@@ -14,14 +14,14 @@[m [mimport OrderBuckets from "./pages/OrderBuckets";[m
+[36m@@ -14,14 +14,13 @@[m [mimport OrderBuckets from "./pages/OrderBuckets";[m
  import DailyChatSummary from "./pages/DailyChatSummary";[m
  import OrderHistory from "./pages/OrderHistory";[m
  import AlienRoom from "./pages/AlienRoom";[m
@@ -10,7 +10,6 @@
 [32m+[m[32mimport SystemManual from "./pages/SystemManual";[m
  import ProductAlienMap from "./pages/ProductAlienMap";[m
 [31m-import TelegramDeliveryRoom from "./pages/TelegramDeliveryRoom";[m
-[32m+[m[32mimport ProductAlienStore from "./pages/ProductAlienStore";[m
 [32m+[m[32mimport TelegramDeliveryRoom from "@/lib/TelegramDeliveryRoom";[m
  import AlertRoom from "./pages/AlertRoom";[m
  import SecretGallery from "./pages/SecretGallery";[m
@@ -20,6 +19,28 @@
  import TelegramSentHistory from "./pages/TelegramSentHistory";[m
  [m
  function Shell({ children }: { children: React.ReactNode }) { return <DashboardLayout>{children}</DashboardLayout>; }[m
+[36m@@ -36,7 +35,7 @@[m [mfunction Router() {[m
+     <Route path="/chats"><Shell><ChatHub /></Shell></Route>[m
+     <Route path="/close-job-history"><Shell><CloseJobHistory /></Shell></Route>[m
+     <Route path="/alien-room"><Shell><AlienRoom /></Shell></Route>[m
+[31m-    <Route path="/product-alien-store"><Shell><ProductAlienStore /></Shell></Route>[m
+[32m+[m[32m    <Route path="/product-alien-store"><Shell><SystemManual /></Shell></Route>[m
+     <Route path="/product-alien-map"><Shell><ProductAlienMap /></Shell></Route>[m
+     <Route path="/telegram-delivery"><Shell><TelegramDeliveryRoom /></Shell></Route>[m
+     <Route path="/telegram-sent-history"><Shell><TelegramSentHistory /></Shell></Route>[m
+[1mdiff --git a/client/src/components/DashboardLayout.tsx b/client/src/components/DashboardLayout.tsx[m
+[1mindex de4383c..46b2a6d 100644[m
+[1m--- a/client/src/components/DashboardLayout.tsx[m
+[1m+++ b/client/src/components/DashboardLayout.tsx[m
+[36m@@ -16,7 +16,7 @@[m [mconst menuItems = [[m
+   { icon: LayoutDashboard, label: "Order Control", path: "/orders" },[m
+   { icon: Truck, label: "แมปเลขพัสดุ", path: "/parcel-mapping" },[m
+   { icon: BrainCircuit, label: "Alien Inbox · คำดิบ", path: "/alien-room" },[m
+[31m-  { icon: Database, label: "Product Alien · เก็บคำ", path: "/product-alien-store" },[m
+[32m+[m[32m  { icon: Database, label: "คู่มือระบบ · System Manual", path: "/system-manual" },[m
+   { icon: Tags, label: "Product Alien · แมป", path: "/product-alien-map" },[m
+   { icon: Send, label: "ห้องส่ง Telegram", path: "/telegram-delivery" },[m
+   { icon: Bell, label: "ประวัติเปลี่ยนของ", path: "/alert-room" },[m
 [1mdiff --git a/client/src/lib/canonical.ts b/client/src/lib/canonical.ts[m
 [1mindex cf4f02f..7687a42 100644[m
 [1m--- a/client/src/lib/canonical.ts[m
