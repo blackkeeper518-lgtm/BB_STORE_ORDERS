@@ -213,7 +213,7 @@ export default function TelegramDeliveryRoom() {
   const [statusSaving, setStatusSaving] = useState(false);
   const [editText, setEditText] = useState("");
   const [manualMessageOverrides, setManualMessageOverrides] = useState<Record<string, string>>({});
-  const [room, setRoom] = useState<"queue" | "sent">(() => new URLSearchParams(window.location.search).get("room") === "sent" ? "sent" : "queue");
+  const [room, setRoom] = useState<"queue" | "sent">(() => window.location.pathname === "/andromeda" || new URLSearchParams(window.location.search).get("room") === "sent" ? "sent" : "queue");
   const query = useQuery({
     queryKey: ["telegram-delivery-room", getActiveCamp(), room, search],
     queryFn: () => readTelegramDeliveryOrders(search, room),
@@ -544,9 +544,9 @@ export default function TelegramDeliveryRoom() {
         <div className="bb-running-line pointer-events-none absolute inset-x-0 top-0 h-1" />
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-fuchsia-300"><Send className="mr-2 inline h-4 w-4" />TELEGRAM DELIVERY · BB STORE</p>
-            <h1 className="cyber-title mt-3 text-3xl font-semibold">ห้องตรวจและส่ง Telegram</h1>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-cyan-100/75">ตรวจบิล แก้ข้อความส่ง และเทียบประวัติแชทได้ในหน้าเดียว</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-fuchsia-300"><Send className="mr-2 inline h-4 w-4" />{room === "sent" ? "ANDROMEDA · SENT ROOM" : "PIONEER · HOLD QUEUE"}</p>
+            <h1 className="cyber-title mt-3 text-3xl font-semibold">{room === "sent" ? "ห้องส่ง Telegram" : "คิวพัก · ดักสองชั้น"}</h1>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-cyan-100/75">{room === "sent" ? "รายการที่เข้าสายส่ง Telegram และอยู่ในสถานะส่งแล้ว" : "คิวพักก่อนส่งสำหรับตรวจบิลและดักข้อมูลสองชั้น"}</p>
             <div className="mt-4 flex max-w-2xl flex-col gap-2 sm:flex-row sm:items-center"><span className="whitespace-nowrap text-xs font-semibold text-fuchsia-200">หัวบิลสำรอง</span><Input value={header} onChange={(event) => setHeader(event.target.value)} aria-label="หัวบิลสำรอง ใช้เมื่อ stock_notice ว่าง" className="border-fuchsia-400/30 bg-black/30 text-fuchsia-50 placeholder:text-fuchsia-200/30" /><span className="whitespace-nowrap text-[10px] text-fuchsia-200/50">ใช้เมื่อ stock_notice ว่างเท่านั้น</span></div>
           </div>
           <div className="bb-clock-panel flex items-center gap-2 rounded-2xl border px-3 py-2 text-xs"><span className="bb-running-light h-2 w-2 rounded-full" />{liveClockLabel(now)}</div>
