@@ -255,12 +255,11 @@ const TELEGRAM_WEB_ORDER_COLUMNS = [
   // PIONEER and ANDROMEDA share the operational order number, but ANDROMEDA
   // does not expose the optional order_number_display column.
   "upsert_key", "source_table", "order_time_display", "order_number",
- "manus_for_packer", "for_packer_st_display", "order_fibo_product", "google_for_packer", "packer_tag_display", "sku",
-  "address_fibo_selected_clean", "address_display_packer", "addressclean", "finalAddress",  "province", "zipcode", "phone", "extracted_phone",
-  "audit_flags", "bill_data_complete", "is_ready_to_pack", "mapping_status",
+  "telegram_product_display", "final_display_for_packer", "order_fibo_product", "for_packer_st_display", "manus_for_packer", "google_for_packer", "packer_tag_display", "packer_obj",
+  "address_fibo_selected_clean", "address_display_packer", "full_address", "province", "zipcode", "phone", "extracted_phone",
   "cod_amount", "customer_name", "facebook_name", "page_name", "shipping_carrier", "sku",
   "delivery_state", "delivery_status", "telegram_status", "telegram_sent", "sent_at", "telegram_sent_at",
-  "telegram_message", "telegram_change_alert",
+  "telegram_message_web", "telegram_change_alert_web", "telegram_message", "telegram_change_alert",
   "raw_text", "original"
 ].join(",");
 
@@ -363,20 +362,18 @@ async function withSentWriteTimeout<T>(request: PromiseLike<T>, timeoutMs = 15_0
 export async function markBbOrderSentByKey(upsertKey: string, sourceTable: "🗝️HERMES_ARCHIVE" | "🌀SINGULARITY_xXx_EXCHANGE") {
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  const patch = { telegram_sent: "true", telegram_status: "SENT", delivery_status: "SENT", delivery_state: "SENT" };
+  const patch = { delivery_status: "SENT", sent_at: new Date().toISOString() };
   const request = api.from(sourceTable)
     .update(patch)
     .eq("upsert_key", upsertKey)
-    .select("upsert_key,telegram_sent,telegram_status,delivery_status,delivery_state");
+    .select("upsert_key,delivery_status,sent_at");
   const { data, error } = await withSentWriteTimeout(request);
   if (error) fail(error);
   if (!data?.length) fail({ message: `เขียน 🔥SENT ไม่สำเร็จ: ไม่พบ ${upsertKey} ใน ${sourceTable} หรือสิทธิ์ RLS ไม่อนุญาต` });
   if (data.length > 1) fail({ message: `เขียน 🔥SENT ไม่สำเร็จ: พบ ${data.length} แถวสำหรับ ${upsertKey}` });
   const row = data[0] as Record<string, unknown>;
-  const sentFlag = String(row.telegram_sent ?? "").trim().toLowerCase();
-  const sentStates = [row.telegram_status, row.delivery_status, row.delivery_state]
-    .map((value) => String(value ?? "").trim().toLowerCase().replace(/^🔥\s*/, ""));
-  if (!(["true", "t", "1", "yes"].includes(sentFlag)) || sentStates.some((value) => value !== "sent")) {
+  const deliveryStatus = String(row.delivery_status ?? "").trim().toLowerCase().replace(/^🔥\s*/, "");
+  if (deliveryStatus !== "sent" || !String(row.sent_at ?? "").trim()) {
     fail({ message: `อัปเดต ${upsertKey} แล้วแต่ตรวจค่ากลับไม่ครบ — ไม่ซ่อนรายการจากคิว` });
   }
   return row;

@@ -1,75 +1,49 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { readCanonicalOrders, updateBbOrderByKey } from "@/lib/canonical";
+import { readCanonicalOrders, readStockProducts, updateBbOrderByKey, type StockProduct } from "@/lib/canonical";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, CheckCircle2, Database, FilePenLine, RefreshCw, Save, Search, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Database, FilePenLine, MapPin, PackageSearch, RefreshCw, Save, Search, ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
 
-type OrderRow = Record<string, any> & { upsert_key: string; order_time_display: string };
-type FormState = { customer_name: string; phone: string; full_address: string; final_display_for_packer: string; cod_amount: string; telegram_message: string };
+type Row = Record<string, any> & { upsert_key: string; order_time_display: string };
+type Form = { customer_name: string; phone: string; address: string; district: string; amphoe: string; province: string; zipcode: string; product: string; sku: string; qty: string; cod_amount: string };
 
-function text(value: unknown) { return value == null ? "" : String(value); }
-function formFrom(row: OrderRow | null): FormState {
-  return {
-    customer_name: text(row?.customer_name),
-    phone: text(row?.phone || row?.extracted_phone),
-    full_address: text(row?.final_address_for_bill || row?.full_address || row?.address_display_packer),
-    final_display_for_packer: text(row?.final_display_for_packer || row?.telegram_product_display || row?.sku),
-    cod_amount: text(row?.cod_amount),
-    telegram_message: text(row?.telegram_message),
-  };
-}
+const val = (v: unknown) => v == null ? "" : String(v);
+const first = (row: Row | null, ...keys: string[]) => keys.map((key) => row?.[key]).find((v) => v != null && String(v).trim()) ?? "";
+function formFrom(row: Row | null): Form { return { customer_name: val(row?.customer_name), phone: val(row?.phone || row?.extracted_phone), address: val(first(row, "final_address_for_bill", "full_address", "address_display_packer", "addressclean")), district: val(row?.district), amphoe: val(row?.amphoe), province: val(row?.province), zipcode: val(row?.zipcode), product: val(first(row, "final_display_for_packer", "telegram_product_display", "for_packer_st_display", "sku")), sku: val(row?.sku), qty: val(row?.final_order_qty || row?.extracted_text_qty || "1"), cod_amount: val(row?.cod_amount) }; }
+function Field({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) { return <label className="block text-xs text-cyan-100/65">{label}<Input value={value} onChange={(e) => onChange(e.target.value)} className="mt-1 border-cyan-300/15 bg-black/25 text-white" /></label>; }
 
 export default function OrderEditor() {
-  const initialKey = new URLSearchParams(window.location.search).get("key") || new URLSearchParams(window.location.search).get("search") || "";
-  const [search, setSearch] = useState(initialKey);
-  const [selectedKey, setSelectedKey] = useState(initialKey);
-  const [form, setForm] = useState<FormState>(formFrom(null));
+  const initial = new URLSearchParams(window.location.search).get("key") || new URLSearchParams(window.location.search).get("search") || "";
+  const [search, setSearch] = useState(initial);
+  const [selectedKey, setSelectedKey] = useState(initial);
+  const [form, setForm] = useState<Form>(formFrom(null));
+  const [productSearch, setProductSearch] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
-  const query = useQuery({ queryKey: ["order-editor-orders", search], queryFn: () => readCanonicalOrders(search), refetchOnWindowFocus: false });
-  const orders = (query.data?.orders ?? []) as OrderRow[];
+  const ordersQuery = useQuery({ queryKey: ["order-editor-orders", search], queryFn: () => readCanonicalOrders(search), refetchOnWindowFocus: false });
+  const productQuery = useQuery({ queryKey: ["order-editor-product-master"], queryFn: readStockProducts, staleTime: 300_000 });
+  const orders = (ordersQuery.data?.orders ?? []) as Row[];
   const selected = orders.find((row) => row.upsert_key === selectedKey) ?? orders[0] ?? null;
-
+  const products = productQuery.data ?? [];
+  const matches = useMemo(() => { const q = productSearch.trim().toLowerCase(); return (q ? products.filter((p) => [p.sku, p.label, p.thName].some((v) => String(v ?? "").toLowerCase().includes(q))) : products).slice(0, 15); }, [productSearch, products]);
+  const set = (key: keyof Form, value: string) => setForm((current) => ({ ...current, [key]: value }));
   useEffect(() => { if (selected && selected.upsert_key !== selectedKey) setSelectedKey(selected.upsert_key); }, [selected, selectedKey]);
-  useEffect(() => { setForm(formFrom(selected)); setMessage(""); }, [selected?.upsert_key]);
-  const dirtyLabel = useMemo(() => selected ? `กำลังแก้ไข ${selected.order_number || selected.upsert_key}` : "ยังไม่ได้เลือกออเดอร์", [selected]);
-  const setField = (field: keyof FormState, value: string) => setForm((current) => ({ ...current, [field]: value }));
-
-  async function save() {
-    if (!selected) return;
-    setSaving(true); setMessage("");
-    try {
-      await updateBbOrderByKey(selected.upsert_key, {
-        customer_name: form.customer_name,
-        phone: form.phone,
-        extracted_phone: form.phone,
-        full_address: form.full_address,
-        final_address_for_bill: form.full_address,
-        address_display_packer: form.full_address,
-        final_display_for_packer: form.final_display_for_packer,
-        cod_amount: form.cod_amount === "" ? null : Number(form.cod_amount.replace(/,/g, "")),
-        telegram_message: form.telegram_message,
-        updated_at: new Date().toISOString(),
-      });
-      setMessage("บันทึกการแก้ไขแล้ว · ข้อมูลต้นฉบับในแชทยังคงอยู่");
-      await query.refetch();
-    } catch (error) {
-      setMessage(`บันทึกไม่สำเร็จ: ${error instanceof Error ? error.message : String(error)}`);
-    } finally { setSaving(false); }
-  }
-
-  return <div className="cosmic-stage min-h-full space-y-5 p-3 text-white sm:p-5 lg:p-7">
-    <header className="blackbox-hero cyber-glow relative overflow-hidden rounded-3xl border border-emerald-300/20 p-6 sm:p-8"><div className="hero-scanline" /><div className="hero-orbit" />
-      <div className="relative z-10 flex flex-wrap items-start justify-between gap-5"><div><p className="orbit-kicker flex items-center gap-2 text-emerald-300"><FilePenLine className="h-4 w-4" /> ORDER EDITOR · HERMES ARCHIVE</p><h1 className="cyber-title mt-3 text-3xl font-semibold sm:text-4xl">ห้องแก้ไขออเดอร์</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300/70">แก้ข้อมูลที่ใช้จัดและส่ง โดยแยกจากข้อความแชทต้นฉบับ และบันทึกลงออเดอร์ด้วย upsert_key เดิม</p></div><div className="live-chip"><ShieldCheck className="h-3.5 w-3.5" /> MANUAL OVERRIDE</div></div>
-    </header>
-    <div className="grid gap-5 xl:grid-cols-[minmax(280px,.7fr)_minmax(0,1.3fr)]">
-      <section className="rounded-3xl border border-violet-300/20 bg-[#10091b]/90 shadow-[0_0_30px_rgba(151,75,255,.08)]"><div className="border-b border-violet-300/15 p-5"><div className="relative"><Search className="absolute left-3 top-2.5 h-4 w-4 text-cyan-300/60" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ค้นหา Order / ลูกค้า / เบอร์" className="border-cyan-300/20 bg-black/25 pl-9 text-white placeholder:text-slate-500" /></div><p className="mt-3 text-xs text-violet-100/45">พบ {orders.length.toLocaleString("th-TH")} รายการ · เลือกรายการเพื่อแก้ไข</p></div><div className="max-h-[65vh] space-y-2 overflow-auto p-3">{query.isLoading ? <p className="p-8 text-center text-sm text-slate-500">กำลังอ่านออเดอร์…</p> : orders.map((row) => <button key={row.upsert_key} type="button" onClick={() => setSelectedKey(row.upsert_key)} className={`w-full rounded-2xl border p-4 text-left ${selected?.upsert_key === row.upsert_key ? "border-emerald-300/60 bg-emerald-400/10 shadow-[inset_3px_0_#55f2bd]" : "border-white/5 bg-black/15 hover:border-cyan-300/30"}`}><div className="flex justify-between gap-2"><span className="font-mono text-sm text-cyan-200">{row.order_number || row.upsert_key}</span><span className="text-[10px] text-violet-100/45">{row.order_time_display}</span></div><p className="mt-2 text-sm text-white">{row.customer_name || "ไม่ระบุชื่อ"}</p><p className="mt-1 truncate font-mono text-[10px] text-slate-500">{row.upsert_key}</p></button>)}{!query.isLoading && !orders.length ? <p className="p-8 text-center text-sm text-slate-500">ไม่พบออเดอร์</p> : null}</div></section>
-      <section className="rounded-3xl border border-emerald-300/20 bg-[#0d1518]/90 shadow-[0_0_30px_rgba(62,227,181,.07)]"><div className="flex flex-wrap items-center justify-between gap-3 border-b border-emerald-300/15 p-5"><div><p className="text-[10px] uppercase tracking-[.2em] text-emerald-300/70">EDIT TARGET</p><h2 className="mt-1 text-lg font-semibold text-white">{dirtyLabel}</h2></div><Button variant="outline" onClick={() => void query.refetch()} className="border-cyan-300/25 bg-cyan-400/5 text-cyan-100"><RefreshCw className="mr-2 h-4 w-4" />รีเฟรช</Button></div><div className="space-y-4 p-5">{selected ? <><div className="grid gap-4 sm:grid-cols-2"><Field label="ชื่อลูกค้า" value={form.customer_name} onChange={(value) => setField("customer_name", value)} /><Field label="เบอร์โทร" value={form.phone} onChange={(value) => setField("phone", value)} /><Field label="COD" value={form.cod_amount} onChange={(value) => setField("cod_amount", value)} /><Field label="สินค้า / SKU สำหรับจัด" value={form.final_display_for_packer} onChange={(value) => setField("final_display_for_packer", value)} /></div><TextField label="ที่อยู่สำหรับบิล / จัดส่ง" value={form.full_address} onChange={(value) => setField("full_address", value)} /><TextField label="telegram_message · ข้อความส่ง" value={form.telegram_message} onChange={(value) => setField("telegram_message", value)} /><div className="flex flex-wrap items-center gap-3"><Button onClick={() => void save()} disabled={saving} className="bg-gradient-to-r from-emerald-500 to-cyan-600 text-black hover:from-emerald-400 hover:to-cyan-500"><Save className="mr-2 h-4 w-4" />{saving ? "กำลังบันทึก…" : "บันทึกการแก้ไข"}</Button><Link href={`/orders?search=${encodeURIComponent(selected.upsert_key)}`}><Button variant="outline" className="border-violet-300/25 bg-violet-400/5 text-violet-100"><ArrowLeft className="mr-2 h-4 w-4" />กลับ Order Control</Button></Link></div>{message ? <p className={`rounded-xl border p-3 text-sm ${message.startsWith("บันทึกไม่") ? "border-pink-300/30 bg-pink-400/10 text-pink-100" : "border-emerald-300/25 bg-emerald-400/10 text-emerald-100"}`}>{message}</p> : null}<p className="flex items-center gap-2 text-xs text-slate-500"><Database className="h-3.5 w-3.5" />แก้ด้วย upsert_key: {selected.upsert_key} · ต้นฉบับแชทไม่ถูกลบ</p></> : <p className="p-10 text-center text-sm text-slate-500">เลือกออเดอร์จากด้านซ้ายก่อน</p>}</div></section>
+  useEffect(() => { setForm(formFrom(selected)); setProductSearch(""); setMessage(""); }, [selected?.upsert_key]);
+  async function save() { if (!selected) return; setSaving(true); setMessage(""); try { await updateBbOrderByKey(selected.upsert_key, { customer_name: form.customer_name, phone: form.phone, extracted_phone: form.phone, full_address: form.address, final_address_for_bill: form.address, address_display_packer: form.address, district: form.district, amphoe: form.amphoe, province: form.province, zipcode: form.zipcode, final_display_for_packer: form.product, telegram_product_display: form.product, sku: form.sku, final_order_qty: form.qty ? Number(form.qty) : null, cod_amount: form.cod_amount ? Number(form.cod_amount.replace(/,/g, "")) : null, updated_at: new Date().toISOString() }); setMessage("บันทึกข้อมูลต้นทางแล้ว · ไม่สร้าง telegram_message ใหม่"); await ordersQuery.refetch(); } catch (error) { setMessage(`บันทึกไม่สำเร็จ: ${error instanceof Error ? error.message : String(error)}`); } finally { setSaving(false); } }
+  return <main className="cosmic-stage min-h-full space-y-5 p-3 text-white sm:p-5 lg:p-7">
+    <header className="blackbox-hero relative overflow-hidden rounded-3xl border border-emerald-300/20 p-6 sm:p-8"><div className="hero-scanline" /><div className="relative z-10 flex flex-wrap items-start justify-between gap-5"><div><p className="orbit-kicker flex items-center gap-2 text-emerald-300"><FilePenLine className="h-4 w-4" /> ORDER WORKBENCH · HERMES ARCHIVE</p><h1 className="cyber-title mt-3 text-3xl font-semibold sm:text-4xl">ห้องแก้ไขออเดอร์</h1><p className="mt-2 text-sm text-slate-300/70">แยกที่อยู่ · เลือกสินค้าจาก Product Master · แก้ข้อมูลต้นทาง โดยไม่สร้างข้อความ Telegram ใหม่</p></div><div className="live-chip"><ShieldCheck className="h-3.5 w-3.5" /> MANUAL OVERRIDE</div></div></header>
+    <div className="grid gap-5 xl:grid-cols-[minmax(270px,.72fr)_minmax(0,1.28fr)]">
+      <OrderList orders={orders} selected={selected} search={search} setSearch={setSearch} setSelectedKey={setSelectedKey} loading={ordersQuery.isLoading} />
+      <section className="space-y-4 rounded-3xl border border-cyan-300/20 bg-[#0b1119]/90 p-5 shadow-[0_0_30px_rgba(34,211,238,.07)]">
+        <div className="flex items-center justify-between gap-3"><div><p className="text-[10px] uppercase tracking-[.2em] text-emerald-300/70">EDIT TARGET</p><h2 className="mt-1 text-lg font-semibold">{selected ? `กำลังแก้ไข ${selected.order_number || selected.upsert_key}` : "ยังไม่ได้เลือกออเดอร์"}</h2></div><Button variant="outline" onClick={() => void ordersQuery.refetch()} className="border-cyan-300/25 text-cyan-100"><RefreshCw className="mr-2 h-4 w-4" />รีเฟรช</Button></div>
+        {selected ? <><div className="grid gap-4 lg:grid-cols-2"><AddressBox form={form} set={set} /><ProductBox form={form} set={set} productSearch={productSearch} setProductSearch={setProductSearch} matches={matches} loading={productQuery.isLoading} /></div><div className="rounded-2xl border border-slate-300/15 bg-black/25 p-4"><p className="text-sm font-semibold">ข้อมูลเดิมจากออเดอร์</p><p className="mt-1 text-[10px] text-slate-500">telegram_message_web และ telegram_change_alert_web อ่านแบบต้นฉบับ ไม่สร้างข้อความใหม่</p><pre className="mt-3 max-h-44 overflow-auto whitespace-pre-wrap text-xs leading-6 text-slate-400">{val(selected.telegram_message_web || selected.telegram_message || selected.original || "ไม่มีข้อความต้นฉบับ")}</pre>{(selected.telegram_change_alert_web || selected.telegram_change_alert) && <p className="mt-3 rounded-lg border border-amber-300/20 bg-amber-400/10 p-2 text-xs text-amber-100">{val(selected.telegram_change_alert_web || selected.telegram_change_alert)}</p>}</div><div className="flex flex-wrap items-center gap-3"><Button onClick={() => void save()} disabled={saving} className="bg-gradient-to-r from-emerald-500 to-cyan-600 text-black"><Save className="mr-2 h-4 w-4" />{saving ? "กำลังบันทึก…" : "บันทึกการแก้ไข"}</Button><Link href={`/orders?search=${encodeURIComponent(selected.upsert_key)}`}><Button variant="outline" className="border-violet-300/25 text-violet-100"><ArrowLeft className="mr-2 h-4 w-4" />กลับ Order Control</Button></Link><span className="flex items-center gap-2 text-xs text-slate-500"><Database className="h-3.5 w-3.5" />upsert_key: {selected.upsert_key}</span></div>{message && <p className="rounded-xl border border-emerald-300/25 bg-emerald-400/10 p-3 text-sm text-emerald-100">{message}</p>}</> : <p className="p-10 text-center text-sm text-slate-500">เลือกออเดอร์จากด้านซ้ายก่อน</p>}
+      </section>
     </div>
-  </div>;
+  </main>;
 }
 
-function Field({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) { return <label className="block text-xs text-emerald-100/60">{label}<Input value={value} onChange={(event) => onChange(event.target.value)} className="mt-1 border-emerald-300/15 bg-black/25 text-white" /></label>; }
-function TextField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) { return <label className="block text-xs text-emerald-100/60">{label}<textarea value={value} onChange={(event) => onChange(event.target.value)} className="mt-1 min-h-28 w-full resize-y rounded-xl border border-emerald-300/15 bg-black/25 p-3 text-sm leading-6 text-white outline-none focus:border-cyan-300/50" /></label>; }
+function OrderList({ orders, selected, search, setSearch, setSelectedKey, loading }: { orders: Row[]; selected: Row | null; search: string; setSearch: (v: string) => void; setSelectedKey: (v: string) => void; loading: boolean }) { return <section className="rounded-3xl border border-violet-300/20 bg-[#10091b]/90"><div className="border-b border-violet-300/15 p-5"><div className="relative"><Search className="absolute left-3 top-2.5 h-4 w-4 text-cyan-300/60" /><Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ค้นหา Order / ลูกค้า / เบอร์" className="border-cyan-300/20 bg-black/25 pl-9 text-white" /></div><p className="mt-3 text-xs text-violet-100/45">พบ {orders.length.toLocaleString("th-TH")} รายการ · เลือกรายการเพื่อแก้ไข</p></div><div className="max-h-[68vh] space-y-2 overflow-auto p-3">{loading ? <p className="p-8 text-center text-sm text-slate-500">กำลังอ่านออเดอร์…</p> : orders.map((row) => <button key={row.upsert_key} type="button" onClick={() => setSelectedKey(row.upsert_key)} className={`w-full rounded-2xl border p-4 text-left ${selected?.upsert_key === row.upsert_key ? "border-emerald-300/60 bg-emerald-400/10" : "border-white/5 bg-black/15 hover:border-cyan-300/30"}`}><div className="flex justify-between gap-2"><span className="font-mono text-sm text-cyan-200">{row.order_number || row.upsert_key}</span><span className="text-[10px] text-violet-100/45">{row.order_time_display}</span></div><p className="mt-2 text-sm">{row.customer_name || "ไม่ระบุชื่อ"}</p><p className="mt-1 truncate font-mono text-[10px] text-slate-500">{row.upsert_key}</p></button>)}</div></section>; }
+function AddressBox({ form, set }: { form: Form; set: (key: keyof Form, value: string) => void }) { return <div className="space-y-3 rounded-2xl border border-cyan-300/15 bg-black/20 p-4"><h3 className="flex items-center gap-2 text-sm font-semibold text-cyan-100"><MapPin className="h-4 w-4" />ลูกค้าและที่อยู่</h3><div className="grid gap-3 sm:grid-cols-2"><Field label="ชื่อลูกค้า" value={form.customer_name} onChange={(v) => set("customer_name", v)} /><Field label="เบอร์โทร" value={form.phone} onChange={(v) => set("phone", v)} /><Field label="ตำบล / แขวง" value={form.district} onChange={(v) => set("district", v)} /><Field label="อำเภอ / เขต" value={form.amphoe} onChange={(v) => set("amphoe", v)} /><Field label="จังหวัด" value={form.province} onChange={(v) => set("province", v)} /><Field label="รหัสไปรษณีย์" value={form.zipcode} onChange={(v) => set("zipcode", v)} /></div><label className="block text-xs text-cyan-100/65">ที่อยู่สำหรับบิล / จัดส่ง<textarea value={form.address} onChange={(e) => set("address", e.target.value)} className="mt-1 min-h-32 w-full rounded-xl border border-cyan-300/15 bg-black/25 p-3 text-sm leading-6 text-white outline-none" /></label></div>; }
+function ProductBox({ form, set, productSearch, setProductSearch, matches, loading }: { form: Form; set: (key: keyof Form, value: string) => void; productSearch: string; setProductSearch: (v: string) => void; matches: StockProduct[]; loading: boolean }) { return <div className="space-y-3 rounded-2xl border border-fuchsia-300/15 bg-black/20 p-4"><h3 className="flex items-center gap-2 text-sm font-semibold text-fuchsia-100"><PackageSearch className="h-4 w-4" />สินค้า / Product Master</h3><Field label="ข้อความสินค้าใช้จัด" value={form.product} onChange={(v) => set("product", v)} /><div className="grid gap-3 sm:grid-cols-3"><Field label="SKU" value={form.sku} onChange={(v) => set("sku", v)} /><Field label="จำนวน" value={form.qty} onChange={(v) => set("qty", v)} /><Field label="COD" value={form.cod_amount} onChange={(v) => set("cod_amount", v)} /></div><Input value={productSearch} onChange={(e) => setProductSearch(e.target.value)} placeholder="พิมพ์สินค้าแค่ 1 ตัว…" className="border-fuchsia-300/20 bg-black/30 text-white" />{loading ? <p className="text-xs text-slate-500">กำลังอ่าน 🛒product_master…</p> : <div className="max-h-64 space-y-2 overflow-auto">{matches.map((product) => <button key={product.id} type="button" onClick={() => { set("product", product.label); set("sku", product.sku); setProductSearch(product.sku); }} className="w-full rounded-xl border border-cyan-300/15 bg-cyan-400/[.03] p-3 text-left hover:border-cyan-300/50"><div className="flex items-center justify-between gap-2"><span>{product.emoji} {product.label}</span><span className="font-mono text-[10px] text-cyan-200">{product.sku}</span></div><p className="mt-1 text-[10px] text-slate-400">{product.thName || "ไม่มีชื่อไทย"} · {product.price == null ? "ไม่ระบุราคา" : `${product.price} บาท`} · คงเหลือ {product.stockQty}</p></button>)}</div>}</div>; }
