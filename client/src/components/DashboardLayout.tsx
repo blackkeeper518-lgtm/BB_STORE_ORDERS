@@ -3,7 +3,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { startLogin } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { Activity, Archive, Bell, Boxes, CalendarDays, Database, FilePenLine, LayoutDashboard, LockKeyhole, MessageCircle, PanelLeft, Send, Skull, Truck } from "lucide-react";
+import { Activity, Archive, Bell, Boxes, CalendarDays, Database, LayoutDashboard, LockKeyhole, MessageCircle, PanelLeft, Send, Skull, Truck } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
@@ -14,7 +14,6 @@ import { getActiveCamp, getSupabaseConfig, readCanonicalOrders, type Camp } from
 const menuItems = [
   { icon: MessageCircle, label: "รวมแชทเพจ", path: "/chats" },
   { icon: LayoutDashboard, label: "Order Control", path: "/orders" },
-  { icon: FilePenLine, label: "ห้องแก้ไขออเดอร์", path: "/order-editor" },
   { icon: Truck, label: "แมปเลขพัสดุ", path: "/parcel-mapping" },
   { icon: Database, label: "คู่มือระบบ · System Manual", path: "/system-manual" },
   { icon: Send, label: "PIONEER · คิวพัก / ดักสองชั้น", path: "/telegram-delivery" },

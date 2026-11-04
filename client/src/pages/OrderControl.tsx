@@ -4,10 +4,11 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import OrderEditWorkbench from "@/components/OrderEditWorkbench";
 import { orderTimeSortKey, readCanonicalOrders } from "@/lib/canonical";
 import { useQuery } from "@tanstack/react-query";
 import { CalendarDays, Check, CheckCircle2, Clock3, Database, Download, ExternalLink, MessageCircle, Pencil, RefreshCw, Search, Send, ShoppingCart, WalletCards, XCircle } from "lucide-react";
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { Link } from "wouter";
 
 type CanonicalOrderRow = Record<string, any> & {
@@ -103,6 +104,7 @@ export default function OrderControl() {
   const [selectedKey, setSelectedKey] = useState("");
   const [clock, setClock] = useState(() => new Date());
   const [copied, setCopied] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const query = useQuery({
     queryKey: ["canonical-orders", search, fromDate, untilDate],
     queryFn: () => readCanonicalOrders(search, fromDate || null, untilDate || null),
@@ -154,17 +156,14 @@ export default function OrderControl() {
           <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-300/75">ศูนย์ควบคุมออเดอร์จาก n8n · เห็นต้นทาง สถานะ และเวลาจริงในจอเดียว</p>
           <div className="mt-3 flex flex-wrap items-center gap-2"><span className="live-chip"><span className="live-dot" /> LIVE ORDER STREAM</span><span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-300/70">HERMES ARCHIVE · SECURE LINK</span></div>
         </div>
-        <div className="central-clock hero-clock relative z-10"><span className="central-clock-label">CENTRAL ORDER CLOCK · BANGKOK</span><strong>{clock.toLocaleTimeString("th-TH", { timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit", second: "2-digit" })}</strong><span className="central-clock-date">{clock.toLocaleDateString("th-TH", { timeZone: "Asia/Bangkok", weekday: "long", day: "numeric", month: "long", year: "numeric" })}</span><small>เวลาไทย · order_time_display</small></div>
-        <Button variant="outline" onClick={() => void query.refetch()} disabled={query.isFetching} className="relative z-10 border-cyan-300/30 bg-cyan-400/5 text-cyan-100 shadow-[0_0_20px_rgba(88,239,255,0.08)] hover:border-cyan-200/60 hover:bg-cyan-400/10">
-          <RefreshCw className={`mr-2 h-4 w-4 ${query.isFetching ? "animate-spin" : ""}`} /> รีเฟรช
-        </Button>
+        <div className="central-clock hero-clock relative z-10"><span className="central-clock-label">ORDER_TIME_DISPLAY · BANGKOK</span><strong>{clock.toLocaleTimeString("th-TH", { timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit", second: "2-digit" })}</strong><span className="central-clock-date">{clock.toLocaleDateString("th-TH", { timeZone: "Asia/Bangkok", weekday: "long", day: "numeric", month: "long", year: "numeric" })}</span><small>ศูนย์เวลาออเดอร์จาก n8n · ไม่ใช้เวลาระบบ</small></div>
       </header>
 
       <div className="signal-ticker rounded-xl"><span>✦ HERMES ARCHIVE // ORDER SIGNAL // COD VERIFIED // PRODUCT MAP ONLINE // TELEGRAM ROUTE READY // </span></div>
 
       {/* ⫘ SUMMARY CARDS · การ์ดสรุปยอดด้านบน: แก้สี/ขนาดที่ component Metric ด้านล่าง */}
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
-        <Metric icon={ShoppingCart} label="ออเดอร์ทั้งหมด" value={orders.length} suffix="รายการ" tone="pink" />
+        <Metric icon={ShoppingCart} label="ออเดอร์ทั้งหมด" value={orders.length} suffix="รายการ" tone="pink" action={<button type="button" aria-label="รีเฟรชออเดอร์" onClick={() => void query.refetch()} disabled={query.isFetching} className="metric-refresh-button"><RefreshCw className={`h-4 w-4 ${query.isFetching ? "animate-spin" : ""}`} /></button>} />
         <Metric icon={CalendarDays} label="ออเดอร์วันนี้" value={todayOrders.length} suffix="รายการ · รอบ 14:00" tone="violet" />
         <Metric icon={WalletCards} label="ยอด COD ทั้งหมด" value={money(totalCod)} tone="cyan" />
         <Metric icon={WalletCards} label="ยอด COD วันนี้" value={`${money(todayCod)} · รอบ 14:00`} tone="green" />
@@ -201,10 +200,12 @@ export default function OrderControl() {
             {!query.isLoading && !query.error && orders.length === 0 ? <p className="p-8 text-center text-sm text-slate-500">ไม่พบข้อมูล</p> : null}
             {/* การ์ด 1 ใบ · คอลัมน์ที่ใช้: order_number, customer_name, phone, page_name, order_time_display, final_display_for_packer, delivery_status, sent_at */}
             {orders.map((row) => <button key={row.upsert_key} type="button" onClick={() => setSelectedKey(row.upsert_key)} className={`order-list-card w-full rounded-2xl border p-3 text-left transition ${selectedOrder?.upsert_key === row.upsert_key ? "border-pink-300/60 bg-gradient-to-r from-fuchsia-500/15 to-emerald-400/5 shadow-[inset_3px_0_#ff5acb,0_0_18px_rgba(255,90,203,0.1)]" : "border-white/5 bg-black/15 hover:border-cyan-300/30 hover:bg-cyan-400/[0.04]"}`}>
-              <div className="flex items-center justify-between gap-2"><span className="font-mono text-sm text-cyan-200">{directText(row.order_number)}</span>{isSent(row) ? <span className="rounded-full border border-orange-300/30 bg-orange-400/10 px-2 py-0.5 text-[10px] font-semibold text-orange-200">🔥SENT</span> : <span className="rounded-full border border-cyan-300/20 px-2 py-0.5 text-[10px] text-cyan-200">รอส่ง</span>}</div>
-              <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs"><span className="text-white">{directText(row.customer_name)}</span><span className="font-mono text-emerald-200/80">{directText(row.phone)}</span></div>
-              <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-violet-200/60"><span>📢 {directText(row.page_name)}</span><span>{row.order_time_display}</span></div>
-              <div className="order-card-copy-preview mt-2 whitespace-pre-line line-clamp-4 text-[11px] leading-4 text-emerald-100/75">{buildOrderCopyText(row)}</div>
+              <div className="flex items-center justify-between gap-2"><span className="font-mono text-sm font-semibold text-cyan-200">{directText(row.order_number)}</span>{isSent(row) ? <span className="rounded-full border border-orange-300/30 bg-orange-400/10 px-2 py-0.5 text-[10px] font-semibold text-orange-200">🔥SENT</span> : <span className="rounded-full border border-cyan-300/20 px-2 py-0.5 text-[10px] text-cyan-200">รอส่ง</span>}</div>
+              <div className="mt-2 text-xs"><span className="font-semibold text-white">{directText(row.customer_name)}</span><span className="ml-3 font-mono text-emerald-200/85">{directText(row.phone)}</span></div>
+              <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-violet-200/70"><span>🍊 {directText(row.page_name)} · {directText(row.order_number)}</span><span>{row.order_time_display}</span></div>
+              <div className="mt-1 text-sm font-semibold text-amber-100">{money(row.cod_amount)}</div>
+              <div className="mt-1 line-clamp-2 text-[11px] leading-4 text-slate-200/85">{directText(row.final_address_for_bill || row.address_display_packer || row.full_address || row.addressclean)}</div>
+              <div className="order-card-copy-preview mt-1 line-clamp-1 whitespace-pre-line text-[11px] leading-4 text-emerald-100/80">📦 {directText(row.final_display_for_packer || row.telegram_product_display || row.final_product || row.sku)}</div>
             </button>)}
           </CardContent>
         </Card>
@@ -222,7 +223,6 @@ export default function OrderControl() {
               <div className="grid gap-3 sm:grid-cols-2">
                 <Info label="COD" value={money(selectedOrder.cod_amount)} />
                 <Info label="สินค้าสำหรับจัด" value={selectedOrder.final_display_for_packer} />
-                <Info label="เส้นทางที่ n8n ระบุ" value={selectedOrder.route_reason_label || "⚪ [COMPLETENESS] สินค้าและที่อยู่ผ่านเกณฑ์"} />
               </div>
               {/* ADDRESS · ที่อยู่จาก final_address_for_bill; ถ้าเปลี่ยนคอลัมน์ให้แก้ตรง value นี้ */}
               <Info label="ที่อยู่จากข้อมูลกลาง" value={selectedOrder.final_address_for_bill} />
@@ -236,12 +236,13 @@ export default function OrderControl() {
                 <Link href={`/order-history?search=${encodeURIComponent(selectedOrder.upsert_key)}`}><Button variant="outline" className="border-cyan-300/25 bg-cyan-400/5 text-cyan-100"><ExternalLink className="mr-2 h-4 w-4" />ประวัติ</Button></Link>
                 <Link href={`/telegram-delivery?search=${encodeURIComponent(selectedOrder.upsert_key)}&room=queue`}><Button variant="outline" className="border-fuchsia-300/25 bg-fuchsia-400/5 text-fuchsia-100"><Send className="mr-2 h-4 w-4" />ส่งไป Telegram</Button></Link>
                 <Link href={`/chats?search=${encodeURIComponent(selectedOrder.customer_name ?? selectedOrder.order_number ?? "")}`}><Button variant="outline" className="border-emerald-300/25 bg-emerald-400/5 text-emerald-100"><MessageCircle className="mr-2 h-4 w-4" />ไปห้องแชท</Button></Link>
-                <Link href={`/telegram-delivery?search=${encodeURIComponent(selectedOrder.upsert_key)}&room=queue&edit=1`}><Button variant="outline" className="border-pink-300/25 bg-pink-400/5 text-pink-100"><Pencil className="mr-2 h-4 w-4" />แก้ไขข้อมูลส่ง</Button></Link>
+                <Button type="button" variant="outline" onClick={() => setEditOpen(true)} className="border-pink-300/25 bg-pink-400/5 text-pink-100"><Pencil className="mr-2 h-4 w-4" />EDIT TARGET · แก้ไขออเดอร์</Button>
               </div>
             </>}
           </CardContent>
         </Card>
       </div>
+      {editOpen && selectedOrder ? <OrderEditWorkbench row={selectedOrder} onClose={() => setEditOpen(false)} onSaved={() => { void query.refetch(); setEditOpen(false); }} /> : null}
     </div>
   );
 }
@@ -255,6 +256,6 @@ function Info({ label, value }: { label: string; value: unknown }) {
   return <div className="rounded-xl border border-white/5 bg-black/15 p-3"><p className="text-[10px] uppercase tracking-wider text-slate-500">{label}</p><p className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-200">{directText(value)}</p></div>;
 }
 
-function Metric({ icon: Icon, label, value, suffix, tone }: { icon: typeof ShoppingCart; label: string; value: string | number; suffix?: string; tone: "pink" | "violet" | "cyan" | "green" }) {
-  return <div className={`signal-metric signal-${tone}`}><div className="flex items-start justify-between gap-2"><div><p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-300/65">{label}</p><p className="mt-2 text-xl font-semibold tracking-tight text-white">{value} <span className="text-[10px] font-normal text-slate-300/55">{suffix}</span></p></div><span className="metric-icon"><Icon /></span></div></div>;
+function Metric({ icon: Icon, label, value, suffix, tone, action }: { icon: typeof ShoppingCart; label: string; value: string | number; suffix?: string; tone: "pink" | "violet" | "cyan" | "green"; action?: ReactNode }) {
+  return <div className={`signal-metric signal-${tone}`}><div className="flex items-start justify-between gap-2"><div><p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-300/65">{label}</p><p className="mt-2 text-xl font-semibold tracking-tight text-white">{value} <span className="text-[10px] font-normal text-slate-300/55">{suffix}</span></p></div><div className="flex items-center gap-2">{action}<span className="metric-icon"><Icon /></span></div></div></div>;
 }
