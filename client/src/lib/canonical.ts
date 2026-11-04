@@ -255,8 +255,8 @@ const TELEGRAM_WEB_ORDER_COLUMNS = [
   // PIONEER and ANDROMEDA share the operational order number, but ANDROMEDA
   // does not expose the optional order_number_display column.
   "upsert_key", "source_table", "order_time_display", "order_number",
-  "telegram_product_display", "final_display_for_packer", "order_fibo_product", "for_packer_st_display", "manus_for_packer", "google_for_packer", "packer_tag_display", "packer_obj",
-  "address_fibo_selected_clean", "address_display_packer", "full_address", "province", "zipcode", "phone", "extracted_phone",
+  "manus_for_packer", "order_fibo_product", "for_packer_st_display", "google_for_packer", "packer_tag_display",
+  "address_fibo_selected_clean", "address_display_packer", "address_clean", "province", "zipcode", "phone", "extracted_phone",
   "cod_amount", "customer_name", "facebook_name", "page_name", "shipping_carrier", "sku",
   "delivery_state", "delivery_status", "telegram_status", "telegram_sent", "sent_at", "telegram_sent_at",
   "telegram_message_web", "telegram_change_alert_web", "telegram_message", "telegram_change_alert",
