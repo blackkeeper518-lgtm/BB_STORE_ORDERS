@@ -16,7 +16,7 @@ const menuItems = [
   { icon: LayoutDashboard, label: "Order Control", path: "/orders" },
   { icon: Truck, label: "แมปเลขพัสดุ", path: "/parcel-mapping" },
   { icon: BrainCircuit, label: "Alien Inbox · คำดิบ", path: "/alien-room" },
-  { icon: Database, label: "Product Alien · เก็บคำ", path: "/product-alien-store" },
+  { icon: Database, label: "คู่มือระบบ · System Manual", path: "/system-manual" },
   { icon: Tags, label: "Product Alien · แมป", path: "/product-alien-map" },
   { icon: Send, label: "ห้องส่ง Telegram", path: "/telegram-delivery" },
   { icon: Bell, label: "ประวัติเปลี่ยนของ", path: "/alert-room" },
