@@ -634,9 +634,16 @@ export async function readParcelMappingQueue(status: "all" | "sent" = "all", lim
   const safeLimit = Math.max(1, Math.min(limit, 500));
   const activeData = status === "sent" ? { data: [], error: null } : (await api.from("🦅ROGUE_xXx_SHIPPINGz").select("*").limit(safeLimit));
   if ("error" in activeData && activeData.error) fail(activeData.error);
-  const sent = status === "sent" ? await api.from("📓DEAD_xXx_NOTE").select("*").limit(safeLimit) : { data: [], error: null };
+  const sent = status === "all" || status === "sent" ? await api.from("📓DEAD_xXx_NOTE").select("*").limit(safeLimit) : { data: [], error: null };
   if (sent.error) fail(sent.error);
-  return [...("data" in activeData ? (activeData.data ?? []) : []), ...(sent.data ?? [])].slice(0, safeLimit);
+  const rows = [...("data" in activeData ? (activeData.data ?? []) : []), ...(sent.data ?? [])];
+  const seen = new Set<string>();
+  return rows.filter((row: any) => {
+    const key = String(row.tracking_number ?? row.order_number ?? row.id ?? "").trim();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0, safeLimit);
 }
 export type PostalMasterMatch = { district: string | null; amphoe: string | null; province: string | null; zipcode: string | null };
 export async function searchThailandPostalMaster(raw: string): Promise<PostalMasterMatch[]> {

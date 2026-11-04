@@ -1,1 +1,6 @@
-BB: ใช้ vw_bb_orders_all_v2 เท่านั้น
+ไฟล์ที่แก้:
+client/src/pages/ChatHub.tsx
+client/src/pages/ParcelMapping.tsx
+client/src/pages/TelegramDeliveryRoom.tsx
+client/src/lib/canonical.ts
+client/src/index.css
