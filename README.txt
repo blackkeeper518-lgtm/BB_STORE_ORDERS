@@ -1,6 +1,3 @@
-ไฟล์ที่แก้:
-client/src/pages/ChatHub.tsx
-client/src/pages/ParcelMapping.tsx
-client/src/pages/TelegramDeliveryRoom.tsx
-client/src/lib/canonical.ts
+วางทับไฟล์จริง:
+client/src/pages/OrderControl (8).tsx
 client/src/index.css
