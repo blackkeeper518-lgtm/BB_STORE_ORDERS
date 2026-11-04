@@ -74,21 +74,7 @@ export const supabase = { from: (table: string) => { const api = getSupabase(); 
 function fail(error: any): never { throw new Error(error?.message || "Supabase connection failed"); }
 function num(v: any) { const n = Number(v); return v == null || v === "" || !Number.isFinite(n) ? null : n; }
 function asText(v: any) { return typeof v === "string" ? v : v == null ? "" : JSON.stringify(v); }
-function parseCod(text: string) { const matches = text.match(/(?:ยอดรวม\s*)?cod\s*[:=]?\s*\[?\s*([\d,]+(?:\.\d+)?)\s*\]?|เก็บปลายทาง[^\d]{0,20}([\d,]+(?:\.\d+)?)/gi) || []; const last = matches[matches.length - 1] || ""; const numberMatch = last.match(/[\d,]+(?:\.\d+)?/); return numberMatch ? Number(numberMatch[0].replace(/,/g, "")) : null; }
-export function hasCodOrderSignal(text: unknown) { return /\bCOD\b/i.test(String(text ?? "")); }
-function scoreDailyOrderSignal(text: string, latestCod: number | null) {
-  const qualified = hasCodOrderSignal(text);
-  return {
-    score: qualified ? 1 : 0,
-    qualified,
-    qualifiedCod: qualified && latestCod != null && latestCod >= 200,
-    reasons: qualified ? ["คำว่า COD"] : [],
-    coreCount: 0,
-    flowCount: 0,
-  };
-}
-export type CanonicalItem = Record<string, any>;
-export type CanonicalOrder = Record<string, any> & { items: CanonicalItem[]; items_text: string; display_for_packer: string | null; is_ready_to_pack: boolean; cod_check_status: string | null; audit_status: string | null; order_status: string | null; telegram_status: string | null };
+export type CanonicalOrder = Record<string, any> & { upsert_key: string; order_time_display: string };
 const ORDER_SOURCE_TABLE_BY_CAMP: Record<Camp, string> = { BB: "🗝️HERMES_ARCHIVE" };
 // Order screens load at most 1,000 rows per explicit refresh.
 const ORDER_OPERATIONAL_LIMIT = 1000;
@@ -212,10 +198,6 @@ const HERMES_WEB_ORDER_COLUMNS = [
   "final_display_for_packer",
   "telegram_product_display",
   "telegram_message",
-  "telegram_main_bill",
-  "telegram_copy_text",
-  "telegram_body",
-  "telegram_change_alert",
   "customer_change_diff_json",
   "customer_change_admin_footer",
   "customer_change_admin_footer_text",
@@ -255,7 +237,6 @@ const HERMES_WEB_ORDER_COLUMNS = [
   "routing_tag",
   "product_mapping_status",
   "mapping_status",
-  "telegram_message_for_send_final",
   "customer_change_summary",
   "raw_text",
   "recipient_id",
@@ -272,33 +253,17 @@ const HERMES_DIRECT_ORDER_COLUMNS = HERMES_WEB_ORDER_COLUMNS
 // Only fields used by TelegramDeliveryRoom; avoid returning all 330 view columns.
 const TELEGRAM_WEB_ORDER_COLUMNS = [
   "upsert_key", "source_table", "order_time_display", "order_number", "order_number_display",
-  "order_fibo_product", "for_packer_st_display", "manus_for_packer", "google_for_packer", "packer_tag_display", "packer_obj",
+  "telegram_product_display", "final_display_for_packer", "order_fibo_product", "for_packer_st_display", "manus_for_packer", "google_for_packer", "packer_tag_display", "packer_obj",
   "address_fibo_selected_clean", "address_display_packer", "full_address", "province", "zipcode", "phone", "extracted_phone",
   "audit_flags", "bill_data_complete", "is_ready_to_pack", "mapping_status",
   "cod_amount", "customer_name", "facebook_name", "page_name", "shipping_carrier", "sku",
   "delivery_state", "delivery_status", "telegram_status", "telegram_sent", "sent_at", "telegram_sent_at",
-  "stock_notice", "telegram_body", "telegram_copy_text", "telegram_main_bill", "telegram_message", "telegram_message_for_send_final",
-  "original"
+  "telegram_message", "telegram_message_web", "telegram_change_alert_web",
+  "raw_text", "original"
 ].join(",");
 
 function firstText(...values: unknown[]): string {
   return values.map(value => String(value ?? "").trim()).find(Boolean) ?? "";
-}
-function plainTelegramText(value: unknown): string {
-  return String(value ?? "")
-    .replace(/<br\s*\/?\s*>/gi, "\n")
-    .replace(/<\/(?:p|div|li|tr|h[1-6])\s*>/gi, "\n")
-    .replace(/<[^>]*>/g, "")
-    .replace(/&nbsp;/gi, " ")
-    .replace(/&#39;|&apos;/gi, "'")
-    .replace(/&quot;/gi, '"')
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">")
-    .replace(/&amp;/gi, "&")
-    .replace(/\r\n?/g, "\n")
-    .replace(/[ \t]+\n/g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
 }
 function asBoolean(value: unknown): boolean {
   if (value === true || value === 1) return true;
@@ -319,24 +284,11 @@ export async function readCanonicalOrders(search = "", since: string | null = nu
   const query = search.trim().toLowerCase();
   const fromKey = isoDateKey(since);
   const untilKey = isoDateKey(until);
-  const orders = (ordersResult.data ?? [])
-    .map((row: any) => ({
-      ...row,
-      // Keep the UI shape without deriving business values.
-      items: Array.isArray(row.orderItems) ? row.orderItems : [],
-      items_text: row.final_display_for_packer ?? row.final_product ?? null,
-      display_for_packer: row.final_display_for_packer ?? null,
-      is_ready_to_pack: row.is_ready_to_pack === true || String(row.is_ready_to_pack ?? "").toLowerCase() === "true",
-      cod_check_status: row.cod_check_status ?? null,
-      audit_status: row.audit_flags ?? null,
-      order_status: row.life_status ?? null,
-      telegram_status: row.delivery_state ?? null,
-    }) as CanonicalOrder)
-    .filter((row: any) => {
+  const orders = (ordersResult.data ?? []).filter((row: any) => {
       if (query && !JSON.stringify(row).toLowerCase().includes(query)) return false;
       const dateKey = displayDateKey(row.order_time_display);
       return (!fromKey || (dateKey && dateKey >= fromKey)) && (!untilKey || (dateKey && dateKey <= untilKey));
-    });
+    }) as unknown as CanonicalOrder[];
   return { orders, itemError: null, sourceTable: "🗝️HERMES_ARCHIVE", fetchedAt: new Date().toISOString(), since };
 }
 export async function readTelegramDeliveryOrders(search = "", room: "queue" | "today" | "yesterday_after_14" | "sent" = "queue") {
@@ -347,99 +299,21 @@ export async function readTelegramDeliveryOrders(search = "", room: "queue" | "t
   const { data, error } = await api
     .from(sourceTable)
     .select(TELEGRAM_WEB_ORDER_COLUMNS)
+    .order("order_time_display", { ascending: false })
     .limit(ORDER_OPERATIONAL_LIMIT);
   if (error) fail(error);
   const query = search.trim().toLowerCase();
-  const allOrders = (data ?? [])
-    .map((row: any) => ({
-      ...row,
-      source_view: sourceTable,
-      source_table: row.source_table || sourceTable,
-      items: Array.isArray(row.orderItems) ? row.orderItems : [],
-      items_text: row.final_display_for_packer ?? row.final_product ?? null,
-      display_for_packer: row.final_display_for_packer ?? null,
-      is_ready_to_pack: row.is_ready_to_pack === true || String(row.is_ready_to_pack ?? "").toLowerCase() === "true",
-      cod_check_status: row.cod_check_status ?? null,
-      audit_status: row.audit_flags ?? null,
-      order_status: row.life_status ?? null,
-      telegram_status: row.delivery_state ?? null,
-    }) as CanonicalOrder)
-    .filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query));
-  return { orders: allOrders, itemError: null, sourceTable, fetchedAt: new Date().toISOString(), room };
-}
-
-export async function readBbOrderEvidence(upsertKey: string, sourceTable: "🗝️HERMES_ARCHIVE" | "🌀SINGULARITY_xXx_EXCHANGE" = "🗝️HERMES_ARCHIVE") {
-  const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  const safeSourceTable = sourceTable === "🌀SINGULARITY_xXx_EXCHANGE" ? "🌀SINGULARITY_xXx_EXCHANGE" : "🗝️HERMES_ARCHIVE";
-  const { data, error } = await api
-    .from(safeSourceTable)
-    .select("upsert_key,chat_timeline,customer_change_diff_json,telegram_copy_text")
-    .eq("upsert_key", upsertKey)
-    .maybeSingle();
-  if (error) fail(error);
-  const row: any = data ?? {};
-  return { ...row, normalized_chat_timeline: row.chat_timeline ?? null, telegram_copy_text: row.telegram_copy_text ?? null };
-}
-
-export async function readBbOrderEvidenceBatch(upsertKeys: string[]) {
-  const keys = Array.from(new Set(upsertKeys.map((key) => String(key ?? "").trim()).filter(Boolean)));
-  if (!keys.length) return [];
-  const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  const evidence: any[] = [];
-  for (let offset = 0; offset < keys.length; offset += 100) {
-    const { data, error } = await api
-      .from(defaultOrderView("BB"))
-      .select("upsert_key,chat_timeline,customer_change_diff_json,telegram_copy_text")
-      .in("upsert_key", keys.slice(offset, offset + 100));
-    if (error) fail(error);
-    evidence.push(...(data ?? []).map((row: any) => ({ ...row, normalized_chat_timeline: row.chat_timeline ?? null, telegram_copy_text: row.telegram_copy_text ?? null })));
-  }
-  return evidence;
+  const orders = (data ?? []).filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query));
+  return { orders, sourceTable, fetchedAt: new Date().toISOString(), room };
 }
 
 export async function readBbAlertRoom(search = "") {
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  // Orange change history is separated from the mixed yellow/orange source table.
   const { data, error } = await api.from("🔸 PARADOX_xXx_EXCHANGE").select("*").order("order_time_display", { ascending: false }).limit(2000);
   if (error) fail(error);
   const query = search.trim().toLowerCase();
-  const rows = (data ?? []).map((row: any) => {
-    const changes = [
-      ["สินค้า", row.customer_product_change_detected, row.customer_product_previous, row.customer_product_current],
-      ["สี", row.customer_color_change_detected, row.customer_color_previous, row.customer_color_current],
-      ["จำนวน", row.customer_quantity_change_detected, row.customer_quantity_previous, row.customer_quantity_current],
-      ["ขนส่ง", row.customer_carrier_change_detected, row.customer_carrier_previous, row.customer_carrier_current],
-      ["ที่อยู่", row.customer_address_change_detected, row.customer_address_previous, row.customer_address_current],
-      ["เบอร์", row.customer_phone_change_detected, row.customer_phone_previous, row.customer_phone_current],
-      ["ชื่อ", row.customer_name_change_detected, row.customer_name_previous, row.customer_name_current],
-      ["COD", row.customer_cod_change_detected, row.customer_cod_previous, row.customer_cod_current],
-    ].filter(([, detected, before, after]) => asBoolean(detected) || (String(before ?? "").trim() && String(after ?? "").trim()));
-    const stamp = row.order_time_display;
-    const changeText = plainTelegramText(firstText(row.telegram_change_alert_web, row.telegram_change_alert, row.customer_change_summary, row.customer_change_admin_footer_text));
-    return {
-      ...row,
-      id: row.upsert_key,
-      person_key: row.phone || row.customer_id || row.threadId,
-      alert_status: "PRODUCT_CHANGE_HISTORY",
-      customer_bill_count: row.currentThreadTotalBills || 1,
-      cod_value: row.cod_amount,
-      customer_cod_total: null,
-      is_bot_summary: false,
-      duplicate_signature_count: 1,
-      changed_from: changes.map(([label, , before]) => `${label}: ${String(before || "เดิม")}`).join("\n"),
-      changed_to: changes.map(([label, , , after]) => `${label}: ${String(after || "ใหม่")}`).join("\n"),
-      change_decision_minutes: row.change_decision_minutes,
-      last_chat_at: stamp,
-      last_chat_text: changeText || changes.map(([label]) => `${label}มีการเปลี่ยนแปลง`).join(" · "),
-      chat_message_count: 0,
-      telegram_actual_bill: firstText(row.telegram_message_web, plainTelegramText(firstText(row.telegram_message_for_send_final, row.telegram_message, row.telegram_main_bill, row.telegram_copy_text))),
-      telegram_send_status: row.telegram_status || row.delivery_status || row.telegram_sent,
-    };
-  }).filter((row: any) => row.changed_from || row.changed_to || asBoolean(row.customer_change_detected) || Boolean(String(row.telegram_change_alert_web || row.telegram_change_alert || "").trim()));
-  return rows
+  return (data ?? [])
     .filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query))
     .sort((a: any, b: any) => displayOrderSortKey(b.order_time_display) - displayOrderSortKey(a.order_time_display));
 }
@@ -497,51 +371,7 @@ export async function markBbOrderSentByKey(upsertKey: string, sourceTable: "🗝
   return row;
 }
 
-export type StockProduct = { id: number; sku: string; label: string; thName: string; emoji: string; price: number | null; stockQty: number; stockStatus: string | null; outOfStockJoke: string | null; stockNotice: string | null; aliases: string; inventoryId: number | string | null };
-export type ProductMapAlias = { id: string; alias: string; canonicalSku: string; canonicalLabel: string; isActive: boolean };
-
-export async function readProductMapAliases(): Promise<ProductMapAlias[]> {
-  const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  const [{ data: rows, error }, { data: products, error: productError }] = await Promise.all([
-    api.from("product_map_master").select("*").order("sku"),
-    api.from("🛒product_master").select("master_sku,master_display_for_packer,display_for_packer,name_standard,th_name,emoji,unit_price").order("master_sku")
-  ]);
-  if (error) fail(error);
-  if (productError) fail(productError);
-  const masters = new Map((products ?? []).map((p: any) => [String(p.master_sku ?? '').trim().toLowerCase(), p]));
-  const output: ProductMapAlias[] = [];
-  for (const row of rows ?? []) {
-    const sku = String(row.sku ?? '').trim();
-    const master = masters.get(sku.toLowerCase()) ?? {};
-    const aliases = [row.alias, row.alias_text].flatMap((v: any) => String(v ?? '').split(/[,\n|]+/)).map((v: string) => v.trim()).filter(Boolean);
-    for (const alias of Array.from(new Set(aliases))) output.push({ id: String(row.id ?? sku + ':' + alias), alias, canonicalSku: sku, canonicalLabel: master.master_display_for_packer ?? master.display_for_packer ?? master.name_standard ?? master.th_name ?? sku, isActive: row.is_active !== false });
-  }
-  return output;
-}
-
-export async function readProductMapCatalog() {
-  const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  const { data, error } = await api.from("🛒product_master").select("master_sku,master_display_for_packer,display_for_packer,name_standard,th_name,emoji,unit_price").order("master_sku");
-  if (error) fail(error);
-  return (data ?? []).map((p: any) => ({ sku: String(p.master_sku ?? ''), label: p.master_display_for_packer ?? p.display_for_packer ?? p.name_standard ?? p.th_name ?? p.master_sku ?? '', emoji: p.emoji ?? '📦', price: num(p.unit_price) }));
-}
-
-export async function saveProductMapAlias(input: { alias: string; canonicalSku: string }) {
-  const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  const alias = input.alias.trim(); const sku = input.canonicalSku.trim();
-  if (!alias || !sku) throw new Error('ต้องมี Alias และ SKU');
-  const { data: existing, error: readError } = await api.from('product_map_master').select('*').eq('sku', sku).maybeSingle();
-  if (readError) fail(readError);
-  const old = [existing?.alias, existing?.alias_text].flatMap((v: any) => String(v ?? '').split(/[,\n|]+/)).map((v: string) => v.trim()).filter(Boolean);
-  const aliases = Array.from(new Set([...old, alias]));
-  const payload: any = { sku, alias: aliases.join(', '), alias_text: aliases.join(', '), alias_norm: aliases.map(v => v.toLowerCase().replace(/\s+/g, '')).join(', ') };
-  const result = existing?.id != null ? await api.from('product_map_master').update(payload).eq('id', existing.id) : await api.from('product_map_master').insert(payload);
-  if (result.error) fail(result.error);
-  return { sku, alias, aliases };
-}
+export type StockProduct = { id: number; sku: string; label: string; thName: string; emoji: string; price: number | null; stockQty: number; stockStatus: string | null; outOfStockJoke: string | null; stockNotice: string | null; inventoryId: number | string | null };
 
 export async function readStockProducts(): Promise<StockProduct[]> {
   const api = getSupabase();
@@ -549,7 +379,7 @@ export async function readStockProducts(): Promise<StockProduct[]> {
   // Stock Room is intentionally a Product Master room for now.
   // It does not read inventory and it never deducts stock from orders.
   const { data: products, error } = await api.from("🛒product_master")
-    .select("id,master_sku,th_name,name_standard,master_display_for_packer,display_for_packer,emoji,unit_price,stock_qty,stock_status,stock_notice,alias")
+    .select("id,master_sku,th_name,name_standard,master_display_for_packer,display_for_packer,emoji,unit_price,stock_qty,stock_status,stock_notice")
     .order("master_sku");
   if (error) fail(error);
   return (products ?? []).map((p: any) => {
@@ -566,7 +396,6 @@ export async function readStockProducts(): Promise<StockProduct[]> {
       stockStatus: p.stock_status ?? (stockQty > 0 ? "IN_STOCK" : "OUT_OF_STOCK"),
       outOfStockJoke: null,
       stockNotice: p.stock_notice ?? null,
-      aliases: String(p.alias ?? ""),
       inventoryId: null,
     };
   });
@@ -597,7 +426,7 @@ const GENESIS_HISTORY_COLUMNS = [
   "address_display_packer", "addressclean", "province", "zipcode", "sku",
   "order_fibo_product", "for_packer_st_display", "manus_for_packer",
   "google_for_packer", "packer_tag_display", "packer_obj", "telegram_product_display",
-  "telegram_main_bill", "telegram_message", "telegram_message_for_send_final", "original",
+  "telegram_message", "original",
   "cod_amount", "expected_cod", "shipping_carrier", "source_table", "telegram_status",
   "telegram_sent", "sent_at", "telegram_sent_at"
 ].join(",");
@@ -626,22 +455,7 @@ export async function readGenesisOrderHistory(date: string) {
     .limit(1000);
   if (error) fail(error);
 
-  const orders = (data ?? []).map((row: any) => {
-    const product = row.telegram_product_display || row.order_fibo_product || row.for_packer_st_display
-      || row.manus_for_packer || row.google_for_packer || row.packer_tag_display || row.sku || row.original || "";
-    return {
-      ...row,
-      id: row.upsert_key || row.order_number_display || row.order_number,
-      order_number: row.order_number_display || row.order_number || row.upsert_key,
-      customer_name: row.customer_name || row.facebook_name,
-      phone: row.phone || row.extracted_phone,
-      full_address: row.final_address_for_bill || row.full_address || row.address_display_packer || row.addressclean,
-      product_display: product,
-      cod_amount: row.cod_amount ?? row.expected_cod,
-      thread_id: row.threadId || row.thread_id,
-      sent_label: "🔥SENT",
-    };
-  }).sort((a: any, b: any) => displayOrderSortKey(b.order_time_display) - displayOrderSortKey(a.order_time_display));
+  const orders = (data ?? []).sort((a: any, b: any) => displayOrderSortKey(b.order_time_display) - displayOrderSortKey(a.order_time_display));
 
   return { orders, total: orders.length, sourceView: "🌟GENESIS_xXx_HISTORY", fetchedAt: new Date().toISOString() };
 }
@@ -658,11 +472,6 @@ export async function readTelegramSentHistory(search = "") {
   const needle = search.trim().toLocaleLowerCase();
   const orders = (data ?? []).map((row: any) => ({
     ...row,
-    id: row.upsert_key || row.order_number_display || row.order_number,
-    order_number: row.order_number_display || row.order_number || row.upsert_key,
-    customer_name: row.customer_name || row.facebook_name,
-    phone: row.phone || row.extracted_phone,
-    cod_amount: row.cod_amount ?? row.expected_cod,
     source_view: "🌟GENESIS_xXx_HISTORY",
   })).filter((row: Record<string, any>) => !needle || [
     row.upsert_key, row.order_number, row.order_number_display, row.customer_name,
@@ -739,29 +548,9 @@ async function readChatRows() {
   ];
   return rows.sort((a, b) => new Date(a._occurred || a.occurred_at || a.synced_at || 0).getTime() - new Date(b._occurred || b.occurred_at || b.synced_at || 0).getTime());
 }
-export function orderThreadAliases(order: any): string[] {
-  return Array.from(new Set([order.thread_id, order.threadId, order.conversation_key, order.conversation_id]
-    .map(value => String(value ?? "").trim()).filter(Boolean)));
-}
-export function orderIdentity(order: any): string {
-  for (const [field, prefix] of [["order_number", "order"], ["upsert_key", "upsert"], ["id", "id"]] as const) {
-    const value = String(order[field] ?? "").trim();
-    if (value) return `${prefix}:${value}`;
-  }
-  return "";
-}
-export function codSignalIdentity(row: any): string {
-  const text = String(row?._text ?? row?.message_text ?? row?.message_raw ?? "");
-  if (!hasCodOrderSignal(text)) return "";
-  const speaker = String(row?._speaker ?? row?.speaker_type ?? row?.speaker ?? "unknown");
-  const messageId = String(row?.source_message_id || row?.message_id || row?.id || "").trim();
-  const identity = messageId || `${row?._occurred || row?.occurred_at || row?.created_at || ""}:${text}`;
-  return `${speaker}:${identity}`;
-}
 export async function readChatThreads() {
   const rows = await readChatRows();
   const map = new Map<string, any>();
-  const codMessagesByRoom = new Map<string, Set<string>>();
   for (const row of rows) {
     const pageId = String(row.page_id ?? row.pageId ?? "").trim();
     const threadId = String(row._thread ?? "").trim();
@@ -769,8 +558,7 @@ export async function readChatThreads() {
     const current = map.get(key) ?? {
       key, pageId, threadId, customerId: row.customer_id, pageName: row.page_name || "ไม่ระบุเพจ",
       customerName: row.customer_name || row._name || "ลูกค้า", latestAt: row._occurred || row.occurred_at || row.synced_at,
-      latestOrderNumber: null, preview: row._text || (row._hasAttachment ? "[ไฟล์แนบ]" : ""),
-      orderCount: 0, codSignalCount: 0, orderCountError: null, unread: false, messageCount: 0, orders: [], chatTimeline: [],
+      preview: row._text || (row._hasAttachment ? "[ไฟล์แนบ]" : ""), unread: false, messageCount: 0, chatTimeline: [],
     };
     current.latestAt = row._occurred || row.occurred_at || row.synced_at || current.latestAt;
     current.preview = row._text || (row._hasAttachment ? "[ไฟล์แนบ]" : current.preview);
@@ -783,24 +571,8 @@ export async function readChatThreads() {
       if (row[field] != null && String(row[field]).trim()) current[field] = row[field];
     }
 
-    // COD keyword only: no template, product, address, phone, amount, or speaker gate.
-    const signalKey = codSignalIdentity(row);
-    if (signalKey) {
-      const seen = codMessagesByRoom.get(key) ?? new Set<string>();
-      if (!seen.has(signalKey)) {
-        seen.add(signalKey);
-        codMessagesByRoom.set(key, seen);
-        current.codSignalCount += 1;
-      }
-    }
     map.set(key, current);
   }
-
-  // ChatHub เป็นห้องของสาย 2 เท่านั้น:
-  // parcels → SHADOW → ROGUE → VOID → page_tokens_vault → Messenger
-  // ห้ามอ่าน 🗝️HERMES_ARCHIVE จากห้องนี้ เพราะเป็นสายออเดอร์หลักคนละ pipeline
-  // รายละเอียดออเดอร์/เลขพัสดุจะถูกเติมจาก parcels.mappingQueue ใน ChatHub แทน
-  Array.from(map.values()).forEach(thread => { thread.orderCountError = null; });
   return Array.from(map.values()).sort((a, b) => new Date(b.latestAt || 0).getTime() - new Date(a.latestAt || 0).getTime());
 }
 export async function readChatMessages(pageId: string, threadId: string) { const rows = await readChatRows(); return rows.filter(row => String(row.page_id) === String(pageId) && String(row._thread) === String(threadId)).map((row: any) => ({ id: row.id, text: row._text || (row._hasAttachment ? "ส่งรูปภาพ" : ""), message_text: row._text, direction: row._speaker === "page" ? "outbound" : "inbound", senderType: row._speaker, senderName: row._name, side: row._side, occurredAt: row._occurred || row.occurred_at || row.synced_at, attachmentsJson: JSON.stringify(row.attachments_json || []), imageUrls: row.image_urls || [] })); }
@@ -901,134 +673,4 @@ export async function searchThailandPostalMaster(raw: string): Promise<PostalMas
     seen.add(key);
     return true;
   }) as PostalMasterMatch[];
-}
-export async function readDailyChatSummary(date: string) {
-  const rows = await readChatRows(); let orders: any[] = [];
-  try { const orderResult = await readCanonicalOrders("", new Date(date + "T00:00:00+07:00").toISOString()); orders = orderResult.orders; } catch { /* keep chat summary usable when canonical view is unavailable */ }
-  const ordersByRoom = new Map(orders.map((order: any) => [String(order.page_id ?? "") + ":" + String(order.thread_id ?? ""), order]));
-  const dayRows = rows.filter(row => { const value = row._occurred || row.occurred_at || row.synced_at; return value && new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok" }).format(new Date(value)) === date; });
-  const map = new Map<string, any>();
-  for (const row of dayRows) {
-    const key = String(row.page_id ?? "") + ":" + String(row._thread ?? ""); const current = map.get(key) ?? { customerName: row.customer_name || row._name || "ไม่ระบุชื่อ", customerId: row.customer_id || "", pageName: row.page_name || "ไม่ระบุเพจ", pageId: row.page_id, threadId: row._thread, customerMessages: 0, pageMessages: 0, orderSignals: 0, signalScore: 0, signalReasons: [], coreSignalCount: 0, flowSignalCount: 0, qualifiedSignal: false, snippets: [], latestAt: row._occurred || row.occurred_at || row.synced_at, customerText: [], pageText: [], latestCod: null };
-    const text = row._text || (row._hasAttachment ? "[ไฟล์แนบ]" : ""); if (row._speaker === "customer") { current.customerMessages += 1; current.customerText.push(text); } else { current.pageMessages += 1; current.pageText.push(text); }
-    current.latestAt = row._occurred || row.occurred_at || row.synced_at || current.latestAt; const cod = parseCod(text); if (cod != null) current.latestCod = cod;
-    const signal = scoreDailyOrderSignal(text, cod); if (signal.qualified) current.orderSignals += 1; current.signalScore += signal.score; current.coreSignalCount += signal.coreCount; current.flowSignalCount += signal.flowCount; current.qualifiedSignal ||= signal.qualified; current.signalReasons.push(...signal.reasons);
-    if (text.trim()) current.snippets.push(text.slice(0, 300)); map.set(key, current);
-  }
-  const threads = Array.from(map.values()).map(row => { const order = ordersByRoom.get(String(row.pageId ?? "") + ":" + String(row.threadId ?? "")) as any; return { ...row, sourceText: order?.source_text || order?.source_payload?.source_text || "", productDisplay: order?.display_for_packer || order?.items_text || "", snippets: row.snippets.slice(-8), signalReasons: Array.from(new Set(row.signalReasons)).slice(-12), orderSignalsText: row.latestCod != null ? "COD ล่าสุด " + row.latestCod.toLocaleString("th-TH") + " บาท" : "ไม่พบ COD" }; });
-  return { date, threads, totalMessages: dayRows.length, customerMessages: dayRows.filter(r => r._speaker === "customer").length, pageMessages: dayRows.filter(r => r._speaker === "page").length, threadCount: threads.length, orderSignalThreads: threads.filter(r => r.orderSignals > 0).length };
-}
-export type AlienReviewItem = Record<string, any> & { audit_status: string; raw_display: string; mapped_display: string; customer_history: string[] };
-export async function readAlienReview(search = ''): Promise<AlienReviewItem[]> {
-  const api = getSupabase();
-  if (!api) fail({ message: 'ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key' });
-  const camp = getActiveCamp();
-  const orderTable = defaultOrderView(camp);
-  const inspectorView = 'vw_bb_alien_master_center';
-  const [ordersResult, masterResult, aliasResult, inventoryResult, inspectorResult] = await Promise.all([
-    api.from(orderTable).select(HERMES_WEB_ORDER_COLUMNS).order('order_time_display', { ascending: false }).limit(ORDER_OPERATIONAL_LIMIT),
-    // Read the existing tables without assuming a particular SKU column name.
-    // Some Supabase projects use master_sku/product_code instead of sku.
-    api.from("🛒product_master").select('*').limit(1500),
-    api.from('product_map_master').select('*').limit(3000),
-    api.from('inventory').select('*'),
-    api.from(inspectorView).select('*').limit(2000),
-  ]);
-  if (ordersResult.error) fail(ordersResult.error);
-  if (masterResult.error) fail(masterResult.error);
-  if (aliasResult.error) fail(aliasResult.error);
-  // Inventory is supplementary. If the table is not connected yet or RLS
-  // hides it, keep the raw/master inspection alive and report STOCK_UNKNOWN.
-
-  const productKey = (row: any) => String(row.sku ?? row.master_sku ?? row.product_sku ?? row.product_code ?? row.code ?? '').trim();
-  // product_master is shared by BB and has no store_code column. Do not
-  // filter by a non-existent column, otherwise the Master/stock lookup is
-  // coupled to an unsupported schema.
-  const masters: any[] = masterResult.data ?? [];
-  const bySku = new Map<string, any>(masters
-    .map((master: any): [string, any] => [productKey(master).toLowerCase(), master])
-    .filter(([key]) => Boolean(key)));
-  const inventoryByKey = new Map<string, any>();
-  for (const stock of inventoryResult.data ?? []) {
-    if (stock.product_id != null) inventoryByKey.set(`id:${String(stock.product_id)}`, stock);
-    const stockSku = productKey(stock).toLowerCase();
-    if (stockSku) inventoryByKey.set(`sku:${stockSku}`, stock);
-  }
-  const normalize = (value: any) => String(value ?? '').toLowerCase().normalize('NFKC').replace(/[\s_\-.,:;|()[\]{}]+/g, '').trim();
-  const aliasToSku = new Map<string, string>();
-  for (const row of aliasResult.data ?? []) {
-    const sku = productKey(row);
-    if (!sku) continue;
-    for (const value of [row.alias, row.alias_text, row.alias_norm].flatMap((v: any) => String(v ?? '').split(/[,\n|]+/)).map((v: string) => v.trim()).filter(Boolean)) {
-      const key = normalize(value);
-      if (key) aliasToSku.set(key, sku);
-    }
-  }
-
-  const query = search.trim().toLowerCase();
-  const inspectorByKey = new Map<string, any>();
-  for (const item of inspectorResult.data ?? []) {
-    const key = String(item.upsert_key ?? item.order_number ?? '').trim();
-    if (key) inspectorByKey.set(key, item);
-  }
-  return (ordersResult.data ?? []).map((sourceOrder: any) => {
-    // The order table remains the no-drop source. The inspector view only
-    // enriches it with verified Master/quantity/inventory fields.
-    const order = { ...sourceOrder, ...(inspectorByKey.get(String(sourceOrder.upsert_key ?? sourceOrder.order_number ?? '').trim()) ?? {}) };
-    const history = [
-      ...(Array.isArray(order.normalized_chat_timeline) ? order.normalized_chat_timeline : []),
-      ...(Array.isArray(order.chat_timeline) ? order.chat_timeline : []),
-    ].map((value: any) => String(value)).filter(Boolean);
-    const rawCandidates = [
-      order.raw_text,
-      order.raw_item_text,
-      order.raw_product_text,
-      order.extracted_product_raw,
-      order.product_lines,
-      order.sniper_x_text_clean,
-    ].map((value: any) => String(value ?? '').trim()).filter(Boolean);
-    const raw = rawCandidates.find((value: string) => !/CHECK_SKU|ระบุสินค้าไม่ได้/i.test(value)) || rawCandidates[0] || '';
-    const evidenceText = [raw, ...history].join('\n');
-    const rawNormalized = normalize(evidenceText);
-    const aliasSku = Array.from(aliasToSku.entries()).find(([alias]) => alias.length >= 3 && rawNormalized.includes(alias))?.[1] ?? '';
-    const sourceSku = String(order.sku ?? order.extracted_sku ?? '').trim();
-    const resolvedSku = sourceSku || aliasSku;
-    const master: any = bySku.get(resolvedSku.toLowerCase());
-    const inventory: any = master?.id != null
-      ? inventoryByKey.get(`id:${String(master.id)}`) ?? inventoryByKey.get(`sku:${resolvedSku.toLowerCase()}`)
-      : inventoryByKey.get(`sku:${resolvedSku.toLowerCase()}`);
-    // Prefer the final product fields produced by the current bill-builder node.
-    // Do not infer or translate product names in the web room.
-    const masterDisplay = firstText(order.master_display_for_packer, order.final_display_for_packer, order.final_product, order.for_packer_st_display, order.manus_for_packer, order.sku);
-    const mappingStatus = String(order.mapping_status ?? order.match_status ?? '').toUpperCase();
-    const matched = Boolean(masterDisplay && (mappingStatus === 'MATCHED' || mappingStatus === 'RESOLVED' || Boolean(aliasSku)));
-    const audit_status = matched ? 'MATCHED' : 'REVIEW';
-    const customerHistory = Array.from(new Set(history));
-    const row = {
-      ...order,
-      store_code: order.store_code ?? camp,
-      sku: resolvedSku || null,
-      raw_display: raw || 'ไม่มีคำดิบ',
-      mapped_display: matched ? masterDisplay : '',
-      master_display_for_packer: masterDisplay || null,
-      audit_status,
-      mapping_status: mappingStatus || 'REVIEW',
-      alias_match: Boolean(aliasSku),
-      alias_match_sku: aliasSku || null,
-      alias_match_method: aliasSku ? 'product_map_master' : null,
-      customer_history: customerHistory,
-      customer_history_count: order.chat_timeline_count ?? customerHistory.length,
-      product_source: order.product_source ?? null,
-      product_evidence: order.product_evidence ?? null,
-      address_completeness: order.address_completeness ?? null,
-      // Inventory is the stock truth; product_master is only the product
-      // catalogue and display source.
-      stock_status: inventory?.stock_status ?? 'STOCK_UNKNOWN',
-      stock_qty: inventory?.stock_qty ?? inventory?.quantity ?? null,
-      available_qty: inventory?.stock_qty ?? inventory?.quantity ?? null,
-      unit_price: order.unit_price ?? master?.unit_price ?? null,
-      price_mismatch: false,
-    };
-    return row;
-  }).filter((row: AlienReviewItem) => !query || JSON.stringify(row).toLowerCase().includes(query));
 }
