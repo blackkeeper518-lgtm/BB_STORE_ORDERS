@@ -1,0 +1,240 @@
+/*
+ * BB STORE ORDERS · CYBERPUNK NEON LAYER
+ * Target: client/src/index.css and OrderControl UI
+ * Usage: append this stylesheet after the existing CSS (or import it from the app entry).
+ * Visual-only styles; does not change queries, event handlers, data, or business logic.
+ *
+ * Layout hooks for the requested clock/refresh placement:
+ *   .ds-command-header        — hero/header row
+ *   .ds-bangkok-clock         — clock panel (place as the last header child)
+ *   .ds-total-orders-card     — total-orders summary card
+ *   .ds-refresh-inline        — refresh button (must be rendered inside total-orders card)
+ * These hooks are intentionally opt-in. CSS cannot move a button between React parents.
+ */
+
+:root {
+  --bb-space-bg: #070510;
+  --bb-space-panel: #100a1d;
+  --bb-space-panel-hi: #17102b;
+  --bb-neon-pink: #ff4ecb;
+  --bb-neon-violet: #aa62ff;
+  --bb-neon-cyan: #4cecff;
+  --bb-neon-green: #58ffc1;
+  --bb-neon-amber: #ffc45c;
+  --bb-neon-red: #ff668f;
+  --bb-space-line: rgba(188, 122, 255, .26);
+  --bb-space-text: #f7f2ff;
+  --bb-space-muted: #a998bf;
+}
+
+/* Orders route canvas — identifies the existing OrderControl root from source. */
+#root [class*="min-h-[calc(100vh-2rem)]"] {
+  position: relative;
+  isolation: isolate;
+  color: var(--bb-space-text);
+  background-color: var(--bb-space-bg) !important;
+  background-image:
+    radial-gradient(ellipse at 8% 0%, rgba(155, 72, 255, .22), transparent 34rem),
+    radial-gradient(ellipse at 94% 8%, rgba(255, 55, 188, .14), transparent 31rem),
+    radial-gradient(ellipse at 54% 100%, rgba(41, 204, 255, .09), transparent 39rem),
+    linear-gradient(rgba(149, 91, 255, .035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(149, 91, 255, .035) 1px, transparent 1px) !important;
+  background-size: auto, auto, auto, 34px 34px, 34px 34px !important;
+}
+
+#root [class*="min-h-[calc(100vh-2rem)]"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: .19;
+  background-image:
+    radial-gradient(circle, rgba(255,255,255,.9) 0 1px, transparent 1.6px),
+    radial-gradient(circle, rgba(76,236,255,.85) 0 1px, transparent 1.8px);
+  background-position: 16px 25px, 89px 112px;
+  background-size: 149px 163px, 223px 197px;
+}
+
+/* Header becomes a glowing command-deck surface, not a flat dark slab. */
+#root [class*="min-h-[calc(100vh-2rem)]"] header {
+  border-color: rgba(191, 115, 255, .46) !important;
+  background:
+    radial-gradient(ellipse at 78% 0%, rgba(70, 221, 255, .11), transparent 34%),
+    linear-gradient(112deg, rgba(28, 12, 46, .97), rgba(13, 9, 27, .96) 56%, rgba(36, 10, 42, .95)) !important;
+  box-shadow:
+    0 0 0 1px rgba(246, 75, 205, .07),
+    0 0 25px rgba(170, 98, 255, .20),
+    0 0 56px rgba(255, 78, 203, .08),
+    inset 0 0 28px rgba(120, 68, 255, .08) !important;
+}
+
+#root [class*="min-h-[calc(100vh-2rem)]"] header h1 {
+  color: #fff8ff;
+  text-shadow: 0 0 16px rgba(255, 91, 212, .30), 0 0 34px rgba(98, 218, 255, .12);
+}
+
+/* Neon glass cards throughout the Orders route. */
+#root [class*="min-h-[calc(100vh-2rem)]"] [data-slot="card"] {
+  position: relative;
+  isolation: isolate;
+  border-color: rgba(166, 115, 255, .37) !important;
+  background:
+    linear-gradient(145deg, rgba(24, 14, 42, .96), rgba(11, 9, 24, .97)) !important;
+  box-shadow:
+    0 0 0 1px rgba(171, 100, 255, .08),
+    0 0 17px rgba(156, 82, 255, .15),
+    0 13px 35px rgba(0, 0, 0, .30),
+    inset 0 0 18px rgba(102, 77, 255, .055) !important;
+  transition: border-color .22s ease, box-shadow .22s ease, transform .22s ease;
+}
+
+#root [class*="min-h-[calc(100vh-2rem)]"] [data-slot="card"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  padding: 1px;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: .64;
+  background: linear-gradient(118deg, rgba(255, 78, 203, .78), transparent 26%, rgba(76, 236, 255, .62) 72%, rgba(170, 98, 255, .72));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+#root [class*="min-h-[calc(100vh-2rem)]"] [data-slot="card"] > * {
+  position: relative;
+  z-index: 1;
+}
+
+#root [class*="min-h-[calc(100vh-2rem)]"] [data-slot="card"]:hover {
+  border-color: rgba(90, 225, 255, .70) !important;
+  box-shadow:
+    0 0 0 1px rgba(76, 236, 255, .12),
+    0 0 24px rgba(76, 236, 255, .19),
+    0 0 34px rgba(255, 78, 203, .10),
+    0 16px 38px rgba(0, 0, 0, .34),
+    inset 0 0 22px rgba(111, 72, 255, .08) !important;
+}
+
+/* The existing OrderControl stats grid: five cards get independent signal colors. */
+#root [class*="min-h-[calc(100vh-2rem)]"] .grid[class~="grid-cols-2"][class~="xl:grid-cols-5"] > [data-slot="card"]:nth-child(1) {
+  --bb-stat-neon: var(--bb-neon-pink);
+  border-color: rgba(255, 78, 203, .57) !important;
+  background: linear-gradient(145deg, rgba(72, 16, 58, .58), rgba(16, 9, 29, .97)) !important;
+  box-shadow: 0 0 20px rgba(255, 78, 203, .24), inset 0 0 18px rgba(255, 78, 203, .07) !important;
+}
+#root [class*="min-h-[calc(100vh-2rem)]"] .grid[class~="grid-cols-2"][class~="xl:grid-cols-5"] > [data-slot="card"]:nth-child(2) {
+  --bb-stat-neon: var(--bb-neon-green);
+  border-color: rgba(88, 255, 193, .50) !important;
+  background: linear-gradient(145deg, rgba(10, 57, 49, .48), rgba(12, 12, 28, .97)) !important;
+  box-shadow: 0 0 19px rgba(88, 255, 193, .20), inset 0 0 18px rgba(88, 255, 193, .06) !important;
+}
+#root [class*="min-h-[calc(100vh-2rem)]"] .grid[class~="grid-cols-2"][class~="xl:grid-cols-5"] > [data-slot="card"]:nth-child(3) {
+  --bb-stat-neon: var(--bb-neon-amber);
+  border-color: rgba(76, 236, 255, .56) !important;
+  background: linear-gradient(145deg, rgba(10, 48, 67, .56), rgba(10, 11, 29, .97)) !important;
+  box-shadow: 0 0 20px rgba(76, 236, 255, .22), inset 0 0 18px rgba(76, 236, 255, .06) !important;
+}
+#root [class*="min-h-[calc(100vh-2rem)]"] .grid[class~="grid-cols-2"][class~="xl:grid-cols-5"] > [data-slot="card"]:nth-child(4) {
+  --bb-stat-neon: var(--bb-neon-violet);
+  border-color: rgba(170, 98, 255, .59) !important;
+  background: linear-gradient(145deg, rgba(48, 20, 79, .54), rgba(12, 10, 29, .97)) !important;
+  box-shadow: 0 0 20px rgba(170, 98, 255, .25), inset 0 0 18px rgba(170, 98, 255, .06) !important;
+}
+#root [class*="min-h-[calc(100vh-2rem)]"] .grid[class~="grid-cols-2"][class~="xl:grid-cols-5"] > [data-slot="card"]:nth-child(5) {
+  --bb-stat-neon: #65c5ff;
+  border-color: rgba(101, 197, 255, .56) !important;
+  background: linear-gradient(145deg, rgba(17, 39, 76, .55), rgba(10, 11, 29, .97)) !important;
+  box-shadow: 0 0 19px rgba(101, 197, 255, .22), inset 0 0 18px rgba(101, 197, 255, .06) !important;
+}
+
+#root [class*="min-h-[calc(100vh-2rem)]"] .grid[class~="grid-cols-2"][class~="xl:grid-cols-5"] > [data-slot="card"] p:nth-of-type(2) {
+  color: var(--bb-stat-neon, #f7f2ff) !important;
+  text-shadow: 0 0 13px color-mix(in srgb, var(--bb-stat-neon, #aa62ff) 40%, transparent);
+}
+
+/* Scroll-friendly order list rows and form controls. */
+#root [class*="min-h-[calc(100vh-2rem)]"] button.group[class~="mb-2"][class~="rounded-2xl"] {
+  border-color: rgba(175, 118, 255, .22) !important;
+  background: linear-gradient(110deg, rgba(30, 16, 48, .72), rgba(12, 10, 25, .72)) !important;
+  box-shadow: inset 0 0 16px rgba(155, 82, 255, .045);
+}
+#root [class*="min-h-[calc(100vh-2rem)]"] button.group[class~="mb-2"][class~="rounded-2xl"]:hover {
+  border-color: rgba(76, 236, 255, .57) !important;
+  box-shadow: 0 0 17px rgba(76, 236, 255, .14), inset 0 0 18px rgba(255, 78, 203, .05) !important;
+}
+#root [class*="min-h-[calc(100vh-2rem)]"] input:not([type="checkbox"]),
+#root [class*="min-h-[calc(100vh-2rem)]"] textarea,
+#root [class*="min-h-[calc(100vh-2rem)]"] select {
+  border-color: rgba(172, 122, 255, .31) !important;
+  background-color: rgba(8, 7, 22, .76) !important;
+}
+#root [class*="min-h-[calc(100vh-2rem)]"] input:focus,
+#root [class*="min-h-[calc(100vh-2rem)]"] textarea:focus,
+#root [class*="min-h-[calc(100vh-2rem)]"] select:focus {
+  border-color: rgba(76, 236, 255, .78) !important;
+  box-shadow: 0 0 0 2px rgba(76, 236, 255, .12), 0 0 17px rgba(76, 236, 255, .13) !important;
+}
+
+/* Optional layout hooks: add these classes in OrderControl.tsx for the requested moves. */
+.ds-command-header {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center !important;
+  gap: 1.25rem;
+}
+.ds-bangkok-clock {
+  justify-self: end;
+  margin-inline-start: auto;
+}
+.ds-total-orders-card {
+  position: relative !important;
+  padding-inline-end: 3.5rem !important;
+}
+.ds-refresh-inline {
+  position: absolute !important;
+  top: .65rem;
+  right: .65rem;
+  z-index: 2;
+  min-height: 1.75rem !important;
+  padding: .25rem .5rem !important;
+  border-color: rgba(76, 236, 255, .38) !important;
+  color: #bff8ff !important;
+  background: rgba(5, 27, 38, .64) !important;
+  box-shadow: 0 0 12px rgba(76, 236, 255, .16);
+}
+.ds-refresh-inline:hover {
+  border-color: var(--bb-neon-cyan) !important;
+  box-shadow: 0 0 18px rgba(76, 236, 255, .32) !important;
+}
+
+@keyframes bb-neon-card-breathe {
+  0%, 100% { filter: saturate(1); }
+  50% { filter: saturate(1.12); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  #root [class*="min-h-[calc(100vh-2rem)]"] .grid[class~="grid-cols-2"][class~="xl:grid-cols-5"] > [data-slot="card"] {
+    animation: bb-neon-card-breathe 5.5s ease-in-out infinite;
+  }
+  #root [class*="min-h-[calc(100vh-2rem)]"] .grid[class~="grid-cols-2"][class~="xl:grid-cols-5"] > [data-slot="card"]:nth-child(2) { animation-delay: .7s; }
+  #root [class*="min-h-[calc(100vh-2rem)]"] .grid[class~="grid-cols-2"][class~="xl:grid-cols-5"] > [data-slot="card"]:nth-child(3) { animation-delay: 1.4s; }
+  #root [class*="min-h-[calc(100vh-2rem)]"] .grid[class~="grid-cols-2"][class~="xl:grid-cols-5"] > [data-slot="card"]:nth-child(4) { animation-delay: 2.1s; }
+  #root [class*="min-h-[calc(100vh-2rem)]"] .grid[class~="grid-cols-2"][class~="xl:grid-cols-5"] > [data-slot="card"]:nth-child(5) { animation-delay: 2.8s; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #root [class*="min-h-[calc(100vh-2rem)]"] *,
+  #root [class*="min-h-[calc(100vh-2rem)]"] *::before,
+  #root [class*="min-h-[calc(100vh-2rem)]"] *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}
+@media (max-width: 639px) {
+  .ds-command-header { grid-template-columns: 1fr; }
+  .ds-bangkok-clock { justify-self: stretch; margin-inline-start: 0; }
+  .ds-refresh-inline { top: .45rem; right: .45rem; }
+}
