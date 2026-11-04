@@ -47,9 +47,9 @@ export default function AlertRoom() {
       <div className="hero-scanline" />
       <div className="relative z-10 flex flex-wrap items-start justify-between gap-5">
         <div>
-          <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.32em] text-fuchsia-300"><ShieldAlert className="h-4 w-4" /> BLACKBOX ROOM <span className="text-cyan-300/80">/ DEATH NOTE</span></div>
-          <h1 className="mt-3 font-mono text-3xl font-semibold tracking-tight text-white sm:text-5xl">บัญชีดำ · ประวัติออเดอร์</h1>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-fuchsia-100/60">ดึงจาก 💀THANATOS_xXx_DEATH_NOTE · ตรวจออเดอร์สีดำ รอยบอท การเปลี่ยนสินค้า และหลักฐานก่อนส่ง</p>
+          <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.32em] text-fuchsia-300"><ShieldAlert className="h-4 w-4" /> BLACKBOX ROOM <span className="text-cyan-300/80">/ ORDER TRACE</span></div>
+          <h1 className="mt-3 font-mono text-3xl font-semibold tracking-tight text-white sm:text-5xl">ประวัติเปลี่ยนของ</h1>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-fuchsia-100/60">เรียงประวัติการเปลี่ยนตาม order_time_display เท่านั้น · ดูรายการเดิม → รายการใหม่</p>
         </div>
         <div className="flex items-center gap-2"><div className="live-chip"><span className="live-dot" />LIVE · 30s</div><Button variant="outline" onClick={() => query.refetch()} className="border-fuchsia-300/35 bg-fuchsia-500/10 text-fuchsia-100 hover:bg-fuchsia-500/20"><RefreshCw className={query.isFetching ? "mr-2 h-4 w-4 animate-spin" : "mr-2 h-4 w-4"} />สแกนใหม่</Button></div>
       </div>
