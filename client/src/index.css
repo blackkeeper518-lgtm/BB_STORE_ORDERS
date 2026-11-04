@@ -21,7 +21,10 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 @media (min-width:640px) { .container { padding-inline:1.5rem; } } @media (min-width:1024px) { .container { max-width:1280px; padding-inline:2rem; } }
 @media (prefers-reduced-motion:no-preference) { button,a,input,textarea { transition:border-color 160ms ease-out,box-shadow 160ms ease-out,background-color 160ms ease-out,transform 160ms ease-out; } button:active,[role="button"]:active { transform:scale(.98); } }
 
+/*⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘ */
 /* Global cyberpunk migration layer: keeps the existing business logic and swaps visual tokens everywhere. */
+/* ⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘ */
+
 .singto-cyber-edge { position:relative; isolation:isolate; display:flex; width:100%; min-width:0; min-height:100%; height:100dvh; overflow:hidden; }
 .singto-cyber-edge::before { content:""; position:absolute; inset:0; pointer-events:none; border:1px solid transparent; border-radius:inherit; background:linear-gradient(90deg,transparent,rgba(255,74,191,.85),rgba(102,239,255,.75),transparent) border-box; background-size:200% 100%; animation:cyber-edge-scan 4s linear infinite; -webkit-mask:linear-gradient(#000 0 0) padding-box,linear-gradient(#000 0 0); -webkit-mask-composite:xor; mask-composite:exclude; z-index:20; }
 .singto-cyber-edge::after { content:""; position:absolute; inset:0; pointer-events:none; background:repeating-linear-gradient(0deg,transparent 0,transparent 3px,rgba(255,78,199,.045) 4px); z-index:19; }
@@ -41,8 +44,10 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 [class*="focus\\:ring-orange-"]:focus { --tw-ring-color:#f254d0 !important; }
 @media (prefers-reduced-motion:reduce) { .singto-cyber-edge::before { animation:none; } }
 
-
+/*⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘ */
 /* BB Telegram delivery room: pink-violet identity, moving light, no orange UI */
+/* ⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘ */
+
 .bb-telegram-room { background: radial-gradient(circle at 15% 0%, rgba(184, 70, 255, .14), transparent 28rem), radial-gradient(circle at 90% 10%, rgba(255, 55, 192, .12), transparent 26rem); }
 .bb-telegram-room .bb-running-line { background: linear-gradient(90deg, transparent, #ff4fc8, #9b5cff, #57e9ff, transparent); background-size: 220% 100%; animation: bb-running-light 2.8s linear infinite; box-shadow: 0 0 18px rgba(255, 79, 200, .7); }
 .bb-running-light { background: #ff55c9; box-shadow: 0 0 12px #ff55c9; animation: bb-pulse-light 1.3s ease-in-out infinite; }
@@ -57,7 +62,10 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 @keyframes bb-pulse-light { 0%, 100% { opacity: .55; transform: scale(.8); } 50% { opacity: 1; transform: scale(1.25); } }
 @keyframes bb-send-glow { 0%, 100% { box-shadow: 0 0 12px rgba(255, 62, 207, .28); } 50% { box-shadow: 0 0 28px rgba(255, 62, 207, .62); } }
 
+/*⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘ */
 /* BLACKBOX ROOM — neon trace console */
+/* ⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘ */
+
 .blackbox-room { background: radial-gradient(circle at 76% 0%, rgba(255, 57, 201, .08), transparent 24rem), radial-gradient(circle at 18% 18%, rgba(128, 45, 255, .08), transparent 30rem); }
 .blackbox-hero { background-image: linear-gradient(115deg, rgba(30, 10, 46, .96), rgba(16, 7, 28, .96) 55%, rgba(22, 10, 35, .94)); }
 .hero-scanline { position:absolute; inset:0; pointer-events:none; background: repeating-linear-gradient(0deg, transparent 0, transparent 5px, rgba(255, 82, 210, .035) 6px); opacity:.7; }
@@ -80,9 +88,16 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 @keyframes ticker-slide { from { transform:translateX(100%); } to { transform:translateX(-100%); } }
 .live-chip { display:inline-flex; align-items:center; gap:.45rem; border:1px solid rgba(88,239,255,.28); border-radius:999px; padding:.45rem .7rem; color:#9df5ff; background:rgba(52,218,255,.08); font:600 10px/1 'IBM Plex Mono',monospace; letter-spacing:.08em; }
 .live-dot { width:7px; height:7px; border-radius:50%; background:#69efff; box-shadow:0 0 12px #69efff; animation:bb-live-pulse 1.3s ease-in-out infinite; }
-.signal-metric { position:relative; overflow:hidden; border:1px solid rgba(255,255,255,.08); border-radius:1.1rem; padding:1rem; background:rgba(0,0,0,.22); box-shadow:inset 0 0 25px rgba(255,255,255,.015); }
-.signal-metric::after { content:""; position:absolute; right:-25px; bottom:-35px; width:95px; height:95px; border-radius:50%; background:currentColor; opacity:.06; filter:blur(10px); }
-.signal-pink { color:#ff5acb; border-color:rgba(255,90,203,.2); } .signal-violet { color:#a875ff; border-color:rgba(168,117,255,.2); } .signal-cyan { color:#5de9ff; border-color:rgba(93,233,255,.2); } .signal-fuchsia { color:#e55cff; border-color:rgba(229,92,255,.2); }
+
+/*⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘ */
+/* ⫘ NEON METRIC CARDS · แก้การ์ดป้ายไฟทั้งชุดตรงบล็อกนี้ */
+/* ⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘ */
+
+.signal-metric { position:relative; isolation:isolate; overflow:hidden; min-height:105px; border:1px solid currentColor; border-radius:1.1rem; padding:1rem; background:linear-gradient(145deg,rgba(7,10,25,.96),rgba(12,12,30,.72)); box-shadow:0 0 8px currentColor,0 0 24px color-mix(in srgb,currentColor 30%,transparent),inset 0 0 22px color-mix(in srgb,currentColor 14%,transparent); transition:transform .18s ease,box-shadow .18s ease,filter .18s ease; }
+.signal-metric::before { content:""; position:absolute; z-index:-1; inset:0; background:radial-gradient(circle at 12% 0%,color-mix(in srgb,currentColor 28%,transparent),transparent 58%),linear-gradient(115deg,color-mix(in srgb,currentColor 13%,transparent),transparent 62%); opacity:.9; }
+.signal-metric::after { content:""; position:absolute; right:-25px; bottom:-35px; width:125px; height:125px; border-radius:50%; background:currentColor; opacity:.19; filter:blur(18px); box-shadow:0 0 35px currentColor; }
+.signal-metric:hover { transform:translateY(-3px); filter:brightness(1.2); box-shadow:0 0 12px currentColor,0 0 34px color-mix(in srgb,currentColor 55%,transparent),inset 0 0 30px color-mix(in srgb,currentColor 20%,transparent); }
+.signal-pink { color:#ff5acb; } .signal-violet { color:#a875ff; } .signal-cyan { color:#5de9ff; } .signal-green { color:#61ffb4; } .signal-fuchsia { color:#e55cff; }
 .metric-icon { display:grid; place-items:center; width:30px; height:30px; border-radius:9px; background:currentColor; color:#0d0716; box-shadow:0 0 18px currentColor; } .metric-icon svg { width:15px; height:15px; }
 .trace-row { border-bottom:1px solid rgba(213,115,255,.08); transition:background .18s ease, box-shadow .18s ease; } .trace-row:hover { background:linear-gradient(90deg, rgba(228,63,224,.07), rgba(67,219,255,.025)); box-shadow:inset 3px 0 #ff5bce; }
 .page-orb { display:inline-block; width:7px; height:7px; border-radius:50%; background:#ff5bce; box-shadow:0 0 9px #ff5bce; }
@@ -96,9 +111,11 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 @keyframes bb-live-pulse { 0%,100% { opacity:.55; transform:scale(.8); } 50% { opacity:1; transform:scale(1.15); } } @keyframes bb-arrow-pulse { 0%,100% { transform:translateX(-2px); opacity:.55; } 50% { transform:translateX(3px); opacity:1; } } @keyframes bb-radar-spin { to { transform:rotate(360deg); } } @keyframes bb-blip { 0%,100% { opacity:.55; transform:scale(.75); } 50% { opacity:1; transform:scale(1.35); } }
 @media (prefers-reduced-motion:reduce) { .radar-sweep,.radar-blip,.neon-arrow svg,.live-dot { animation:none; } }
 @media (prefers-reduced-motion:reduce) { .cosmic-stage::before,.hero-planet,.signal-ticker span { animation:none; } }
-
-
+ 
+/*⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘ */
 /* BLACKBOX ORDER CONTROL — neon status board */
+/* ⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘ */
+
 @keyframes blackbox-border-scan { 0% { transform:translateX(-120%); opacity:0; } 12%,72% { opacity:.95; } 100% { transform:translateX(520%); opacity:0; } }
 .blackbox-queue { border:1px solid rgba(217,70,239,.24); background:linear-gradient(145deg,rgba(20,8,31,.97),rgba(9,7,18,.98)); box-shadow:inset 0 0 38px rgba(168,85,247,.06),0 0 28px rgba(168,85,247,.08); }
 .blackbox-queue-head { background:linear-gradient(90deg,rgba(217,70,239,.08),transparent 55%,rgba(34,211,238,.04)); }
@@ -116,7 +133,10 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .blackbox-filter-card { border:1px solid rgba(217,70,239,.16); background:rgba(16,7,25,.78); box-shadow:inset 0 0 20px rgba(217,70,239,.035); }
 .blackbox-action-dock { border-color:rgba(34,211,238,.25); background:linear-gradient(90deg,rgba(34,211,238,.07),rgba(217,70,239,.06)); box-shadow:inset 0 0 24px rgba(34,211,238,.04),0 0 17px rgba(34,211,238,.06); }
 
+/*⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘ */
 /* Secret code editor: Prism paints color below the transparent editable textarea. */
+/* ⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘ */
+
 .code-highlight { z-index: 0; color: #e8dcf5; }
 .code-highlight code { display: block; color: inherit; }
 .code-input { z-index: 1; color: transparent !important; -webkit-text-fill-color: transparent; caret-color: #67e8f9; background: transparent; }

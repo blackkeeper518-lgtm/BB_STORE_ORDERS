@@ -1,3 +1,6 @@
+// ⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘
+// IMPORTS · รายการเครื่องมือของห้องออเดอร์
+// ⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,6 +15,12 @@ type CanonicalOrderRow = Record<string, any> & {
   order_time_display: string;
 };
 
+// ⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘
+// FORMATTERS · ฟังก์ชันแปลงค่าก่อนนำไปแสดงบนการ์ด
+// money       = ยอด COD
+// directText  = ช่องว่างให้แสดงเป็นขีด
+// numeric     = ใช้รวมยอดเงิน
+// ⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘
 function money(value: unknown) {
   if (value === null || value === undefined || String(value).trim() === "") return "—";
   const amount = Number(value);
@@ -31,22 +40,34 @@ function truthy(value: unknown) {
   return value === true || ["true", "t", "1", "yes", "พร้อมส่ง", "ส่งได้", "pass"].includes(String(value ?? "").trim().toLowerCase());
 }
 
+// ⫘ BUSINESS DAY · “วันนี้” ของร้านตัดรอบ 14:00 น. ไม่ใช่วันปฏิทิน
+// รอบปัจจุบัน: เมื่อวาน 14:00 → วันนี้ 14:00 (Asia/Bangkok)
 function isToday(row: CanonicalOrderRow) {
+  const now = new Date();
+  const bkk = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hour12: false }).formatToParts(now);
+  const part = (name: string) => Number(bkk.find((item) => item.type === name)?.value ?? 0);
+  const todayCutoffUtc = Date.UTC(part("year"), part("month") - 1, part("day"), 7, 0, 0);
+  const end = now.getTime() >= todayCutoffUtc ? todayCutoffUtc + 24 * 60 * 60 * 1000 : todayCutoffUtc;
+  const start = end - 24 * 60 * 60 * 1000;
   const raw = row.order_time_bkk_iso || row.order_time || row.order_time_display;
   const parsed = new Date(String(raw ?? ""));
-  if (!Number.isNaN(parsed.getTime())) return parsed.toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" }) === new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok" }).format(new Date());
-  const today = new Intl.DateTimeFormat("th-TH", { timeZone: "Asia/Bangkok", day: "2-digit", month: "2-digit" }).format(new Date());
-  return String(raw ?? "").includes(today.replace("/", "/"));
+  return !Number.isNaN(parsed.getTime()) && parsed.getTime() >= start && parsed.getTime() < end;
 }
 
 function isSent(row: CanonicalOrderRow) {
-  return truthy(row.telegram_sent) || ["SENT", "DELIVERED", "SENT_TO_TELEGRAM", "ไปแล้วไปลับ"].includes(String(row.telegram_status ?? row.delivery_status ?? "").trim().toUpperCase());
+  return String(row.delivery_status ?? "").trim().toUpperCase().replace(/^🔥\s*/, "") === "SENT" && Boolean(String(row.sent_at ?? "").trim());
 }
 
+// สถานะส่งได้: แก้เงื่อนไขตรงนี้ได้ ถ้ากติกา n8n เปลี่ยน
 function canSend(row: CanonicalOrderRow) {
   return !isSent(row) && (truthy(row.is_ready_to_pack) || truthy(row.send_eligible) || truthy(row.telegram_bill_send_eligible) || String(row.cod_check_status ?? "").toUpperCase() === "PASS");
 }
 
+// ⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘
+// MAIN ROOM · โครงหลักของหน้า Order Control
+// แหล่งข้อมูล: readCanonicalOrders() → 🗝️HERMES_ARCHIVE
+// ถ้าจะเปลี่ยนพื้นหลัง/ระยะห่าง/ขนาดหน้า ให้แก้ className ในส่วนนี้
+// ⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘
 export default function OrderControl() {
   const [search, setSearch] = useState("");
   const [selectedKey, setSelectedKey] = useState("");
@@ -93,16 +114,18 @@ export default function OrderControl() {
 
       <div className="signal-ticker rounded-xl"><span>✦ HERMES ARCHIVE // ORDER SIGNAL // COD VERIFIED // PRODUCT MAP ONLINE // TELEGRAM ROUTE READY // </span></div>
 
+      {/* ⫘ SUMMARY CARDS · การ์ดสรุปยอดด้านบน: แก้สี/ขนาดที่ component Metric ด้านล่าง */}
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
         <Metric icon={ShoppingCart} label="ออเดอร์ทั้งหมด" value={orders.length} suffix="รายการ" tone="pink" />
-        <Metric icon={CalendarDays} label="ออเดอร์วันนี้" value={todayOrders.length} suffix="รายการ" tone="violet" />
+        <Metric icon={CalendarDays} label="ออเดอร์วันนี้" value={todayOrders.length} suffix="รายการ · รอบ 14:00" tone="violet" />
         <Metric icon={WalletCards} label="ยอด COD ทั้งหมด" value={money(totalCod)} tone="cyan" />
-        <Metric icon={WalletCards} label="ยอด COD วันนี้" value={money(todayCod)} tone="green" />
+        <Metric icon={WalletCards} label="ยอด COD วันนี้" value={`${money(todayCod)} · รอบ 14:00`} tone="green" />
         <Metric icon={CheckCircle2} label="ส่งแล้ว" value={sentOrders.length} suffix="รายการ" tone="green" />
         <Metric icon={Send} label="ส่งได้" value={sendableOrders.length} suffix="รายการ" tone="cyan" />
         <Metric icon={XCircle} label="ส่งไม่ได้ / ต้องตรวจ" value={blockedOrders.length} suffix="รายการ" tone="pink" />
       </section>
 
+      {/* ⫘ SEARCH BAR · ช่องค้นหา: ค้นจากข้อมูลแถวใน HERMES */}
       <div className="relative cyber-grid rounded-2xl">
         <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-cyan-300/70" />
         <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ค้นหา order / ลูกค้า / เบอร์ / SKU จาก Supabase" className="h-12 rounded-2xl border-cyan-300/20 bg-[#0d0a18]/90 pl-11 text-white shadow-[0_0_24px_rgba(88,239,255,0.06)] placeholder:text-slate-500 focus-visible:border-fuchsia-300/60 focus-visible:ring-fuchsia-400/20" />
@@ -110,41 +133,42 @@ export default function OrderControl() {
 
       {query.error ? <Card className="border-pink-400/30 bg-pink-950/20 shadow-[0_0_24px_rgba(255,70,190,0.1)]"><CardContent className="p-5 text-sm text-pink-200">อ่านข้อมูลไม่สำเร็จ: {query.error instanceof Error ? query.error.message : String(query.error)}</CardContent></Card> : null}
 
+      {/* ⫘ WORKBENCH · ซ้ายรายการออเดอร์ / ขวารายละเอียดออเดอร์ */}
       <div className="grid gap-4 xl:grid-cols-[minmax(320px,0.8fr)_minmax(0,1.2fr)]">
         <Card className="overflow-hidden border-violet-400/20 bg-[#10091b]/90 shadow-[0_0_28px_rgba(151,75,255,0.08)]">
           <CardHeader className="border-b border-violet-300/15 bg-violet-500/[0.04]"><CardTitle className="flex items-center justify-between text-base text-violet-100"><span><span className="mr-2 text-emerald-300">✦</span>รายการออเดอร์</span><span className="rounded-full border border-emerald-300/25 bg-emerald-400/10 px-2 py-0.5 text-xs font-mono font-normal text-emerald-200">{orders.length} SIGNALS</span></CardTitle></CardHeader>
+          {/* รายการการ์ดซ้าย: ลด/เพิ่มความสูงที่ max-h และระยะห่างที่ p-3 */}
           <CardContent className="max-h-[72vh] space-y-2 overflow-auto p-3">
             {query.isLoading ? <p className="p-8 text-center text-sm text-slate-500">กำลังอ่านข้อมูลจาก Supabase…</p> : null}
             {!query.isLoading && !query.error && orders.length === 0 ? <p className="p-8 text-center text-sm text-slate-500">ไม่พบข้อมูล</p> : null}
-            {orders.map((row) => <button key={row.upsert_key} type="button" onClick={() => setSelectedKey(row.upsert_key)} className={`w-full rounded-2xl border p-4 text-left transition ${selectedOrder?.upsert_key === row.upsert_key ? "border-pink-300/60 bg-gradient-to-r from-fuchsia-500/15 to-emerald-400/5 shadow-[inset_3px_0_#ff5acb,0_0_18px_rgba(255,90,203,0.1)]" : "border-white/5 bg-black/15 hover:border-cyan-300/30 hover:bg-cyan-400/[0.04]"}`}>
-              <div className="flex flex-wrap items-center justify-between gap-2"><span className="font-mono text-sm text-cyan-200">{directText(row.order_number)}</span><span className="text-xs text-violet-200/60">{row.order_time_display}</span></div>
-              <p className="mt-2 text-sm text-white">{directText(row.customer_name)}</p>
-              <p className="mt-1 truncate font-mono text-[10px] text-cyan-100/35">{row.upsert_key}</p>
-              <p className="mt-2 line-clamp-2 text-xs text-emerald-100/65">{directText(row.final_display_for_packer)}</p>
+            {/* การ์ด 1 ใบ · คอลัมน์ที่ใช้: order_number, customer_name, phone, page_name, order_time_display, final_display_for_packer, delivery_status, sent_at */}
+            {orders.map((row) => <button key={row.upsert_key} type="button" onClick={() => setSelectedKey(row.upsert_key)} className={`w-full rounded-2xl border p-3 text-left transition ${selectedOrder?.upsert_key === row.upsert_key ? "border-pink-300/60 bg-gradient-to-r from-fuchsia-500/15 to-emerald-400/5 shadow-[inset_3px_0_#ff5acb,0_0_18px_rgba(255,90,203,0.1)]" : "border-white/5 bg-black/15 hover:border-cyan-300/30 hover:bg-cyan-400/[0.04]"}`}>
+              <div className="flex items-center justify-between gap-2"><span className="font-mono text-sm text-cyan-200">{directText(row.order_number)}</span>{isSent(row) ? <span className="rounded-full border border-orange-300/30 bg-orange-400/10 px-2 py-0.5 text-[10px] font-semibold text-orange-200">🔥SENT</span> : <span className="rounded-full border border-cyan-300/20 px-2 py-0.5 text-[10px] text-cyan-200">รอส่ง</span>}</div>
+              <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs"><span className="text-white">{directText(row.customer_name)}</span><span className="font-mono text-emerald-200/80">{directText(row.phone)}</span></div>
+              <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-violet-200/60"><span>📢 {directText(row.page_name)}</span><span>{row.order_time_display}</span></div>
+              <p className="mt-2 line-clamp-1 text-xs text-emerald-100/65">📦 {directText(row.final_display_for_packer)}</p>
             </button>)}
           </CardContent>
         </Card>
 
         <Card className="border-fuchsia-400/20 bg-[#10091b]/90 shadow-[0_0_28px_rgba(255,75,197,0.07)]">
+          {/* DETAIL CARD · แก้หัวการ์ดตรง CardHeader / ขนาดเนื้อหาตรง CardContent */}
           <CardHeader className="border-b border-fuchsia-300/15 bg-fuchsia-500/[0.04]"><CardTitle className="text-base text-fuchsia-100"><span className="mr-2 text-fuchsia-300">◈</span>ข้อมูลจาก n8n <span className="ml-2 text-[10px] font-mono font-normal uppercase tracking-[0.18em] text-cyan-200/50">DECODED PAYLOAD</span></CardTitle></CardHeader>
           <CardContent className="space-y-5 p-5">
             {!selectedOrder ? <p className="py-12 text-center text-sm text-slate-500">เลือกออเดอร์เพื่อดูข้อมูล</p> : <>
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div><p className="font-mono text-lg font-semibold text-emerald-200">{directText(selectedOrder.order_number)}</p><p className="mt-1 break-all font-mono text-xs text-cyan-100/40">upsert_key: {selectedOrder.upsert_key}</p></div>
-                <span className="inline-flex items-center gap-2 rounded-xl border border-cyan-400/30 bg-cyan-400/5 px-3 py-2 text-xs text-cyan-100 shadow-[0_0_16px_rgba(88,239,255,0.08)]"><Clock3 className="h-4 w-4" />{selectedOrder.order_time_display}</span>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div><p className="font-mono text-base font-semibold text-emerald-200">{directText(selectedOrder.order_number)}</p><p className="mt-1 text-xs text-slate-400">{directText(selectedOrder.customer_name)} · {directText(selectedOrder.phone)} · 📢 {directText(selectedOrder.page_name)}</p></div>
+                <div className="flex items-center gap-2">{isSent(selectedOrder) && <span className="rounded-full border border-orange-300/30 bg-orange-400/10 px-3 py-1 text-xs font-semibold text-orange-200">🔥SENT</span>}<span className="inline-flex items-center gap-2 rounded-lg border border-cyan-400/30 bg-cyan-400/5 px-2 py-1 text-[11px] text-cyan-100"><Clock3 className="h-3.5 w-3.5" />{selectedOrder.order_time_display}</span></div>
               </div>
+              {/* FIELD GRID · ช่องข้อมูลสำคัญที่เห็นทันทีบนการ์ดขวา */}
               <div className="grid gap-3 sm:grid-cols-2">
-                <Info label="ชื่อผู้รับ" value={selectedOrder.customer_name} />
-                <Info label="เบอร์โทร" value={selectedOrder.phone} />
-                <Info label="ชื่อเพจ" value={selectedOrder.page_name} />
                 <Info label="COD" value={money(selectedOrder.cod_amount)} />
                 <Info label="สินค้าสำหรับจัด" value={selectedOrder.final_display_for_packer} />
-                <Info label="สถานะจาก n8n" value={selectedOrder.audit_flags} />
-                <Info label="สถานะ Telegram จาก n8n" value={selectedOrder.telegram_status} />
-                <Info label="เส้นทางที่ n8n ระบุ" value={selectedOrder.route_reason_label} />
+                <Info label="เส้นทางที่ n8n ระบุ" value={selectedOrder.route_reason_label || "⚪ [COMPLETENESS] สินค้าและที่อยู่ผ่านเกณฑ์"} />
               </div>
+              {/* ADDRESS · ที่อยู่จาก final_address_for_bill; ถ้าเปลี่ยนคอลัมน์ให้แก้ตรง value นี้ */}
               <Info label="ที่อยู่จากข้อมูลกลาง" value={selectedOrder.final_address_for_bill} />
-              <section><p className="mb-2 text-xs font-semibold uppercase tracking-wider text-emerald-300">telegram_message · field ส่งเดียว (อ่านอย่างเดียว)</p><pre className="max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-xl border border-emerald-300/25 bg-emerald-400/[0.03] p-4 text-xs leading-5 text-emerald-50/80 shadow-[inset_0_0_24px_rgba(62,227,181,0.04)]">{directText(selectedOrder.telegram_message)}</pre></section>
+              <section><p className="mb-2 text-xs font-semibold uppercase tracking-wider text-emerald-300">telegram_message_web · อ่านอย่างเดียว</p><pre className="max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-xl border border-emerald-300/25 bg-emerald-400/[0.03] p-4 text-xs leading-5 text-emerald-50/80 shadow-[inset_0_0_24px_rgba(62,227,181,0.04)]">{directText(selectedOrder.telegram_message_web || selectedOrder.telegram_message)}</pre></section>
               <section><p className="mb-2 text-xs font-semibold uppercase tracking-wider text-violet-200/60">ก้อนออเดอร์ต้นทาง</p><pre className="max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-xl border border-violet-300/15 bg-black/20 p-4 text-xs leading-5 text-slate-300">{directText(selectedOrder.original)}</pre></section>
               <div className="flex flex-wrap gap-2">
                 <Link href={`/order-history?search=${encodeURIComponent(selectedOrder.upsert_key)}`}><Button variant="outline" className="border-cyan-300/25 bg-cyan-400/5 text-cyan-100"><ExternalLink className="mr-2 h-4 w-4" />ประวัติ</Button></Link>
@@ -160,6 +184,11 @@ export default function OrderControl() {
   );
 }
 
+// ⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘
+// SMALL COMPONENTS · การ์ดช่องข้อมูลและการ์ดตัวเลข
+// Info: กล่องข้อมูล 1 ช่อง · แก้หน้าตาที่ className บรรทัดนี้
+// Metric: การ์ดสรุปด้านบน · เปลี่ยน tone ได้เป็น pink/violet/cyan/green
+// ⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘
 function Info({ label, value }: { label: string; value: unknown }) {
   return <div className="rounded-xl border border-white/5 bg-black/15 p-3"><p className="text-[10px] uppercase tracking-wider text-slate-500">{label}</p><p className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-200">{directText(value)}</p></div>;
 }

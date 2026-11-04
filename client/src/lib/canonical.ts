@@ -242,6 +242,8 @@ const HERMES_WEB_ORDER_COLUMNS = [
   "recipient_id",
   "expected_cod",
   "telegram_bill_header"
+  "telegram_message_web",
+  "telegram_change_alert_web",
 ].join(",");
 
 // HERMES_ARCHIVE stores the three aliased view fields with their original names.
