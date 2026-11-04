@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { orderTimeSortKey, readCanonicalOrders } from "@/lib/canonical";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarDays, CheckCircle2, Clock3, Database, ExternalLink, MessageCircle, Pencil, RefreshCw, Search, Send, ShoppingCart, WalletCards, XCircle } from "lucide-react";
+import { CalendarDays, Check, CheckCircle2, Clock3, Database, Download, ExternalLink, MessageCircle, Pencil, RefreshCw, Search, Send, ShoppingCart, WalletCards, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 
@@ -40,6 +40,33 @@ function truthy(value: unknown) {
   return value === true || ["true", "t", "1", "yes", "พร้อมส่ง", "ส่งได้", "pass"].includes(String(value ?? "").trim().toLowerCase());
 }
 
+function buildOrderCopyText(order: CanonicalOrderRow) {
+  const orderNumber = directText(order.order_number_display || order.order_number);
+  const orderTimePretty = directText(order.order_time_display);
+  const codForDisplay = numeric(order.cod_amount);
+  const customer = directText(order.customer_name || order.facebook_name);
+  const phone = directText(order.phone || order.extracted_phone);
+  const finalAddress = directText(order.final_address_for_bill || order.address_display_packer || order.full_address || order.addressclean);
+  const productInfo = { best: directText(order.final_display_for_packer || order.telegram_product_display || order.final_product || order.sku) };
+  return [orderNumber, orderTimePretty, codForDisplay ? `${codForDisplay.toLocaleString("th-TH")} บาท` : "", customer, phone, finalAddress, productInfo.best].filter(Boolean).join("\n");
+}
+
+function csvCell(value: unknown) {
+  return `"${String(value ?? "").replace(/"/g, '""').replace(/\r?\n/g, " ")}"`;
+}
+
+function exportOrdersCsv(rows: CanonicalOrderRow[]) {
+  const columns = ["order_number", "order_time_display", "page_name", "customer_name", "phone", "final_address_for_bill", "final_display_for_packer", "cod_amount", "delivery_status", "sent_at"];
+  const csv = [columns, ...rows.map((row) => columns.map((column) => row[column]))].map((line) => line.map(csvCell).join(",")).join("\n");
+  const blob = new Blob([`\ufeff${csv}`], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `bb-orders-${new Date().toISOString().slice(0, 10)}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 // ⫘ BUSINESS DAY · “วันนี้” ของร้านตัดรอบ 14:00 น. ไม่ใช่วันปฏิทิน
 // รอบปัจจุบัน: เมื่อวาน 14:00 → วันนี้ 14:00 (Asia/Bangkok)
 function isToday(row: CanonicalOrderRow) {
@@ -70,16 +97,22 @@ function canSend(row: CanonicalOrderRow) {
 // ⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘
 export default function OrderControl() {
   const [search, setSearch] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [untilDate, setUntilDate] = useState("");
+  const [pageFilter, setPageFilter] = useState("ทั้งหมด");
   const [selectedKey, setSelectedKey] = useState("");
   const [clock, setClock] = useState(() => new Date());
+  const [copied, setCopied] = useState(false);
   const query = useQuery({
-    queryKey: ["canonical-orders", search],
-    queryFn: () => readCanonicalOrders(search),
+    queryKey: ["canonical-orders", search, fromDate, untilDate],
+    queryFn: () => readCanonicalOrders(search, fromDate || null, untilDate || null),
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
   });
   // ⫘ ORDER SORT · ใช้ CENTRAL ORDER CLOCK เรียงล่าสุดไว้บนสุดเสมอ
-  const orders = [...((query.data?.orders ?? []) as CanonicalOrderRow[])].sort((a, b) => orderTimeSortKey(b.order_time_display) - orderTimeSortKey(a.order_time_display));
+  const rawOrders = [...((query.data?.orders ?? []) as CanonicalOrderRow[])].sort((a, b) => orderTimeSortKey(b.order_time_display) - orderTimeSortKey(a.order_time_display));
+  const pageNames = Array.from(new Set(rawOrders.map((row) => String(row.page_name ?? "").trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, "th"));
+  const orders = pageFilter === "ทั้งหมด" ? rawOrders : rawOrders.filter((row) => String(row.page_name ?? "").trim() === pageFilter);
   const selectedOrder = orders.find((row) => row.upsert_key === selectedKey) ?? orders[0] ?? null;
   const todayOrders = orders.filter(isToday);
   const sentOrders = orders.filter(isSent);
@@ -103,13 +136,20 @@ export default function OrderControl() {
     }
   }, [orders, selectedKey, selectedOrder]);
 
+  async function copySelectedOrder() {
+    if (!selectedOrder) return;
+    await navigator.clipboard.writeText(buildOrderCopyText(selectedOrder));
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1600);
+  }
+
   return (
     <div className="cosmic-stage min-h-full space-y-3 p-2 text-white sm:p-3 lg:p-4">
       <span className="cosmic-corner tl" /><span className="cosmic-corner br" />
       <header className="blackbox-hero cyber-glow relative flex flex-wrap items-center justify-between gap-3 overflow-hidden rounded-2xl border border-fuchsia-400/20 p-4 sm:p-5">
         <div className="hero-scanline" /><div className="hero-orbit" />
         <div className="relative z-10 max-w-3xl">
-          <p className="orbit-kicker flex items-center gap-2 text-cyan-200/80"><Database className="h-4 w-4 text-cyan-300" /> ORBITAL ORDER CONTROL · N8N / SUPABASE</p>
+          <p className="orbit-kicker flex items-center gap-2 text-cyan-200/80"><Database className="h-3.5 w-3.5 text-cyan-300" /> ORBITAL ORDER CONTROL · N8N / SUPABASE</p>
           <h1 className="cyber-title mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">ข้อมูลออเดอร์ <span className="text-fuchsia-300">//</span> COMMAND DECK</h1>
           <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-300/75">ศูนย์ควบคุมออเดอร์จาก n8n · เห็นต้นทาง สถานะ และเวลาจริงในจอเดียว</p>
           <div className="mt-3 flex flex-wrap items-center gap-2"><span className="live-chip"><span className="live-dot" /> LIVE ORDER STREAM</span><span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-300/70">HERMES ARCHIVE · SECURE LINK</span></div>
@@ -137,6 +177,16 @@ export default function OrderControl() {
       <div className="relative cyber-grid rounded-2xl">
         <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-cyan-300/70" />
         <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ค้นหา order / ลูกค้า / เบอร์ / SKU จาก Supabase" className="h-12 rounded-2xl border-cyan-300/20 bg-[#0d0a18]/90 pl-11 text-white shadow-[0_0_24px_rgba(88,239,255,0.06)] placeholder:text-slate-500 focus-visible:border-fuchsia-300/60 focus-visible:ring-fuchsia-400/20" />
+      </div>
+
+      <div className="order-filter-bar flex flex-wrap items-center gap-2 rounded-2xl border border-cyan-300/15 bg-[#0d0a18]/80 p-2">
+        <label className="filter-field"><span>ตั้งแต่</span><input type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} /></label>
+        <label className="filter-field"><span>ถึง</span><input type="date" value={untilDate} onChange={(event) => setUntilDate(event.target.value)} /></label>
+        <label className="filter-field"><span>เพจ</span><select value={pageFilter} onChange={(event) => setPageFilter(event.target.value)}><option value="ทั้งหมด">ทุกเพจ</option>{pageNames.map((page) => <option key={page} value={page}>{page}</option>)}</select></label>
+        <div className="ml-auto flex flex-wrap gap-2">
+          <Button type="button" variant="outline" onClick={() => exportOrdersCsv(orders)} className="border-cyan-300/30 bg-cyan-400/5 text-cyan-100 hover:bg-cyan-400/15"><Download className="mr-2 h-4 w-4" />เอ็กซ์พอร์ต {orders.length} รายการ</Button>
+          <Button type="button" variant="outline" onClick={() => { setFromDate(""); setUntilDate(""); setPageFilter("ทั้งหมด"); }} className="border-violet-300/25 bg-violet-400/5 text-violet-100 hover:bg-violet-400/15">ล้างตัวเลือก</Button>
+        </div>
       </div>
 
       {query.error ? <Card className="border-pink-400/30 bg-pink-950/20 shadow-[0_0_24px_rgba(255,70,190,0.1)]"><CardContent className="p-5 text-sm text-pink-200">อ่านข้อมูลไม่สำเร็จ: {query.error instanceof Error ? query.error.message : String(query.error)}</CardContent></Card> : null}
@@ -176,10 +226,13 @@ export default function OrderControl() {
               </div>
               {/* ADDRESS · ที่อยู่จาก final_address_for_bill; ถ้าเปลี่ยนคอลัมน์ให้แก้ตรง value นี้ */}
               <Info label="ที่อยู่จากข้อมูลกลาง" value={selectedOrder.final_address_for_bill} />
-              <section><p className="mb-2 text-xs font-semibold uppercase tracking-wider text-emerald-300">telegram_message / telegram_message_web · อ่านอย่างเดียว</p><pre className="max-h-56 overflow-auto whitespace-pre-wrap break-words rounded-xl border border-emerald-300/25 bg-emerald-400/[0.03] p-4 text-xs leading-5 text-emerald-50/80 shadow-[inset_0_0_24px_rgba(62,227,181,0.04)]">{directText(selectedOrder.telegram_message_web || selectedOrder.telegram_message)}</pre></section>
-              <section><p className="mb-2 text-xs font-semibold uppercase tracking-wider text-pink-200">telegram_change_alert / telegram_change_alert_web · อ่านอย่างเดียว</p><pre className="max-h-56 overflow-auto whitespace-pre-wrap break-words rounded-xl border border-pink-300/25 bg-pink-400/[0.03] p-4 text-xs leading-5 text-pink-50/80 shadow-[inset_0_0_24px_rgba(255,90,203,0.04)]">{directText(selectedOrder.telegram_change_alert_web || selectedOrder.telegram_change_alert || "ไม่มี CHANGE ALERT")}</pre></section>
-              <section><p className="mb-2 text-xs font-semibold uppercase tracking-wider text-violet-200/60">ก้อนออเดอร์ต้นทาง</p><pre className="max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-xl border border-violet-300/15 bg-black/20 p-4 text-xs leading-5 text-slate-300">{directText(selectedOrder.original)}</pre></section>
+              <div className="grid gap-3 lg:grid-cols-2">
+                <section><p className="mb-2 text-xs font-semibold uppercase tracking-wider text-violet-200/70">ก้อนออเดอร์ต้นทาง</p><pre className="data-pair-panel max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-xl border border-violet-300/15 bg-black/20 p-4 text-xs leading-5 text-slate-300">{directText(selectedOrder.original)}</pre></section>
+                <section><p className="mb-2 text-xs font-semibold uppercase tracking-wider text-emerald-300">chat_timeline · ประวัติแชท</p><pre className="data-pair-panel max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-xl border border-emerald-300/25 bg-emerald-400/[0.03] p-4 text-xs leading-5 text-emerald-50/80 shadow-[inset_0_0_24px_rgba(62,227,181,0.04)]">{directText(selectedOrder.chat_timeline)}</pre></section>
+              </div>
+              <section><p className="mb-2 text-xs font-semibold uppercase tracking-wider text-pink-200">telegram_change_alert / telegram_change_alert_web · อ่านอย่างเดียว</p><pre className="max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-xl border border-pink-300/25 bg-pink-400/[0.03] p-4 text-xs leading-5 text-pink-50/80 shadow-[inset_0_0_24px_rgba(255,90,203,0.04)]">{directText(selectedOrder.telegram_change_alert_web || selectedOrder.telegram_change_alert || "ไม่มี CHANGE ALERT")}</pre></section>
               <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" onClick={() => void copySelectedOrder()} className="border-emerald-300/30 bg-emerald-400/5 text-emerald-100 hover:bg-emerald-400/15">{copied ? <Check className="mr-2 h-4 w-4" /> : <Download className="mr-2 h-4 w-4" />} {copied ? "คัดลอกแล้ว" : "คัดลอกข้อมูลออเดอร์"}</Button>
                 <Link href={`/order-history?search=${encodeURIComponent(selectedOrder.upsert_key)}`}><Button variant="outline" className="border-cyan-300/25 bg-cyan-400/5 text-cyan-100"><ExternalLink className="mr-2 h-4 w-4" />ประวัติ</Button></Link>
                 <Link href={`/telegram-delivery?search=${encodeURIComponent(selectedOrder.upsert_key)}&room=queue`}><Button variant="outline" className="border-fuchsia-300/25 bg-fuchsia-400/5 text-fuchsia-100"><Send className="mr-2 h-4 w-4" />ส่งไป Telegram</Button></Link>
                 <Link href={`/chats?search=${encodeURIComponent(selectedOrder.customer_name ?? selectedOrder.order_number ?? "")}`}><Button variant="outline" className="border-emerald-300/25 bg-emerald-400/5 text-emerald-100"><MessageCircle className="mr-2 h-4 w-4" />ไปห้องแชท</Button></Link>
