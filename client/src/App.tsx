@@ -16,6 +16,7 @@ import OrderHistory from "./pages/OrderHistory";
 import SystemManual from "./pages/SystemManual";
 import TelegramDeliveryRoom from "@/lib/TelegramDeliveryRoom";
 import AlertRoom from "./pages/AlertRoom";
+import BlackboxRoom from "./pages/BlackboxRoom";
 import SecretGallery from "./pages/SecretGallery";
 import ParcelMapping from "./pages/ParcelMapping";
 import CloseJobHistory from "./pages/CloseJobHistory";
@@ -37,6 +38,7 @@ function Router() {
     <Route path="/telegram-delivery"><Shell><TelegramDeliveryRoom /></Shell></Route>
     <Route path="/telegram-sent-history"><Shell><TelegramSentHistory /></Shell></Route>
     <Route path="/alert-room"><Shell><AlertRoom /></Shell></Route>
+    <Route path="/blackbox"><Shell><BlackboxRoom /></Shell></Route>
     <Route path="/order-performance"><Shell><OrderPerformance /></Shell></Route>
     <Route path="/stock-room"><Shell><StockRoom /></Shell></Route>
     <Route path="/system-manual"><Shell><SystemManual /></Shell></Route>

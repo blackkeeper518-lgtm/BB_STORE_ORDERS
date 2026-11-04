@@ -18,7 +18,8 @@ const menuItems = [
   { icon: Truck, label: "แมปเลขพัสดุ", path: "/parcel-mapping" },
   { icon: Database, label: "คู่มือระบบ · System Manual", path: "/system-manual" },
   { icon: Send, label: "ห้องส่ง Telegram", path: "/telegram-delivery" },
-  { icon: Skull, label: "BLACKBOX · DEATH NOTE", path: "/alert-room" },
+  { icon: Bell, label: "ประวัติเปลี่ยนของ · PARADOX", path: "/alert-room" },
+  { icon: Skull, label: "BLACKBOX · DEATH NOTE", path: "/blackbox" },
   { icon: Archive, label: "ประวัติปิดงาน · ยกเลิก/ไม่รับ", path: "/close-job-history" },
   { icon: Boxes, label: "คลังสินค้าจริง / สต๊อกกลาง", path: "/stock-room" },
   { icon: CalendarDays, label: "สรุปออเดอร์รายวัน · Flash", path: "/daily-chat-summary" },
@@ -27,9 +28,9 @@ const menuItems = [
   { icon: Activity, label: "ประสิทธิภาพดูดออเดอร์", path: "/order-performance" },
   { icon: Database, label: "คลังโปรเจกต์", path: "/" },
 ];
-const SIDEBAR_WIDTH_KEY = "sidebar-width";
-const DEFAULT_WIDTH = 240;
-const MIN_WIDTH = 180;
+const SIDEBAR_WIDTH_KEY = "sidebar-width-compact-v2";
+const DEFAULT_WIDTH = 190;
+const MIN_WIDTH = 170;
 const MAX_WIDTH = 480;
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {

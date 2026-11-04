@@ -252,7 +252,9 @@ const HERMES_DIRECT_ORDER_COLUMNS = HERMES_WEB_ORDER_COLUMNS
 
 // Only fields used by TelegramDeliveryRoom; avoid returning all 330 view columns.
 const TELEGRAM_WEB_ORDER_COLUMNS = [
-  "upsert_key", "source_table", "order_time_display", "order_number", "order_number_display",
+  // PIONEER and ANDROMEDA share the operational order number, but ANDROMEDA
+  // does not expose the optional order_number_display column.
+  "upsert_key", "source_table", "order_time_display", "order_number",
   "telegram_product_display", "final_display_for_packer", "order_fibo_product", "for_packer_st_display", "manus_for_packer", "google_for_packer", "packer_tag_display", "packer_obj",
   "address_fibo_selected_clean", "address_display_packer", "full_address", "province", "zipcode", "phone", "extracted_phone",
   "audit_flags", "bill_data_complete", "is_ready_to_pack", "mapping_status",
@@ -310,12 +312,21 @@ export async function readTelegramDeliveryOrders(search = "", room: "queue" | "t
 export async function readBbAlertRoom(search = "") {
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  const { data, error } = await api.from("💀THANATOS_xXx_DEATH_NOTE").select("*").order("order_time_display", { ascending: false }).limit(2000);
+  const { data, error } = await api.from("🔸 PARADOX_xXx_EXCHANGE").select("*").order("order_time_display", { ascending: false }).limit(2000);
   if (error) fail(error);
   const query = search.trim().toLowerCase();
   return (data ?? [])
     .filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query))
     .sort((a: any, b: any) => displayOrderSortKey(b.order_time_display) - displayOrderSortKey(a.order_time_display));
+}
+
+export async function readBlackboxRoom(search = "") {
+  const api = getSupabase();
+  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
+  const { data, error } = await api.from("💀THANATOS_xXx_DEATH_NOTE").select("*").order("order_time_display", { ascending: false }).limit(2000);
+  if (error) fail(error);
+  const query = search.trim().toLowerCase();
+  return (data ?? []).filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query));
 }
 
 export async function updateBbOrder(upsertKey: string | number, patch: Record<string, unknown>) {
