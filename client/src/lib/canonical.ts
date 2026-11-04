@@ -88,6 +88,18 @@ function displayOrderSortKey(value: unknown): number {
   else if (year > 2400) year -= 543;
   return Number(`${year}${match[2].padStart(2, "0")}${match[1].padStart(2, "0")}${match[4].padStart(2, "0")}${match[5]}`);
 }
+// ⫘ CENTRAL ORDER CLOCK · เวลากลางของเว็บ ใช้เรียงออเดอร์ล่าสุดก่อนทุกห้อง
+// แหล่งเวลาเดียวของระบบ: order_time_display แบบ DD/MM/YY HH:mm
+export function orderTimeSortKey(value: unknown): number {
+  const raw = String(value ?? "").trim();
+  const parsed = new Date(raw);
+  if (!Number.isNaN(parsed.getTime())) {
+    const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(parsed);
+    const part = (name: string) => parts.find((item) => item.type === name)?.value ?? "0";
+    return Number(`${part("year")}${part("month")}${part("day")}${part("hour")}${part("minute")}`);
+  }
+  return displayOrderSortKey(raw);
+}
 function displayDateKey(value: unknown): string {
   const match = String(value ?? "").trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
   if (!match) return "";
@@ -142,7 +154,6 @@ const HERMES_WEB_ORDER_COLUMNS = [
   "province",
   "zipcode",
   "order_source_type",
-  "audit_flags",
   "chat_timeline",
   "cod_check_status",
   "shipping_carrier",
@@ -158,7 +169,6 @@ const HERMES_WEB_ORDER_COLUMNS = [
   "extracted_text_qty",
   "qty_display_th",
   "darksideBillDataComplete",
-  "bill_data_complete",
   "darkside_completeness_status",
   "darkside_missing_reasons",
   "bill_data_reason",
@@ -197,6 +207,8 @@ const HERMES_WEB_ORDER_COLUMNS = [
   "final_product",
   "final_display_for_packer",
   "telegram_product_display",
+  "telegram_message_web",
+  "telegram_change_alert_web",
   "telegram_message",
   "customer_change_diff_json",
   "customer_change_admin_footer",
@@ -223,7 +235,6 @@ const HERMES_WEB_ORDER_COLUMNS = [
   "full_address",
   "final_address_for_bill",
   "address_fibo_selected_clean",
-  "is_ready_to_pack",
   "send_eligible",
   "telegram_bill_send_eligible",
   "telegram_status",
@@ -236,7 +247,6 @@ const HERMES_WEB_ORDER_COLUMNS = [
   "status_color",
   "routing_tag",
   "product_mapping_status",
-  "mapping_status",
   "customer_change_summary",
   "raw_text",
   "recipient_id",
@@ -289,7 +299,7 @@ export async function readCanonicalOrders(search = "", since: string | null = nu
       if (query && !JSON.stringify(row).toLowerCase().includes(query)) return false;
       const dateKey = displayDateKey(row.order_time_display);
       return (!fromKey || (dateKey && dateKey >= fromKey)) && (!untilKey || (dateKey && dateKey <= untilKey));
-    }) as unknown as CanonicalOrder[];
+    }).sort((a: any, b: any) => orderTimeSortKey(b.order_time_display) - orderTimeSortKey(a.order_time_display)) as unknown as CanonicalOrder[];
   return { orders, itemError: null, sourceTable: "🗝️HERMES_ARCHIVE", fetchedAt: new Date().toISOString(), since };
 }
 export async function readTelegramDeliveryOrders(search = "", room: "queue" | "today" | "yesterday_after_14" | "sent" = "queue") {

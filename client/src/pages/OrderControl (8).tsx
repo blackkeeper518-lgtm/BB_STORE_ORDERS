@@ -4,7 +4,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { readCanonicalOrders } from "@/lib/canonical";
+import { orderTimeSortKey, readCanonicalOrders } from "@/lib/canonical";
 import { useQuery } from "@tanstack/react-query";
 import { CalendarDays, CheckCircle2, Clock3, Database, ExternalLink, MessageCircle, Pencil, RefreshCw, Search, Send, ShoppingCart, WalletCards, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -49,9 +49,9 @@ function isToday(row: CanonicalOrderRow) {
   const todayCutoffUtc = Date.UTC(part("year"), part("month") - 1, part("day"), 7, 0, 0);
   const end = now.getTime() >= todayCutoffUtc ? todayCutoffUtc + 24 * 60 * 60 * 1000 : todayCutoffUtc;
   const start = end - 24 * 60 * 60 * 1000;
-  const raw = row.order_time_bkk_iso || row.order_time || row.order_time_display;
-  const parsed = new Date(String(raw ?? ""));
-  return !Number.isNaN(parsed.getTime()) && parsed.getTime() >= start && parsed.getTime() < end;
+  const raw = row.order_time_display;
+  const valueKey = orderTimeSortKey(raw);
+  return valueKey >= orderTimeSortKey(new Date(start)) && valueKey < orderTimeSortKey(new Date(end));
 }
 
 function isSent(row: CanonicalOrderRow) {
@@ -71,13 +71,15 @@ function canSend(row: CanonicalOrderRow) {
 export default function OrderControl() {
   const [search, setSearch] = useState("");
   const [selectedKey, setSelectedKey] = useState("");
+  const [clock, setClock] = useState(() => new Date());
   const query = useQuery({
     queryKey: ["canonical-orders", search],
     queryFn: () => readCanonicalOrders(search),
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
   });
-  const orders = (query.data?.orders ?? []) as CanonicalOrderRow[];
+  // ⫘ ORDER SORT · ใช้ CENTRAL ORDER CLOCK เรียงล่าสุดไว้บนสุดเสมอ
+  const orders = [...((query.data?.orders ?? []) as CanonicalOrderRow[])].sort((a, b) => orderTimeSortKey(b.order_time_display) - orderTimeSortKey(a.order_time_display));
   const selectedOrder = orders.find((row) => row.upsert_key === selectedKey) ?? orders[0] ?? null;
   const todayOrders = orders.filter(isToday);
   const sentOrders = orders.filter(isSent);
@@ -85,6 +87,11 @@ export default function OrderControl() {
   const blockedOrders = orders.filter((row) => !isSent(row) && !canSend(row));
   const totalCod = orders.reduce((sum, row) => sum + numeric(row.cod_amount), 0);
   const todayCod = todayOrders.reduce((sum, row) => sum + numeric(row.cod_amount), 0);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setClock(new Date()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (!selectedOrder) {
@@ -97,16 +104,17 @@ export default function OrderControl() {
   }, [orders, selectedKey, selectedOrder]);
 
   return (
-    <div className="cosmic-stage min-h-full space-y-5 p-3 text-white sm:p-5 lg:p-7">
+    <div className="cosmic-stage min-h-full space-y-3 p-2 text-white sm:p-3 lg:p-4">
       <span className="cosmic-corner tl" /><span className="cosmic-corner br" />
-      <header className="blackbox-hero cyber-glow relative overflow-hidden rounded-3xl border border-fuchsia-400/20 p-6 sm:p-8">
-        <div className="hero-scanline" /><div className="hero-orbit" /><div className="hero-planet" />
+      <header className="blackbox-hero cyber-glow relative flex flex-wrap items-center justify-between gap-3 overflow-hidden rounded-2xl border border-fuchsia-400/20 p-4 sm:p-5">
+        <div className="hero-scanline" /><div className="hero-orbit" />
         <div className="relative z-10 max-w-3xl">
           <p className="orbit-kicker flex items-center gap-2 text-cyan-200/80"><Database className="h-4 w-4 text-cyan-300" /> ORBITAL ORDER CONTROL · N8N / SUPABASE</p>
-          <h1 className="cyber-title mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl">ข้อมูลออเดอร์ <span className="text-fuchsia-300">//</span> COMMAND DECK</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300/75">ศูนย์ควบคุมออเดอร์จาก n8n โดยตรง · ตรวจเส้นทางสินค้า ลูกค้า COD และสถานะการส่งในจอเดียว</p>
-          <div className="mt-5 flex flex-wrap items-center gap-3"><span className="live-chip"><span className="live-dot" /> LIVE ORDER STREAM</span><span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-300/70">HERMES ARCHIVE · SECURE LINK</span></div>
+          <h1 className="cyber-title mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">ข้อมูลออเดอร์ <span className="text-fuchsia-300">//</span> COMMAND DECK</h1>
+          <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-300/75">ศูนย์ควบคุมออเดอร์จาก n8n · เห็นต้นทาง สถานะ และเวลาจริงในจอเดียว</p>
+          <div className="mt-3 flex flex-wrap items-center gap-2"><span className="live-chip"><span className="live-dot" /> LIVE ORDER STREAM</span><span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-300/70">HERMES ARCHIVE · SECURE LINK</span></div>
         </div>
+        <div className="central-clock relative z-10"><span className="central-clock-label">CENTRAL ORDER CLOCK</span><strong>{clock.toLocaleTimeString("th-TH", { timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit", second: "2-digit" })}</strong><small>เวลาไทย · order_time_display</small></div>
         <Button variant="outline" onClick={() => void query.refetch()} disabled={query.isFetching} className="relative z-10 border-cyan-300/30 bg-cyan-400/5 text-cyan-100 shadow-[0_0_20px_rgba(88,239,255,0.08)] hover:border-cyan-200/60 hover:bg-cyan-400/10">
           <RefreshCw className={`mr-2 h-4 w-4 ${query.isFetching ? "animate-spin" : ""}`} /> รีเฟรช
         </Button>
@@ -142,7 +150,7 @@ export default function OrderControl() {
             {query.isLoading ? <p className="p-8 text-center text-sm text-slate-500">กำลังอ่านข้อมูลจาก Supabase…</p> : null}
             {!query.isLoading && !query.error && orders.length === 0 ? <p className="p-8 text-center text-sm text-slate-500">ไม่พบข้อมูล</p> : null}
             {/* การ์ด 1 ใบ · คอลัมน์ที่ใช้: order_number, customer_name, phone, page_name, order_time_display, final_display_for_packer, delivery_status, sent_at */}
-            {orders.map((row) => <button key={row.upsert_key} type="button" onClick={() => setSelectedKey(row.upsert_key)} className={`w-full rounded-2xl border p-3 text-left transition ${selectedOrder?.upsert_key === row.upsert_key ? "border-pink-300/60 bg-gradient-to-r from-fuchsia-500/15 to-emerald-400/5 shadow-[inset_3px_0_#ff5acb,0_0_18px_rgba(255,90,203,0.1)]" : "border-white/5 bg-black/15 hover:border-cyan-300/30 hover:bg-cyan-400/[0.04]"}`}>
+            {orders.map((row) => <button key={row.upsert_key} type="button" onClick={() => setSelectedKey(row.upsert_key)} className={`order-list-card w-full rounded-2xl border p-3 text-left transition ${selectedOrder?.upsert_key === row.upsert_key ? "border-pink-300/60 bg-gradient-to-r from-fuchsia-500/15 to-emerald-400/5 shadow-[inset_3px_0_#ff5acb,0_0_18px_rgba(255,90,203,0.1)]" : "border-white/5 bg-black/15 hover:border-cyan-300/30 hover:bg-cyan-400/[0.04]"}`}>
               <div className="flex items-center justify-between gap-2"><span className="font-mono text-sm text-cyan-200">{directText(row.order_number)}</span>{isSent(row) ? <span className="rounded-full border border-orange-300/30 bg-orange-400/10 px-2 py-0.5 text-[10px] font-semibold text-orange-200">🔥SENT</span> : <span className="rounded-full border border-cyan-300/20 px-2 py-0.5 text-[10px] text-cyan-200">รอส่ง</span>}</div>
               <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs"><span className="text-white">{directText(row.customer_name)}</span><span className="font-mono text-emerald-200/80">{directText(row.phone)}</span></div>
               <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-violet-200/60"><span>📢 {directText(row.page_name)}</span><span>{row.order_time_display}</span></div>
@@ -168,7 +176,8 @@ export default function OrderControl() {
               </div>
               {/* ADDRESS · ที่อยู่จาก final_address_for_bill; ถ้าเปลี่ยนคอลัมน์ให้แก้ตรง value นี้ */}
               <Info label="ที่อยู่จากข้อมูลกลาง" value={selectedOrder.final_address_for_bill} />
-              <section><p className="mb-2 text-xs font-semibold uppercase tracking-wider text-emerald-300">telegram_message_web · อ่านอย่างเดียว</p><pre className="max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-xl border border-emerald-300/25 bg-emerald-400/[0.03] p-4 text-xs leading-5 text-emerald-50/80 shadow-[inset_0_0_24px_rgba(62,227,181,0.04)]">{directText(selectedOrder.telegram_message_web || selectedOrder.telegram_message)}</pre></section>
+              <section><p className="mb-2 text-xs font-semibold uppercase tracking-wider text-emerald-300">telegram_message / telegram_message_web · อ่านอย่างเดียว</p><pre className="max-h-56 overflow-auto whitespace-pre-wrap break-words rounded-xl border border-emerald-300/25 bg-emerald-400/[0.03] p-4 text-xs leading-5 text-emerald-50/80 shadow-[inset_0_0_24px_rgba(62,227,181,0.04)]">{directText(selectedOrder.telegram_message_web || selectedOrder.telegram_message)}</pre></section>
+              <section><p className="mb-2 text-xs font-semibold uppercase tracking-wider text-pink-200">telegram_change_alert / telegram_change_alert_web · อ่านอย่างเดียว</p><pre className="max-h-56 overflow-auto whitespace-pre-wrap break-words rounded-xl border border-pink-300/25 bg-pink-400/[0.03] p-4 text-xs leading-5 text-pink-50/80 shadow-[inset_0_0_24px_rgba(255,90,203,0.04)]">{directText(selectedOrder.telegram_change_alert_web || selectedOrder.telegram_change_alert || "ไม่มี CHANGE ALERT")}</pre></section>
               <section><p className="mb-2 text-xs font-semibold uppercase tracking-wider text-violet-200/60">ก้อนออเดอร์ต้นทาง</p><pre className="max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-xl border border-violet-300/15 bg-black/20 p-4 text-xs leading-5 text-slate-300">{directText(selectedOrder.original)}</pre></section>
               <div className="flex flex-wrap gap-2">
                 <Link href={`/order-history?search=${encodeURIComponent(selectedOrder.upsert_key)}`}><Button variant="outline" className="border-cyan-300/25 bg-cyan-400/5 text-cyan-100"><ExternalLink className="mr-2 h-4 w-4" />ประวัติ</Button></Link>

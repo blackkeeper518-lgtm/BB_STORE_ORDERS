@@ -72,6 +72,14 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .hero-orbit::after { inset:96px -56px; border-color:rgba(168,117,255,.2); transform:rotate(-28deg); }
 .hero-planet { position:absolute; right:83px; top:65px; width:76px; height:76px; border-radius:50%; background:radial-gradient(circle at 32% 28%,#c7fbff 0 4%,#57d8f5 12%,#7355cf 48%,#231044 74%,#090313 100%); box-shadow:0 0 18px #57d8f5,0 0 55px rgba(106,75,255,.55); animation:planet-float 5s ease-in-out infinite; }
 .hero-planet::after { content:""; position:absolute; left:-24px; top:31px; width:124px; height:18px; border:2px solid rgba(255,119,213,.55); border-radius:50%; transform:rotate(-22deg); box-shadow:0 0 12px rgba(255,119,213,.35); }
+.central-clock { display:flex; min-width:164px; flex-direction:column; align-items:flex-end; gap:2px; border:1px solid rgba(93,233,255,.42); border-radius:14px; padding:9px 12px; background:rgba(4,16,31,.72); color:#bff9ff; box-shadow:0 0 12px rgba(93,233,255,.25),inset 0 0 18px rgba(93,233,255,.08); }
+.central-clock-label { color:rgba(255,255,255,.45); font:600 8px/1 'IBM Plex Mono',monospace; letter-spacing:.14em; }
+.central-clock strong { color:#e9ffff; font:600 1.25rem/1.15 'IBM Plex Mono',monospace; text-shadow:0 0 10px #5de9ff; }
+.central-clock small { color:rgba(166,239,255,.55); font:500 9px/1 'IBM Plex Mono',monospace; }
+.order-list-card { position:relative; isolation:isolate; overflow:hidden; }
+.order-list-card::after { content:""; position:absolute; z-index:2; top:0; bottom:0; left:-35%; width:24%; pointer-events:none; background:linear-gradient(90deg,transparent,rgba(150,245,255,.34),rgba(255,90,203,.2),transparent); transform:skewX(-18deg); animation:order-card-sweep 4.8s ease-in-out infinite; }
+.order-list-card:hover::after { animation-duration:2.2s; }
+@keyframes order-card-sweep { 0%,58% { left:-35%; opacity:0; } 68% { opacity:.9; } 86%,100% { left:125%; opacity:0; } }
 .signal-ticker { overflow:hidden; border-top:1px solid rgba(93,233,255,.12); border-bottom:1px solid rgba(93,233,255,.12); color:rgba(160,245,255,.58); font:600 9px/1.2 'IBM Plex Mono',monospace; letter-spacing:.14em; white-space:nowrap; }
 .signal-ticker span { display:inline-block; padding:9px 0; animation:ticker-slide 22s linear infinite; }
 .orbit-kicker { color:rgba(255,255,255,.42); font:600 9px/1 'IBM Plex Mono',monospace; letter-spacing:.2em; }
@@ -80,9 +88,12 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 @keyframes ticker-slide { from { transform:translateX(100%); } to { transform:translateX(-100%); } }
 .live-chip { display:inline-flex; align-items:center; gap:.45rem; border:1px solid rgba(88,239,255,.28); border-radius:999px; padding:.45rem .7rem; color:#9df5ff; background:rgba(52,218,255,.08); font:600 10px/1 'IBM Plex Mono',monospace; letter-spacing:.08em; }
 .live-dot { width:7px; height:7px; border-radius:50%; background:#69efff; box-shadow:0 0 12px #69efff; animation:bb-live-pulse 1.3s ease-in-out infinite; }
-.signal-metric { position:relative; overflow:hidden; border:1px solid rgba(255,255,255,.08); border-radius:1.1rem; padding:1rem; background:rgba(0,0,0,.22); box-shadow:inset 0 0 25px rgba(255,255,255,.015); }
-.signal-metric::after { content:""; position:absolute; right:-25px; bottom:-35px; width:95px; height:95px; border-radius:50%; background:currentColor; opacity:.06; filter:blur(10px); }
-.signal-pink { color:#ff5acb; border-color:rgba(255,90,203,.2); } .signal-violet { color:#a875ff; border-color:rgba(168,117,255,.2); } .signal-cyan { color:#5de9ff; border-color:rgba(93,233,255,.2); } .signal-fuchsia { color:#e55cff; border-color:rgba(229,92,255,.2); }
+/* ⫘ NEON METRIC CARDS · แก้การ์ดป้ายไฟทั้งชุดตรงบล็อกนี้ */
+.signal-metric { position:relative; isolation:isolate; overflow:hidden; min-height:105px; border:1px solid currentColor; border-radius:1.1rem; padding:1rem; background:linear-gradient(145deg,rgba(7,10,25,.96),rgba(12,12,30,.72)); box-shadow:0 0 8px currentColor,0 0 24px color-mix(in srgb,currentColor 30%,transparent),inset 0 0 22px color-mix(in srgb,currentColor 14%,transparent); transition:transform .18s ease,box-shadow .18s ease,filter .18s ease; }
+.signal-metric::before { content:""; position:absolute; z-index:-1; inset:0; background:radial-gradient(circle at 12% 0%,color-mix(in srgb,currentColor 28%,transparent),transparent 58%),linear-gradient(115deg,color-mix(in srgb,currentColor 13%,transparent),transparent 62%); opacity:.9; }
+.signal-metric::after { content:""; position:absolute; right:-25px; bottom:-35px; width:125px; height:125px; border-radius:50%; background:currentColor; opacity:.19; filter:blur(18px); box-shadow:0 0 35px currentColor; }
+.signal-metric:hover { transform:translateY(-3px); filter:brightness(1.2); box-shadow:0 0 12px currentColor,0 0 34px color-mix(in srgb,currentColor 55%,transparent),inset 0 0 30px color-mix(in srgb,currentColor 20%,transparent); }
+.signal-pink { color:#ff5acb; } .signal-violet { color:#a875ff; } .signal-cyan { color:#5de9ff; } .signal-green { color:#61ffb4; } .signal-fuchsia { color:#e55cff; }
 .metric-icon { display:grid; place-items:center; width:30px; height:30px; border-radius:9px; background:currentColor; color:#0d0716; box-shadow:0 0 18px currentColor; } .metric-icon svg { width:15px; height:15px; }
 .trace-row { border-bottom:1px solid rgba(213,115,255,.08); transition:background .18s ease, box-shadow .18s ease; } .trace-row:hover { background:linear-gradient(90deg, rgba(228,63,224,.07), rgba(67,219,255,.025)); box-shadow:inset 3px 0 #ff5bce; }
 .page-orb { display:inline-block; width:7px; height:7px; border-radius:50%; background:#ff5bce; box-shadow:0 0 9px #ff5bce; }
