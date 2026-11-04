@@ -16,7 +16,6 @@ import OrderHistory from "./pages/OrderHistory";
 import AlienRoom from "./pages/AlienRoom";
 import SystemManual from "./pages/SystemManual";
 import ProductAlienMap from "./pages/ProductAlienMap";
-import ProductAlienStore from "./pages/ProductAlienStore";
 import TelegramDeliveryRoom from "@/lib/TelegramDeliveryRoom";
 import AlertRoom from "./pages/AlertRoom";
 import SecretGallery from "./pages/SecretGallery";
@@ -36,7 +35,7 @@ function Router() {
     <Route path="/chats"><Shell><ChatHub /></Shell></Route>
     <Route path="/close-job-history"><Shell><CloseJobHistory /></Shell></Route>
     <Route path="/alien-room"><Shell><AlienRoom /></Shell></Route>
-    <Route path="/product-alien-store"><Shell><ProductAlienStore /></Shell></Route>
+    <Route path="/product-alien-store"><Shell><SystemManual /></Shell></Route>
     <Route path="/product-alien-map"><Shell><ProductAlienMap /></Shell></Route>
     <Route path="/telegram-delivery"><Shell><TelegramDeliveryRoom /></Shell></Route>
     <Route path="/telegram-sent-history"><Shell><TelegramSentHistory /></Shell></Route>
