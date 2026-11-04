@@ -144,14 +144,14 @@ export default function OrderControl() {
   }
 
   return (
-    <div className="cosmic-stage min-h-full space-y-3 p-2 text-white sm:p-3 lg:p-4">
+ <div className="cosmic-stage min-h-full space-y-3 p-2 text-white sm:p-3 lg:p-4">
       <span className="cosmic-corner tl" /><span className="cosmic-corner br" />
       <header className="blackbox-hero cyber-glow relative flex flex-wrap items-center justify-between gap-3 overflow-hidden rounded-2xl border border-fuchsia-400/20 p-4 sm:p-5">
         <div className="hero-scanline" /><div className="hero-orbit" />
         <div className="relative z-10 max-w-3xl">
           <p className="orbit-kicker flex items-center gap-2 text-cyan-200/80"><Database className="h-3.5 w-3.5 text-cyan-300" /> ORBITAL ORDER CONTROL · N8N / SUPABASE</p>
-          <h1 className="cyber-title mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">ข้อมูลออเดอร์ <span className="text-fuchsia-300">//</span> COMMAND DECK</h1>
-          <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-300/75">ศูนย์ควบคุมออเดอร์จาก n8n · เห็นต้นทาง สถานะ และเวลาจริงในจอเดียว</p>
+          <h1 className="cyber-title mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">ข้อมูลออเดอร์ <span className="text-fuchsia-300">//</span> BB STORE</h1>
+          <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-300/75">แหล่งรวมไอเทมสายควัน · แห่งสมรภูมิออนไลน์</p>
           <div className="mt-3 flex flex-wrap items-center gap-2"><span className="live-chip"><span className="live-dot" /> LIVE ORDER STREAM</span><span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-300/70">HERMES ARCHIVE · SECURE LINK</span></div>
         </div>
         <div className="central-clock relative z-10"><span className="central-clock-label">CENTRAL ORDER CLOCK</span><strong>{clock.toLocaleTimeString("th-TH", { timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit", second: "2-digit" })}</strong><small>เวลาไทย · order_time_display</small></div>
@@ -159,7 +159,7 @@ export default function OrderControl() {
           <RefreshCw className={`mr-2 h-4 w-4 ${query.isFetching ? "animate-spin" : ""}`} /> รีเฟรช
         </Button>
       </header>
-
+   
       <div className="signal-ticker rounded-xl"><span>✦ HERMES ARCHIVE // ORDER SIGNAL // COD VERIFIED // PRODUCT MAP ONLINE // TELEGRAM ROUTE READY // </span></div>
 
       {/* ⫘ SUMMARY CARDS · การ์ดสรุปยอดด้านบน: แก้สี/ขนาดที่ component Metric ด้านล่าง */}
