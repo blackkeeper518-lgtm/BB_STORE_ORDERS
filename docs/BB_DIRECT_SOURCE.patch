@@ -1,0 +1,282 @@
+diff --git a/client/src/lib/canonical.ts b/client/src/lib/canonical.ts
+index 9903086..79c387d 100644
+--- a/client/src/lib/canonical.ts
++++ b/client/src/lib/canonical.ts
+@@ -3,8 +3,8 @@
+ // ⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘
+ // Scope: BB only · อ่านและตรวจออเดอร์
+ // โต๊ะหลัก: bb_orders
+-// สินค้า/หัวบิล: vw_bb_product_extraction_lab88_order_center_v2
+-// ห้องกลางเก่าไม่ใช่เส้นทางอ่านของเว็บแล้ว
++// สินค้า/หัวบิล: for_packer_bb_display จาก bb_orders
++// เว็บและ Telegram อ่าน bb_orders โดยตรงด้วย select เฉพาะคอลัมน์
+ // คีย์หลัก: upsert_key · เวลาหลัก: order_time_display
+ // ที่อยู่สำรอง: address_display_packer
+ // ห้ามเปลี่ยน Telegram status · ห้ามลบหลักฐาน · ห้ามเอา ST logic มาปน
+@@ -122,26 +122,45 @@ function isoDateKey(value: string | null): string {
+   return values.year && values.month && values.day ? `${values.year}-${values.month}-${values.day}` : "";
+ }
+ function normalizeOrder(row: any, items: CanonicalItem[]): CanonicalOrder { const normalized = items.map(normalizeItem); const cod = num(row.cod_amount); const mapping = row.alien_mapping_status || row.web_mapping_status || row.mapping_status || (normalized.length > 0 && normalized.every(item => item.mapping_status === "MATCHED") ? "MATCHED" : "CHECK_DATA"); const address = row.master_delivery_address || row.address_complete_web || row.web_address_primary || row.address_display_primary || row.full_address || row.address_display_packer || row.addressclean || row.address_display_fallback || row.web_address_fallback || row.web_address_short || [row.address_line_1, row.address_line_2, row.district, row.amphoe, row.province, row.zipcode].filter(Boolean).join(" ") || ""; const productDisplay = String(row.bb_pack_center ?? "").trim() || null; return { ...row, full_address: address, customer_name: row.customer_name, phone: row.phone || row.extracted_phone, address_display_primary: row.web_address_primary || row.address_display_primary || address, address_display_fallback: row.web_address_fallback || row.address_display_fallback || address, items: normalized, mapping_status: mapping, order_number: row.order_number || row.order_number_display || `#${row.upsert_key || "UNKNOWN"}`, order_time: effectiveOrderTime(row), cod_amount: cod, is_ready_to_pack: row.is_ready_to_pack ?? (mapping === "MATCHED"), cod_check_status: row.cod_check_status || (cod == null ? "CHECK" : "PASS"), audit_status: row.alien_audit_status || row.audit_status || mapping, telegram_status: row.telegram_status ?? null, items_text: productDisplay || "", display_for_packer: productDisplay }; }
++// BB ONLY: direct table reads with narrow projections. Do not load the wide row
++// or make the browser execute the Lab view's JSON expansion and matching joins.
++const BB_WEB_ORDER_COLUMNS = [
++  "id", "upsert_key", "order_number", "order_number_display", "order_time_display",
++  "page_id", "page_name", "facebook_name", "customer_name", "phone", "extracted_phone",
++  "address_display_packer", "district", "amphoe", "province", "zipcode",
++  "cod_amount", "expected_cod", "order_status", "audit_flags", "is_ready_to_pack",
++  "cod_check_status", "lock_status", "shipping_carrier", "telegram_sent", "telegram_sent_at",
++  "telegram_status", "delivery_state", "sent_at", "for_packer_bb_display"
++].join(",");
++
++const BB_TELEGRAM_ORDER_COLUMNS = [
++  "id", "upsert_key", "order_number", "order_number_display", "order_time_display",
++  "page_name", "facebook_name", "customer_name", "phone", "extracted_phone",
++  "address_display_packer", "province", "zipcode",
++  "cod_amount", "expected_cod", "order_status", "is_ready_to_pack", "lock_status", "shipping_carrier", "shipping_method",
++  "telegram_sent", "telegram_sent_at", "telegram_status", "delivery_state", "sent_at",
++  "for_packer_bb_display", "telegram_header", "telegram_body", "audit_flags"
++].join(",");
++
++function normalizeBbDirectRow(row: any): CanonicalOrder {
++  const product = typeof row.for_packer_bb_display === "string" ? row.for_packer_bb_display.trim() : "";
++  const mappingStatus = row.is_ready_to_pack === true ? "MATCHED" : null;
++  return normalizeOrder({
++    ...row,
++    bb_pack_center: product || null,
++    stock_notice: row.telegram_header || null,
++    mapping_status: mappingStatus,
++  }, []);
++}
++
+ export async function readCanonicalOrders(search = "", since: string | null = null, until: string | null = null) {
+   const api = getSupabase();
+   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
+ 
+-  // เว็บกลางอ่าน View เว็บเท่านั้น: View นี้ join bb_orders + LAB ไว้แล้ว
+-  // เลือกเฉพาะคอลัมน์ที่หน้าเว็บใช้ เพื่อไม่ลาก chat timeline ก้อนใหญ่
+-  const webColumns = [
+-    "upsert_key", "order_number", "order_number_display", "order_time_display",
+-    "page_name", "facebook_name", "customer_name", "phone", "extracted_phone",
+-    "address_display_packer", "final_address_for_bill", "short_address", "full_address",
+-    "address_line_1", "address_line_2", "addressclean", "district", "amphoe", "province", "zipcode",
+-    "cod_amount", "expected_cod", "order_status", "audit_flags", "is_ready_to_pack",
+-    "cod_check_status", "lock_status", "shipping_carrier", "telegram_sent", "telegram_sent_at", "telegram_status",
+-    "sniper_x_text_clean", "bb_pack_center", "stock_notice", "telegram_pretty", "center_status",
+-    "total_cot_quantity", "product_line_count", "quantity_center", "mapping_status_center"
+-  ].join(",");
+   const limit = search.trim() || since || until ? 500 : 300;
+   const { data, error } = await api
+-    .from("dk_darksidemarketing_bb")
+-    .select(webColumns)
++    .from("bb_orders")
++    .select(BB_WEB_ORDER_COLUMNS)
+     .order("order_time_display", { ascending: false })
+     .limit(limit);
+   if (error) fail(error);
+@@ -151,9 +170,8 @@ export async function readCanonicalOrders(search = "", since: string | null = nu
+   const untilKey = isoDateKey(until);
+   const orders = (data ?? [])
+     .map((row: any) => ({
+-      ...normalizeOrder(row, []),
+-      source_table: "dk_darksidemarketing_bb",
+-      raw_text_with_phone_timed: null,
++      ...normalizeBbDirectRow(row),
++      source_table: "bb_orders",
+       review_status: row.review_status ?? null,
+     }) as CanonicalOrder)
+     .filter((row: any) => {
+@@ -162,34 +180,53 @@ export async function readCanonicalOrders(search = "", since: string | null = nu
+       return (!fromKey || (dateKey && dateKey >= fromKey)) && (!untilKey || (dateKey && dateKey <= untilKey));
+     });
+   orders.sort((a, b) => displayOrderSortKey(b.order_time_display) - displayOrderSortKey(a.order_time_display));
+-  return { orders, itemError: null, sourceTable: "dk_darksidemarketing_bb", fetchedAt: new Date().toISOString(), since };
++  return { orders, itemError: null, sourceTable: "bb_orders", fetchedAt: new Date().toISOString(), since };
+ }
+ export async function readTelegramDeliveryOrders(search = "", room: "queue" | "today" | "yesterday_after_14" | "sent" = "queue") {
+   const api = getSupabase();
+   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
+ 
+-  // Telegram อ่านห้องกลาง Telegram แยกจากเว็บ ตามโครงสร้างเดิมของพี่
+-  const telegramColumns = [
+-    "upsert_key", "order_number", "order_number_display", "order_time_display",
+-    "page_name", "facebook_name", "customer_name", "phone", "extracted_phone",
+-    "address_display_packer", "final_address_for_bill", "short_address", "full_address",
+-    "district", "amphoe", "province", "zipcode", "cod_amount", "order_status", "lock_status",
+-    "shipping_carrier", "telegram_sent", "telegram_sent_at", "bb_pack_center", "stock_notice",
+-     "raw_text_with_phone", "normalized_chat_timeline", "stock_notice",
+-    "telegram_pretty", "center_status", "total_cot_quantity"
+-  ].join(",");
+   const { data, error } = await api
+-    .from("dk_darksidemarketing_telagram_bb")
+-    .select(telegramColumns)
++    .from("bb_orders")
++    .select(BB_TELEGRAM_ORDER_COLUMNS)
+     .order("order_time_display", { ascending: false })
+     .limit(1000);
+   if (error) fail(error);
+   const query = search.trim().toLowerCase();
+   const allOrders = (data ?? [])
+-    .map((row: any) => ({ ...normalizeOrder(row, []), source_table: "dk_darksidemarketing_telagram_bb", raw_text_with_phone_timed: null }) as CanonicalOrder)
++    .map((row: any) => ({ ...normalizeBbDirectRow(row), source_table: "bb_orders" }) as CanonicalOrder)
+     .filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query));
+   const orders = allOrders.sort((a, b) => displayOrderSortKey(b.order_time_display) - displayOrderSortKey(a.order_time_display));
+-  return { orders, itemError: null, sourceTable: "dk_darksidemarketing_telagram_bb", fetchedAt: new Date().toISOString(), room };
++  return { orders, itemError: null, sourceTable: "bb_orders", fetchedAt: new Date().toISOString(), room };
++}
++
++export async function readBbOrderEvidence(upsertKey: string) {
++  const api = getSupabase();
++  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
++  const { data, error } = await api
++    .from("bb_orders")
++    .select("upsert_key,raw_text_with_phone_timed,normalized_chat_timeline")
++    .eq("upsert_key", upsertKey)
++    .maybeSingle();
++  if (error) fail(error);
++  return data ?? {};
++}
++
++export async function readBbOrderEvidenceBatch(upsertKeys: string[]) {
++  const keys = Array.from(new Set(upsertKeys.map((key) => String(key ?? "").trim()).filter(Boolean)));
++  if (!keys.length) return [];
++  const api = getSupabase();
++  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
++  const evidence: any[] = [];
++  for (let offset = 0; offset < keys.length; offset += 100) {
++    const { data, error } = await api
++      .from("bb_orders")
++      .select("upsert_key,raw_text_with_phone_timed,normalized_chat_timeline")
++      .in("upsert_key", keys.slice(offset, offset + 100));
++    if (error) fail(error);
++    evidence.push(...(data ?? []));
++  }
++  return evidence;
+ }
+ 
+ export async function readBbAlertRoom(search = "") {
+diff --git a/client/src/pages/OrderControl.tsx b/client/src/pages/OrderControl.tsx
+index b1ed62f..f48c6d9 100644
+--- a/client/src/pages/OrderControl.tsx
++++ b/client/src/pages/OrderControl.tsx
+@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
+ import { Card, CardContent } from "@/components/ui/card";
+ import { Input } from "@/components/ui/input";
+ import { trpc } from "@/lib/trpc";
+-import { getActiveCamp, readCanonicalOrders } from "@/lib/canonical";
++import { getActiveCamp, readBbOrderEvidence, readBbOrderEvidenceBatch, readCanonicalOrders } from "@/lib/canonical";
+ import {
+   AlertTriangle,
+   CalendarDays,
+@@ -156,7 +156,6 @@ export default function OrderControl() {
+   const [previewText, setPreviewText] = useState("");
+   const [flashBusinessCode, setFlashBusinessCode] = useState(() => localStorage.getItem("flash-business-code") || "");
+   const [flashSaved, setFlashSaved] = useState(false);
+-  const [productFallbackField, setProductFallbackField] = useState(() => "");
+   const [reviewOverrides, setReviewOverrides] = useState<Record<string, "PASSED" | "FAILED">>(() => {
+     try { return JSON.parse(localStorage.getItem(`order-review-${getActiveCamp()}`) || "{}"); } catch { return {}; }
+   });
+@@ -190,6 +189,12 @@ export default function OrderControl() {
+     })
+     .sort((a, b) => orderDisplaySortKey(b.order_time_display) - orderDisplaySortKey(a.order_time_display)), [orders, filter, dateFrom, dateTo, timeFrom, timeTo, pageFilter]);
+   const selectedOrder = orders.find(order => order.order_number === selectedNumber) ?? null;
++  const selectedEvidenceQuery = useQuery({
++    queryKey: ["bb-order-evidence", selectedOrder?.upsert_key],
++    queryFn: () => readBbOrderEvidence(String(selectedOrder!.upsert_key)),
++    enabled: Boolean(selectedOrder?.upsert_key),
++    staleTime: 60_000,
++  });
+   const reviewOrder = (order: any, status: "PASSED" | "FAILED") => {
+     const key = String(order.upsert_key || order.order_number);
+     const next = { ...reviewOverrides, [key]: status };
+@@ -197,10 +202,12 @@ export default function OrderControl() {
+     localStorage.setItem(`order-review-${getActiveCamp()}`, JSON.stringify(next));
+   };
+   const orderWithReview = (order: any) => ({ ...order, review_status: reviewOverrides[String(order.upsert_key || order.order_number)] || order.review_status || null });
+-  const exportOrders = () => {
++  const exportOrders = async () => {
++    const evidenceRows = await readBbOrderEvidenceBatch(visibleOrders.map((order: any) => String(order.upsert_key ?? "")));
++    const evidenceByKey = new Map(evidenceRows.map((row: any) => [String(row.upsert_key), row]));
+     const headers = ["วันที่", "เวลา", "ชื่อเพจ", "ชื่อลูกค้า", "เบอร์", "ที่อยู่", "ยอด COD", "สินค้า", "จำนวน", "ประวัติแชท"];
+     const rows = visibleOrders.map((raw: any) => {
+-      const order = orderWithReview(raw);
++      const order = orderWithReview({ ...raw, ...(evidenceByKey.get(String(raw.upsert_key ?? "")) ?? {}) });
+       const parts = orderDisplayParts(order.order_time_display);
+       const dateText = parts?.date || order.order_date || "ไม่ระบุวันที่";
+       const timeText = parts?.time || order.time_th || "ไม่ระบุเวลา";
+@@ -239,26 +246,21 @@ export default function OrderControl() {
+         <div className="pointer-events-none absolute -right-20 -top-32 h-72 w-72 rounded-full bg-orange-700/20 blur-3xl" />
+         <div className="pointer-events-none absolute bottom-0 left-1/3 h-32 w-64 rounded-full bg-orange-500/10 blur-3xl" />
+         <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+-          <div><div className="mb-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.3em] text-orange-300"><Flame className="h-3.5 w-3.5" /> NIGHTOPS · ORDER CONTROL</div><h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">ห้องควบคุมออเดอร์</h1><p className="mt-2 max-w-xl text-sm leading-6 text-slate-400">ข้อมูลสินค้าแสดงจาก <span className="font-mono text-fuchsia-300">bb_pack_center จาก LAB</span> เท่านั้น และรองรับหลายรายการต่อออเดอร์</p></div>
++          <div><div className="mb-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.3em] text-orange-300"><Flame className="h-3.5 w-3.5" /> NIGHTOPS · ORDER CONTROL</div><h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">ห้องควบคุมออเดอร์</h1><p className="mt-2 max-w-xl text-sm leading-6 text-slate-400">ข้อมูลสินค้าแสดงจาก <span className="font-mono text-fuchsia-300">for_packer_bb_display ใน bb_orders</span> เท่านั้น</p></div>
+           <div className="flex flex-wrap items-center gap-2"><Badge className="border border-emerald-500/30 bg-emerald-500/10 text-emerald-300"><span className="mr-2 h-1.5 w-1.5 rounded-full bg-emerald-400" /> LIVE DATA</Badge><Badge variant="outline" className="border-orange-500/30 bg-orange-500/5 text-orange-300"><Database className="mr-1.5 h-3 w-3" /> Supabase</Badge><Button variant="outline" size="sm" onClick={exportOrders} disabled={!visibleOrders.length} className="border-emerald-400/20 bg-emerald-400/5 text-emerald-200"><Download className="mr-2 h-3.5 w-3.5" /> Export CSV</Button><Button variant="outline" size="sm" onClick={() => liveQuery.refetch()} className="border-white/10 bg-white/5 text-slate-200 hover:bg-white/10 hover:text-white"><RefreshCw className={`mr-2 h-3.5 w-3.5 ${liveQuery.isFetching ? "animate-spin" : ""}`} /> รีเฟรช</Button></div>
+         </div>
+       </header>
+ 
+-      <label className="flex flex-col gap-2 rounded-2xl border border-orange-400/20 bg-[#111116] p-4 text-xs text-orange-100/70 sm:flex-row sm:items-center sm:justify-between">
+-        <span><span className="font-semibold text-orange-200">ฟิลด์สำรองสินค้า (ยังไม่กำหนด)</span><span className="mt-1 block text-[11px] text-slate-500">เว้นว่างไว้ก่อน ระบบจะแสดงสินค้าเฉพาะ bb_pack_center จาก Lab 88 เท่านั้น</span></span>
+-        <Input value={productFallbackField} onChange={event => { setProductFallbackField(event.target.value); }} placeholder="ใส่ชื่อฟิลด์ภายหลัง" className="h-9 sm:max-w-xs border-orange-300/20 bg-black/30 font-mono text-white placeholder:text-slate-600" />
+-      </label>
+-
+       <Card className="hidden rounded-2xl border-orange-400/20 bg-orange-400/[0.04]"><CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"><div><div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-orange-300 shadow-[0_0_12px_rgba(251,146,60,0.8)]" /><p className="text-sm font-semibold text-orange-100">FLASH BUSINESS · ศูนย์เช็คสถานะขนส่ง</p></div><p className="mt-1 text-xs text-slate-400">ใส่รหัสธุรกิจไว้เตรียมต่อ Flash API — ค่านี้เก็บใน Browser เครื่องนี้และยังไม่ส่งออกจากหน้าเว็บ</p></div><div className="flex w-full gap-2 sm:w-auto"><Input value={flashBusinessCode} onChange={event => { setFlashBusinessCode(event.target.value); setFlashSaved(false); }} placeholder="Flash Business Code" className="h-9 min-w-0 border-orange-300/20 bg-black/30 font-mono text-xs text-white placeholder:text-slate-600 sm:w-56" /><Button size="sm" variant="outline" onClick={() => { localStorage.setItem("flash-business-code", flashBusinessCode.trim()); setFlashSaved(true); }} className="border-orange-300/30 bg-orange-300/10 text-orange-100 hover:bg-orange-300/20">{flashSaved ? "บันทึกแล้ว" : "บันทึกรหัส"}</Button></div></CardContent></Card>
+ 
+-      <Card className={`hidden rounded-2xl border ${liveQuery.isError ? "border-red-500/30 bg-red-950/20" : liveQuery.isFetching ? "border-amber-400/30 bg-amber-950/10" : "border-emerald-500/25 bg-emerald-950/10"}`}><CardContent className="flex flex-wrap items-center justify-between gap-3 p-4"><div className="flex items-center gap-3"><div className={`h-3 w-3 rounded-full ${liveQuery.isError ? "bg-red-400" : liveQuery.isFetching ? "animate-pulse bg-amber-300" : "bg-emerald-400"}`} /><div><p className="text-sm font-semibold text-white">{liveQuery.isError ? "บันทึก/อ่านออเดอร์ไม่ครบ" : liveQuery.isFetching ? "กำลังตรวจสอบข้อมูลออเดอร์…" : "สถานะสายออเดอร์พร้อม"}</p><p className="mt-1 text-xs text-slate-400">ระบบอ่านจาก <span className="font-mono text-fuchsia-300">dk_darksidemarketing_bb + dk_darksidemarketing_telagram_bb</span> · หัวบิลจาก bb_orders · สินค้าและที่อยู่ใช้ฟิลด์สำรองจาก View · <span className="font-mono text-orange-200">{stats?.total ?? 0}</span> รายการ</p></div></div><Badge className={liveQuery.isError ? "border-red-400/30 bg-red-400/10 text-red-300" : liveQuery.isFetching ? "border-amber-400/30 bg-amber-400/10 text-amber-200" : "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"}>{liveQuery.isError ? "INCOMPLETE" : liveQuery.isFetching ? "CHECKING" : "LOADED"}</Badge></CardContent></Card>
++      <Card className={`hidden rounded-2xl border ${liveQuery.isError ? "border-red-500/30 bg-red-950/20" : liveQuery.isFetching ? "border-amber-400/30 bg-amber-950/10" : "border-emerald-500/25 bg-emerald-950/10"}`}><CardContent className="flex flex-wrap items-center justify-between gap-3 p-4"><div className="flex items-center gap-3"><div className={`h-3 w-3 rounded-full ${liveQuery.isError ? "bg-red-400" : liveQuery.isFetching ? "animate-pulse bg-amber-300" : "bg-emerald-400"}`} /><div><p className="text-sm font-semibold text-white">{liveQuery.isError ? "บันทึก/อ่านออเดอร์ไม่ครบ" : liveQuery.isFetching ? "กำลังตรวจสอบข้อมูลออเดอร์…" : "สถานะสายออเดอร์พร้อม"}</p><p className="mt-1 text-xs text-slate-400">ระบบอ่านตรงจาก <span className="font-mono text-fuchsia-300">bb_orders</span> ด้วยคอลัมน์ที่จำเป็น · <span className="font-mono text-orange-200">{stats?.total ?? 0}</span> รายการ</p></div></div><Badge className={liveQuery.isError ? "border-red-400/30 bg-red-400/10 text-red-300" : liveQuery.isFetching ? "border-amber-400/30 bg-amber-400/10 text-amber-200" : "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"}>{liveQuery.isError ? "INCOMPLETE" : liveQuery.isFetching ? "CHECKING" : "LOADED"}</Badge></CardContent></Card>
+ 
+       <div className="hidden flex items-center justify-between rounded-2xl border border-orange-500/20 bg-orange-500/[0.04] px-4 py-3"><div><p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-orange-300">ADMIN ORDER SUMMARY</p><p className="mt-1 text-sm font-semibold text-white">สร้างใบสรุปออเดอร์จากข้อความลูกค้า</p></div><Button size="sm" variant="outline" onClick={() => setShowDraftSummary(value => !value)} className="border-orange-400/30 bg-orange-500/10 text-orange-100 hover:bg-orange-500/20">{showDraftSummary ? "ซ่อน" : "＋ เพิ่ม"}</Button></div>
+       {showDraftSummary && (
+       <Card className="overflow-hidden rounded-3xl border-orange-500/20 bg-[#111116] shadow-2xl shadow-orange-950/10"><CardContent className="p-5 sm:p-6"><div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"><div><div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.25em] text-orange-300"><Sparkles className="h-3.5 w-3.5" /> ADMIN ORDER SUMMARY</div><h2 className="mt-2 text-xl font-semibold text-white">วางที่อยู่ แล้วสร้างใบสรุปออเดอร์</h2><p className="mt-1 text-xs leading-5 text-slate-500">ระบบจะอ่านชื่อ เบอร์โทร ที่อยู่ สินค้า และ COD จากข้อความ แล้วสร้างเลข <span className="font-mono text-orange-300">ORD</span> ให้อัตโนมัติ โดยยังไม่เขียนลงฐานข้อมูลจริง</p></div><Badge variant="outline" className="w-fit border-orange-500/30 bg-orange-500/5 text-orange-200">DRAFT MODE</Badge></div><div className="mt-5 grid gap-3 lg:grid-cols-[1.4fr_0.6fr]"><textarea value={draftText} onChange={event => setDraftText(event.target.value)} placeholder={'ก๊อปข้อความลูกค้าหรือที่อยู่มาวางที่นี่…\nเช่น ชื่อ: สมชาย ใจดี\nโทร: 0812345678\nบ้านเลขที่…'} className="min-h-32 w-full resize-y rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm leading-6 text-slate-100 outline-none placeholder:text-slate-600 focus:border-orange-400/50 focus:ring-2 focus:ring-fuchsia-500/20" /><div className="grid content-start gap-3 sm:grid-cols-3 lg:grid-cols-1"><Input value={draftCustomer} onChange={event => setDraftCustomer(event.target.value)} placeholder="ชื่อลูกค้า (ถ้ามี)" className="border-white/10 bg-black/30 text-white placeholder:text-slate-600" /><Input value={draftProduct} onChange={event => setDraftProduct(event.target.value)} placeholder="สินค้า / SKU (ถ้ามี)" className="border-white/10 bg-black/30 text-white placeholder:text-slate-600" /><Input value={draftCod} onChange={event => setDraftCod(event.target.value)} placeholder="COD (ถ้ามี)" className="border-white/10 bg-black/30 text-white placeholder:text-slate-600" /></div></div><div className="mt-4 flex flex-wrap items-center justify-between gap-3"><span className="text-xs text-slate-600">{draftText.length.toLocaleString()} ตัวอักษร · แก้ไขข้อมูลได้ก่อนคัดลอก</span><Button disabled={!draftText.trim() || summaryMutation.isPending} onClick={() => summaryMutation.mutate({ rawText: draftText, customerName: draftCustomer, product: draftProduct, cod: draftCod })} className="rounded-xl bg-gradient-to-r from-orange-600 to-red-600 text-white shadow-lg shadow-orange-950/30 hover:from-orange-500 hover:to-red-500"><Sparkles className="mr-2 h-4 w-4" />{summaryMutation.isPending ? "กำลังสรุป…" : "สร้างใบสรุป ORD"}</Button></div>{generatedSummary && <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_0.8fr]"><div className="rounded-2xl border border-orange-400/30 bg-orange-500/[0.04] p-4"><div className="flex items-center justify-between gap-3"><p className="font-mono text-lg font-semibold text-orange-200">{generatedSummary.orderNumber}</p><Button size="sm" variant="outline" onClick={copyGenerated} className="border-orange-400/20 bg-orange-500/5 text-orange-200 hover:bg-orange-500/10">{copied ? <Check className="mr-2 h-3.5 w-3.5" /> : <Clipboard className="mr-2 h-3.5 w-3.5" />}{copied ? "คัดลอกแล้ว" : "คัดลอกใบสรุป"}</Button></div><div className="mt-4 grid gap-3 text-sm sm:grid-cols-2"><div><p className="text-[10px] uppercase tracking-wider text-slate-600">ลูกค้า</p><p className="mt-1 text-slate-200">{generatedSummary.customerName}</p></div><div><p className="text-[10px] uppercase tracking-wider text-slate-600">โทร</p><p className="mt-1 font-mono text-slate-300">{generatedSummary.phone || "ไม่ระบุ"}</p></div><div className="sm:col-span-2"><p className="text-[10px] uppercase tracking-wider text-slate-600">ที่อยู่</p><p className="mt-1 leading-6 text-slate-300">{generatedSummary.address || "ไม่ระบุที่อยู่"}</p></div><div><p className="text-[10px] uppercase tracking-wider text-slate-600">สินค้า</p><p className="mt-1 text-slate-200">{generatedSummary.product}</p></div><div><p className="text-[10px] uppercase tracking-wider text-slate-600">COD</p><p className="mt-1 text-orange-200">{generatedSummary.cod === "ไม่ระบุ" ? generatedSummary.cod : `${generatedSummary.cod} บาท`}</p></div></div></div><pre className="overflow-auto rounded-2xl border border-white/5 bg-black/40 p-4 font-mono text-xs leading-6 text-slate-400">{generatedSummary.copyText}</pre></div>}</CardContent></Card>
+       )}
+ 
+-      {liveQuery.isError ? <Card className="rounded-2xl border-red-500/30 bg-red-950/20"><CardContent className="flex items-start gap-3 p-5 text-sm text-red-200"><ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-red-400" /><div><p className="font-semibold">อ่านข้อมูลจริงไม่สำเร็จ</p><p className="mt-1 text-red-200/70">ตรวจสอบ Supabase URL, Anon/Publishable Key และสิทธิ์อ่านห้องกลาง BB</p><p className="mt-2 rounded-lg border border-red-300/10 bg-black/20 p-2 font-mono text-[11px] leading-5 text-red-100/80">{liveQuery.error.message}</p></div></CardContent></Card> : null}
++      {liveQuery.isError ? <Card className="rounded-2xl border-red-500/30 bg-red-950/20"><CardContent className="flex items-start gap-3 p-5 text-sm text-red-200"><ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-red-400" /><div><p className="font-semibold">อ่านข้อมูลจริงไม่สำเร็จ</p><p className="mt-1 text-red-200/70">ตรวจสอบ Supabase URL, Anon/Publishable Key และสิทธิ์อ่านโต๊ะ bb_orders</p><p className="mt-2 rounded-lg border border-red-300/10 bg-black/20 p-2 font-mono text-[11px] leading-5 text-red-100/80">{liveQuery.error.message}</p></div></CardContent></Card> : null}
+ 
+       <div className="grid grid-cols-2 gap-3 xl:grid-cols-5"><StatCard label="ออเดอร์ที่โหลด" value={stats?.total ?? 0} detail="จาก bb_orders" accent="bg-orange-500/10 text-orange-300" icon={<PackageCheck className="h-5 w-5" />} /><StatCard label="แมปสำเร็จ" value={stats?.mapped ?? 0} detail="พร้อมไปขั้นตอนถัดไป" accent="bg-emerald-500/10 text-emerald-300" icon={<Check className="h-5 w-5" />} /><StatCard label="ต้องตรวจ" value={stats?.review ?? 0} detail="ข้อมูลยังไม่พร้อม" accent="bg-orange-500/10 text-orange-300" icon={<ShieldAlert className="h-5 w-5" />} /><StatCard label="เช็คยอด" value={stats?.codCheck ?? 0} detail="COD ไม่ผ่านหรือยังไม่ระบุ" accent="bg-orange-500/10 text-orange-300" icon={<AlertTriangle className="h-5 w-5" />} /><StatCard label="เพจที่พบ" value={stats?.pages ?? 0} detail={`${stats?.sent ?? 0} รายการมีสถานะ SENT`} accent="bg-orange-500/10 text-orange-300" icon={<MessageCircle className="h-5 w-5" />} /></div>
+ 
+@@ -269,9 +271,9 @@ export default function OrderControl() {
+       {selectedOrder ? <div className="blackbox-action-dock flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-3"><div><p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-fuchsia-300">SELECTED SIGNAL</p><p className="mt-1 font-mono text-xs text-fuchsia-100/70">{selectedOrder.order_number} · {statusFor(selectedOrderWithReview || selectedOrder).label}</p></div><div className="flex flex-wrap gap-2"><Link href={`/order-history?search=${encodeURIComponent(selectedOrder.order_number)}`}><Button size="sm" variant="outline" className="border-cyan-300/35 bg-cyan-400/10 text-cyan-100 hover:bg-cyan-400/20"><Clock3 className="mr-2 h-3.5 w-3.5" />ส่งไปห้องประวัติ</Button></Link><Link href={`/telegram-delivery?search=${encodeURIComponent(selectedOrder.order_number)}&room=queue`}><Button size="sm" variant="outline" className="border-fuchsia-300/35 bg-fuchsia-500/10 text-fuchsia-100 hover:bg-fuchsia-500/20"><Clipboard className="mr-2 h-3.5 w-3.5" />แก้ไขออเดอร์</Button></Link></div></div> : null}
+ 
+       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(380px,0.8fr)]">
+-      <Card className="blackbox-queue overflow-hidden rounded-3xl"><CardContent className="p-0"><div className="blackbox-queue-head flex items-center justify-between border-b border-fuchsia-400/15 px-5 py-4"><div><p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-fuchsia-300">INCOMING QUEUE · BLACKBOX SIGNALS</p><h2 className="mt-1 text-lg font-semibold text-white">รายการออเดอร์</h2><p className="mt-1 text-[11px] text-fuchsia-100/35">อ่านจาก raw_text_with_phone_timed · แหล่งข้อมูล: {liveQuery.data?.sourceTable || "กำลังตรวจ"}</p></div><span className="neon-count">{liveQuery.isLoading ? "กำลังอ่านข้อมูล…" : `${visibleOrders.length} รายการ`}</span></div><div className="max-h-[650px] overflow-y-auto p-3">{liveQuery.isLoading ? <div className="flex items-center justify-center gap-2 p-12 text-sm text-fuchsia-100/45"><Loader2 className="h-4 w-4 animate-spin text-fuchsia-300" /> กำลังอ่านข้อมูลจาก Supabase…</div> : visibleOrders.length === 0 ? <div className="p-12 text-center text-sm text-fuchsia-100/45"><Search className="mx-auto mb-3 h-7 w-7 text-fuchsia-300/35" />ไม่พบออเดอร์ตามเงื่อนไขนี้</div> : visibleOrders.map(order => { const status = statusFor(orderWithReview(order)); return <button key={order.order_number} onClick={() => setSelectedNumber(order.order_number)} className={`blackbox-order-card group mb-3 flex w-full items-center gap-3 rounded-2xl border p-4 text-left transition ${selectedNumber === order.order_number ? "is-selected" : ""}`}><div className={`status-beam ${status.label === "เช็คยอด" ? "status-beam-pink" : status.label === "ต้องตรวจ" ? "status-beam-violet" : "status-beam-cyan"}`} /><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><span className="font-mono text-xs font-semibold text-fuchsia-100/90">{order.order_number}</span><Badge variant="outline" className={`gap-1 px-2 py-0.5 text-[10px] ${status.tone}`}>{status.icon}{status.label}</Badge></div><div className="mt-3 grid gap-x-4 gap-y-1 text-xs sm:grid-cols-2"><p className="text-fuchsia-100/60"><span className="text-fuchsia-100/30">วันที่/เวลา:</span> {order.order_time_display || "ไม่ระบุเวลา"}</p><p className="truncate text-fuchsia-100/60"><span className="text-fuchsia-100/30">ชื่อเพจ:</span> {order.page_name || "ไม่ระบุเพจ"}</p><p className="text-fuchsia-100/80"><span className="text-fuchsia-100/30">ลูกค้า:</span> {order.customer_name || "ไม่ระบุชื่อลูกค้า"}</p><p className="font-mono text-fuchsia-100/70"><span className="font-sans text-fuchsia-100/30">เบอร์:</span> {order.phone || "ไม่ระบุเบอร์"}</p><p className="line-clamp-2 text-fuchsia-100/55 sm:col-span-2"><span className="text-fuchsia-100/30">ที่อยู่:</span> {orderAddress(order)}</p><p className="line-clamp-2 font-semibold text-cyan-200 sm:col-span-2"><span className="font-normal text-fuchsia-100/30">สินค้า:</span> {orderProductPreview(order)}</p><p className="text-fuchsia-100/60"><span className="text-fuchsia-100/30">จำนวน:</span> {orderProductQuantity(order)} คอต</p><p className="font-semibold text-pink-200"><span className="font-normal text-fuchsia-100/30">ยอด COD:</span> {money(order.cod_amount)}</p><p className="line-clamp-1 text-fuchsia-100/35 sm:col-span-2"><span className="text-fuchsia-100/30">ประวัติแชท:</span> {order.raw_text_with_phone_timed || "ไม่พบประวัติแชท"}</p></div></div></button>; })}</div></CardContent></Card>
++      <Card className="blackbox-queue overflow-hidden rounded-3xl"><CardContent className="p-0"><div className="blackbox-queue-head flex items-center justify-between border-b border-fuchsia-400/15 px-5 py-4"><div><p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-fuchsia-300">INCOMING QUEUE · BLACKBOX SIGNALS</p><h2 className="mt-1 text-lg font-semibold text-white">รายการออเดอร์</h2><p className="mt-1 text-[11px] text-fuchsia-100/35">อ่านจาก raw_text_with_phone_timed · แหล่งข้อมูล: {liveQuery.data?.sourceTable || "กำลังตรวจ"}</p></div><span className="neon-count">{liveQuery.isLoading ? "กำลังอ่านข้อมูล…" : `${visibleOrders.length} รายการ`}</span></div><div className="max-h-[650px] overflow-y-auto p-3">{liveQuery.isLoading ? <div className="flex items-center justify-center gap-2 p-12 text-sm text-fuchsia-100/45"><Loader2 className="h-4 w-4 animate-spin text-fuchsia-300" /> กำลังอ่านข้อมูลจาก Supabase…</div> : visibleOrders.length === 0 ? <div className="p-12 text-center text-sm text-fuchsia-100/45"><Search className="mx-auto mb-3 h-7 w-7 text-fuchsia-300/35" />ไม่พบออเดอร์ตามเงื่อนไขนี้</div> : visibleOrders.map(order => { const status = statusFor(orderWithReview(order)); return <button key={order.order_number} onClick={() => setSelectedNumber(order.order_number)} className={`blackbox-order-card group mb-3 flex w-full items-center gap-3 rounded-2xl border p-4 text-left transition ${selectedNumber === order.order_number ? "is-selected" : ""}`}><div className={`status-beam ${status.label === "เช็คยอด" ? "status-beam-pink" : status.label === "ต้องตรวจ" ? "status-beam-violet" : "status-beam-cyan"}`} /><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><span className="font-mono text-xs font-semibold text-fuchsia-100/90">{order.order_number}</span><Badge variant="outline" className={`gap-1 px-2 py-0.5 text-[10px] ${status.tone}`}>{status.icon}{status.label}</Badge></div><div className="mt-3 grid gap-x-4 gap-y-1 text-xs sm:grid-cols-2"><p className="text-fuchsia-100/60"><span className="text-fuchsia-100/30">วันที่/เวลา:</span> {order.order_time_display || "ไม่ระบุเวลา"}</p><p className="truncate text-fuchsia-100/60"><span className="text-fuchsia-100/30">ชื่อเพจ:</span> {order.page_name || "ไม่ระบุเพจ"}</p><p className="text-fuchsia-100/80"><span className="text-fuchsia-100/30">ลูกค้า:</span> {order.customer_name || "ไม่ระบุชื่อลูกค้า"}</p><p className="font-mono text-fuchsia-100/70"><span className="font-sans text-fuchsia-100/30">เบอร์:</span> {order.phone || "ไม่ระบุเบอร์"}</p><p className="line-clamp-2 text-fuchsia-100/55 sm:col-span-2"><span className="text-fuchsia-100/30">ที่อยู่:</span> {orderAddress(order)}</p><p className="line-clamp-2 font-semibold text-cyan-200 sm:col-span-2"><span className="font-normal text-fuchsia-100/30">สินค้า:</span> {orderProductPreview(order)}</p><p className="text-fuchsia-100/60"><span className="text-fuchsia-100/30">จำนวน:</span> {orderProductQuantity(order)} คอต</p><p className="font-semibold text-pink-200"><span className="font-normal text-fuchsia-100/30">ยอด COD:</span> {money(order.cod_amount)}</p><p className="line-clamp-1 text-fuchsia-100/35 sm:col-span-2"><span className="text-fuchsia-100/30">ประวัติแชท:</span> คลิกออเดอร์เพื่อโหลดหลักฐาน</p></div></div></button>; })}</div></CardContent></Card>
+ 
+-        <Card className="overflow-hidden rounded-3xl border-white/10 bg-[#111116] shadow-2xl shadow-black/20 xl:sticky xl:top-5 xl:self-start"><CardContent className="p-0">{selectedOrder ? <><div className="flex items-start justify-between border-b border-white/10 px-5 py-4"><div><p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-orange-300">ORDER INSPECTOR</p><h2 className="mt-1 font-mono text-lg font-semibold">{selectedOrder.order_number}</h2></div><button onClick={() => setSelectedNumber(null)} className="rounded-lg p-2 text-slate-500 hover:bg-white/5 hover:text-white" aria-label="ปิดรายละเอียด"><X className="h-4 w-4" /></button></div><div className="space-y-5 p-5"><div className="flex items-start gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4"><div className="rounded-full bg-emerald-400/10 p-2 text-emerald-300"><CheckCircle2 className="h-4 w-4" /></div><div><p className="text-sm font-semibold text-emerald-200">{statusFor(selectedOrderWithReview || selectedOrder).label}</p><p className="mt-1 text-xs leading-5 text-slate-400">{selectedOrder.audit_flags || selectedOrder.cod_check_status || "สถานะจากข้อมูลจริงในฐานข้อมูล"}</p></div></div><section><p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">PRODUCT PAYLOAD</p><div className="space-y-2">{(selectedOrder.items.length ? selectedOrder.items : [{ id: 0, sku: selectedOrder.sku, th_name: selectedOrder.th_name, emoji: selectedOrder.emoji, display_for_packer: selectedOrder.display_for_packer, quantity: selectedOrder.items.length ? 0 : null, unit_price: selectedOrder.unit_price ?? selectedOrder.alien_unit_prices, expected_cod: selectedOrder.expected_cod }]).map((item, index) => <div key={`${item.id ?? "line"}-${index}`} className="rounded-2xl border border-white/5 bg-black/20 p-3"><div className="flex items-start gap-3"><span className="text-xl">{item.emoji ?? selectedOrder.emoji ?? "📦"}</span><div className="min-w-0 flex-1"><p className="font-mono text-xs font-semibold text-slate-200">{item.sku || "ไม่ระบุ SKU"}</p><p className="mt-1 text-xs text-slate-400">{itemDisplay(item)}</p></div></div><div className="mt-3 grid grid-cols-3 gap-2 text-xs"><div><p className="text-slate-600">จำนวน</p><p className="mt-1 text-slate-300">{item.quantity != null || item.qty != null ? `${item.quantity ?? item.qty} คอต` : "—"}</p></div><div><p className="text-slate-600">ราคาต่อหน่วย</p><p className="mt-1 text-orange-300">{money(item.unit_price)}</p></div><div><p className="text-slate-600">ยอด COD</p><p className="mt-1 text-orange-300">{money(selectedOrder.cod_amount)}</p></div></div></div>)}</div></section><section><p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">CUSTOMER CONTEXT</p><div className="space-y-2 rounded-2xl border border-white/5 bg-black/20 p-4 text-sm"><p className="font-semibold text-slate-100">{selectedOrder.customer_name || "ไม่ระบุชื่อ"}</p><p className="text-slate-400">{selectedOrder.phone || "ไม่ระบุเบอร์โทร"}</p><p className="leading-6 text-slate-400">{orderAddress(selectedOrder)}</p><div className="flex items-center gap-2 pt-2 text-xs text-slate-600"><Clock3 className="h-3.5 w-3.5" /> {selectedOrder.page_name || "ไม่ระบุเพจ"}</div></div></section><section><p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">CUSTOMER HISTORY · CHAT TIMELINE</p><pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded-2xl border border-orange-400/10 bg-black/30 p-4 text-xs leading-5 text-amber-100/70">{customerHistoryText(selectedOrder) || "ไม่พบ chat_timeline"}</pre></section><div className="grid grid-cols-2 gap-2"><Button onClick={() => reviewOrder(selectedOrder, "PASSED")} variant="outline" className="border-emerald-400/25 bg-emerald-400/10 text-emerald-200"><CheckCircle2 className="mr-2 h-4 w-4" />ผ่าน</Button><Button onClick={() => reviewOrder(selectedOrder, "FAILED")} variant="outline" className="border-red-400/25 bg-red-400/10 text-red-200"><AlertTriangle className="mr-2 h-4 w-4" />ไม่ผ่าน</Button><Button onClick={() => previewSummary(selectedOrder)} variant="outline" className="border-orange-400/20 bg-orange-400/[0.06] text-amber-200 hover:bg-orange-400/10"><Eye className="mr-2 h-4 w-4" />พรีวิว</Button><Button onClick={copySummary} variant="outline" className="border-white/10 bg-white/5 text-slate-200 hover:bg-white/10 hover:text-white">{copied ? <Check className="mr-2 h-4 w-4 text-emerald-300" /> : <Clipboard className="mr-2 h-4 w-4" />}{copied ? "คัดลอกแล้ว" : "คัดลอกสรุป"}</Button><Button disabled className="bg-gradient-to-r from-orange-600 to-red-600 text-white opacity-70"><Send className="mr-2 h-4 w-4" /> ต่อ Atomic Claim</Button></div></div></> : <div className="flex min-h-[560px] flex-col items-center justify-center p-8 text-center text-slate-500"><Sparkles className="mb-4 h-8 w-8 text-orange-300/50" /><p className="text-sm">เลือกออเดอร์เพื่อดูรายละเอียด</p><p className="mt-1 text-xs text-slate-600">ข้อมูลจะแสดงจากตารางจริงเท่านั้น</p></div>}</CardContent></Card>
++        <Card className="overflow-hidden rounded-3xl border-white/10 bg-[#111116] shadow-2xl shadow-black/20 xl:sticky xl:top-5 xl:self-start"><CardContent className="p-0">{selectedOrder ? <><div className="flex items-start justify-between border-b border-white/10 px-5 py-4"><div><p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-orange-300">ORDER INSPECTOR</p><h2 className="mt-1 font-mono text-lg font-semibold">{selectedOrder.order_number}</h2></div><button onClick={() => setSelectedNumber(null)} className="rounded-lg p-2 text-slate-500 hover:bg-white/5 hover:text-white" aria-label="ปิดรายละเอียด"><X className="h-4 w-4" /></button></div><div className="space-y-5 p-5"><div className="flex items-start gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4"><div className="rounded-full bg-emerald-400/10 p-2 text-emerald-300"><CheckCircle2 className="h-4 w-4" /></div><div><p className="text-sm font-semibold text-emerald-200">{statusFor(selectedOrderWithReview || selectedOrder).label}</p><p className="mt-1 text-xs leading-5 text-slate-400">{selectedOrder.audit_flags || selectedOrder.cod_check_status || "สถานะจากข้อมูลจริงในฐานข้อมูล"}</p></div></div><section><p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">PRODUCT PAYLOAD</p><div className="space-y-2">{(selectedOrder.items.length ? selectedOrder.items : [{ id: 0, sku: selectedOrder.sku, th_name: selectedOrder.th_name, emoji: selectedOrder.emoji, display_for_packer: selectedOrder.display_for_packer, quantity: selectedOrder.items.length ? 0 : null, unit_price: selectedOrder.unit_price ?? selectedOrder.alien_unit_prices, expected_cod: selectedOrder.expected_cod }]).map((item, index) => <div key={`${item.id ?? "line"}-${index}`} className="rounded-2xl border border-white/5 bg-black/20 p-3"><div className="flex items-start gap-3"><span className="text-xl">{item.emoji ?? selectedOrder.emoji ?? "📦"}</span><div className="min-w-0 flex-1"><p className="font-mono text-xs font-semibold text-slate-200">{item.sku || "ไม่ระบุ SKU"}</p><p className="mt-1 text-xs text-slate-400">{itemDisplay(item)}</p></div></div><div className="mt-3 grid grid-cols-3 gap-2 text-xs"><div><p className="text-slate-600">จำนวน</p><p className="mt-1 text-slate-300">{item.quantity != null || item.qty != null ? `${item.quantity ?? item.qty} คอต` : "—"}</p></div><div><p className="text-slate-600">ราคาต่อหน่วย</p><p className="mt-1 text-orange-300">{money(item.unit_price)}</p></div><div><p className="text-slate-600">ยอด COD</p><p className="mt-1 text-orange-300">{money(selectedOrder.cod_amount)}</p></div></div></div>)}</div></section><section><p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">CUSTOMER CONTEXT</p><div className="space-y-2 rounded-2xl border border-white/5 bg-black/20 p-4 text-sm"><p className="font-semibold text-slate-100">{selectedOrder.customer_name || "ไม่ระบุชื่อ"}</p><p className="text-slate-400">{selectedOrder.phone || "ไม่ระบุเบอร์โทร"}</p><p className="leading-6 text-slate-400">{orderAddress(selectedOrder)}</p><div className="flex items-center gap-2 pt-2 text-xs text-slate-600"><Clock3 className="h-3.5 w-3.5" /> {selectedOrder.page_name || "ไม่ระบุเพจ"}</div></div></section><section><p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">CUSTOMER HISTORY · CHAT TIMELINE</p><pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded-2xl border border-orange-400/10 bg-black/30 p-4 text-xs leading-5 text-amber-100/70">{selectedEvidenceQuery.isLoading ? "กำลังโหลดประวัติแชท…" : selectedEvidenceQuery.isError ? "โหลดประวัติแชทไม่สำเร็จ" : customerHistoryText({ ...selectedOrder, ...selectedEvidenceQuery.data }) || "ไม่พบ chat_timeline"}</pre></section><div className="grid grid-cols-2 gap-2"><Button onClick={() => reviewOrder(selectedOrder, "PASSED")} variant="outline" className="border-emerald-400/25 bg-emerald-400/10 text-emerald-200"><CheckCircle2 className="mr-2 h-4 w-4" />ผ่าน</Button><Button onClick={() => reviewOrder(selectedOrder, "FAILED")} variant="outline" className="border-red-400/25 bg-red-400/10 text-red-200"><AlertTriangle className="mr-2 h-4 w-4" />ไม่ผ่าน</Button><Button onClick={() => previewSummary(selectedOrder)} variant="outline" className="border-orange-400/20 bg-orange-400/[0.06] text-amber-200 hover:bg-orange-400/10"><Eye className="mr-2 h-4 w-4" />พรีวิว</Button><Button onClick={copySummary} variant="outline" className="border-white/10 bg-white/5 text-slate-200 hover:bg-white/10 hover:text-white">{copied ? <Check className="mr-2 h-4 w-4 text-emerald-300" /> : <Clipboard className="mr-2 h-4 w-4" />}{copied ? "คัดลอกแล้ว" : "คัดลอกสรุป"}</Button><Button disabled className="bg-gradient-to-r from-orange-600 to-red-600 text-white opacity-70"><Send className="mr-2 h-4 w-4" /> ต่อ Atomic Claim</Button></div></div></> : <div className="flex min-h-[560px] flex-col items-center justify-center p-8 text-center text-slate-500"><Sparkles className="mb-4 h-8 w-8 text-orange-300/50" /><p className="text-sm">เลือกออเดอร์เพื่อดูรายละเอียด</p><p className="mt-1 text-xs text-slate-600">ข้อมูลจะแสดงจากตารางจริงเท่านั้น</p></div>}</CardContent></Card>
+       </div>
+       <footer className="flex flex-wrap items-center justify-between gap-3 px-2 text-[11px] text-slate-600"><span className="flex items-center gap-2"><Database className="h-3.5 w-3.5" /> Primary: {getActiveCamp().toLowerCase()}_orders · Items: {getActiveCamp().toLowerCase()}_order_items</span><span>{liveQuery.data?.fetchedAt ? `ดึงข้อมูลล่าสุด ${timeLabel(liveQuery.data.fetchedAt)}` : "กำลังรอข้อมูล"}</span></footer>
+     </div>
+diff --git a/client/src/pages/TelegramDeliveryRoom.tsx b/client/src/pages/TelegramDeliveryRoom.tsx
+index 5ab9686..78aa0f9 100644
+--- a/client/src/pages/TelegramDeliveryRoom.tsx
++++ b/client/src/pages/TelegramDeliveryRoom.tsx
+@@ -1,7 +1,7 @@
+ import { Button } from "@/components/ui/button";
+ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+ import { Input } from "@/components/ui/input";
+-import { getActiveCamp, readTelegramDeliveryOrders, updateBbOrder, updateBbOrderByKey } from "@/lib/canonical";
++import { getActiveCamp, readBbOrderEvidence, readTelegramDeliveryOrders, updateBbOrder, updateBbOrderByKey } from "@/lib/canonical";
+ import { AlertTriangle, CheckCircle2, Clipboard, Clock3, Eye, MessageSquareText, RefreshCw, Send, ShieldAlert, Sparkles, Zap } from "lucide-react";
+ import { useEffect, useMemo, useState } from "react";
+ import { useQuery } from "@tanstack/react-query";
+@@ -160,6 +160,12 @@ export default function TelegramDeliveryRoom() {
+     : [];
+   const waiting = useMemo(() => allOrders.filter((row) => room === "sent" ? isSent(row) : !isSent(row)).sort((a, b) => new Date(realTime(b) || 0).getTime() - new Date(realTime(a) || 0).getTime()), [allOrders, room]);
+   const order = waiting[selected];
++  const evidenceQuery = useQuery({
++    queryKey: ["bb-order-evidence", order?.upsert_key],
++    queryFn: () => readBbOrderEvidence(String(order!.upsert_key)),
++    enabled: Boolean(order?.upsert_key && showEvidence),
++    staleTime: 60_000,
++  });
+   const selectedOrders = useMemo(() => waiting.filter((row) => selectedKeys.has(orderKey(row))), [selectedKeys, waiting]);
+   const message = useMemo(() => order ? telegramText(order, header || DEFAULT_HEADER) : "คิวว่าง — ไม่มีออเดอร์รอส่ง", [order, header]);
+   const telegramSelection = useMemo(() => order ? ({ text: message, source: "CANONICAL_DYNAMIC" as const, dirty: false, body: getTelegramBody(order) }) : null, [order, message]);
+@@ -355,7 +361,7 @@ export default function TelegramDeliveryRoom() {
+             {order ? <div className="grid gap-4 lg:grid-cols-2"><pre className="min-h-[480px] whitespace-pre-wrap rounded-2xl border border-fuchsia-400/20 bg-black/55 p-5 text-sm leading-7 text-fuchsia-50">{message}</pre>{editMode && order && <div className="bb-edit-panel lg:col-span-2"><p className="mb-3 font-semibold text-fuchsia-100">แก้ไขออเดอร์แล้วบันทึกลง bb_orders</p><div className="grid gap-3 md:grid-cols-2"><Input value={editForm.customer_name} onChange={e => setEditForm(v => ({ ...v, customer_name: e.target.value }))} placeholder="ชื่อลูกค้า" /><Input value={editForm.phone} onChange={e => setEditForm(v => ({ ...v, phone: e.target.value }))} placeholder="เบอร์โทร" /><Input value={editForm.cod_amount} onChange={e => setEditForm(v => ({ ...v, cod_amount: e.target.value }))} placeholder="COD" /><Input value={editForm.shipping_method} onChange={e => setEditForm(v => ({ ...v, shipping_method: e.target.value }))} placeholder="ขนส่ง" /><Input value={editForm.for_packer_bb_display} onChange={e => setEditForm(v => ({ ...v, for_packer_bb_display: e.target.value }))} placeholder="สินค้า BB" /><textarea value={editForm.address_display_packer} onChange={e => setEditForm(v => ({ ...v, address_display_packer: e.target.value }))} placeholder="ที่อยู่" className="min-h-24 rounded-xl border border-fuchsia-400/20 bg-black/30 px-3 py-2 text-sm text-white outline-none md:col-span-2" /></div><Button onClick={saveOrderEdit} disabled={editSaving} className="bb-save-button mt-3">{editSaving ? "กำลังบันทึก..." : "บันทึกลงโต๊ะ"}</Button></div>}<div className="space-y-3"><div className="rounded-2xl border relative overflow-hidden border-cyan-300/45 bg-cyan-400/10 p-4 text-sm shadow-[inset_0_0_28px_rgba(34,211,238,.14),0_0_24px_rgba(34,211,238,.18)]"><p className="text-[10px] uppercase tracking-[0.18em] text-cyan-200/80">จุดตรวจ</p><div className="mt-3 space-y-2"><p className="flex items-center gap-2 text-xs text-emerald-200"><CheckCircle2 className="h-4 w-4" />เวลาจริง: {displayTime(order)}</p><p className="flex items-center gap-2 text-xs text-cyan-200"><Sparkles className="h-4 w-4" />สินค้า: {productOf(order)}</p><p className="flex items-center gap-2 text-xs text-orange-100/70"><ShieldAlert className="h-4 w-4" />สถานะข้อมูล: {mappingLabel(order)}</p>{selectedWarnings.length > 0 && <div className="rounded-xl border border-red-300/30 bg-red-400/10 p-3 text-xs text-red-100"><p className="mb-1 flex items-center gap-2 font-semibold"><AlertTriangle className="h-4 w-4" />คำเตือนระบบ</p>{selectedWarnings.map((warning) => <p key={warning}>• {warning}</p>)}</div>}{selectedIssues.length > 0 ? <div className="rounded-xl border border-amber-300/20 bg-amber-400/10 p-3 text-xs text-amber-100"><p className="mb-1 flex items-center gap-2 font-semibold"><AlertTriangle className="h-4 w-4" />พบจุดต้องตรวจ</p>{selectedIssues.map((issue) => <p key={issue}>• {issue}</p>)}</div> : selectedWarnings.length === 0 && <p className="text-xs text-emerald-200">ไม่พบคำเตือนพื้นฐาน</p>}</div></div><div className="rounded-2xl border border-white/10 bg-black/25 p-4 text-xs leading-6 text-orange-100/65"><b className="text-orange-200">สถานะการส่ง</b><br /><span className={`inline-flex rounded-full border px-2.5 py-1 text-sm font-semibold ${deliveryStatus(order).tone}`}>{deliveryStatus(order).label}</span><p className="mt-2">{deliveryStatus(order).slogan}</p><p className="mt-1">{isSent(order) ? "รายการนี้ถูกทำเครื่องหมายส่งแล้ว" : "ยังไม่ควรทำเครื่องหมาย SENT ก่อนตัวส่งตอบกลับ"}</p></div></div></div> : <div className="rounded-2xl border border-dashed border-orange-400/20 p-10 text-center text-sm text-orange-100/55">เลือกออเดอร์จากคิวเพื่อดูรายละเอียด</div>}
+           </CardContent></Card>
+ 
+-          {order && showEvidence && <Card className="rounded-3xl border-cyan-400/15 bg-[#0d1015]"><CardHeader><CardTitle className="flex items-center gap-2 text-base text-cyan-100"><MessageSquareText className="h-4 w-4 text-cyan-300" />หลักฐานแชทต้นทาง</CardTitle></CardHeader><CardContent><pre className="max-h-[340px] overflow-auto whitespace-pre-wrap rounded-2xl border border-cyan-400/15 bg-black/45 p-5 text-xs leading-6 text-cyan-50/80">{cleanEvidence(order)}</pre><p className="mt-3 text-xs text-cyan-100/45">ใช้ส่วนนี้เทียบกับข้อมูลแต่งหล่อก่อนคัดลอกหรือส่ง ไม่เขียนทับหลักฐานต้นทาง</p></CardContent></Card>}
++          {order && showEvidence && <Card className="rounded-3xl border-cyan-400/15 bg-[#0d1015]"><CardHeader><CardTitle className="flex items-center gap-2 text-base text-cyan-100"><MessageSquareText className="h-4 w-4 text-cyan-300" />หลักฐานแชทต้นทาง</CardTitle></CardHeader><CardContent><pre className="max-h-[340px] overflow-auto whitespace-pre-wrap rounded-2xl border border-cyan-400/15 bg-black/45 p-5 text-xs leading-6 text-cyan-50/80">{evidenceQuery.isLoading ? "กำลังโหลดหลักฐานแชท…" : cleanEvidence({ ...order, ...evidenceQuery.data })}</pre><p className="mt-3 text-xs text-cyan-100/45">ใช้ส่วนนี้เทียบกับข้อมูลแต่งหล่อก่อนคัดลอกหรือส่ง ไม่เขียนทับหลักฐานต้นทาง</p></CardContent></Card>}
+         </div>
+       </div>
+ 

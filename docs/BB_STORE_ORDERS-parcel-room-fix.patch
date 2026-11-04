@@ -1,0 +1,92 @@
+[1mdiff --git a/client/src/pages/OrderHistory.tsx b/client/src/pages/OrderHistory.tsx[m
+[1mindex 5f17a75..e95c063 100644[m
+[1m--- a/client/src/pages/OrderHistory.tsx[m
+[1m+++ b/client/src/pages/OrderHistory.tsx[m
+[36m@@ -18,7 +18,7 @@[m [mexport default function OrderHistory() {[m
+   const orders = query.data?.orders ?? [];[m
+   return <div className="min-h-[calc(100vh-2rem)] space-y-5 bg-[#09070d] p-2 text-white sm:p-4 lg:p-6">[m
+     <header className="rounded-3xl border border-orange-500/20 bg-[#100c19] p-6 shadow-2xl shadow-orange-950/20"><div className="flex flex-wrap items-start justify-between gap-4"><div><div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.25em] text-orange-300"><Archive className="h-4 w-4" /> NIGHTOPS · ORDER HISTORY</div><h1 className="mt-3 text-3xl font-semibold">ประวัติออเดอร์รายวัน</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-orange-100/55">อ่านจาก st_orders โดยตรง ไม่รวมกับตารางแชท ใช้ page_id + thread_id เป็นคีย์เชื่อมกลับไปดูห้องสนทนา</p></div><div className="flex flex-wrap gap-2"><Input type="date" value={date} onChange={event => setDate(event.target.value)} className="w-40 border-orange-400/20 bg-black/20 text-white" /><Button variant="outline" onClick={() => query.refetch()} className="border-orange-400/20 bg-orange-400/5 text-orange-100"><RefreshCw className={`mr-2 h-4 w-4 ${query.isFetching ? "animate-spin" : ""}`} />รีเฟรช</Button></div></div></header>[m
+[31m-    <div className="grid gap-3 sm:grid-cols-3"><Stat label="ออเดอร์วันนี้" value={query.data?.total ?? 0} /><Stat label="มีคีย์เชื่อมแชท" value={orders.filter(order => order.page_id && order.thread_id).length} tone="text-amber-300" /><Stat label="COD รวม" value={orders.reduce((sum, order) => sum + Number(order.cod_amount ?? order.expected_cod ?? 0), 0).toLocaleString("th-TH")} tone="text-amber-300" /></div>[m
+[32m+[m[32m    <div className="grid gap-3 sm:grid-cols-3"><Stat label="ออเดอร์วันนี้" value={orders.length} /><Stat label="มีคีย์เชื่อมแชท" value={orders.filter(order => order.page_id && order.thread_id).length} tone="text-amber-300" /><Stat label="COD รวม" value={orders.reduce((sum, order) => sum + Number(order.cod_amount ?? order.expected_cod ?? 0), 0).toLocaleString("th-TH")} tone="text-amber-300" /></div>[m
+     <Card className="rounded-3xl border-orange-500/15 bg-[#100d15]"><CardHeader><div className="flex flex-wrap items-center justify-between gap-3"><CardTitle className="text-base">รายการออเดอร์จาก st_orders</CardTitle><div className="relative w-full sm:w-80"><Search className="absolute left-3 top-2.5 h-4 w-4 text-orange-100/30" /><Input value={search} onChange={event => setSearch(event.target.value)} placeholder="ค้นหาเลขออเดอร์ ชื่อลูกค้า SKU เพจ" className="border-orange-500/15 bg-black/20 pl-9 text-white placeholder:text-orange-100/25" /></div></div></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[1050px] text-left text-xs"><thead className="border-b border-orange-500/10 text-orange-100/35"><tr><th className="p-3">ออเดอร์</th><th className="p-3">ลูกค้า</th><th className="p-3">สินค้า</th><th className="p-3">COD</th><th className="p-3">เพจ / คีย์แชท</th><th className="p-3">เวลา</th><th className="p-3">เชื่อมแชท</th></tr></thead><tbody>{orders.map(order => <tr key={`${order.upsert_key ?? order.order_number}-${order.id}`} className="border-b border-orange-500/[0.06] align-top"><td className="p-3"><p className="font-semibold text-orange-200">{order.order_number}</p><p className="mt-1 font-mono text-[10px] text-orange-100/30">{order.upsert_key || `id:${order.id}`}</p></td><td className="p-3"><p className="font-medium text-white">{order.customer_name || order.facebook_name || "ไม่ระบุชื่อ"}</p><p className="mt-1 text-orange-100/45">{order.phone || "ไม่ระบุเบอร์"}</p><p className="mt-1 max-w-xs text-orange-100/40">{order.full_address || order.address_display_packer || "ไม่ระบุที่อยู่"}</p></td><td className="max-w-xs whitespace-pre-wrap p-3 text-orange-100/70">{order.lab_product_display_text || "ยังไม่มี master_display_for_packer ใน Lab 88"}</td><td className="p-3"><Badge className="border-amber-400/20 bg-amber-400/10 text-amber-200">{Number(order.cod_amount ?? order.expected_cod ?? 0).toLocaleString("th-TH")} บาท</Badge></td><td className="p-3"><p className="text-orange-200">{order.page_name || "—"}</p><p className="mt-1 font-mono text-[10px] text-orange-100/35">{order.page_id || "—"}</p><p className="mt-1 font-mono text-[10px] text-amber-200/50">{order.thread_id || "ไม่มี thread_id"}</p></td><td className="p-3 text-orange-100/55">{dateLabel(order.order_time || order.created_at)}</td><td className="p-3">{order.page_id && order.thread_id ? <Link href={`/chats?page_id=${encodeURIComponent(order.page_id)}&thread_id=${encodeURIComponent(order.thread_id)}`}><Button size="sm" variant="outline" className="border-orange-400/20 bg-orange-400/5 text-amber-200"><ExternalLink className="mr-1 h-3.5 w-3.5" />เปิดแชท</Button></Link> : <span className="text-amber-200/60">รอคีย์</span>}</td></tr>)}</tbody></table></div>{query.isLoading ? <p className="p-8 text-center text-sm text-orange-100/40">กำลังโหลดประวัติออเดอร์…</p> : null}{!query.isLoading && !orders.length ? <p className="p-8 text-center text-sm text-orange-100/40">ไม่พบออเดอร์ในวันที่เลือก</p> : null}</CardContent></Card>[m
+   </div>;[m
+ }[m
+[1mdiff --git a/client/src/pages/ParcelMapping.tsx b/client/src/pages/ParcelMapping.tsx[m
+[1mindex 116c148..3847f50 100644[m
+[1m--- a/client/src/pages/ParcelMapping.tsx[m
+[1m+++ b/client/src/pages/ParcelMapping.tsx[m
+[36m@@ -34,6 +34,7 @@[m [mtype ParcelMappingRow = {[m
+   shipping_carrier?: string | null;[m
+   manus_for_packer?: string | null;[m
+   facebook_tracking_status?: string | null;[m
+[32m+[m[32m  parcel_status_emoji?: string | null;[m
+   send_facebook_route?: string | null;[m
+   customer_message_time_th?: string | null;[m
+   customer_latest_message?: string | null;[m
+[36m@@ -82,7 +83,15 @@[m [mfunction isSent(row: ParcelMappingRow) {[m
+ function asBool(value: unknown) {[m
+   return value === true || value === "true" || value === 1 || value === "1";[m
+ }[m
+[32m+[m[32mfunction parcelStatusEmoji(row: ParcelMappingRow) {[m
+[32m+[m[32m  return clean(row.parcel_status_emoji);[m
+[32m+[m[32m}[m
+ function orbitLane(row: ParcelMappingRow): OrbitLane {[m
+[32m+[m[32m  const status = parcelStatusEmoji(row);[m
+[32m+[m[32m  if (status.includes("🔥")) return "sent";[m
+[32m+[m[32m  if (status.includes("🔴")) return "expired";[m
+[32m+[m[32m  if (status.includes("🟡")) return "send";[m
+[32m+[m[32m  if (status.includes("🟢")) return "waiting";[m
+   if (isSent(row)) return "sent";[m
+   if (!clean(row.customer_message_time_th || row.customer_latest_message)) return "waiting";[m
+   if (clean(row.send_facebook_route).toUpperCase() === "BLOCK_FB_EXPIRED" || (row.can_send_standard != null && !asBool(row.can_send_standard))) return "expired";[m
+[36m@@ -97,6 +106,11 @@[m [mfunction orbitMeta(lane: OrbitLane) {[m
+   }[lane];[m
+ }[m
+ function rowStatus(row: ParcelMappingRow): QueueFilter {[m
+[32m+[m[32m  const status = parcelStatusEmoji(row);[m
+[32m+[m[32m  if (status.includes("🔥")) return "sent";[m
+[32m+[m[32m  if (status.includes("🔴")) return "over48";[m
+[32m+[m[32m  if (status.includes("🟡")) return "over24";[m
+[32m+[m[32m  if (status.includes("🟢")) return "ready";[m
+   if (isSent(row)) return "sent";[m
+   const age = ageHours(row);[m
+   if (age != null && age >= 48) return "over48";[m
+[36m@@ -478,7 +492,7 @@[m [mexport default function ParcelMapping() {[m
+         </Card>[m
+       </div>[m
+       <footer className="flex flex-wrap items-center justify-between gap-3 px-2 text-[10px] text-white/25">[m
+[31m-        <span>SHADOW → ROGUE → VOID · public.parcels</span>[m
+[32m+[m[32m        <span>🔮 SHADOW → 🦅 ROGUE → ⛩️ VOID · n8n-owned tracking pipeline</span>[m
+         <span>[m
+           Page token อยู่ฝั่ง server/n8n เท่านั้น ·{" "}[m
+           {queueQuery.dataUpdatedAt[m
+[1mdiff --git a/server/routers.ts b/server/routers.ts[m
+[1mindex bcedb33..c340793 100644[m
+[1m--- a/server/routers.ts[m
+[1m+++ b/server/routers.ts[m
+[36m@@ -43,7 +43,7 @@[m [mexport const appRouter = router({[m
+   }),[m
+ [m
+   parcels: router({[m
+[31m-    mappingQueue: adminProcedure.input(z.object({ status: z.enum(["all", "ready", "over24", "over48", "sent"]).default("all"), limit: z.number().int().min(1).max(500).default(300) })).query(({ input }) => fetchParcelMappingQueue({ status: input.status, limit: input.limit })),[m
+[32m+[m[32m    mappingQueue: adminProcedure.input(z.object({ status: z.enum(["all", "ready", "over24", "over48", "sent"]).default("all"), limit: z.number().int().min(1).max(500).default(300) })).query(({ input }) => fetchParcelMappingQueue({ status: input.status === "sent" ? "sent" : "all", limit: input.limit })),[m
+     sendTracking: adminProcedure.input(z.object({[m
+       pageId: z.string().min(1),[m
+       threadId: z.string().min(1),[m
+[1mdiff --git a/server/supabase.ts b/server/supabase.ts[m
+[1mindex 82606fb..2164393 100644[m
+[1m--- a/server/supabase.ts[m
+[1m+++ b/server/supabase.ts[m
+[36m@@ -35,8 +35,10 @@[m [mexport async function supabaseGet<T>(path: string): Promise<T> {[m
+ }[m
+ export async function supabasePost<T>(path: string, body: unknown): Promise<T> { const { baseUrl, key } = config(); const response = await fetch(`${baseUrl}/rest/v1/${path}`, { method: "POST", headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify(body) }); if (!response.ok) throw new Error(`Supabase returned HTTP ${response.status}: ${(await response.text()).slice(0, 300)}`); return response.json() as Promise<T>; }[m
+ export async function fetchParcelMappingQueue(input: { status: "all" | "sent"; limit: number }) {[m
+[31m-  const activeView = encodeURIComponent("🔮SHADOW_xXx_RECALL");[m
+[31m-  const sentView = encodeURIComponent("📓DEAD_xXx_NOTE");[m
+[32m+[m[32m  // These are quoted PostgreSQL relation names; keep the space after the emoji.[m
+[32m+[m[32m  // n8n owns the pipeline mutations. This room only reads the queue and history.[m
+[32m+[m[32m  const activeView = encodeURIComponent("🔮 SHADOW_xXx_RECALL");[m
+[32m+[m[32m  const sentView = encodeURIComponent("📓 DEAD_xXx_NOTE");[m
+   const activeQuery = `select=*&limit=${input.limit}`;[m
+   const sentQuery = `select=*&limit=${input.limit}`;[m
+   const active = input.status === "sent" ? [] : await supabaseGet<Array<Record<string, unknown>>>(`${activeView}?${activeQuery}`);[m

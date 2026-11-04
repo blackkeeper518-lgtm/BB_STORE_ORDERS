@@ -1,0 +1,8 @@
+วางทับใน repository main ที่ Render ใช้ build:
+client/src/pages/ParcelMapping.tsx
+client/src/index.css
+server/routers.ts
+server/supabase.ts
+
+แพ็กนี้รวม Orbit Queue:
+🛰️ WAITING ORBIT → 🚀 SEND GATE → 🕳️ EXPIRED VAULT → 📌 SENT ARCHIVE
