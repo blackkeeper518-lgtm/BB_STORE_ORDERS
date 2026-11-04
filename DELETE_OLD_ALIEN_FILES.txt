@@ -1,0 +1,10 @@
+ลบไฟล์เก่าใน GitHub ด้วยตนเอง หากยังมีอยู่:
+client/src/pages/AlienRoom.tsx
+client/src/pages/ProductAlienMap.tsx
+client/src/pages/ProductAlienStore.tsx
+
+ไฟล์แก้ไขใน ZIP นี้มี 4 ไฟล์:
+client/src/pages/OrderControl.tsx
+client/src/pages/TelegramDeliveryRoom.tsx
+client/src/lib/canonical.ts
+client/src/components/DashboardLayout.tsx

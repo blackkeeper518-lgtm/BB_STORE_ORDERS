@@ -193,10 +193,10 @@ export default function TelegramDeliveryRoom() {
                 <Value label="สถานะ Telegram" value={selectedOrder.telegram_status} />
                 <Value label="ที่อยู่ที่ n8n เตรียม" value={selectedOrder.address_fibo_selected_clean} />
                 <Value label="พื้นที่/จังหวัด" value={selectedOrder.province} />
-                <Value label="telegram_change_alert_web" value={selectedOrder.telegram_change_alert_web} />
+                <Value label="telegram_change_alert" value={selectedOrder.telegram_change_alert} />
               </div>
               {isTheftRisk(selectedOrder) ? <p className="flex items-center gap-2 rounded-xl border border-rose-300/25 bg-rose-500/10 p-3 text-sm text-rose-100"><AlertTriangle className="h-4 w-4" />พบข้อความระบุพื้นที่เสี่ยงโดนขโมยในข้อมูลกลาง</p> : null}
-              <section><p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">telegram_message_web · อ่านอย่างเดียว</p><pre className="max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-xl border border-white/10 bg-black/20 p-4 text-xs leading-5 text-slate-200">{displayRaw(selectedOrder.telegram_message_web)}</pre></section>
+              <section><p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">telegram_message · อ่านอย่างเดียว</p><pre className="max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-xl border border-white/10 bg-black/20 p-4 text-xs leading-5 text-slate-200">{displayRaw(selectedOrder.telegram_message)}</pre></section>
               <section><p className="mb-2 text-xs font-semibold uppercase tracking-wider text-emerald-300">telegram_message · field ส่งเดียวจาก n8n</p><pre className="max-h-56 overflow-auto whitespace-pre-wrap break-words rounded-xl border border-emerald-300/20 bg-black/20 p-4 text-xs leading-5 text-slate-200">{displayRaw(selectedOrder.telegram_message)}</pre></section>
               <section><p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">ก้อนออเดอร์ต้นทาง</p><pre className="max-h-56 overflow-auto whitespace-pre-wrap break-words rounded-xl border border-white/10 bg-black/20 p-4 text-xs leading-5 text-slate-300">{displayRaw(selectedOrder.original)}</pre></section>
               <div className="flex flex-wrap gap-2">

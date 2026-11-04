@@ -258,7 +258,7 @@ const TELEGRAM_WEB_ORDER_COLUMNS = [
   "audit_flags", "bill_data_complete", "is_ready_to_pack", "mapping_status",
   "cod_amount", "customer_name", "facebook_name", "page_name", "shipping_carrier", "sku",
   "delivery_state", "delivery_status", "telegram_status", "telegram_sent", "sent_at", "telegram_sent_at",
-  "telegram_message", "telegram_message_web", "telegram_change_alert_web",
+  "telegram_message", "telegram_change_alert",
   "raw_text", "original"
 ].join(",");
 
