@@ -306,12 +306,16 @@ export async function readTelegramDeliveryOrders(search = "", room: "queue" | "t
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
 
-  const sourceTable = room === "sent" ? "🪐ANDROMEDA_xXx_SENT" : "🛰️PIONEER_xXx_CAPSULE";
-  const { data, error } = await api
+  // Telegram has one room with two views: live queue from PIONEER and
+  // the final sent archive from GENESIS. ANDROMEDA is retired.
+  const sourceTable = room === "sent" ? "🌟GENESIS_xXx_HISTORY" : "🛰️PIONEER_xXx_CAPSULE";
+  const columns = room === "sent" ? GENESIS_HISTORY_COLUMNS : TELEGRAM_WEB_ORDER_COLUMNS;
+  let request = api
     .from(sourceTable)
-    .select(TELEGRAM_WEB_ORDER_COLUMNS)
+    .select(columns)
     .order("order_time_display", { ascending: false })
     .limit(ORDER_OPERATIONAL_LIMIT);
+  const { data, error } = await request;
   if (error) fail(error);
   const query = search.trim().toLowerCase();
   const orders = (data ?? []).filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query));
