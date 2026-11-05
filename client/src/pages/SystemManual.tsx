@@ -45,6 +45,14 @@ const orderSources = [
   },
 ];
 
+const livePipelines = [
+  { icon: "💬", name: "👑BB_CHAT", detail: "สายแชท เก็บและส่งต่อเหตุการณ์สนทนาของลูกค้าและเพจ", tone: "pink" as const },
+  { icon: "🧾", name: "👑BB_ORDER_SYSTEMS", detail: "ออเดอร์หลัก รับและประกอบข้อมูลออเดอร์ สินค้า COD และคีย์กลาง", tone: "cyan" as const },
+  { icon: "📦", name: "👑BB_EXPRESS_ORDERS", detail: "ส่งออเดอร์เข้าแพ็ก เตรียมข้อมูลสินค้า จำนวน และ COD ให้ฝ่ายแพ็ก", tone: "amber" as const },
+  { icon: "📡", name: "👑BB_SIGNALS", detail: "สายสัญญาณออเดอร์และแชทล่าสุดสำหรับส่งต่อสถานะการทำงาน", tone: "slate" as const },
+  { icon: "🚚", name: "👑BB_TRACK", detail: "สายส่งเลข ดึงเลขจาก parcels จับคู่กับออเดอร์ และสร้างข้อความแจ้งเลข", tone: "amber" as const },
+];
+
 const parcelStages: Array<{
   icon: string;
   title: string;
@@ -198,6 +206,53 @@ export default function SystemManual() {
             <p className="mt-1 text-xs leading-5 text-slate-300/60">
               รับข้อมูลเลขพัสดุ ประกอบข้อมูลที่จำเป็น และส่งกลับไปยังแชทของลูกค้า
             </p>
+          </div>
+        </section>
+
+        <section className="mt-8 rounded-[2rem] border border-emerald-300/15 bg-[#091916]/85 p-5 shadow-xl shadow-emerald-950/10 sm:p-7">
+          <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-emerald-300/70">
+                LIVE ARCHITECTURE · FIVE LANES
+              </p>
+              <h2 className="mt-2 text-2xl font-semibold text-white">โครงสร้าง 5 สายของระบบปัจจุบัน</h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300/70">
+                แต่ละสายแยกหน้าที่กันชัดเจน และใช้ <code className="rounded bg-black/30 px-1.5 py-0.5 text-emerald-200">chat_link_key</code> เป็นคีย์กลางเดียวกันเมื่อจำเป็นต้องเชื่อมข้อมูล
+              </p>
+            </div>
+            <ToneBadge tone="cyan"><KeyRound className="mr-1.5 h-3.5 w-3.5" /> SHARED KEY · chat_link_key</ToneBadge>
+          </div>
+
+          <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+            {livePipelines.map((lane, index) => (
+              <div key={lane.name} className="relative rounded-2xl border border-white/10 bg-black/20 p-4">
+                <div className="absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-emerald-300/60 to-transparent" />
+                <div className="flex items-start gap-3">
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-emerald-300/20 bg-emerald-300/10 text-xl">{lane.icon}</span>
+                  <div className="min-w-0">
+                    <p className="text-[10px] text-emerald-300/55">0{index + 1}</p>
+                    <p className="mt-0.5 break-words font-mono text-sm font-semibold text-white">{lane.name}</p>
+                  </div>
+                </div>
+                <p className="mt-3 text-xs leading-5 text-slate-300/65">{lane.detail}</p>
+                <div className="mt-3"><ToneBadge tone={lane.tone}>chat_link_key เดียวกัน</ToneBadge></div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-5 grid gap-3 lg:grid-cols-3">
+            <div className="rounded-2xl border border-fuchsia-300/15 bg-fuchsia-300/[0.045] p-4">
+              <p className="text-sm font-semibold text-fuchsia-100">แหล่งข้อมูลแชท</p>
+              <p className="mt-1 text-xs leading-5 text-slate-300/65">BB_CHAT เป็นสายเหตุการณ์สนทนา ไม่ใช่แหล่งเลขพัสดุ</p>
+            </div>
+            <div className="rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.045] p-4">
+              <p className="text-sm font-semibold text-cyan-100">แหล่งข้อมูลออเดอร์</p>
+              <p className="mt-1 text-xs leading-5 text-slate-300/65">BB_ORDER_SYSTEMS เป็นแหล่งข้อมูลหลักของลูกค้า สินค้า และ COD</p>
+            </div>
+            <div className="rounded-2xl border border-amber-300/15 bg-amber-300/[0.045] p-4">
+              <p className="text-sm font-semibold text-amber-100">แหล่งข้อมูลเลขพัสดุ</p>
+              <p className="mt-1 text-xs leading-5 text-slate-300/65">BB_TRACK ใช้เลขจาก parcels และจับคู่กับออเดอร์ด้วยข้อมูลที่กำหนด</p>
+            </div>
           </div>
         </section>
 
