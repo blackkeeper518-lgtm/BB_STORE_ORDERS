@@ -6,7 +6,6 @@ import {
   Clipboard,
   ClipboardCopy,
   Code2,
-  Database,
   FileCode2,
   FilePlus2,
   FolderArchive,
@@ -14,6 +13,8 @@ import {
   ImagePlus,
   LockKeyhole,
   LogOut,
+  MessageCircle,
+  PackageOpen,
   Pencil,
   Search,
   Save,
@@ -105,11 +106,16 @@ export default function SecretGallery() {
   const [orderTable, setOrderTable] = useState("🗝️HERMES_ARCHIVE");
   const [connectionMessage, setConnectionMessage] = useState("");
   const [connectionBusy, setConnectionBusy] = useState(false);
-  const trackingConnection = getSupabaseConfig(camp, "tracking");
-  const [trackingUrl, setTrackingUrl] = useState(trackingConnection?.url || "");
-  const [trackingKey, setTrackingKey] = useState(trackingConnection?.anonKey || "");
-  const [trackingMessage, setTrackingMessage] = useState(trackingConnection ? "ตั้งค่าไว้ในเครื่องนี้แล้ว" : "");
-  const [trackingBusy, setTrackingBusy] = useState(false);
+  const chatConnection = getSupabaseConfig(camp, "chat");
+  const [chatUrl, setChatUrl] = useState(chatConnection?.url || "");
+  const [chatKey, setChatKey] = useState(chatConnection?.anonKey || "");
+  const [chatMessage, setChatMessage] = useState(chatConnection ? "ตั้งค่าไว้ในเครื่องนี้แล้ว" : "");
+  const [chatBusy, setChatBusy] = useState(false);
+  const parcelConnection = getSupabaseConfig(camp, "parcel");
+  const [parcelUrl, setParcelUrl] = useState(parcelConnection?.url || "");
+  const [parcelKey, setParcelKey] = useState(parcelConnection?.anonKey || "");
+  const [parcelMessage, setParcelMessage] = useState(parcelConnection ? "ตั้งค่าไว้ในเครื่องนี้แล้ว" : "");
+  const [parcelBusy, setParcelBusy] = useState(false);
   const [docs, setDocs] = useState<VaultDoc[]>(() => readLocal(DOCS_KEY, []));
   const [images, setImages] = useState<GalleryItem[]>(() =>
     readLocal(IMAGES_KEY, [])
@@ -234,34 +240,35 @@ export default function SecretGallery() {
       setConnectionBusy(false);
     }
   };
-  const saveTrackingConnection = async () => {
-    setTrackingBusy(true);
-    setTrackingMessage("");
+  const saveLaneConnection = async (lane: "chat" | "parcel", urlValue: string, keyValue: string, setBusy: (value: boolean) => void, setMessage: (value: string) => void) => {
+    setBusy(true);
+    setMessage("");
     try {
-      const url = trackingUrl.trim().replace(/\/$/, "");
-      const anonKey = trackingKey.trim();
-      if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url)) throw new Error("URL โปรเจกต์ Tracking ไม่ถูกต้อง");
-      if (!anonKey) throw new Error("กรุณาใส่ Anon/Publishable Key ของ Tracking");
+      const url = urlValue.trim().replace(/\/$/, "");
+      const anonKey = keyValue.trim();
+      const label = lane === "chat" ? "Chat" : "Parcel";
+      const relations = lane === "chat" ? ["chat_customer_messages", "chat_page_messages"] : ["parcels", "🦅ROGUE_xXx_SHIPPINGz", "📓DEAD_xXx_NOTE"];
+      if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url)) throw new Error(`URL โปรเจกต์ ${label} ไม่ถูกต้อง`);
+      if (!anonKey) throw new Error(`กรุณาใส่ Anon/Publishable Key ของ ${label}`);
       if (/service_role|secret/i.test(anonKey)) throw new Error("ห้ามใส่ service-role หรือ secret key ในหน้าเว็บ");
-      saveSupabaseConfig({ url, anonKey }, camp, "tracking");
-      const api = getSupabase("tracking");
-      if (!api) throw new Error("สร้าง Tracking Supabase client ไม่สำเร็จ");
-      const relations = ["parcels", "chat_customer_messages", "chat_page_messages", "🦅ROGUE_xXx_SHIPPINGz"];
+      saveSupabaseConfig({ url, anonKey }, camp, lane);
+      const api = getSupabase(lane);
+      if (!api) throw new Error(`สร้าง ${label} Supabase client ไม่สำเร็จ`);
       const results = await Promise.all(relations.map(async relation => ({ relation, error: (await api.from(relation).select("*", { count: "exact", head: true })).error })));
       const failed = results.find(result => result.error);
       if (failed?.error) throw new Error(`${failed.relation}: ${failed.error.message}`);
-      setTrackingMessage(`เชื่อมแล้ว · อ่านผ่าน ${relations.length} จุด`);
+      setMessage(`เชื่อมแล้ว · ตรวจ ${relations.length} จุด`);
     } catch (e) {
-      setTrackingMessage(e instanceof Error ? e.message : String(e));
+      setMessage(e instanceof Error ? e.message : String(e));
     } finally {
-      setTrackingBusy(false);
+      setBusy(false);
     }
   };
-  const clearTrackingConnection = () => {
-    clearSupabaseConfig(camp, "tracking");
-    setTrackingUrl("");
-    setTrackingKey("");
-    setTrackingMessage("ล้าง connection Tracking ออกจากเครื่องนี้แล้ว");
+  const clearLaneConnection = (lane: "chat" | "parcel", setUrl: (value: string) => void, setKey: (value: string) => void, setMessage: (value: string) => void) => {
+    clearSupabaseConfig(camp, lane);
+    setUrl("");
+    setKey("");
+    setMessage(`ล้าง connection ${lane === "chat" ? "Chat" : "Parcel"} แล้ว · จะ fallback ไป Tracking เดิม`);
   };
   const login = () => {
     if (password === ROOM_PASSWORD) {
@@ -577,22 +584,42 @@ export default function SecretGallery() {
             </div>
           </CardContent>
         </Card>
-        <Card className="relative overflow-hidden rounded-3xl border-cyan-300/35 bg-[radial-gradient(ellipse_at_top_right,rgba(34,211,238,.18),transparent_42%),linear-gradient(135deg,rgba(12,20,42,.96),rgba(21,10,35,.96))] shadow-[0_0_34px_rgba(34,211,238,.16)]">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-sm text-cyan-100"><Database className="h-4 w-4 text-cyan-300" />TRACKING & MESSENGER · โปรเจกต์ที่สอง</CardTitle>
-            <p className="text-xs leading-5 text-cyan-100/65">ใช้กับห้องแชท พัสดุ และประวัติปิดงาน · เก็บแยกจากฐานออเดอร์ในเบราว์เซอร์เครื่องนี้</p>
-          </CardHeader>
-          <CardContent className="grid gap-3 md:grid-cols-2">
-            <label className="grid gap-1 text-[11px] text-cyan-100/70">TRACKING SUPABASE URL<Input value={trackingUrl} onChange={event => setTrackingUrl(event.target.value)} placeholder="https://tracking-project.supabase.co" className="border-cyan-300/25 bg-black/35 text-white placeholder:text-cyan-100/30" /></label>
-            <label className="grid gap-1 text-[11px] text-cyan-100/70">TRACKING ANON / PUBLISHABLE KEY<Input type="password" value={trackingKey} onChange={event => setTrackingKey(event.target.value)} placeholder="sb_publishable_… หรือ anon key" className="border-cyan-300/25 bg-black/35 font-mono text-white placeholder:text-cyan-100/30" /></label>
-            <div className="flex flex-wrap items-center gap-2 md:col-span-2">
-              <Button type="button" onClick={() => void saveTrackingConnection()} disabled={trackingBusy} className="bg-gradient-to-r from-cyan-500 via-blue-500 to-fuchsia-600 text-[#07111f] shadow-[0_0_18px_rgba(34,211,238,.28)] hover:brightness-110">{trackingBusy ? "กำลังตรวจ…" : "บันทึกและทดสอบ Tracking"}</Button>
-              <Button type="button" variant="outline" onClick={clearTrackingConnection} className="border-cyan-300/25 bg-black/20 text-cyan-100 hover:bg-cyan-300/10">ล้างช่อง Tracking</Button>
-              <span className="text-xs text-cyan-100/70">{trackingMessage}</span>
-            </div>
-            <p className="text-[10px] leading-4 text-cyan-100/45 md:col-span-2">ใส่เฉพาะ Anon/Publishable Key เท่านั้น · ห้ามใส่ service-role, secret key, Page Token หรือ Gateway Token ในช่องนี้</p>
-          </CardContent>
-        </Card>
+        <div className="grid gap-5 xl:grid-cols-2">
+          <Card className="group relative overflow-hidden rounded-3xl border-cyan-300/35 bg-[radial-gradient(ellipse_at_top_right,rgba(34,211,238,.2),transparent_42%),linear-gradient(135deg,rgba(7,22,47,.98),rgba(11,10,37,.96))] shadow-[0_0_34px_rgba(34,211,238,.16)] transition duration-300 hover:-translate-y-1 hover:border-cyan-200/70 hover:shadow-[0_0_50px_rgba(34,211,238,.3)]">
+            <div className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full border border-cyan-200/20 shadow-[0_0_45px_rgba(34,211,238,.35)]" />
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-sm text-cyan-100"><MessageCircle className="h-5 w-5 text-cyan-300" />CHAT LANE · MESSENGER</CardTitle>
+              <p className="text-xs leading-5 text-cyan-100/65">แชทและ Page Token อ่านจาก <span className="font-mono text-cyan-200">page_tokens_vault</span> · ไม่ใช่ช่อง Page Token</p>
+            </CardHeader>
+            <CardContent className="grid gap-3 md:grid-cols-2">
+              <label className="grid gap-1 text-[11px] text-cyan-100/70">CHAT SUPABASE URL<Input value={chatUrl} onChange={event => setChatUrl(event.target.value)} placeholder="https://chat-project.supabase.co" className="border-cyan-300/25 bg-black/35 text-white placeholder:text-cyan-100/30" /></label>
+              <label className="grid gap-1 text-[11px] text-cyan-100/70">CHAT ANON / PUBLISHABLE KEY<Input type="password" value={chatKey} onChange={event => setChatKey(event.target.value)} placeholder="sb_publishable_… หรือ anon key" className="border-cyan-300/25 bg-black/35 font-mono text-white placeholder:text-cyan-100/30" /></label>
+              <div className="flex flex-wrap items-center gap-2 md:col-span-2">
+                <Button type="button" onClick={() => void saveLaneConnection("chat", chatUrl, chatKey, setChatBusy, setChatMessage)} disabled={chatBusy} className="bg-gradient-to-r from-cyan-400 via-blue-500 to-violet-600 text-[#06101e] shadow-[0_0_22px_rgba(34,211,238,.3)] hover:brightness-110">{chatBusy ? "กำลังตรวจ…" : "บันทึก Chat"}</Button>
+                <Button type="button" variant="outline" onClick={() => clearLaneConnection("chat", setChatUrl, setChatKey, setChatMessage)} className="border-cyan-300/25 bg-black/20 text-cyan-100 hover:bg-cyan-300/10">ล้าง</Button>
+                <span className="text-xs text-cyan-100/70">{chatMessage}</span>
+              </div>
+              <p className="text-[10px] leading-4 text-cyan-100/45 md:col-span-2">ใส่เฉพาะ Anon/Publishable Key · ห้ามใส่ service-role, secret key หรือ Page Token · ถ้าไม่กรอกจะใช้ Tracking เดิม</p>
+            </CardContent>
+          </Card>
+          <Card className="group relative overflow-hidden rounded-3xl border-fuchsia-300/35 bg-[radial-gradient(ellipse_at_top_right,rgba(244,114,182,.2),transparent_42%),linear-gradient(135deg,rgba(35,12,48,.98),rgba(15,9,35,.96))] shadow-[0_0_34px_rgba(217,70,239,.16)] transition duration-300 hover:-translate-y-1 hover:border-fuchsia-200/70 hover:shadow-[0_0_50px_rgba(217,70,239,.3)]">
+            <div className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full border border-fuchsia-200/20 shadow-[0_0_45px_rgba(217,70,239,.35)]" />
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-sm text-fuchsia-100"><PackageOpen className="h-5 w-5 text-fuchsia-300" />PARCEL LANE · SHIPPING</CardTitle>
+              <p className="text-xs leading-5 text-fuchsia-100/65">พัสดุ คิวจับคู่ และประวัติส่งเลข · แยกจากฐานแชทและฐานออเดอร์</p>
+            </CardHeader>
+            <CardContent className="grid gap-3 md:grid-cols-2">
+              <label className="grid gap-1 text-[11px] text-fuchsia-100/70">PARCEL SUPABASE URL<Input value={parcelUrl} onChange={event => setParcelUrl(event.target.value)} placeholder="https://parcel-project.supabase.co" className="border-fuchsia-300/25 bg-black/35 text-white placeholder:text-fuchsia-100/30" /></label>
+              <label className="grid gap-1 text-[11px] text-fuchsia-100/70">PARCEL ANON / PUBLISHABLE KEY<Input type="password" value={parcelKey} onChange={event => setParcelKey(event.target.value)} placeholder="sb_publishable_… หรือ anon key" className="border-fuchsia-300/25 bg-black/35 font-mono text-white placeholder:text-fuchsia-100/30" /></label>
+              <div className="flex flex-wrap items-center gap-2 md:col-span-2">
+                <Button type="button" onClick={() => void saveLaneConnection("parcel", parcelUrl, parcelKey, setParcelBusy, setParcelMessage)} disabled={parcelBusy} className="bg-gradient-to-r from-fuchsia-500 via-violet-600 to-indigo-600 text-white shadow-[0_0_22px_rgba(217,70,239,.3)] hover:brightness-110">{parcelBusy ? "กำลังตรวจ…" : "บันทึก Parcel"}</Button>
+                <Button type="button" variant="outline" onClick={() => clearLaneConnection("parcel", setParcelUrl, setParcelKey, setParcelMessage)} className="border-fuchsia-300/25 bg-black/20 text-fuchsia-100 hover:bg-fuchsia-300/10">ล้าง</Button>
+                <span className="text-xs text-fuchsia-100/70">{parcelMessage}</span>
+              </div>
+              <p className="text-[10px] leading-4 text-fuchsia-100/45 md:col-span-2">ใส่เฉพาะ Anon/Publishable Key · ห้ามใส่ service-role หรือ secret key · ถ้าไม่กรอกจะใช้ Tracking เดิม</p>
+            </CardContent>
+          </Card>
+        </div>
         <Card className="neon-card rounded-3xl border-fuchsia-400/20 bg-black/20">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-sm text-white"><span className="text-lg">🔔</span> LOCAL VAULT · AUTOSAVE · เสียงแจ้งเตือนแชท</CardTitle>
