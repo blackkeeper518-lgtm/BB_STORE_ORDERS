@@ -1,0 +1,971 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -6720,
+        7856
+      ],
+      "id": "5ccdb0a0-4e08-49cf-b154-53d1385523d0",
+      "name": "🩸 PSYCHOLOGY"
+    },
+    {
+      "parameters": {
+        "useCustomSchema": true,
+        "operation": "getAll",
+        "tableId": "⛩️VOID_xXx_GATEWAYz",
+        "returnAll": true,
+        "filters": {
+          "conditions": []
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -7616,
+        7408
+      ],
+      "id": "bb39bc33-e079-4fa2-8427-01f367cfbfea",
+      "name": "⛩️VOID_xXx_GATEWAYz1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "Zh6TPBgVH5JoqWt6",
+          "name": "🧿BB_xXx_ORDERCONTROL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v26.0/{{ $json.page_id }}/messages",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": []
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $json.access_token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  recipient: {\n    id: String($json.recipient_psid || $json.customer_id)\n  },\n  messaging_type: \"RESPONSE\",\n  message: {\n    text: String($json.facebook_tracking_message || \"\")\n  }\n}) }}\n",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "489afcb1-164e-4184-b4e3-c96c0770f973",
+      "name": "👣LIMBO JUNCTION1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -6496,
+        7712
+      ],
+      "retryOnFail": false,
+      "alwaysOutputData": false,
+      "executeOnce": false
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -6048,
+        7712
+      ],
+      "id": "6f474e85-bb09-4fee-afd8-f8660c82abff",
+      "name": "Wait",
+      "webhookId": "72367e69-6e0e-4d6a-9136-d41faa27baa7"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "54a78a2c-b889-4768-97b2-2c84d2f5b6f4",
+                    "leftValue": "={{ $json.parcel_status_emoji }}",
+                    "rightValue": "📌",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "📌"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "80369207-4141-4d7d-83dd-d8c0c350a5d4",
+                    "leftValue": "={{ $json.parcel_status_emoji }}",
+                    "rightValue": "🔴",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "🔴"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "b571e39b-5b2e-4db2-99b7-47cadc0c08c6",
+                    "leftValue": "={{ $json.parcel_status_emoji }}",
+                    "rightValue": "🟡",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "🟡"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.parcel_status_emoji }}",
+                    "rightValue": "🟢",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "3fc0a29e-1342-4dc3-bbf8-42480605735d"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "🟢"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "none"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -6944,
+        7488
+      ],
+      "id": "e23f2962-a749-4b54-9343-c3423fc529c8",
+      "name": "⛓️THE DEAD INTERSECTION"
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n Code node\n// Mode: Run Once for All Items\n// ============================================================\n// หน้าที่ของโหนดนี้มีแค่ 3 อย่าง\n// 1) รับ parcelStatusEmoji จากโหนดก่อนหน้า ไม่คำนวณใหม่\n// 2) ตรวจว่าเคยส่งเลขแล้วหรือยัง ถ้าเคยส่งให้ติด 📌\n// 3) คง chat_link_key เดิม เพื่อให้ Order / Chat / Parcel ใช้คีย์เดียวกัน\n//\n// ไม่มีการกรองข้อมูล\n// ไม่มีการคำนวณเวลาแชท\n// ไม่มีการคำนวณ route\n// ไม่มีการเปลี่ยน emoji อื่น\n// ============================================================\n\nfunction clean(value) {\n  return String(value ?? '').trim();\n}\n\nfunction compact(value) {\n  return clean(value).replace(/\\s+/g, '');\n}\n\nfunction extractTrackingNumber(...values) {\n  const text = values\n    .map((value) => String(value ?? ''))\n    .join('\\n');\n\n  const matches = text.match(/\\bTH[0-9A-Z]{8,24}\\b/gi) || [];\n\n  return matches.length\n    ? matches[0].toUpperCase()\n    : null;\n}\n\nfunction buildSharedChatLinkKey(row) {\n  // ใช้ค่าที่โหนดก่อนหน้าสร้างมาแล้วเป็นอันดับแรก\n  const existingKey = clean(\n    row.chat_link_key ||\n    row.chatLinkKey ||\n    ''\n  );\n\n  if (existingKey) return existingKey;\n\n  // fallback สำหรับกรณีข้อมูลยังไม่มี chat_link_key\n  const pageId = clean(row.page_id);\n  const threadId = clean(\n    row.threadId ||\n    row.thread_id ||\n    row.threadID ||\n    row.recipient_psid ||\n    row.customer_id ||\n    ''\n  );\n\n  if (!pageId || !threadId) return null;\n\n  return `${pageId}:${threadId}`;\n}\n\nconst output = [];\n\nfor (const item of $input.all()) {\n  const row = item.json ?? {};\n\n  // รับค่าอีโมจิจากโหนดหน้าเท่านั้น\n  const incomingParcelStatusEmoji = clean(\n    row.parcelStatusEmoji ??\n    row.parcel_status_emoji ??\n    ''\n  );\n\n  const pageLatestMessage = String(\n    row.page_latest_message ??\n    row.page_latest_message_text ??\n    ''\n  );\n\n  const facebookTrackingMessage = String(\n    row.facebook_tracking_message ??\n    ''\n  );\n\n  const draksideTrackingMessage = String(\n    row.drakside_tracking_message ??\n    ''\n  );\n\n  const allMessages = [\n    pageLatestMessage,\n    facebookTrackingMessage,\n    draksideTrackingMessage,\n  ].join('\\n');\n\n  const compactMessages = compact(allMessages);\n\n  const trackingNumber = extractTrackingNumber(\n    row.admin_tracking_number,\n    row.tracking_number,\n    allMessages\n  );\n\n  // ตรวจเฉพาะว่าเคยได้รับเลข/มีข้อความแจ้งเลขแล้วหรือไม่\n  const hasTrackingNotice =\n    /📌แจ้งเลขพัสดุจัดส่ง/.test(compactMessages);\n\n  const hasTrackingNumberInMessage = Boolean(\n    extractTrackingNumber(allMessages)\n  );\n\n  const alreadySent =\n    incomingParcelStatusEmoji === '📌' ||\n    Boolean(row.already_sent) ||\n    hasTrackingNotice ||\n    hasTrackingNumberInMessage;\n\n  // ถ้าเดิมมีวันเวลาอยู่แล้ว ให้คงไว้\n  // ถ้ายังไม่มีและตรวจพบว่าเคยส่ง ให้ประทับเวลาปัจจุบัน\n  const existingSentAt = clean(\n    row.already_sent_at ||\n    row.tracking_sent_at ||\n    row.facebook_tracking_sent_at ||\n    ''\n  );\n\n  const alreadySentAt = alreadySent\n    ? (existingSentAt || new Date().toISOString())\n    : null;\n\n  // เคยส่งแล้วให้ใช้ 📌\n  // ยังไม่เคยส่งให้คงค่า emoji จากโหนดก่อนหน้าแบบเดิม\n  const parcelStatusEmoji = alreadySent\n    ? '📌'\n    : incomingParcelStatusEmoji;\n\n  // คีย์กลางที่ทั้ง 3 สายต้องใช้เหมือนกัน\n  const chatLinkKey = buildSharedChatLinkKey(row);\n\n  output.push({\n    json: {\n      ...row,\n\n      // ค่าอีโมจิกลาง\n      parcelStatusEmoji,\n      parcel_status_emoji: parcelStatusEmoji,\n\n      // สถานะเคยส่งและเวลา เผื่อใช้ตรวจฉุกเฉิน\n      already_sent: alreadySent,\n      has_tracking_notice: hasTrackingNotice,\n      admin_tracking_found: Boolean(\n        row.admin_tracking_number ||\n        hasTrackingNumberInMessage\n      ),\n      admin_tracking_number:\n        row.admin_tracking_number || trackingNumber,\n      already_sent_at: alreadySentAt,\n\n      // เลขที่พบจากข้อความ ใช้ตรวจสอบเท่านั้น\n      detected_tracking_number: trackingNumber,\n\n      // คีย์กลาง Order / Chat / Parcel\n      chat_link_key: chatLinkKey,\n    },\n  });\n}\n\nreturn output;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -7392,
+        7408
+      ],
+      "id": "8e096f19-e0ce-4783-a577-f526c4157a9c",
+      "name": "⏰CUTOFF 14:00 YESTERDAY2"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -6720,
+        7328
+      ],
+      "id": "161ff844-e415-4c9c-8d42-2999cb957db8",
+      "name": "🩸 PSYCHOLOGY1"
+    },
+    {
+      "parameters": {
+        "compare": "selectedFields",
+        "fieldsToCompare": "facebook_name",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.removeDuplicates",
+      "typeVersion": 2,
+      "position": [
+        -7168,
+        7520
+      ],
+      "id": "f93a35ae-5e8a-4d51-8a86-45990cf5cc63",
+      "name": "Remove Duplicates"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 2
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -7840,
+        7408
+      ],
+      "id": "d93541f2-6ff8-4f15-b9e2-1e486811e58a",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "bed96dcf-0111-4bb6-beeb-0d0a55c87b6d",
+              "name": "access_token",
+              "value": "={{ $json.time_th }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -6720,
+        7520
+      ],
+      "id": "9c4f5913-920e-42fe-ad03-b4702daf8460",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1d0f1403-f2e8-4254-a503-16f92acd35c8",
+              "name": "upsert_key",
+              "value": "={{ $json.upsert_key }}",
+              "type": "string"
+            },
+            {
+              "id": "b6eb782d-a559-40bf-b67c-27427481d306",
+              "name": "facebook_tracking_message",
+              "value": "={{ $json.facebook_tracking_message }}",
+              "type": "string"
+            },
+            {
+              "id": "1c2d1dfd-e5f4-4a4f-9255-4af947950fb7",
+              "name": "drakside_tracking_message",
+              "value": "={{ $json.drakside_tracking_message }}",
+              "type": "string"
+            },
+            {
+              "id": "82ec3452-ac21-43c7-aee0-b4d8663bf85e",
+              "name": "threadId",
+              "value": "={{ $json.threadId }}",
+              "type": "string"
+            },
+            {
+              "id": "ef2f69df-16c7-4781-9b88-08ff088e2ba9",
+              "name": "page_name",
+              "value": "={{ $json.page_name }}",
+              "type": "string"
+            },
+            {
+              "id": "9af76d23-0eea-4788-bd31-cb54ac017c1e",
+              "name": "portal_key",
+              "value": "={{ $json.portal_key }}",
+              "type": "string"
+            },
+            {
+              "id": "72f1845a-c0bd-4a74-bfff-81794753ff3a",
+              "name": "order_number",
+              "value": "={{ $json.order_number }}",
+              "type": "string"
+            },
+            {
+              "id": "33308323-c69c-41cf-86d3-add3bd0f8710",
+              "name": "order_number_display",
+              "value": "={{ $json.order_number_display }}",
+              "type": "string"
+            },
+            {
+              "id": "79491941-12be-46c4-b30e-5ea7b64e7315",
+              "name": "message_id",
+              "value": "={{ $json.message_id }}",
+              "type": "string"
+            },
+            {
+              "id": "1692c474-2a7c-4c7d-958a-cbcb0dad1dda",
+              "name": "parcel_status_emoji",
+              "value": "={{ $json.parcel_status_emoji}}",
+              "type": "string"
+            },
+            {
+              "id": "7e2b9d81-f9a4-46a6-aefc-5e06e29ab6d5",
+              "name": "tracking_number",
+              "value": "={{ $json.tracking_number}}",
+              "type": "string"
+            },
+            {
+              "id": "41bfab11-2f5f-4f94-b0e6-310fa8f85a19",
+              "name": "page_id",
+              "value": "={{ $json.page_id }}",
+              "type": "string"
+            },
+            {
+              "id": "d5117822-5e58-41e6-a538-7d26371f2435",
+              "name": "customer_id",
+              "value": "={{ $json.customer_id }}",
+              "type": "string"
+            },
+            {
+              "id": "6d93e356-d48f-4992-b441-fa36e991e1ea",
+              "name": "order_time_display",
+              "value": "={{ $json.order_time_display }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -7168,
+        7296
+      ],
+      "id": "eee552ef-28d0-4906-9419-673433ebd7f3",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -6272,
+        7520
+      ],
+      "id": "2d6d81d5-8eb9-47cf-a7e3-fa08a0f6af3b",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {
+        "useCustomSchema": true,
+        "operation": "update",
+        "tableId": "parcels",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "phone_number",
+              "condition": "eq",
+              "keyValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.admin_tracking_number}}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "facebook_tracking_sent_at",
+              "fieldValue": "={{ $now.toISO() }}"
+            },
+            {
+              "fieldId": "facebook_tracking_status",
+              "fieldValue": "🔥SENT"
+            },
+            {
+              "fieldId": "message_id",
+              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.message_id }}"
+            },
+            {
+              "fieldId": "delivery_status",
+              "fieldValue": "🔥SENT"
+            },
+            {
+              "fieldId": "recipient_id",
+              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.customer_id}}"
+            },
+            {
+              "fieldId": "sent_at",
+              "fieldValue": "={{ $now.toISO() }}"
+            },
+            {
+              "fieldId": "upsert_key",
+              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.upsert_key}}"
+            },
+            {
+              "fieldId": "order_number",
+              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.order_number}}"
+            },
+            {
+              "fieldId": "order_phone",
+              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.extracted_phone}}"
+            },
+            {
+              "fieldId": "portal_key",
+              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.portal_key}}"
+            },
+            {
+              "fieldId": "page_name",
+              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.page_name}}"
+            },
+            {
+              "fieldId": "parcel_status_emoji",
+              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.parcel_status_emoji}}"
+            },
+            {
+              "fieldId": "facebook_tracking_message",
+              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.facebook_tracking_message}}"
+            },
+            {
+              "fieldId": "drakside_tracking_message",
+              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.drakside_tracking_message}}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -6496,
+        7328
+      ],
+      "id": "bde3e566-1102-4266-9ab1-e8db69b19513",
+      "name": "🧧FB_TRACKING_TODAY8",
+      "alwaysOutputData": false,
+      "credentials": {
+        "supabaseApi": {
+          "id": "Zh6TPBgVH5JoqWt6",
+          "name": "🧿BB_xXx_ORDERCONTROL"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "useCustomSchema": true,
+        "operation": "update",
+        "tableId": "parcels",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "phone_number",
+              "condition": "eq",
+              "keyValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.phone}}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "facebook_tracking_sent_at",
+              "fieldValue": "={{ $now.toISO() }}"
+            },
+            {
+              "fieldId": "facebook_tracking_status",
+              "fieldValue": "🔥SENT"
+            },
+            {
+              "fieldId": "message_id",
+              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.message_id }}"
+            },
+            {
+              "fieldId": "delivery_status",
+              "fieldValue": "🔥SENT"
+            },
+            {
+              "fieldId": "recipient_id",
+              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.customer_id}}"
+            },
+            {
+              "fieldId": "sent_at",
+              "fieldValue": "={{ $now.toISO() }}"
+            },
+            {
+              "fieldId": "upsert_key",
+              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.upsert_key}}"
+            },
+            {
+              "fieldId": "order_number",
+              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.order_number}}"
+            },
+            {
+              "fieldId": "order_phone",
+              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.extracted_phone}}"
+            },
+            {
+              "fieldId": "portal_key",
+              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.portal_key}}"
+            },
+            {
+              "fieldId": "page_name",
+              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.page_name}}"
+            },
+            {
+              "fieldId": "parcel_status_emoji",
+              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.parcel_status_emoji}}"
+            },
+            {
+              "fieldId": "facebook_tracking_message",
+              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.facebook_tracking_message}}"
+            },
+            {
+              "fieldId": "drakside_tracking_message",
+              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.drakside_tracking_message}}"
+            },
+            {
+              "fieldId": "phone_candidates",
+              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.phone_candidates }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -6272,
+        7712
+      ],
+      "id": "f94f7f39-5844-48b4-ad18-8c1e07dedc45",
+      "name": "🧧FB_TRACKING_TODAY9",
+      "alwaysOutputData": false,
+      "credentials": {
+        "supabaseApi": {
+          "id": "Zh6TPBgVH5JoqWt6",
+          "name": "🧿BB_xXx_ORDERCONTROL"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "useCustomSchema": true,
+        "operation": "update",
+        "tableId": "🧿BB_xXx_ORDERCONTROL",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "phone_number",
+              "condition": "eq",
+              "keyValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.phone}}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "facebook_tracking_sent_at",
+              "fieldValue": "={{ $now.toISO() }}"
+            },
+            {
+              "fieldId": "facebook_tracking_status",
+              "fieldValue": "🔥SENT"
+            },
+            {
+              "fieldId": "message_id",
+              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.message_id }}"
+            },
+            {
+              "fieldId": "delivery_status",
+              "fieldValue": "🔥SENT"
+            },
+            {
+              "fieldId": "recipient_id",
+              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.customer_id}}"
+            },
+            {
+              "fieldId": "sent_at",
+              "fieldValue": "={{ $now.toISO() }}"
+            },
+            {
+              "fieldId": "upsert_key",
+              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.upsert_key}}"
+            },
+            {
+              "fieldId": "order_number",
+              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.order_number}}"
+            },
+            {
+              "fieldId": "order_phone",
+              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.extracted_phone}}"
+            },
+            {
+              "fieldId": "portal_key",
+              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.portal_key}}"
+            },
+            {
+              "fieldId": "page_name",
+              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.page_name}}"
+            },
+            {
+              "fieldId": "parcel_status_emoji",
+              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.parcel_status_emoji}}"
+            },
+            {
+              "fieldId": "facebook_tracking_message",
+              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.facebook_tracking_message}}"
+            },
+            {
+              "fieldId": "drakside_tracking_message",
+              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.drakside_tracking_message}}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -5824,
+        7856
+      ],
+      "id": "924ac5c3-8a26-443f-930f-045cb979a52b",
+      "name": "🧧FB_TRACKING_TODAY10",
+      "alwaysOutputData": false,
+      "credentials": {
+        "supabaseApi": {
+          "id": "Zh6TPBgVH5JoqWt6",
+          "name": "🧿BB_xXx_ORDERCONTROL"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://efieodrwkmpcxftnlaqx.supabase.co/rest/v1/🏹HUNTER_xXx_TARGET?on_conflict=upsert_key",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "on_conflict",
+              "value": "upsert_key"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVmaWVvZHJ3a21wY3hmdG5sYXF4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5Mzg2NDExMiwiZXhwIjoyMTA5NDQwMTEyfQ.2QPueeHKAAfb-tYDiA_c7xDvlkwTNVehZ9qPQqR8Mo4"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVmaWVvZHJ3a21wY3hmdG5sYXF4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5Mzg2NDExMiwiZXhwIjoyMTA5NDQwMTEyfQ.2QPueeHKAAfb-tYDiA_c7xDvlkwTNVehZ9qPQqR8Mo4"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=representation"
+            },
+            {
+              "name": "on_conflict",
+              "value": "upsert_key"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json}}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "b8e026af-04ff-489e-9676-e061f0bf74b6",
+      "name": "🏹HUNTER_xXx_TARGET",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -6944,
+        7296
+      ],
+      "retryOnFail": false,
+      "alwaysOutputData": false,
+      "executeOnce": false,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://efieodrwkmpcxftnlaqx.supabase.co/rest/v1/🏹HUNTER_xXx_TARGET?on_conflict=upsert_key",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "on_conflict",
+              "value": "upsert_key"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVmaWVvZHJ3a21wY3hmdG5sYXF4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5Mzg2NDExMiwiZXhwIjoyMTA5NDQwMTEyfQ.2QPueeHKAAfb-tYDiA_c7xDvlkwTNVehZ9qPQqR8Mo4"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVmaWVvZHJ3a21wY3hmdG5sYXF4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5Mzg2NDExMiwiZXhwIjoyMTA5NDQwMTEyfQ.2QPueeHKAAfb-tYDiA_c7xDvlkwTNVehZ9qPQqR8Mo4"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=representation"
+            },
+            {
+              "name": "on_conflict",
+              "value": "upsert_key"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json}}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "f7816220-fa3a-463c-8667-51a3b50fb0ff",
+      "name": "🏹HUNTER_xXx_TARGET1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -6496,
+        7520
+      ],
+      "retryOnFail": false,
+      "alwaysOutputData": false,
+      "executeOnce": false,
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "🩸 PSYCHOLOGY": {
+      "main": [
+        [],
+        [
+          {
+            "node": "👣LIMBO JUNCTION1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⛩️VOID_xXx_GATEWAYz1": {
+      "main": [
+        [
+          {
+            "node": "⏰CUTOFF 14:00 YESTERDAY2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "👣LIMBO JUNCTION1": {
+      "main": [
+        [
+          {
+            "node": "🧧FB_TRACKING_TODAY9",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "🧧FB_TRACKING_TODAY10",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⛓️THE DEAD INTERSECTION": {
+      "main": [
+        [
+          {
+            "node": "🩸 PSYCHOLOGY1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [],
+        [],
+        [
+          {
+            "node": "🩸 PSYCHOLOGY",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⏰CUTOFF 14:00 YESTERDAY2": {
+      "main": [
+        [
+          {
+            "node": "Remove Duplicates",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🩸 PSYCHOLOGY1": {
+      "main": [
+        [],
+        [
+          {
+            "node": "🧧FB_TRACKING_TODAY8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Remove Duplicates": {
+      "main": [
+        [
+          {
+            "node": "⛓️THE DEAD INTERSECTION",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "⛩️VOID_xXx_GATEWAYz1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "🏹HUNTER_xXx_TARGET1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "🏹HUNTER_xXx_TARGET",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🧧FB_TRACKING_TODAY9": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🧧FB_TRACKING_TODAY10": {
+      "main": [
+        [
+          {
+            "node": "🩸 PSYCHOLOGY",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🏹HUNTER_xXx_TARGET1": {
+      "main": [
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "f4fcccb61c84d5d75854e90735e6c1d4dc7f96a459bba4b39bf25fd07d0f4e26"
+  }
+}
