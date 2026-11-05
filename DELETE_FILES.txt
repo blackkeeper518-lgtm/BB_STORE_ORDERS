@@ -1,5 +1,0 @@
-ไฟล์ที่ต้องลบจาก repository ปลายทางด้วยตนเอง เพราะ GitHub Upload ไม่ลบไฟล์เก่า:
-
-client/src/lib/TelegramDeliveryRoom.tsx
-
-เหตุผล: เป็นไฟล์ซ้ำ/ไม่ใช่หน้าหลัก ปัจจุบันใช้ client/src/pages/TelegramDeliveryRoom.tsx เท่านั้น

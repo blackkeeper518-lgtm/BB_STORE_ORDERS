@@ -1,7 +1,0 @@
-สถานะ n8n
-
-ยังไม่ควร paste โค้ดที่เพิ่ม `telegram_message_web`, `telegram_change_alert_web` หรือ `parcel_status_emoji` ลงใน BB_SYSTEMS: node ถัดไปส่ง `$json` ทั้งก้อนไป HERMES_ARCHIVE แต่ฟิลด์เหล่านี้ไม่มีใน schema ที่ตรวจ จึงเสี่ยงเขียนไม่ผ่าน ใช้คอลัมน์เดิม `telegram_message_for_send_final` และ `telegram_change_alert` ไปก่อน; ถ้าจะได้ฟิลด์เว็บโดยไม่เพิ่มคอลัมน์ ให้ทำ alias ใน View หรือแปลงฝั่งเว็บ
-
-โฟลว์ Four Rooms ก็ POST `$json` ทั้งก้อนไป `chat_customer_messages` / `chat_page_messages`; ยังไม่มี schema ยืนยันว่ารับ `parcel_status_emoji` ได้ จึงยังไม่ยัดฟิลด์ใหม่ลงโหนดนั้น
-
-สำคัญ: Gist BB_SYSTEMS ที่แชร์สาธารณะมี Supabase `service_role` key อยู่ ให้หมุน key แล้วอัปเดต n8n ก่อนแชร์หรือใช้งานต่อ แพ็กเก็ตนี้ไม่รวม workflow export หรือ credential
