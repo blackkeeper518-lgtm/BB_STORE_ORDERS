@@ -5,8 +5,15 @@ export type MetaAttachment = { type: string; url?: string; payload?: Record<stri
 async function pageToken(pageId: string) {
   // The Chat lane is optional. Existing deployments continue using Tracking
   // until the new Chat variables are added on Render.
-  const supabaseUrl = (process.env.CHAT_SUPABASE_URL || process.env.TRACKING_SUPABASE_URL || process.env.SUPABASE_URL)?.replace(/\/$/, "");
-  const serviceRoleKey = process.env.CHAT_SUPABASE_SERVICE_ROLE_KEY || process.env.TRACKING_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  // Select URL + service key as a pair. Do not combine Chat URL with Tracking key
+  // when only one of the new Chat environment variables has been configured.
+  const lane = [
+    { url: process.env.CHAT_SUPABASE_URL, key: process.env.CHAT_SUPABASE_SERVICE_ROLE_KEY },
+    { url: process.env.TRACKING_SUPABASE_URL, key: process.env.TRACKING_SUPABASE_SERVICE_ROLE_KEY },
+    { url: process.env.SUPABASE_URL, key: process.env.SUPABASE_SERVICE_ROLE_KEY },
+  ].find(candidate => candidate.url?.trim() && candidate.key?.trim());
+  const supabaseUrl = lane?.url?.trim().replace(/\/$/, "");
+  const serviceRoleKey = lane?.key?.trim();
   if (supabaseUrl && serviceRoleKey) {
     const params = new URLSearchParams({ select: "page_id,page_name,access_token", page_id: `eq.${pageId}`, limit: "1" });
     const response = await fetch(`${supabaseUrl}/rest/v1/page_tokens_vault?${params}`, { headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` } });
