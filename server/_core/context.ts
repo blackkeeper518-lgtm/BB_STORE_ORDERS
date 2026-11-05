@@ -1,7 +1,7 @@
 import type { CreateExpressContextOptions } from "@trpc/server/adapters/express";
 import type { User } from "../../drizzle/schema";
 import { sdk } from "./sdk";
-import { PRESENTATION_MODE, PRESENTATION_USER } from "@shared/presentation";
+import { PRESENTATION_MODE, PRESENTATION_USER } from "../../shared/presentation";
 
 export type TrpcContext = {
   req: CreateExpressContextOptions["req"];
