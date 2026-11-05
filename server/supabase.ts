@@ -7,10 +7,27 @@ export type LiveProductMapping = { sku: string; label: string; price: number | n
 export type StockProduct = LiveProductMapping & { id: number; thName: string | null; stockQty: number | null; stockStatus: string | null; status: string | null; updatedAt: string | null };
 export type StockWarning = { kind: "duplicate_sku" | "missing_sku"; sku: string | null; label: string | null; count?: number };
 
-type SupabaseProject = "main" | "tracking";
+type SupabaseProject = "main" | "tracking" | "chat" | "parcel";
 function config(project: SupabaseProject = "main") {
-  const rawUrl = (project === "tracking" ? process.env.TRACKING_SUPABASE_URL : process.env.ORDER_SUPABASE_URL)?.trim() || process.env.SUPABASE_URL?.trim();
-  const key = (project === "tracking" ? process.env.TRACKING_SUPABASE_SERVICE_ROLE_KEY : process.env.ORDER_SUPABASE_SERVICE_ROLE_KEY)?.trim() || process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  const lane = project === "chat" ? "chat" : project === "parcel" ? "parcel" : project;
+  const laneUrl = lane === "chat"
+    ? process.env.CHAT_SUPABASE_URL
+    : lane === "parcel"
+      ? process.env.PARCEL_SUPABASE_URL
+      : lane === "tracking"
+        ? process.env.TRACKING_SUPABASE_URL
+        : process.env.ORDER_SUPABASE_URL;
+  const laneKey = lane === "chat"
+    ? process.env.CHAT_SUPABASE_SERVICE_ROLE_KEY
+    : lane === "parcel"
+      ? process.env.PARCEL_SUPABASE_SERVICE_ROLE_KEY
+      : lane === "tracking"
+        ? process.env.TRACKING_SUPABASE_SERVICE_ROLE_KEY
+        : process.env.ORDER_SUPABASE_SERVICE_ROLE_KEY;
+  // New lanes are additive. Until their Render variables exist, keep the
+  // existing Tracking connection working without a data or route migration.
+  const rawUrl = laneUrl?.trim() || (lane === "chat" || lane === "parcel" ? process.env.TRACKING_SUPABASE_URL?.trim() : undefined) || process.env.SUPABASE_URL?.trim();
+  const key = laneKey?.trim() || (lane === "chat" || lane === "parcel" ? process.env.TRACKING_SUPABASE_SERVICE_ROLE_KEY?.trim() : undefined) || process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
   if (!rawUrl || !key) throw new Error(`Supabase ${project} secrets are not configured`);
   let parsed: URL;
   try { parsed = new URL(rawUrl); } catch { throw new Error("SUPABASE_URL is not a valid URL"); }
@@ -42,12 +59,12 @@ export async function fetchParcelMappingQueue(input: { status: "all" | "sent"; l
   const sentView = encodeURIComponent("📓DEAD_xXx_NOTE");
   const activeQuery = `select=*&limit=${input.limit}`;
   const sentQuery = `select=*&limit=${input.limit}`;
-  const active = input.status === "sent" ? [] : await supabaseGet<Array<Record<string, unknown>>>(`${activeView}?${activeQuery}`, "tracking");
-  const sent = input.status === "sent" ? await supabaseGet<Array<Record<string, unknown>>>(`${sentView}?${sentQuery}`, "tracking") : [];
+  const active = input.status === "sent" ? [] : await supabaseGet<Array<Record<string, unknown>>>(`${activeView}?${activeQuery}`, "parcel");
+  const sent = input.status === "sent" ? await supabaseGet<Array<Record<string, unknown>>>(`${sentView}?${sentQuery}`, "parcel") : [];
   return [...active, ...sent].slice(0, input.limit);
 }
 export async function purgeOldParcels() {
-  const deleted = await supabasePost<number>("rpc/bb_purge_old_parcels_3day", {}, "tracking");
+  const deleted = await supabasePost<number>("rpc/bb_purge_old_parcels_3day", {}, "parcel");
   return { deleted: Number(deleted) || 0 };
 }
 function text(v: unknown) { return v == null ? null : String(v); }
