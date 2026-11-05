@@ -110,6 +110,11 @@ export default function SecretGallery() {
   const [trackingKey, setTrackingKey] = useState(trackingConnection?.anonKey || "");
   const [trackingMessage, setTrackingMessage] = useState(trackingConnection ? "ตั้งค่าไว้ในเครื่องนี้แล้ว" : "");
   const [trackingBusy, setTrackingBusy] = useState(false);
+  const chatConnection = getSupabaseConfig(camp, "chat");
+  const [chatUrl, setChatUrl] = useState(chatConnection?.url || "");
+  const [chatKey, setChatKey] = useState(chatConnection?.anonKey || "");
+  const [chatMessage, setChatMessage] = useState(chatConnection ? "ตั้งค่าไว้ในเครื่องนี้แล้ว" : "");
+  const [chatBusy, setChatBusy] = useState(false);
   const [docs, setDocs] = useState<VaultDoc[]>(() => readLocal(DOCS_KEY, []));
   const [images, setImages] = useState<GalleryItem[]>(() =>
     readLocal(IMAGES_KEY, [])
@@ -245,8 +250,8 @@ export default function SecretGallery() {
       if (/service_role|secret/i.test(anonKey)) throw new Error("ห้ามใส่ service-role หรือ secret key ในหน้าเว็บ");
       saveSupabaseConfig({ url, anonKey }, camp, "tracking");
       const api = getSupabase("tracking");
-      if (!api) throw new Error("สร้าง Tracking Supabase client ไม่สำเร็จ");
-      const relations = ["parcels", "chat_customer_messages", "chat_page_messages", "🦅ROGUE_xXx_SHIPPINGz"];
+      if (!api) throw new Error("สร้าง Parcel Supabase client ไม่สำเร็จ");
+      const relations = ["parcels", "🦅ROGUE_xXx_SHIPPINGz"];
       const results = await Promise.all(relations.map(async relation => ({ relation, error: (await api.from(relation).select("*", { count: "exact", head: true })).error })));
       const failed = results.find(result => result.error);
       if (failed?.error) throw new Error(`${failed.relation}: ${failed.error.message}`);
@@ -257,11 +262,40 @@ export default function SecretGallery() {
       setTrackingBusy(false);
     }
   };
+  const saveChatConnection = async () => {
+    setChatBusy(true);
+    setChatMessage("");
+    try {
+      const url = chatUrl.trim().replace(/\/$/, "");
+      const anonKey = chatKey.trim();
+      if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url)) throw new Error("URL โปรเจกต์ Chat ไม่ถูกต้อง");
+      if (!anonKey) throw new Error("กรุณาใส่ Anon/Publishable Key ของ Chat");
+      if (/service_role|secret/i.test(anonKey)) throw new Error("ห้ามใส่ service-role หรือ secret key ในหน้าเว็บ");
+      saveSupabaseConfig({ url, anonKey }, camp, "chat");
+      const api = getSupabase("chat");
+      if (!api) throw new Error("สร้าง Chat Supabase client ไม่สำเร็จ");
+      const relations = ["chat_customer_messages", "chat_page_messages"];
+      const results = await Promise.all(relations.map(async relation => ({ relation, error: (await api.from(relation).select("*", { count: "exact", head: true })).error })));
+      const failed = results.find(result => result.error);
+      if (failed?.error) throw new Error(`${failed.relation}: ${failed.error.message}`);
+      setChatMessage(`เชื่อมแล้ว · อ่านผ่าน ${relations.length} จุด`);
+    } catch (e) {
+      setChatMessage(e instanceof Error ? e.message : String(e));
+    } finally {
+      setChatBusy(false);
+    }
+  };
+  const clearChatConnection = () => {
+    clearSupabaseConfig(camp, "chat");
+    setChatUrl("");
+    setChatKey("");
+    setChatMessage("ล้าง connection Chat ออกจากเครื่องนี้แล้ว");
+  };
   const clearTrackingConnection = () => {
     clearSupabaseConfig(camp, "tracking");
     setTrackingUrl("");
     setTrackingKey("");
-    setTrackingMessage("ล้าง connection Tracking ออกจากเครื่องนี้แล้ว");
+    setTrackingMessage("ล้าง connection Parcel ออกจากเครื่องนี้แล้ว");
   };
   const login = () => {
     if (password === ROOM_PASSWORD) {
@@ -454,8 +488,10 @@ export default function SecretGallery() {
 
   if (!unlocked)
     return (
-      <div className="flex min-h-[calc(100vh-2rem)] items-center justify-center bg-[#090611] p-4 text-white">
-        <Card className="neon-card w-full max-w-md rounded-3xl border-fuchsia-400/30 bg-[#130b1e]">
+      <div className="relative flex min-h-[calc(100vh-2rem)] items-center justify-center overflow-hidden bg-[#02030d] p-4 text-white">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(34,211,238,.16),transparent_30%),radial-gradient(circle_at_80%_75%,rgba(217,70,239,.18),transparent_32%),linear-gradient(135deg,#02030d,#10051c_55%,#020a16)]" />
+        <div className="pointer-events-none absolute inset-0 opacity-30 [background-image:radial-gradient(circle,rgba(255,255,255,.9)_1px,transparent_1px),radial-gradient(circle,rgba(34,211,238,.7)_1px,transparent_1px)] [background-position:10px_18px,70px_60px] [background-size:130px_130px,190px_190px]" />
+        <Card className="neon-card relative z-10 w-full max-w-md rounded-3xl border-cyan-300/35 bg-[#080b1c]/85 shadow-[0_0_55px_rgba(34,211,238,.16),0_0_110px_rgba(217,70,239,.12)] backdrop-blur-xl">
           <CardHeader className="text-center">
             <LockKeyhole className="mx-auto h-10 w-10 text-cyan-300" />
             <CardTitle className="mt-2 text-2xl text-white">
@@ -492,34 +528,47 @@ export default function SecretGallery() {
     );
 
   return (
-    <div className="secret-gallery-page cyber-grid h-[100dvh] min-w-0 overflow-x-hidden overflow-y-auto overscroll-contain bg-[#090611] p-2 text-white sm:p-4 lg:p-6">
-      <div className="mx-auto min-w-0 max-w-[1500px] space-y-4">
-        <header className="neon-card relative overflow-hidden rounded-3xl border border-fuchsia-400/25 bg-[#130b1e] p-5 sm:p-6">
-          <div className="absolute -right-20 -top-24 h-72 w-72 rounded-full bg-fuchsia-600/20 blur-3xl" />
+    <div className="secret-gallery-page relative isolate h-[100dvh] min-w-0 overflow-x-hidden overflow-y-auto overscroll-contain bg-[#02030d] p-2 text-white sm:p-4 lg:p-6">
+      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-[radial-gradient(ellipse_at_18%_8%,rgba(34,211,238,.16),transparent_32%),radial-gradient(ellipse_at_85%_22%,rgba(217,70,239,.16),transparent_34%),radial-gradient(ellipse_at_48%_100%,rgba(59,130,246,.12),transparent_38%),linear-gradient(135deg,#02030d_0%,#08051a_48%,#020914_100%)]" />
+      <div className="pointer-events-none fixed inset-0 -z-10 opacity-45 [background-image:radial-gradient(circle,rgba(255,255,255,.95)_1px,transparent_1.5px),radial-gradient(circle,rgba(34,211,238,.8)_1px,transparent_1.5px),radial-gradient(circle,rgba(244,114,182,.65)_1px,transparent_1.5px)] [background-position:12px_20px,80px_100px,150px_40px] [background-size:170px_170px,230px_230px,310px_310px]" />
+      <div className="pointer-events-none fixed inset-0 -z-10 opacity-[0.07] [background-image:linear-gradient(rgba(255,255,255,.8)_1px,transparent_1px)] [background-size:100%_5px]" />
+      <div className="pointer-events-none fixed -left-48 top-32 -z-10 h-[34rem] w-[34rem] rounded-full border border-cyan-300/10 shadow-[0_0_90px_rgba(34,211,238,.1),inset_0_0_90px_rgba(34,211,238,.08)]" />
+      <div className="pointer-events-none fixed -right-56 bottom-0 -z-10 h-[42rem] w-[42rem] rounded-full border border-fuchsia-300/10 shadow-[0_0_120px_rgba(217,70,239,.12),inset_0_0_100px_rgba(217,70,239,.07)]" />
+      <div className="relative z-10 mx-auto min-w-0 max-w-[1500px] space-y-4">
+        <header className="neon-card relative overflow-hidden rounded-3xl border border-cyan-300/30 bg-[#080b1c]/75 p-5 shadow-[0_0_45px_rgba(34,211,238,.13),inset_0_0_34px_rgba(217,70,239,.05)] backdrop-blur-xl sm:p-6">
+          <div className="absolute -right-20 -top-24 h-72 w-72 rounded-full bg-fuchsia-600/25 blur-3xl" />
+          <div className="absolute -bottom-28 left-1/3 h-56 w-56 rounded-full bg-cyan-400/10 blur-3xl" />
+          <div className="absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300 to-transparent shadow-[0_0_14px_rgba(34,211,238,.9)]" />
           <div className="relative flex flex-wrap items-center justify-between gap-4">
             <div>
-              <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.3em] text-cyan-300">
-                <Sparkles className="h-4 w-4" /> DRAKSIDE MARKETING
+              <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-[0.28em] text-cyan-300">
+                <span className="flex items-center gap-2 rounded-full border border-cyan-300/25 bg-cyan-300/10 px-3 py-1 shadow-[0_0_18px_rgba(34,211,238,.14)]"><Sparkles className="h-3.5 w-3.5" /> DRAKSIDE // SECRET GALLERY</span>
+                <span className="rounded-full border border-fuchsia-300/20 bg-fuchsia-300/10 px-3 py-1 text-fuchsia-200">SECTOR 07 · LOCAL VAULT</span>
               </div>
-              <h1 className="cyber-title mt-2 text-3xl font-bold text-white sm:text-4xl">
-                DRAKSIDE MARKETING
+              <h1 className="cyber-title mt-3 text-3xl font-black tracking-tight text-white sm:text-5xl">
+                DRAKSIDE <span className="text-cyan-300 [text-shadow:0_0_22px_rgba(34,211,238,.65)]">MARKETING</span>
               </h1>
-              <p className="mt-2 max-w-2xl text-sm text-fuchsia-100/60">
-                การตลาดที่ไม่แข่งขัน แต่ไม่มีใครตามทัน
+              <p className="mt-2 max-w-2xl text-sm text-fuchsia-100/65">
+                ห้องบัญชาการข้อมูล · โค้ด · โปรเจกต์ · สัญญาณจากหลายจักรวาล
               </p>
+              <div className="mt-4 flex flex-wrap gap-2 text-[10px] font-mono uppercase tracking-[0.18em] text-white/55">
+                <span className="rounded-md border border-emerald-300/25 bg-emerald-300/10 px-2.5 py-1 text-emerald-200">● CORE ONLINE</span>
+                <span className="rounded-md border border-cyan-300/25 bg-cyan-300/10 px-2.5 py-1 text-cyan-200">LOCAL AUTOSAVE</span>
+                <span className="rounded-md border border-fuchsia-300/25 bg-fuchsia-300/10 px-2.5 py-1 text-fuchsia-200">3 DATA LANES</span>
+              </div>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button
                 onClick={() => setLocation("/orders")}
                 variant="outline"
-                className="border-cyan-400/30 bg-transparent text-cyan-200"
+                className="border-cyan-300/35 bg-cyan-300/5 text-cyan-100 shadow-[0_0_18px_rgba(34,211,238,.1)] hover:border-cyan-200/70 hover:bg-cyan-300/15"
               >
                 <Home className="mr-2 h-4 w-4" />
                 หน้าออเดอร์
               </Button>
               <Button
                 onClick={() => createDoc("sql")}
-                className="bg-gradient-to-r from-fuchsia-600 to-violet-700"
+                className="bg-gradient-to-r from-fuchsia-600 via-violet-700 to-cyan-600 shadow-[0_0_24px_rgba(217,70,239,.28)] hover:brightness-125"
               >
                 <FilePlus2 className="mr-2 h-4 w-4" />
                 ไฟล์ใหม่
@@ -530,7 +579,7 @@ export default function SecretGallery() {
                   sessionStorage.removeItem("nightops-gallery-unlocked");
                   setUnlocked(false);
                 }}
-                className="border-fuchsia-400/25 bg-transparent text-fuchsia-100"
+                className="border-fuchsia-300/30 bg-fuchsia-300/5 text-fuchsia-100 shadow-[0_0_18px_rgba(217,70,239,.1)] hover:border-fuchsia-200/70 hover:bg-fuchsia-300/15"
               >
                 <LogOut className="mr-2 h-4 w-4" />
                 ล็อกห้อง
@@ -538,11 +587,12 @@ export default function SecretGallery() {
             </div>
           </div>
         </header>
-        <Card className="neon-card rounded-3xl border-cyan-400/20 bg-black/20">
+        <Card className="neon-card relative overflow-hidden rounded-3xl border-violet-300/25 bg-[#070b1c]/70 shadow-[0_0_34px_rgba(139,92,246,.12),inset_0_0_30px_rgba(34,211,238,.03)] backdrop-blur-xl">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-sm text-white">
               <LockKeyhole className="h-4 w-4 text-cyan-300" />
               MAIN ORDER · HERMES / MULTIVERSE / SINGULARITY
+              <span className="ml-auto rounded border border-violet-300/20 bg-violet-300/10 px-2 py-0.5 text-[9px] font-mono tracking-[0.18em] text-violet-200/75">UPLINK 01</span>
             </CardTitle>
           </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-3">
@@ -579,18 +629,34 @@ export default function SecretGallery() {
         </Card>
         <Card className="relative overflow-hidden rounded-3xl border-cyan-300/35 bg-[radial-gradient(ellipse_at_top_right,rgba(34,211,238,.18),transparent_42%),linear-gradient(135deg,rgba(12,20,42,.96),rgba(21,10,35,.96))] shadow-[0_0_34px_rgba(34,211,238,.16)]">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-sm text-cyan-100"><Database className="h-4 w-4 text-cyan-300" />TRACKING & MESSENGER · โปรเจกต์ที่สอง</CardTitle>
-            <p className="text-xs leading-5 text-cyan-100/65">ใช้กับห้องแชท พัสดุ และประวัติปิดงาน · เก็บแยกจากฐานออเดอร์ในเบราว์เซอร์เครื่องนี้</p>
+            <CardTitle className="flex items-center gap-2 text-sm text-cyan-100"><Database className="h-4 w-4 text-cyan-300" />PARCEL · โปรเจกต์พัสดุ</CardTitle>
+            <p className="text-xs leading-5 text-cyan-100/65">ใช้กับข้อมูลพัสดุและคิวส่งเลข · เก็บแยกจากฐานออเดอร์และฐานแชทในเบราว์เซอร์เครื่องนี้</p>
           </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-2">
-            <label className="grid gap-1 text-[11px] text-cyan-100/70">TRACKING SUPABASE URL<Input value={trackingUrl} onChange={event => setTrackingUrl(event.target.value)} placeholder="https://tracking-project.supabase.co" className="border-cyan-300/25 bg-black/35 text-white placeholder:text-cyan-100/30" /></label>
-            <label className="grid gap-1 text-[11px] text-cyan-100/70">TRACKING ANON / PUBLISHABLE KEY<Input type="password" value={trackingKey} onChange={event => setTrackingKey(event.target.value)} placeholder="sb_publishable_… หรือ anon key" className="border-cyan-300/25 bg-black/35 font-mono text-white placeholder:text-cyan-100/30" /></label>
+            <label className="grid gap-1 text-[11px] text-cyan-100/70">PARCEL SUPABASE URL<Input value={trackingUrl} onChange={event => setTrackingUrl(event.target.value)} placeholder="https://parcel-project.supabase.co" className="border-cyan-300/25 bg-black/35 text-white placeholder:text-cyan-100/30" /></label>
+            <label className="grid gap-1 text-[11px] text-cyan-100/70">PARCEL ANON / PUBLISHABLE KEY<Input type="password" value={trackingKey} onChange={event => setTrackingKey(event.target.value)} placeholder="sb_publishable_… หรือ anon key" className="border-cyan-300/25 bg-black/35 font-mono text-white placeholder:text-cyan-100/30" /></label>
             <div className="flex flex-wrap items-center gap-2 md:col-span-2">
-              <Button type="button" onClick={() => void saveTrackingConnection()} disabled={trackingBusy} className="bg-gradient-to-r from-cyan-500 via-blue-500 to-fuchsia-600 text-[#07111f] shadow-[0_0_18px_rgba(34,211,238,.28)] hover:brightness-110">{trackingBusy ? "กำลังตรวจ…" : "บันทึกและทดสอบ Tracking"}</Button>
-              <Button type="button" variant="outline" onClick={clearTrackingConnection} className="border-cyan-300/25 bg-black/20 text-cyan-100 hover:bg-cyan-300/10">ล้างช่อง Tracking</Button>
+              <Button type="button" onClick={() => void saveTrackingConnection()} disabled={trackingBusy} className="bg-gradient-to-r from-cyan-500 via-blue-500 to-fuchsia-600 text-[#07111f] shadow-[0_0_18px_rgba(34,211,238,.28)] hover:brightness-110">{trackingBusy ? "กำลังตรวจ…" : "บันทึกและทดสอบ Parcel"}</Button>
+              <Button type="button" variant="outline" onClick={clearTrackingConnection} className="border-cyan-300/25 bg-black/20 text-cyan-100 hover:bg-cyan-300/10">ล้างช่อง Parcel</Button>
               <span className="text-xs text-cyan-100/70">{trackingMessage}</span>
             </div>
             <p className="text-[10px] leading-4 text-cyan-100/45 md:col-span-2">ใส่เฉพาะ Anon/Publishable Key เท่านั้น · ห้ามใส่ service-role, secret key, Page Token หรือ Gateway Token ในช่องนี้</p>
+          </CardContent>
+        </Card>
+        <Card className="relative overflow-hidden rounded-3xl border-emerald-300/35 bg-[radial-gradient(ellipse_at_top_right,rgba(16,185,129,.16),transparent_42%),linear-gradient(135deg,rgba(6,27,28,.96),rgba(10,21,35,.96))] shadow-[0_0_34px_rgba(16,185,129,.12)]">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-sm text-emerald-100"><Database className="h-4 w-4 text-emerald-300" />CHAT · โปรเจกต์แชทแยก</CardTitle>
+            <p className="text-xs leading-5 text-emerald-100/65">ใช้เฉพาะห้องแชทและประวัติข้อความจากโปรเจกต์ Supabase ของสายแชท</p>
+          </CardHeader>
+          <CardContent className="grid gap-3 md:grid-cols-2">
+            <label className="grid gap-1 text-[11px] text-emerald-100/70">CHAT SUPABASE URL<Input value={chatUrl} onChange={event => setChatUrl(event.target.value)} placeholder="https://chat-project.supabase.co" className="border-emerald-300/25 bg-black/35 text-white placeholder:text-emerald-100/30" /></label>
+            <label className="grid gap-1 text-[11px] text-emerald-100/70">CHAT ANON / PUBLISHABLE KEY<Input type="password" value={chatKey} onChange={event => setChatKey(event.target.value)} placeholder="sb_publishable_… หรือ anon key" className="border-emerald-300/25 bg-black/35 font-mono text-white placeholder:text-emerald-100/30" /></label>
+            <div className="flex flex-wrap items-center gap-2 md:col-span-2">
+              <Button type="button" onClick={() => void saveChatConnection()} disabled={chatBusy} className="bg-gradient-to-r from-emerald-500 via-cyan-500 to-blue-600 text-[#07111f] shadow-[0_0_18px_rgba(16,185,129,.24)] hover:brightness-110">{chatBusy ? "กำลังตรวจ…" : "บันทึกและทดสอบ Chat"}</Button>
+              <Button type="button" variant="outline" onClick={clearChatConnection} className="border-emerald-300/25 bg-black/20 text-emerald-100 hover:bg-emerald-300/10">ล้างช่อง Chat</Button>
+              <span className="text-xs text-emerald-100/70">{chatMessage}</span>
+            </div>
+            <p className="text-[10px] leading-4 text-emerald-100/45 md:col-span-2">ใส่เฉพาะ Anon/Publishable Key เท่านั้น · ห้ามใส่ service-role, secret key, Page Token หรือ Gateway Token ในช่องนี้</p>
           </CardContent>
         </Card>
         <Card className="neon-card rounded-3xl border-fuchsia-400/20 bg-black/20">
