@@ -1,0 +1,35 @@
+--- a/client/src/pages/OrderControl.tsx
++++ b/client/src/pages/OrderControl.tsx
+@@ -179,13 +179,13 @@
+ 
+       {/* ⫘ SUMMARY CARDS · การ์ดสรุปยอดด้านบน: แก้สี/ขนาดที่ component Metric ด้านล่าง */}
+       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+-        <Metric icon={ShoppingCart} label="ออเดอร์ทั้งหมด" value={orders.length} suffix="รายการ" tone="pink" action={<button type="button" aria-label="รีเฟรชออเดอร์" onClick={() => void query.refetch()} disabled={query.isFetching} className="metric-refresh-button"><RefreshCw className={`h-4 w-4 ${query.isFetching ? "animate-spin" : ""}`} /></button>} />
++        <Metric icon={null} label="ออเดอร์ทั้งหมด" value={orders.length} suffix="รายการ" tone="pink" action={<button type="button" aria-label="รีเฟรชออเดอร์" onClick={() => void query.refetch()} disabled={query.isFetching} className="metric-refresh-button"><RefreshCw className={`h-4 w-4 ${query.isFetching ? "animate-spin" : ""}`} /></button>} />
+         <Metric icon={CalendarDays} label="ออเดอร์วันนี้" value={todayOrders.length} suffix="รายการ · รอบ 14:00" tone="violet" />
+         <Metric icon={WalletCards} label="ยอด COD ทั้งหมด" value={money(totalCod)} tone="cyan" />
+-        <Metric icon={WalletCards} label="ยอด COD วันนี้" value={`${money(todayCod)} · รอบ 14:00`} tone="green" />
++        <Metric icon={WalletCards} label="ยอด COD วันนี้" value={`${money(todayCod)} · รอบ 14:00`} tone="amber" />
+         <Metric icon={CheckCircle2} label="ส่งแล้ว" value={sentOrders.length} suffix="รายการ" tone="green" />
+-        <Metric icon={Send} label="ส่งได้" value={sendableOrders.length} suffix="รายการ" tone="cyan" />
+-        <Metric icon={XCircle} label="ส่งไม่ได้ / ต้องตรวจ" value={blockedOrders.length} suffix="รายการ" tone="pink" />
++        <Metric icon={Send} label="ส่งได้" value={sendableOrders.length} suffix="รายการ" tone="blue" />
++        <Metric icon={XCircle} label="ส่งไม่ได้ / ต้องตรวจ" value={blockedOrders.length} suffix="รายการ" tone="red" />
+       </section>
+ 
+       {/* ⫘ SEARCH BAR · ช่องค้นหา: ค้นจากข้อมูลแถวใน HERMES */}
+@@ -290,6 +290,11 @@
+ // Info: กล่องข้อมูล 1 ช่อง · แก้หน้าตาที่ className บรรทัดนี้
+ // Metric: การ์ดสรุปด้านบน · เปลี่ยน tone ได้เป็น pink/violet/cyan/green
+ // ⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘
+-function Metric({ icon: Icon, label, value, suffix, tone, action }: { icon: typeof ShoppingCart; label: string; value: string | number; suffix?: string; tone: "pink" | "violet" | "cyan" | "green"; action?: ReactNode }) {
+-  return <div className={`signal-metric signal-${tone}`}><div className="flex items-start justify-between gap-2"><div><p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-300/65">{label}</p><p className="mt-2 text-xl font-semibold tracking-tight text-white">{value} <span className="text-[10px] font-normal text-slate-300/55">{suffix}</span></p></div><div className="flex items-center gap-2">{action}<span className="metric-icon"><Icon /></span></div></div></div>;
+-}
++const METRIC_TONE_COLORS: Record<"pink" | "violet" | "cyan" | "green" | "amber" | "blue" | "red", string> = {
++  pink: "#ff5acb", violet: "#a875ff", cyan: "#5de9ff", green: "#61ffb4",
++  amber: "#ffc45c", blue: "#74a9ff", red: "#ff668f",
++};
++
++function Metric({ icon: Icon, label, value, suffix, tone, action }: { icon?: typeof ShoppingCart | null; label: string; value: string | number; suffix?: string; tone: keyof typeof METRIC_TONE_COLORS; action?: ReactNode }) {
++  return <div className={`signal-metric signal-${tone}`} style={{ color: METRIC_TONE_COLORS[tone] }}><div className="flex items-start justify-between gap-2"><div className="min-w-0 flex-1"><p className="min-h-8 text-[10px] font-semibold uppercase leading-4 tracking-[0.1em] text-slate-300/70">{label}</p><p className="mt-1 flex min-w-0 flex-wrap items-baseline gap-x-1.5 leading-tight"><span className="break-words text-lg font-semibold tracking-tight text-white sm:text-xl">{value}</span>{suffix ? <span className="text-[10px] font-normal leading-4 text-slate-300/70">{suffix}</span> : null}</p></div><div className="flex shrink-0 items-center gap-1.5">{action}{Icon ? <span className="metric-icon" aria-hidden="true"><Icon /></span> : null}</div></div></div>;
++}
