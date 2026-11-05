@@ -1,0 +1,10 @@
+client/
+server/
+shared/
+api/
+drizzle/
+n8n-live/
+patches/
+package.json
+pnpm-lock.yaml
+vite.config.ts
