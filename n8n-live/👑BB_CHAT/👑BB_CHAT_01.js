@@ -246,6 +246,7 @@ for (const item of $input.all()) {
       const rawMsgId = message.message_id || message.id || `msg_test_${Date.now()}_${index}`;
       const dedupeKey = `${pageConfig.page_id}|${recipientId}|${rawMsgId}`;
       const conversationKey = `${pageConfig.page_id}|${recipientId}`;
+      const chatLinkKey = `${pageConfig.page_id}:${conv.id}`;
 
       const timeThai = formatThaiDateTime(msgMs);
       const computedAgeHours = Number.isFinite(msgMs) ? parseFloat(((Date.now() - msgMs) / HOUR_MS).toFixed(1)) : null;
@@ -271,6 +272,7 @@ for (const item of $input.all()) {
           
           message_id: rawMsgId,
           dedupe_key: dedupeKey,
+          chat_link_key: chatLinkKey,
      
     
           speaker: isPage ? "page" : "customer",
