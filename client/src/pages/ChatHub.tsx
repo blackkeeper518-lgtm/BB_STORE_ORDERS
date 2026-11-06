@@ -119,7 +119,20 @@ export default function ChatHub() {
   const selectedPageId = selected?.pageId ?? selected?.orders[0]?.page_id ?? "";
   const selectedThreadId = selected?.threadId ?? "";
   const selectedCustomerId = selected?.customerId ?? "";
+  const [handoffTracking, setHandoffTracking] = useState<Record<string, any> | null>(null);
   const messagesQuery = useQuery({ queryKey: ["canonical-chat-messages", selectedPageId, selectedThreadId], queryFn: () => readChatMessages(selectedPageId, selectedThreadId), enabled: Boolean(selectedPageId && selectedThreadId), refetchInterval: 5_000 });
+  useEffect(() => {
+    if (!selectedPageId || !selectedThreadId || typeof window === "undefined") {
+      setHandoffTracking(null);
+      return;
+    }
+    try {
+      const raw = window.sessionStorage.getItem(`darkside-send-gate:${selectedPageId}:${selectedThreadId}`);
+      setHandoffTracking(raw ? JSON.parse(raw) : null);
+    } catch {
+      setHandoffTracking(null);
+    }
+  }, [selectedPageId, selectedThreadId]);
   useEffect(() => {
     const unsubscribe = subscribeToChatMessages(() => {
       void threadsQuery.refetch();
@@ -153,8 +166,12 @@ export default function ChatHub() {
       facebook_tracking_message: room.facebook_tracking_message ?? "",
       drakside_tracking_message: room.drakside_tracking_message ?? "",
     };
-    return Object.values(row).some(value => String(value ?? "").trim()) ? [row] : [];
-  }, [selected]);
+    const merged = { ...handoffTracking };
+    Object.entries(row).forEach(([key, value]) => {
+      if (String(value ?? "").trim()) merged[key] = value;
+    });
+    return Object.values(merged).some(value => String(value ?? "").trim()) ? [merged] : [];
+  }, [selected, handoffTracking]);
   const chatEvidenceQuery = trpc.orders.chatEvidence.useQuery({ pageId: selectedPageId, threadId: selectedThreadId }, { enabled: Boolean(selectedPageId && selectedThreadId && orderDetailOpen), refetchInterval: 60_000 });
   const totalMessages = useMemo(() => threads.reduce((total, thread) => total + thread.messageCount, 0), [threads]);
   const uploadImage = trpc.chat.uploadImage.useMutation({ onSuccess: result => setReplyImageUrl(`${window.location.origin}${result.url}`) });

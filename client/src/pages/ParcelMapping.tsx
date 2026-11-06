@@ -221,6 +221,16 @@ export default function ParcelMapping() {
     const keyThreadId = separatorIndex >= 0 ? key.slice(separatorIndex + 1) : "";
     const pageId = clean(row.page_id) || clean(keyPageId);
     const threadId = clean(row.thread_id || row.threadId) || clean(keyThreadId);
+    if (pageId && threadId && typeof window !== "undefined") {
+      window.sessionStorage.setItem(`darkside-send-gate:${pageId}:${threadId}`, JSON.stringify({
+        tracking_number: row.tracking_number,
+        order_number: row.order_number,
+        order_number_display: row.order_number_display,
+        shipping_carrier: row.shipping_carrier,
+        facebook_tracking_message: row.facebook_tracking_message,
+        drakside_tracking_message: row.drakside_tracking_message,
+      }));
+    }
     return pageId && threadId ? `/chats?page_id=${encodeURIComponent(pageId)}&thread_id=${encodeURIComponent(threadId)}` : "";
   }
 
