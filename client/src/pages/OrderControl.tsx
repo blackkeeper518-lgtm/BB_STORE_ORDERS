@@ -210,7 +210,7 @@ export default function OrderControl() {
   }
 
   return (
-    <div className="cosmic-stage min-h-full space-y-3 p-2 text-white sm:p-3 lg:p-4">
+    <div className="cosmic-stage order-control-room min-h-full space-y-3 p-2 text-white sm:p-3 lg:p-4">
       <span className="cosmic-corner tl" /><span className="cosmic-corner br" />
       <header className="blackbox-hero cyber-glow relative flex flex-wrap items-center justify-between gap-3 overflow-hidden rounded-2xl border border-fuchsia-400/20 p-4 sm:p-5">
         <div className="hero-scanline" />
@@ -218,7 +218,13 @@ export default function OrderControl() {
           <p className="orbit-kicker flex items-center gap-2 text-cyan-200/80"><Database className="h-3.5 w-3.5 text-cyan-300" /> ORBITAL ORDER CONTROL · N8N / SUPABASE</p>
           <h1 className="cyber-title mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">ข้อมูลออเดอร์ <span className="text-fuchsia-300">//</span> COMMAND DECK</h1>
           <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-300/75">ศูนย์ควบคุมออเดอร์จาก n8n · เห็นต้นทาง สถานะ และเวลาจริงในจอเดียว</p>
-          <div className="mt-3 flex flex-wrap items-center gap-2"><span className="live-chip"><span className="live-dot" /> LIVE ORDER STREAM</span><span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-300/70">HERMES ARCHIVE · SECURE LINK</span></div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="live-chip"><span className="live-dot" /> LIVE ORDER STREAM</span>
+            <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-300/70">HERMES ARCHIVE · SECURE LINK</span>
+            <Link href="/system-manual" className="order-manual-bridge" aria-label="เปิดคู่มือระบบและแผนผังข้อมูล">
+              <Database className="h-3.5 w-3.5" /> คู่มือระบบ <ExternalLink className="h-3 w-3 opacity-70" />
+            </Link>
+          </div>
         </div>
         <div className="central-clock hero-clock relative z-10"><span className="central-clock-label">ORDER_TIME_DISPLAY · BANGKOK</span><strong>{clock.toLocaleTimeString("th-TH", { timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit", second: "2-digit" })}</strong><span className="central-clock-date">{clock.toLocaleDateString("th-TH", { timeZone: "Asia/Bangkok", weekday: "long", day: "numeric", month: "long", year: "numeric" })}</span><small>ศูนย์เวลาออเดอร์จาก n8n · ไม่ใช้เวลาระบบ</small></div>
       </header>

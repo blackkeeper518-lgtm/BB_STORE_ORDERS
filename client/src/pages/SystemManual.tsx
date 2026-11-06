@@ -20,6 +20,7 @@ import {
   Truck,
   Waypoints,
 } from "lucide-react";
+import { Link } from "wouter";
 
 const orderSources = [
   {
@@ -143,24 +144,34 @@ function StageCard({
 
 export default function SystemManual() {
   return (
-    <main className="min-h-screen overflow-hidden bg-[#070912] text-slate-100">
-      <div className="pointer-events-none fixed inset-0 opacity-60 [background-image:radial-gradient(circle_at_12%_8%,rgba(24,185,255,.16),transparent_28%),radial-gradient(circle_at_88%_20%,rgba(194,74,255,.13),transparent_26%),linear-gradient(rgba(255,255,255,.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.025)_1px,transparent_1px)] [background-size:auto,auto,32px_32px,32px_32px]" />
-      <div className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-10">
-        <header className="relative overflow-hidden rounded-[2rem] border border-cyan-300/20 bg-[#0d1425]/85 p-6 shadow-2xl shadow-cyan-950/20 backdrop-blur-xl sm:p-9">
-          <div className="absolute -right-20 -top-24 h-72 w-72 rounded-full bg-fuchsia-500/10 blur-3xl" />
-          <div className="relative flex flex-col justify-between gap-7 lg:flex-row lg:items-end">
+    <main className="system-manual min-h-screen overflow-hidden bg-[#070912] text-slate-100">
+      <div className="system-manual-backdrop pointer-events-none fixed inset-0 opacity-60 [background-image:radial-gradient(circle_at_12%_8%,rgba(24,185,255,.16),transparent_28%),radial-gradient(circle_at_88%_20%,rgba(194,74,255,.13),transparent_26%),linear-gradient(rgba(255,255,255,.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.025)_1px,transparent_1px)] [background-size:auto,auto,32px_32px,32px_32px]" />
+      <div className="system-manual-content relative mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-10">
+        <header className="system-manual-hero relative overflow-hidden rounded-[2rem] border border-cyan-300/20 bg-[#0d1425]/85 p-6 shadow-2xl shadow-cyan-950/20 backdrop-blur-xl sm:p-9">
+          <div className="system-manual-hero-art" aria-hidden="true">
+            <span className="manual-orbit manual-orbit-one" />
+            <span className="manual-orbit manual-orbit-two" />
+            <span className="manual-planet" />
+          </div>
+          <div className="relative z-10 flex flex-col justify-between gap-7 lg:flex-row lg:items-end">
             <div className="max-w-3xl">
-              <div className="mb-4 flex flex-wrap items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-cyan-200/70">
+              <div className="manual-kicker mb-4 flex flex-wrap items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-cyan-200/70">
                 <BookOpen className="h-4 w-4" /> DARKSIDE SYSTEM MANUAL ·
                 OPERATIONS MAP
               </div>
-              <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-5xl">
+              <h1 className="manual-title text-3xl font-semibold tracking-tight text-white sm:text-5xl">
                 แผนผังสถาปัตยกรรมข้อมูลและกระบวนการปฏิบัติงาน
               </h1>
               <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300/75 sm:text-base">
                 เอกสารอ้างอิงสำหรับแสดงเส้นทางข้อมูล เจ้าของข้อมูล และหน้าที่ของตารางและวิว
                 ในระบบออเดอร์ ระบบแชท และระบบส่งเลขพัสดุ เพื่อป้องกันการใช้ข้อมูลข้ามขอบเขต
               </p>
+              <div className="mt-5 flex flex-wrap items-center gap-3">
+                <Link href="/orders" className="manual-primary-link">
+                  <Database className="h-4 w-4" /> เปิดห้องควบคุมออเดอร์ <ArrowRight className="h-4 w-4" />
+                </Link>
+                <span className="manual-route-note">ORDER CONTROL <span aria-hidden="true">↔</span> SYSTEM MANUAL</span>
+              </div>
             </div>
             <div className="flex flex-wrap gap-2 lg:max-w-xs lg:justify-end">
               <ToneBadge tone="cyan">
@@ -168,7 +179,7 @@ export default function SystemManual() {
                 GALACTIC_GATEWAY_TOKEN
               </ToneBadge>
               <ToneBadge tone="pink">
-                <ShieldCheck className="mr-1.5 h-3.5 w-3.5" /> 2 SYSTEM LANES
+                <ShieldCheck className="mr-1.5 h-3.5 w-3.5" /> 3 DATA PROJECTS
               </ToneBadge>
             </div>
           </div>
@@ -213,14 +224,14 @@ export default function SystemManual() {
           <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-emerald-300/70">
-                LIVE ARCHITECTURE · FIVE LANES
+                LIVE ARCHITECTURE · 3 PROJECTS / FIVE WORKFLOW LANES
               </p>
-              <h2 className="mt-2 text-2xl font-semibold text-white">โครงสร้าง 5 สายของระบบปัจจุบัน</h2>
+              <h2 className="mt-2 text-2xl font-semibold text-white">5 สายงานของระบบบน 3 โปรเจกต์</h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300/70">
-                แต่ละสายแยกหน้าที่กันชัดเจน และใช้ <code className="rounded bg-black/30 px-1.5 py-0.5 text-emerald-200">chat_link_key</code> เป็นคีย์กลางเดียวกันเมื่อจำเป็นต้องเชื่อมข้อมูล
+                ข้อมูลแบ่งตามหน้าที่ไว้ใน 3 โปรเจกต์ ส่วน <code className="rounded bg-black/30 px-1.5 py-0.5 text-emerald-200">chat_link_key</code> คือคีย์กลางที่ระบุออเดอร์เดียวกันข้ามทั้ง 3 โปรเจกต์; 5 สายด้านล่างคือ workflow ที่ดูแลแต่ละช่วงของงาน
               </p>
             </div>
-            <ToneBadge tone="cyan"><KeyRound className="mr-1.5 h-3.5 w-3.5" /> SHARED KEY · chat_link_key</ToneBadge>
+            <ToneBadge tone="cyan"><KeyRound className="mr-1.5 h-3.5 w-3.5" /> 3 PROJECTS · SHARED ORDER KEY</ToneBadge>
           </div>
 
           <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
@@ -235,7 +246,7 @@ export default function SystemManual() {
                   </div>
                 </div>
                 <p className="mt-3 text-xs leading-5 text-slate-300/65">{lane.detail}</p>
-                <div className="mt-3"><ToneBadge tone={lane.tone}>chat_link_key เดียวกัน</ToneBadge></div>
+                <div className="mt-3"><ToneBadge tone={lane.tone}>ORDER KEY · chat_link_key</ToneBadge></div>
               </div>
             ))}
           </div>
