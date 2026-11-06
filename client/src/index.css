@@ -204,3 +204,17 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .script-editor { min-height:340px !important; white-space:pre-wrap; }
 .script-reader { white-space:pre-wrap; overflow-wrap:anywhere; border-left:2px solid rgba(255,89,211,.55); padding:1rem 0 1rem 1rem; color:#fff2fb; font-size:.98rem; line-height:1.85; text-shadow:0 0 10px rgba(255,87,211,.08); }
 @media (max-width:640px) { .script-drawer { width:100vw; } .script-atelier-hero h1 { font-size:2rem; } .script-search { min-width:100%; } }
+.script-sku-suggestions { position:absolute; z-index:10; top:calc(100% + .35rem); left:0; right:0; max-height:260px; overflow:auto; border:1px solid rgba(255,105,220,.35); border-radius:.8rem; background:#160b24; box-shadow:0 16px 35px rgba(0,0,0,.45),0 0 20px rgba(226,68,216,.14); }
+.script-sku-option { display:flex; width:100%; align-items:center; gap:.65rem; padding:.65rem .75rem; text-align:left; color:#fff; }
+.script-sku-option:hover { background:rgba(255,82,211,.14); }
+.script-sku-option b { display:block; color:#ffe2f7; font:600 .78rem/1.2 'IBM Plex Mono',monospace; }
+.script-sku-option small { display:block; margin-top:.2rem; color:rgba(255,223,249,.58); font-size:.72rem; }
+.script-sku-emoji { display:grid; width:1.8rem; height:1.8rem; flex:none; place-items:center; border-radius:.55rem; background:rgba(255,93,215,.1); }
+.script-sku-empty { padding:.8rem; color:rgba(255,223,249,.55); font-size:.76rem; }
+.script-field-hint { color:rgba(255,213,245,.42); font-size:.68rem; font-weight:400; letter-spacing:0; line-height:1.5; }
+.script-dropzone { display:flex; min-height:92px; align-items:center; gap:.75rem; border:1px dashed rgba(89,224,255,.35); border-radius:1rem; padding:.9rem; background:rgba(38,200,255,.035); color:#a9f4ff; transition:border-color .2s,background .2s,box-shadow .2s; }
+.script-dropzone > div { min-width:0; flex:1; }
+.script-dropzone b,.script-dropzone small { display:block; }
+.script-dropzone b { font-size:.78rem; }
+.script-dropzone small { margin-top:.25rem; color:rgba(190,246,255,.5); font-size:.68rem; font-weight:400; }
+.script-dropzone.is-dragging { border-color:#ff8bdc; background:rgba(255,83,211,.12); box-shadow:0 0 24px rgba(255,83,211,.2); color:#ffd1f2; }
