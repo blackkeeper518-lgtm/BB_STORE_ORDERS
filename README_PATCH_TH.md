@@ -1,19 +1,19 @@
 # BB Script Atelier Patch
 
-แพ็กเกจนี้มีเฉพาะไฟล์ที่แก้/เพิ่มสำหรับ Script Atelier ไม่ใช่โปรเจกต์เต็ม
+แพ็กเกจนี้มีเฉพาะไฟล์ที่แก้/เพิ่มสำหรับ Script Atelier และ SQL View สายพัสดุที่รวมจากไฟล์แนบ ไม่ใช่โปรเจกต์เต็ม
 
-ให้แตก ZIP ทับในโฟลเดอร์โปรเจกต์เดิม โดยคงโครงสร้างโฟลเดอร์ไว้ แล้วรัน SQL ใน Supabase:
+ให้แตก ZIP ทับในโฟลเดอร์โปรเจกต์เดิมโดยคงโครงสร้างโฟลเดอร์ไว้
 
-1. `sql/views/combined_views.sql`
-2. `sql/20261106_script_atelier.sql`
+ไฟล์ SQL ใหม่ที่รวมจากไฟล์แนบคือ:
 
-ไฟล์ที่อยู่ใน patch นี้จะทับไฟล์เดิมดังนี้:
-- `client/src/App.tsx`
-- `client/src/components/DashboardLayout.tsx`
-- `client/src/index.css`
-- `client/src/pages/ScriptAtelier.tsx`
-- `public/manus-routes.json`
-- `sql/views/combined_views.sql`
-- `sql/20261106_script_atelier.sql`
+`sql/views/parcel_delivery_views_combined.sql`
 
-หลังแตกไฟล์ในโปรเจกต์เดิม ให้ติดตั้งและ build ตามระบบเดิม ไม่ต้องเอา ZIP นี้ไปรันเป็นโปรเจกต์เดี่ยว
+ลำดับ View ในไฟล์คือ `SHADOW -> ROGUE -> VOID -> DEAD` และคง logic เดิมไว้
+
+รัน SQL ใน Supabase ตามความเหมาะสม:
+
+1. `sql/views/combined_views.sql` สำหรับ View ชุดหลักเดิม
+2. `sql/views/parcel_delivery_views_combined.sql` สำหรับ View สายพัสดุ 4 ตัวจากไฟล์แนบ
+3. `sql/20261106_script_atelier.sql` สำหรับ Script Atelier
+
+ไฟล์นี้ไม่ใช่โปรเจกต์เดี่ยว และต้องใช้ทับบน source project เดิม
