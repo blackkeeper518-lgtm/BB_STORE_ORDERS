@@ -443,6 +443,41 @@ function getChatStatus(lastInteractionTime) {
     canSend: diffInHours <= 24
   };
 }
+
+// เวลาข้อความลูกค้าจริงจาก customer_message_time_th
+// รูปแบบที่ใช้ในระบบ: DD/MM/YY HH:mm:ss เช่น 05/11/69 15:28:33
+// ห้ามใช้ Date.parse กับรูปแบบนี้โดยตรง เพราะบาง runtime อาจตีความปีผิด
+function getChatStatusFromThaiDisplay(lastCustomerTime) {
+  const raw = String(lastCustomerTime || '').trim();
+  const match = raw.match(
+    /^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/
+  );
+
+  if (!match) return { hoursAgo: 999, isWithin24h: false, canSend: false };
+
+  const day = Number(match[1]);
+  const month = Number(match[2]);
+  let year = Number(match[3]);
+  if (year < 100) year += 2500;
+  if (year >= 2400) year -= 543;
+
+  const hour = Number(match[4] || 0);
+  const minute = Number(match[5] || 0);
+  const second = Number(match[6] || 0);
+  const customerMs = Date.UTC(year, month - 1, day, hour - 7, minute, second);
+  const nowMs = Date.now();
+  const diffInHours = (nowMs - customerMs) / (1000 * 60 * 60);
+
+  if (!Number.isFinite(customerMs) || !Number.isFinite(diffInHours) || diffInHours < 0) {
+    return { hoursAgo: 999, isWithin24h: false, canSend: false };
+  }
+
+  return {
+    hoursAgo: parseFloat(diffInHours.toFixed(1)),
+    isWithin24h: diffInHours < 24,
+    canSend: diffInHours < 24,
+  };
+}
 // ใช้ผลนี้ใน object output ของโหนด (ไม่เพิ่มการตัดสิน bill_data_complete):
 // tracking_request_route_hint: hasTodayTrackingExchange
 //   ? 'CUSTOMER_REQUEST_AND_STORE_SENT_TRACKING_TODAY'
@@ -1337,22 +1372,31 @@ const bbExpressSendRoute = darksideBillDataComplete ? '⚪' : '⚫';
             }
         }
 
-      const messageTime = m.created_time || new Date().toISOString();
-      const chatStatus = getChatStatus(messageTime);
-    // 🔥 แทรกโค้ดคำนวณ 2 ค่านี้เพิ่มเข้าไปตรงนี้เลยครับ:
-const isAlreadySent = String(lastPageMsg || '').replace(/\s/g, '').includes('📌แจ้งเลขพัสดุจัดส่ง');
-const canSendFB = chatStatus.isWithin24h === true || chatStatus.canSend === true;
-const facebookRoute = isAlreadySent ? 'BLOCK_FB_EXPIRED' : (canSendFB ? 'ALLOW_FB_SEND' : 'BLOCK_FB_EXPIRED');
+      // ใช้เวลาข้อความลูกค้าล่าสุดที่แสดงใน customer_message_time_th เป็นหลัก
+      // ไม่ใช้เวลาของ m.created_time เพราะอาจเป็นข้อความเพจ/เหตุการณ์ปัจจุบัน
+      const customerMessageTimeTh = String(lastCustomerTime || '').trim();
+      const chatStatus = getChatStatusFromThaiDisplay(customerMessageTimeTh);
 
-// PARCEL STATUS STAMP: ปั้มสถานะให้สายส่งเลขตั้งแต่โหนดหน้าสุด
-// ลำดับความสำคัญ: ส่งแล้ว > ไม่มีสัญญาณลูกค้า > พร้อมส่ง > หมดหน้าต่างส่ง
-const parcelStatusEmoji = isAlreadySent
-  ? '🔥'
-  : !String(lastCustomerMsg || '').trim()
-    ? '🟢'
-    : canSendFB
-      ? '🟡'
-      : '🔴';
+      // ตรวจส่งซ้ำแยกจากสีเวลาแชท: คนเดิม/เลขเดิมที่ส่งแล้วต้องถูกกัน
+      const isAlreadySent = String(lastPageMsg || '')
+        .replace(/\s/g, '')
+        .includes('📌แจ้งเลขพัสดุจัดส่ง');
+      const canSendFB = chatStatus.isWithin24h === true && chatStatus.canSend === true;
+      const facebookRoute = isAlreadySent
+        ? 'BLOCK_FB_EXPIRED'
+        : (canSendFB ? 'ALLOW_FB_SEND' : 'BLOCK_FB_EXPIRED');
+
+      // สีมาจาก customer_message_time_th เท่านั้น
+      // 🔥 ใช้เฉพาะเป็นสัญญาณกันส่งซ้ำของสายเลข ไม่ใช่ตัวคำนวณอายุแชท
+      const parcelStatusEmoji = isAlreadySent
+        ? '🔥'
+        : !customerMessageTimeTh
+          ? '🟢'
+          : chatStatus.hoursAgo < 24
+            ? '🟢'
+            : chatStatus.hoursAgo < 48
+              ? '🟡'
+              : '🔴';
 
     
 // ============================================================

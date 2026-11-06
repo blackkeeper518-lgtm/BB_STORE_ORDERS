@@ -1376,12 +1376,18 @@ if (isHumanAdminFinal) {
 // แอดมินคนสรุปแล้ว = ขาวทันที
 // บอทไม่ถูกแตะต้อง
 // ============================================================
+const normalizedPageId = String(masterConfigNode.page_id || "").trim();
+const normalizedThreadId = String(threadId || "").trim();
 
+const chatLinkKey =
+  normalizedPageId && normalizedThreadId
+    ? `${normalizedPageId}_${normalizedThreadId}`
+    : "";
     
 output.push({
   json: {
     
- 
+ chat_link_key: chatLinkKey,
     bb_express_send_route: bbExpressSendRoute,
  currentthreadtotalbills: currentthreadtotalbills,
           duplicate_count_th: duplicate_count_th,

@@ -204,6 +204,28 @@ for (const item of $input.all()) {
     const latestCustomerTime = firstExisting(conv, ['customer_message_time_th'])
       || firstExisting(payload, ['customer_message_time_th'])
       || (latestCustomerEntry ? formatThaiDateTime(latestCustomerEntry.ms).full : '');
+
+    // TIME CONTRACT: ทุกข้อความในห้องใช้เวลาลูกค้าล่าสุดชุดเดียวกัน
+    // ห้ามใช้เวลาแถวปัจจุบัน เพราะแถวปัจจุบันอาจเป็นข้อความของเพจ
+    const customerMessageTimeMs = parseCustomerMessageTime(latestCustomerTime);
+    const customerAgeHours = customerMessageTimeMs !== null
+      && customerMessageTimeMs <= Date.now()
+      ? Number(((Date.now() - customerMessageTimeMs) / HOUR_MS).toFixed(1))
+      : null;
+    const customerWithin24h = customerAgeHours !== null && customerAgeHours < 24;
+
+    const latestPageEntry = messages
+      .filter(message => {
+        const senderId = String(message?.from?.id ?? '');
+        return senderId === String(pageConfig.page_id) || message?.is_echo === true;
+      })
+      .map(message => ({ message, ms: Date.parse(message?.created_time || message?.time || '') }))
+      .filter(entry => Number.isFinite(entry.ms))
+      .sort((a, b) => b.ms - a.ms)[0] || null;
+    const latestPageText = firstExisting(conv, ['page_latest_message'])
+      || firstExisting(payload, ['page_latest_message'])
+      || clean(latestPageEntry?.message?.message || latestPageEntry?.message?.text || '');
+
     const parcelStatusSource = { ...payload, ...conv };
     const parcelStatusEmoji = getParcelStatusEmoji({
       ...parcelStatusSource,
@@ -241,11 +263,13 @@ for (const item of $input.all()) {
       const chatLinkKey = `${pageConfig.page_id}:${conv.id}`;
 
       const timeThai = formatThaiDateTime(msgMs);
-      const computedAgeHours = Number.isFinite(msgMs) ? parseFloat(((Date.now() - msgMs) / HOUR_MS).toFixed(1)) : null;
-      const chatAgeHours = payload.customer_chat_age_hours ?? payload.chat_age_hours ?? computedAgeHours;
+
+      // ใช้ค่าเดียวกับ customer_message_time_th ที่คำนวณจากห้องด้านบน
+      // ไม่ใช้ msgMs ซึ่งอาจเป็นเวลาข้อความเพจของแถวปัจจุบัน
+      const chatAgeHours = customerAgeHours;
+      const is24hValid = customerWithin24h;
       
       const sendFacebookRoute = payload.send_facebook_route || (payload.is_already_sent ? "ALREADY_SENT_SAVE_ONLY" : "ALLOW_FB_SEND");
-      const is24hValid = payload.is_24h_window_valid !== undefined ? payload.is_24h_window_valid : (chatAgeHours !== null ? chatAgeHours <= 24 : true);
 
       output.push({
         json: {
@@ -261,6 +285,10 @@ for (const item of $input.all()) {
           customer_name: recipientName,
           recipient_id: recipientId,
           recipient_name: recipientName,
+          customer_latest_message: latestCustomerText,
+          customer_message_time_th: latestCustomerTime,
+          page_latest_message: latestPageText,
+          page_message_time_th: latestPageEntry ? formatThaiDateTime(latestPageEntry.ms).full : '',
           
           message_id: rawMsgId,
           dedupe_key: dedupeKey,

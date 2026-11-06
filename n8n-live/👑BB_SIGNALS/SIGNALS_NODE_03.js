@@ -145,7 +145,22 @@ return items.map(item => {
   const sentNumbers = [...new Set(evidence.flatMap(entry => entry.numbers))];
   const lastAsk = request.candidates.at(-1) || null;
   const orderTime = request.orderTime;
-  const diffHours = lastAsk && orderTime ? (lastAsk.time.getTime() - orderTime.getTime()) / 3600000 : null;
+
+  // เกณฑ์อายุคำขอเลขใช้เวลาข้อความลูกค้าล่าสุดเพียงจุดเดียว
+  // ไม่ใช้เวลาบิลหรืออายุที่โหนดก่อนหน้าคำนวณค้างไว้
+  const customerMessageTime = parseAnyDate(
+    firstExisting(row, [
+      'customer_message_time_th',
+      'latest_customer_message_time_th',
+      'customer_message_time',
+    ])
+  );
+  const customerAgeHours = customerMessageTime
+    ? (Date.now() - customerMessageTime.getTime()) / 3600000
+    : null;
+  const customerWithin48h = Number.isFinite(customerAgeHours)
+    && customerAgeHours >= 0
+    && customerAgeHours < 48;
 
   row.customer_latest_message = latestCustomer || row.customer_latest_message || '';
   row.customer_message_time_th = firstExisting(row, ['customer_message_time_th', 'latest_customer_message_time_th', 'customer_message_time']);
@@ -155,7 +170,15 @@ return items.map(item => {
     detected: Boolean(lastAsk),
     route: lastAsk ? 'TRACKING_REQUEST' : 'PASS_THROUGH',
     direction: lastAsk ? 'ASK_AFTER_ORDER' : null,
-    diffHours,
+    // คงชื่อ diffHours ไว้ให้โหนดถัดไปไม่พัง แต่ค่าคืออายุจากข้อความลูกค้าจริง
+    diffHours: Number.isFinite(customerAgeHours)
+      ? Number(customerAgeHours.toFixed(1))
+      : null,
+    customer_age_hours: Number.isFinite(customerAgeHours)
+      ? Number(customerAgeHours.toFixed(1))
+      : null,
+    customer_message_time_source: 'customer_message_time_th',
+    customer_within_48h: customerWithin48h,
     firstAskTime: request.candidates[0]?.time.toISOString() || null,
     lastAskTime: lastAsk?.time.toISOString() || null,
     matchedText: lastAsk?.text || null,
@@ -178,24 +201,23 @@ return items.map(item => {
     row.node3_tracking_request_event = 'พบข้อความแจ้งเลข/เลขพัสดุที่เคยส่งแล้ว';
     row.node3_tracking_request_route_hint = '🔴';
     row.tracking_duplicate_blocked = true;
-  } else if (lastAsk && diffHours !== null) {
-    if (diffHours < 48) {
-      row.bb_express_send_route = '🟥';
-      row.node3_route_signal = 'TRACKING_REQUEST';
-      row.node3_tracking_request_detected = true;
-      row.node3_tracking_request_48h = true;
-      row.node3_tracking_request_event = lastAsk.text;
-      row.node3_tracking_request_route_hint = '🟥';
-      row.tracking_duplicate_blocked = false;
-    } else {
-      row.bb_express_send_route = '🔴';
-      row.node3_route_signal = 'TRACKING_REQUEST_OLD_OR_OVER_48H';
-      row.node3_tracking_request_detected = true;
-      row.node3_tracking_request_48h = false;
-      row.node3_tracking_request_event = lastAsk.text;
-      row.node3_tracking_request_route_hint = '🔴';
-      row.tracking_duplicate_blocked = false;
-    }
+  } else if (lastAsk && customerWithin48h) {
+    row.bb_express_send_route = '🟥';
+    row.node3_route_signal = 'TRACKING_REQUEST';
+    row.node3_tracking_request_detected = true;
+    row.node3_tracking_request_48h = true;
+    row.node3_tracking_request_event = lastAsk.text;
+    row.node3_tracking_request_route_hint = '🟥';
+    row.tracking_duplicate_blocked = false;
+  } else if (lastAsk) {
+    // พบคำขอเลข แต่ customer_message_time_th ไม่มีหรือเกิน 48 ชั่วโมง
+    row.bb_express_send_route = '🔴';
+    row.node3_route_signal = 'TRACKING_REQUEST_OLD_OR_OVER_48H';
+    row.node3_tracking_request_detected = true;
+    row.node3_tracking_request_48h = false;
+    row.node3_tracking_request_event = lastAsk.text;
+    row.node3_tracking_request_route_hint = '🔴';
+    row.tracking_duplicate_blocked = false;
   } else {
     row.bb_express_send_route = originalRoute;
     row.node3_route_signal = 'PASS_THROUGH';
