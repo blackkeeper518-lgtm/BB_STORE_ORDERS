@@ -99,15 +99,7 @@ function parseCustomerMessageTime(raw) {
 }
 
 function getParcelStatusEmoji(row, nowMs = Date.now()) {
-  // Parcel-delivery completion has top priority.
-  const sentValues = new Set(['🔥SENT', 'SENT', 'SUCCESS', 'COMPLETED', 'DELIVERED', 'SENT_TO_TELEGRAM']);
-  const sentStatus = ['delivery_status', 'parcel_delivery_status', 'facebook_tracking_status']
-    .map(key => value(row, key).toUpperCase())
-    .some(status => sentValues.has(status));
-  const sentAt = firstExisting(row, ['sent_at', 'parcel_sent_at', 'facebook_tracking_sent_at']);
-  if (sentStatus || sentAt) return '🔥';
-
-  // Chat age comes only from the latest customer message, never bill/page/parcel dates.
+  // สายแชทคำนวณจากอายุข้อความล่าสุดของลูกค้าเท่านั้น
   if (!value(row, 'customer_latest_message')) return null;
   const messageTimeMs = parseCustomerMessageTime(value(row, 'customer_message_time_th'));
   if (messageTimeMs === null || messageTimeMs > nowMs) return null;
