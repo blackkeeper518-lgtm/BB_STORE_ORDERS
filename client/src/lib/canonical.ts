@@ -139,6 +139,10 @@ function displayOrderSortKey(value: unknown): number {
 // แหล่งเวลาเดียวของระบบ: order_time_display แบบ DD/MM/YY HH:mm
 export function orderTimeSortKey(value: unknown): number {
   const raw = String(value ?? "").trim();
+  // order_time_display เป็นก้อนเวลาแบบ DD/MM/YY จาก n8n
+  // ต้องอ่านรูปแบบนี้ก่อน new Date() เพื่อไม่ให้ browser ตีความเป็น MM/DD/YY
+  const displayKey = displayOrderSortKey(raw);
+  if (displayKey) return displayKey;
   const parsed = new Date(raw);
   if (!Number.isNaN(parsed.getTime())) {
     const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(parsed);

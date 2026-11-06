@@ -8,7 +8,7 @@ import OrderEditWorkbench from "@/components/OrderEditWorkbench";
 import { getActiveCamp, orderTimeSortKey, readCanonicalOrders, readParcelByTrackingNumber, readParcelMappingQueue } from "@/lib/canonical";
 import { useQuery } from "@tanstack/react-query";
 import { CalendarDays, Check, CheckCircle2, Clock3, Database, Download, ExternalLink, MessageCircle, Pencil, RefreshCw, Search, Send, ShoppingCart, WalletCards, XCircle } from "lucide-react";
-import { type ReactNode, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "wouter";
 
 type CanonicalOrderRow = Record<string, any> & {
@@ -69,17 +69,19 @@ function exportOrdersCsv(rows: CanonicalOrderRow[]) {
 }
 
 // ⫘ BUSINESS DAY · “วันนี้” ของร้านตัดรอบ 14:00 น. ไม่ใช่วันปฏิทิน
-// รอบปัจจุบัน: เมื่อวาน 14:00 → วันนี้ 14:00 (Asia/Bangkok)
+// แหล่งเวลาเดียว: order_time_display ซึ่งเป็นเวลาก้อนออเดอร์จาก n8n
 function isToday(row: CanonicalOrderRow) {
   const now = new Date();
-  const bkk = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hour12: false }).formatToParts(now);
+  const bkk = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(now);
   const part = (name: string) => Number(bkk.find((item) => item.type === name)?.value ?? 0);
-  const todayCutoffUtc = Date.UTC(part("year"), part("month") - 1, part("day"), 7, 0, 0);
-  const end = now.getTime() >= todayCutoffUtc ? todayCutoffUtc + 24 * 60 * 60 * 1000 : todayCutoffUtc;
-  const start = end - 24 * 60 * 60 * 1000;
-  const raw = row.order_time_display;
-  const valueKey = orderTimeSortKey(raw);
-  return valueKey >= orderTimeSortKey(new Date(start)) && valueKey < orderTimeSortKey(new Date(end));
+  const businessDay = new Date(Date.UTC(part("year"), part("month") - 1, part("day"), part("hour"), part("minute")));
+  if (part("hour") < 14) businessDay.setUTCDate(businessDay.getUTCDate() - 1);
+  const startKey = Number(`${businessDay.getUTCFullYear()}${String(businessDay.getUTCMonth() + 1).padStart(2, "0")}${String(businessDay.getUTCDate()).padStart(2, "0")}1400`);
+  const end = new Date(businessDay);
+  end.setUTCDate(end.getUTCDate() + 1);
+  const endKey = Number(`${end.getUTCFullYear()}${String(end.getUTCMonth() + 1).padStart(2, "0")}${String(end.getUTCDate()).padStart(2, "0")}1400`);
+  const valueKey = orderTimeSortKey(row.order_time_display);
+  return valueKey >= startKey && valueKey < endKey;
 }
 
 function isSent(row: CanonicalOrderRow) {
@@ -225,13 +227,13 @@ export default function OrderControl() {
 
       {/* ⫘ SUMMARY CARDS · การ์ดสรุปยอดด้านบน: แก้สี/ขนาดที่ component Metric ด้านล่าง */}
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
-        <Metric icon={ShoppingCart} label="ออเดอร์ทั้งหมด" value={orders.length} suffix="รายการ" tone="pink" action={<button type="button" aria-label="รีเฟรชออเดอร์" onClick={() => void query.refetch()} disabled={query.isFetching} className="metric-refresh-button"><RefreshCw className={`h-4 w-4 ${query.isFetching ? "animate-spin" : ""}`} /></button>} />
+        <Metric icon={ShoppingCart} label="ออเดอร์ทั้งหมด" value={orders.length} suffix="รายการ" tone="fuchsia" />
         <Metric icon={CalendarDays} label="ออเดอร์วันนี้" value={todayOrders.length} suffix="รายการ · รอบ 14:00" tone="violet" />
         <Metric icon={WalletCards} label="ยอด COD ทั้งหมด" value={money(totalCod)} tone="cyan" />
-        <Metric icon={WalletCards} label="ยอด COD วันนี้" value={`${money(todayCod)} · รอบ 14:00`} tone="green" />
+        <Metric icon={WalletCards} label="ยอด COD วันนี้" value={money(todayCod)} suffix="รอบ 14:00" tone="amber" />
         <Metric icon={CheckCircle2} label="ส่งแล้ว" value={sentOrders.length} suffix="รายการ" tone="green" />
-        <Metric icon={Send} label="ส่งได้" value={sendableOrders.length} suffix="รายการ" tone="cyan" />
-        <Metric icon={XCircle} label="ส่งไม่ได้ / ต้องตรวจ" value={blockedOrders.length} suffix="รายการ" tone="pink" />
+        <Metric icon={Send} label="ส่งได้" value={sendableOrders.length} suffix="รายการ" tone="sky" />
+        <Metric icon={XCircle} label="ส่งไม่ได้ / ต้องตรวจ" value={blockedOrders.length} suffix="รายการ" tone="rose" />
       </section>
 
       {/* ⫘ SEARCH BAR · ช่องค้นหา: ค้นจากข้อมูลแถวใน HERMES */}
@@ -245,6 +247,7 @@ export default function OrderControl() {
         <label className="filter-field"><span>ถึง</span><input type="date" value={untilDate} onChange={(event) => setUntilDate(event.target.value)} /></label>
         <label className="filter-field"><span>เพจ</span><select value={pageFilter} onChange={(event) => setPageFilter(event.target.value)}><option value="ทั้งหมด">ทุกเพจ</option>{pageNames.map((page) => <option key={page} value={page}>{page}</option>)}</select></label>
         <div className="ml-auto flex flex-wrap gap-2">
+          <Button type="button" variant="outline" onClick={() => void query.refetch()} disabled={query.isFetching} className="order-refresh-action"><RefreshCw className={`mr-2 h-3.5 w-3.5 ${query.isFetching ? "animate-spin" : ""}`} />{query.isFetching ? "กำลังอัปเดต" : "อัปเดตข้อมูล"}</Button>
           <Button type="button" variant="outline" onClick={() => exportOrdersCsv(orders)} className="border-cyan-300/30 bg-cyan-400/5 text-cyan-100 hover:bg-cyan-400/15"><Download className="mr-2 h-4 w-4" />เอ็กซ์พอร์ต {orders.length} รายการ</Button>
           <Button type="button" variant="outline" onClick={() => { setFromDate(""); setUntilDate(""); setPageFilter("ทั้งหมด"); }} className="border-violet-300/25 bg-violet-400/5 text-violet-100 hover:bg-violet-400/15">ล้างตัวเลือก</Button>
         </div>
@@ -369,6 +372,6 @@ function Info({ label, value }: { label: string; value: unknown }) {
   return <div className="rounded-xl border border-white/5 bg-black/15 p-3"><p className="text-[10px] uppercase tracking-wider text-slate-500">{label}</p><p className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-200">{directText(value)}</p></div>;
 }
 
-function Metric({ icon: Icon, label, value, suffix, tone, action }: { icon: typeof ShoppingCart; label: string; value: string | number; suffix?: string; tone: "pink" | "violet" | "cyan" | "green"; action?: ReactNode }) {
-  return <div className={`signal-metric signal-${tone}`}><div className="flex items-start justify-between gap-2"><div><p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-300/65">{label}</p><p className="mt-2 text-xl font-semibold tracking-tight text-white">{value} <span className="text-[10px] font-normal text-slate-300/55">{suffix}</span></p></div><div className="flex items-center gap-2">{action}<span className="metric-icon"><Icon /></span></div></div></div>;
+function Metric({ icon: Icon, label, value, suffix, tone }: { icon: typeof ShoppingCart; label: string; value: string | number; suffix?: string; tone: "pink" | "violet" | "cyan" | "green" | "fuchsia" | "amber" | "sky" | "rose" }) {
+  return <div className={`signal-metric signal-${tone}`}><div className="flex h-full items-start justify-between gap-3"><div className="min-w-0"><p className="min-h-7 text-[10px] font-semibold leading-4 tracking-[0.08em] text-slate-300/70">{label}</p><p className="mt-2 break-words text-xl font-semibold leading-tight tracking-tight text-white">{value} {suffix ? <span className="text-[10px] font-normal text-slate-300/60">{suffix}</span> : null}</p></div><span className="metric-icon shrink-0"><Icon /></span></div></div>;
 }

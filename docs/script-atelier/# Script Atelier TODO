@@ -1,0 +1,17 @@
+# Script Atelier TODO
+
+## Script Atelier ใช้งานได้
+- [ ] มี route `/script-atelier` และเมนูเข้าถึงห้องใหม่โดยไม่กระทบ route เดิม
+- [ ] แสดง Script Card จาก `sales_script_cards` โดยใช้ SKU ผูกกับโต๊ะสต็อกเดิม
+- [ ] คลิกการ์ดหรือภาพแล้วเปิดรายละเอียดเป็นแผงเลื่อนจากขวา และปิดด้วย overlay/Esc/ปุ่มปิด
+- [ ] รองรับสคริปต์ยาวหลายบรรทัดโดยรักษา whitespace และ emoji
+- [ ] มีโหมดอ่านและโหมดแก้ไข พร้อมช่อง script, AI context และ AI instruction
+- [ ] เพิ่ม/ลบ/เรียง text และ image blocks ในการ์ดได้
+- [ ] อัปโหลดภาพไป Supabase Storage และแสดงภาพในแผงขวา
+- [ ] บันทึกการ์ดและการแก้ไขกลับ Supabase โดยไม่ใช้ localStorage เป็นแหล่งข้อมูลหลัก
+- [ ] มีค้นหา, filter status และปุ่มคัดลอกสคริปต์/ข้อมูลสำหรับ AI
+
+## Schema และการเชื่อมต่อ
+- [ ] ผู้ใช้รัน `sql/20261106_script_atelier.sql` ใน Supabase โปรเจกต์สายส่งเลข
+- [ ] ตรวจว่า table, RLS/policies และ bucket `sales-script-images` ถูกสร้างสำเร็จ
+- [ ] ตรวจว่าเว็บใช้ Supabase connection เดิมของโปรเจกต์สายส่งเลข
