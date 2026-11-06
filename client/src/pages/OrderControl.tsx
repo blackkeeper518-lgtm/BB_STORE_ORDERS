@@ -248,34 +248,43 @@ export default function OrderControl() {
 
       {/* UNIVERSAL SEARCH DRAWER · ช่องเดียวค้นคลังออเดอร์และคิวพัสดุที่เชื่อมอยู่ */}
       <section className="order-search-drawer overflow-hidden rounded-2xl border border-cyan-300/20 bg-[#05070d]/95 shadow-[0_0_22px_rgba(76,236,255,0.06)]">
-        <div className="grid gap-3 p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end sm:p-4">
-          <div className="min-w-0">
-            <label htmlFor="order-universal-search" className="mb-2 flex flex-wrap items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-violet-200/80"><Search className="h-3.5 w-3.5 text-cyan-300" /> ค้นหาออเดอร์และพัสดุ <span className="rounded-full border border-cyan-300/20 bg-cyan-400/[0.06] px-2 py-0.5 text-[9px] text-cyan-100">เบอร์โทรเป็นหลัก</span></label>
-            <Input id="order-universal-search" value={search} onChange={(event) => { setSearch(event.target.value); if (event.target.value.trim()) setSearchPanelOpen(true); }} placeholder="เบอร์โทรศัพท์ · ชื่อลูกค้า · เลขออเดอร์ · SKU · chat_link_key · เลขพัสดุ" className="h-11 w-full rounded-xl border-cyan-300/25 bg-black/45 text-sm text-white placeholder:text-slate-500 focus-visible:border-cyan-200/70 focus-visible:ring-cyan-400/20" />
-            <p className="mt-1.5 text-[10px] leading-4 text-slate-500">ค้น HERMES · Chat · Parcel ด้วยเบอร์โทรหรือ chat_link_key · วันที่/เพจใช้กรองรายการออเดอร์</p>
+        <div className="order-search-head p-3 sm:p-4">
+          <div className="order-search-topline mb-3 flex flex-wrap items-center justify-between gap-2">
+            <label htmlFor="order-universal-search" className="order-search-label flex min-w-0 flex-wrap items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em]">
+              <span className="order-search-label-icon"><Search className="h-3.5 w-3.5" /></span>
+              <span>ค้นหาออเดอร์และพัสดุ</span>
+              <span className="order-search-phone-badge">เบอร์โทรเป็นหลัก</span>
+            </label>
+            <Button type="button" variant="outline" aria-expanded={searchPanelOpen} onClick={() => setSearchPanelOpen((open) => !open)} className="order-search-toggle h-9 justify-between gap-3 whitespace-nowrap px-3">
+              <span>{searchPanelOpen ? "ซ่อนตัวกรอง / ผลพัสดุ" : "ตัวกรอง / ผลพัสดุ"}</span><span className="font-mono text-lg leading-none">{searchPanelOpen ? "−" : "+"}</span>
+            </Button>
           </div>
-          <Button type="button" variant="outline" aria-expanded={searchPanelOpen} onClick={() => setSearchPanelOpen((open) => !open)} className="order-search-toggle h-11 justify-between gap-3 whitespace-nowrap px-4">
-            <span>{searchPanelOpen ? "ซ่อนตัวกรองและผลพัสดุ" : "ตัวกรองวันที่ · เพจ · ผลพัสดุ"}</span><span className="font-mono text-lg leading-none">{searchPanelOpen ? "−" : "+"}</span>
-          </Button>
+          <div className="order-search-input-shell">
+            <Search aria-hidden="true" className="order-search-input-icon h-4 w-4" />
+            <Input id="order-universal-search" value={search} onChange={(event) => { setSearch(event.target.value); if (event.target.value.trim()) setSearchPanelOpen(true); }} placeholder="เบอร์โทรศัพท์ · ชื่อลูกค้า · เลขออเดอร์ · SKU · chat_link_key · เลขพัสดุ" className="order-search-input h-12 w-full rounded-xl border text-sm text-white placeholder:text-slate-500" />
+          </div>
+          <p className="order-search-helper mt-2 text-[10px] leading-4">ค้น HERMES · Chat · Parcel ด้วยเบอร์โทรหรือ chat_link_key · วันที่/เพจใช้กรองรายการออเดอร์</p>
         </div>
-        {searchPanelOpen ? <div className="grid grid-rows-[1fr] border-t border-cyan-300/15 transition-all duration-300">
+        {searchPanelOpen ? <div id="order-search-filters" className="grid grid-rows-[1fr] border-t border-cyan-300/15 transition-all duration-300">
           <div className="min-h-0 p-3 sm:p-4">
-                  <div className="order-filter-bar mx-3 mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-cyan-300/15 bg-black/25 p-2 sm:mx-4">
-                    <label className="filter-field"><span>ตั้งแต่</span><input type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} /></label>
-                    <label className="filter-field"><span>ถึง</span><input type="date" value={untilDate} onChange={(event) => setUntilDate(event.target.value)} /></label>
-                    <label className="filter-field"><span>เพจ</span><select value={pageFilter} onChange={(event) => setPageFilter(event.target.value)}><option value="ทั้งหมด">ทุกเพจ</option>{pageNames.map((page) => <option key={page} value={page}>{page}</option>)}</select></label>
-                    <div className="ml-auto flex flex-wrap gap-2">
-                      <Button type="button" variant="outline" onClick={() => { void query.refetch(); if (searchPanelOpen && trackingSearchReady) { void trackingQueueQuery.refetch(); void chatThreadsQuery.refetch(); } if (searchPanelOpen && trackingInput.pure) void directParcelQuery.refetch(); }} disabled={isRefreshing} className="order-refresh-action"><RefreshCw className={`mr-2 h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />{isRefreshing ? "กำลังอัปเดต" : "อัปเดตข้อมูล"}</Button>
-                      <Button type="button" variant="outline" onClick={() => exportOrdersCsv(orders)} className="border-cyan-300/30 bg-cyan-400/5 text-cyan-100 hover:bg-cyan-400/15"><Download className="mr-2 h-4 w-4" />เอ็กซ์พอร์ต {orders.length} รายการ</Button>
-                      <Button type="button" variant="outline" onClick={() => { setSearch(""); setFromDate(""); setUntilDate(""); setPageFilter("ทั้งหมด"); }} className="border-violet-300/25 bg-violet-400/5 text-violet-100 hover:bg-violet-400/15">ล้างตัวเลือก</Button>
-                    </div>
-                  </div>
-            <div className="mx-3 mb-3 flex flex-col justify-between gap-2 rounded-xl border border-cyan-300/10 bg-black/20 px-3 py-2 sm:mx-4 sm:flex-row sm:items-center">
+            <div className="order-filter-bar mb-3 rounded-2xl border border-cyan-300/15 bg-black/25 p-3">
+              <div className="order-filter-fields flex flex-wrap items-end gap-2">
+                <label className="filter-field filter-field-date"><span>ตั้งแต่</span><input type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} /></label>
+                <label className="filter-field filter-field-date"><span>ถึง</span><input type="date" value={untilDate} onChange={(event) => setUntilDate(event.target.value)} /></label>
+                <label className="filter-field filter-field-page"><span>เพจ</span><select value={pageFilter} onChange={(event) => setPageFilter(event.target.value)}><option value="ทั้งหมด">ทุกเพจ</option>{pageNames.map((page) => <option key={page} value={page}>{page}</option>)}</select></label>
+              </div>
+              <div className="order-filter-actions mt-3 flex flex-wrap justify-end gap-2 border-t border-white/[0.06] pt-3">
+                <Button type="button" variant="outline" onClick={() => { void query.refetch(); if (searchPanelOpen && trackingSearchReady) { void trackingQueueQuery.refetch(); void chatThreadsQuery.refetch(); } if (searchPanelOpen && trackingInput.pure) void directParcelQuery.refetch(); }} disabled={isRefreshing} className="order-refresh-action"><RefreshCw className={`mr-2 h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />{isRefreshing ? "กำลังอัปเดต" : "อัปเดตข้อมูล"}</Button>
+                <Button type="button" variant="outline" onClick={() => exportOrdersCsv(orders)} className="border-cyan-300/30 bg-cyan-400/5 text-cyan-100 hover:bg-cyan-400/15"><Download className="mr-2 h-4 w-4" />เอ็กซ์พอร์ต {orders.length} รายการ</Button>
+                <Button type="button" variant="outline" onClick={() => { setSearch(""); setFromDate(""); setUntilDate(""); setPageFilter("ทั้งหมด"); }} className="border-violet-300/25 bg-violet-400/5 text-violet-100 hover:bg-violet-400/15">ล้างตัวเลือก</Button>
+              </div>
+            </div>
+            <div className="order-search-result-summary mb-3 flex flex-col justify-between gap-2 rounded-xl border border-cyan-300/10 bg-black/20 px-3 py-2 sm:flex-row sm:items-center">
               <span className="text-[10px] text-slate-400">{query.isFetching ? "กำลังค้นออเดอร์…" : `ออเดอร์ที่ตรง ${orders.length} รายการ`} · {trackingInput.raw ? `พัสดุ ${trackingRows.length} · แชท ${matchingChatThreads.length}` : "พิมพ์เบอร์เพื่อค้นทั้ง 3 แหล่ง"}</span>
               <span className="text-[10px] text-cyan-100/65">{isRefreshing ? "กำลังค้นข้อมูลจาก HERMES · Chat · Parcel…" : !trackingInput.raw ? "ค้นได้ด้วยเบอร์ / ชื่อ / เลขออเดอร์ / SKU / chat_link_key / เลขพัสดุ" : !trackingSearchReady ? "พิมพ์อย่างน้อย 3 ตัวอักษรเพื่อค้นทุกแหล่ง" : trackingInput.pure ? `เลขพัสดุตรง ${trackingRows.length} · แชทที่ตรง ${matchingChatThreads.length}` : `พัสดุที่ตรง ${trackingRows.length} · แชทที่ตรง ${matchingChatThreads.length}`}</span>
             </div>
             {trackingInput.isDecorated ? <p className="mt-2 rounded-lg border border-fuchsia-300/15 bg-fuchsia-400/[0.04] px-3 py-2 text-[10px] text-fuchsia-100/75">ตรวจพบข้อความแต่งหล่อ · ระบบแยกเลขหลัก <span className="font-mono font-semibold text-fuchsia-100">{trackingInput.pure}</span> ไปค้นใน parcels โดยตรง</p> : null}
-            {!trackingInput.raw ? <p className="mx-3 mb-3 rounded-xl border border-violet-300/10 bg-violet-400/[0.025] p-3 text-center text-[11px] text-slate-400 sm:mx-4">เริ่มจากเบอร์โทรได้เลย · ระบบจะแสดงออเดอร์ที่ตรงด้านล่าง และค้นคิวพัสดุในแผงนี้</p> : null}
+            {!trackingInput.raw ? <p className="order-search-empty mb-3 rounded-xl border border-violet-300/10 bg-violet-400/[0.025] p-3 text-center text-[11px] text-slate-400">เริ่มจากเบอร์โทรได้เลย · ระบบจะแสดงออเดอร์ที่ตรงด้านล่าง และค้นคิวพัสดุในแผงนี้</p> : null}
             {trackingQueueQuery.isError ? <p className="mt-3 rounded-xl border border-pink-300/20 bg-pink-400/[0.04] p-3 text-xs text-pink-200">ค้นคิวพัสดุไม่สำเร็จ: {trackingQueueQuery.error instanceof Error ? trackingQueueQuery.error.message : String(trackingQueueQuery.error)}</p> : null}
             {directParcelQuery.isError ? <p className="mt-3 rounded-xl border border-pink-300/20 bg-pink-400/[0.04] p-3 text-xs text-pink-200">ค้น parcels โดยตรงไม่สำเร็จ: {directParcelQuery.error instanceof Error ? directParcelQuery.error.message : String(directParcelQuery.error)}</p> : null}
             {chatThreadsQuery.isError ? <p className="mt-3 rounded-xl border border-violet-300/20 bg-violet-400/[0.04] p-3 text-xs text-violet-100">ค้นโปรเจกต์ Chat ไม่สำเร็จ: {chatThreadsQuery.error instanceof Error ? chatThreadsQuery.error.message : String(chatThreadsQuery.error)}</p> : null}
@@ -288,7 +297,7 @@ export default function OrderControl() {
                 const message = String(row.drakside_tracking_message || row.facebook_tracking_message || "").trim();
                 const copyKey = `${trackingNo}:${index}`;
                 const inboxUrl = businessInboxUrl(row);
-                return <article key={copyKey} className="rounded-xl border border-violet-300/20 bg-violet-500/[0.035] p-3">
+                return <article key={copyKey} className="order-parcel-result rounded-xl border p-3">
                   <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="font-mono text-sm font-semibold text-cyan-100">{trackingNo || "ไม่มีเลขพัสดุ"}</p><p className="mt-1 text-xs text-slate-200">{displayName}{displayPhone ? ` · ${displayPhone}` : ""}</p></div><span className="text-[10px] text-violet-200/75">{String(row.page_name || "ไม่ระบุเพจ")}</span></div>
                   <p className="mt-1 text-[10px] text-slate-400">{String(row.order_number_display || row.order_number || "ไม่พบเลขออเดอร์")} · {String(row.pickup_date || row.order_time_display || "ไม่ระบุวันเวลา")} · COD {String(row.cod_amount ?? "—")} บาท</p>
                   <div className="mt-2 flex flex-wrap gap-2"><span className="rounded-md border border-cyan-300/15 bg-cyan-400/[0.04] px-2 py-1 text-[9px] text-cyan-100/65">ค้นตรง: parcels.tracking_number</span>{row.chat_link_key ? <span className="rounded-md border border-violet-300/15 bg-violet-400/[0.04] px-2 py-1 font-mono text-[9px] text-violet-100/70">{String(row.chat_link_key)}</span> : null}</div>
