@@ -110,7 +110,7 @@ function orbitMeta(lane: OrbitLane) {
     waiting: { icon: "🛰️", label: "WAITING ORBIT", sub: "ยังไม่พบสัญญาณลูกค้า", color: "border-violet-300/25 bg-violet-300/[.06] text-violet-100" },
     send: { icon: "🚀", label: "SEND GATE", sub: "พร้อมส่งตามหน้าต่างแชท", color: "border-emerald-300/25 bg-emerald-300/[.06] text-emerald-100" },
     expired: { icon: "🕳️", label: "EXPIRED VAULT", sub: "เกินหน้าต่างส่ง", color: "border-amber-300/25 bg-amber-300/[.06] text-amber-100" },
-    sent: { icon: "📌", label: "SENT ARCHIVE", sub: "แจ้งเลขแล้ว", color: "border-fuchsia-300/25 bg-fuchsia-300/[.06] text-fuchsia-100" },
+    sent: { icon: "🔥", label: "🔥SENT", sub: "TRACKING SIGNAL CONFIRMED", color: "border-fuchsia-300/25 bg-fuchsia-300/[.06] text-fuchsia-100" },
   }[lane];
 }
 function rowStatus(row: ParcelMappingRow): QueueFilter {
@@ -419,12 +419,13 @@ export default function ParcelMapping() {
                         {copied === `tracking:${clean(row.tracking_number)}` ? <span className="text-[10px] text-emerald-300">คัดลอกเลขแล้ว</span> : null}
                       </button>
                     </div>
-                    <Badge variant="outline" className={meta.className}>
-                      {isSent(row) ? "🔥SENT" : `${meta.icon} ${meta.label}`}
-                      {age != null && status !== "sent"
-                        ? ` · ${age.toFixed(1)} ชม.`
-                        : ""}
-                    </Badge>
+                    <div className="flex flex-col items-end gap-0.5">
+                      <Badge variant="outline" className={meta.className}>
+                        {isSent(row) ? "🔥SENT" : `${meta.icon} ${meta.label}`}
+                        {age != null && status !== "sent" ? ` · ${age.toFixed(1)} ชม.` : ""}
+                      </Badge>
+                      {isSent(row) ? <span className="font-mono text-[8px] tracking-[.12em] text-fuchsia-200/65">TRACKING SIGNAL CONFIRMED</span> : null}
+                    </div>
                   </div>
                   <div className="mt-2 grid gap-1.5 rounded-xl border border-white/10 bg-slate-950/45 p-2.5 text-xs shadow-[inset_0_0_18px_rgba(148,163,184,.035)] sm:grid-cols-2">
                     <p className="text-white/85">
