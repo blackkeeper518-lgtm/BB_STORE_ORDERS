@@ -3,7 +3,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { startLogin } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { Activity, Archive, Bell, Boxes, CalendarDays, Database, LayoutDashboard, LockKeyhole, MessageCircle, PanelLeft, Send, Skull, Truck } from "lucide-react";
+import { Activity, Archive, Bell, Boxes, CalendarDays, Database, LayoutDashboard, LockKeyhole, MessageCircle, PanelLeft, Send, Skull, Truck, WandSparkles } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
@@ -21,6 +21,7 @@ const menuItems = [
   { icon: Skull, label: "BLACKBOX · DEATH NOTE", path: "/blackbox" },
   { icon: Archive, label: "ประวัติปิดงาน · ยกเลิก/ไม่รับ", path: "/close-job-history" },
   { icon: Boxes, label: "คลังสินค้าจริง / สต๊อกกลาง", path: "/stock-room" },
+  { icon: WandSparkles, label: "Script Atelier · คลังสคริปต์", path: "/script-atelier" },
   { icon: CalendarDays, label: "สรุปออเดอร์รายวัน · Flash", path: "/daily-chat-summary" },
   { icon: Archive, label: "GENESIS · Log สุดท้าย", path: "/order-history" },
   { icon: Boxes, label: "แยก 1/2/3 คอต", path: "/order-buckets" },
