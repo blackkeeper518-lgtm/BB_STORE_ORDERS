@@ -8,6 +8,8 @@ import {
   Clipboard,
   ExternalLink,
   FileUp,
+  ArrowUpRight,
+  MessageCircle,
   PackageSearch,
   RefreshCw,
   Radar,
@@ -43,6 +45,10 @@ type ParcelMappingRow = {
   page_latest_message?: string | null;
   can_send_standard?: boolean | string | number | null;
   is_within_24h?: boolean | string | number | null;
+  page_id?: string | null;
+  thread_id?: string | null;
+  threadId?: string | null;
+  chat_link_key?: string | null;
 };
 
 const flashTrackingUrl = "https://www.flashexpress.co.th/fle/tracking";
@@ -156,6 +162,7 @@ export default function ParcelMapping() {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<ParcelMappingRow | null>(null);
   const [copied, setCopied] = useState("");
+  const [sendGateOpen, setSendGateOpen] = useState(false);
   const activeCamp = getActiveCamp();
   const queueQuery = useQuery({
     queryKey: ["parcel-mapping-queue", activeCamp],
@@ -196,6 +203,26 @@ export default function ParcelMapping() {
     [rows]
   );
   const orbitLanes: OrbitLane[] = ["waiting", "send", "expired", "sent"];
+  const sendGateRows = useMemo(() => {
+    const seen = new Set<string>();
+    return rows.filter(row => orbitLane(row) === "send").filter(row => {
+      const key = clean(row.chat_link_key) || `${clean(row.page_id)}:${clean(row.thread_id || row.threadId)}` || clean(row.page_name);
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [rows]);
+
+  function chatHref(row: ParcelMappingRow) {
+    const key = clean(row.chat_link_key);
+    const separator = key.includes("_") ? "_" : key.includes(":") ? ":" : "";
+    const separatorIndex = separator ? key.indexOf(separator) : -1;
+    const keyPageId = separatorIndex >= 0 ? key.slice(0, separatorIndex) : "";
+    const keyThreadId = separatorIndex >= 0 ? key.slice(separatorIndex + 1) : "";
+    const pageId = clean(row.page_id) || clean(keyPageId);
+    const threadId = clean(row.thread_id || row.threadId) || clean(keyThreadId);
+    return pageId && threadId ? `/chats?page_id=${encodeURIComponent(pageId)}&thread_id=${encodeURIComponent(threadId)}` : "";
+  }
 
   async function copyMessage(row: ParcelMappingRow) {
     const message = messageToCopy(row);
@@ -318,7 +345,7 @@ export default function ParcelMapping() {
           const meta = orbitMeta(lane);
           const laneCount = rows.filter(row => orbitLane(row) === lane).length;
           return (
-            <button key={lane} type="button" onClick={() => setFilter(lane === "sent" ? "sent" : lane === "expired" ? "over24" : "all")} className={`group rounded-2xl border p-4 text-left shadow-[inset_0_1px_0_rgba(255,255,255,.08)] transition duration-200 hover:-translate-y-1 hover:brightness-125 hover:shadow-[0_0_28px_rgba(77,218,255,.20)] ${meta.color}`}>
+            <button key={lane} type="button" onClick={() => lane === "send" ? setSendGateOpen(true) : setFilter(lane === "sent" ? "sent" : lane === "expired" ? "over24" : "all")} className={`group rounded-2xl border p-4 text-left shadow-[inset_0_1px_0_rgba(255,255,255,.08)] transition duration-200 hover:-translate-y-1 hover:brightness-125 hover:shadow-[0_0_28px_rgba(77,218,255,.20)] ${meta.color}`}>
               <div className="flex items-start justify-between gap-2"><span className="text-xl drop-shadow-[0_0_9px_rgba(255,255,255,.45)]">{meta.icon}</span><span className="font-mono text-3xl font-black tabular-nums drop-shadow-[0_0_10px_rgba(255,255,255,.24)]">{laneCount}</span></div>
               <p className="mt-3 text-[11px] font-extrabold tracking-[.14em]">{meta.label}</p>
               <p className="mt-1 text-xs opacity-90">{meta.sub}</p>
@@ -327,6 +354,23 @@ export default function ParcelMapping() {
           );
         })}
       </section>
+
+      {sendGateOpen ? <div className="fixed inset-0 z-[80] bg-[#03040b]/70 backdrop-blur-sm" onClick={() => setSendGateOpen(false)}>
+        <aside className="absolute right-0 top-0 flex h-full w-full max-w-xl flex-col border-l border-emerald-300/25 bg-[#09131a]/[.98] shadow-[-18px_0_60px_rgba(16,185,129,.18)]" onClick={event => event.stopPropagation()}>
+          <div className="border-b border-emerald-300/15 bg-gradient-to-r from-emerald-400/[.10] via-cyan-400/[.05] to-transparent p-5">
+            <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-mono font-semibold uppercase tracking-[.22em] text-emerald-300">SEND GATE // CHANNEL MAP</p><h2 className="mt-2 text-xl font-semibold text-white">ห้องที่พร้อมส่ง</h2><p className="mt-1 text-xs leading-5 text-emerald-100/55">เลือกห้องที่แมฟแล้วเพื่อเปิดบทสนทนาต้นทางโดยตรง</p></div><button type="button" onClick={() => setSendGateOpen(false)} className="rounded-xl border border-emerald-300/20 p-2 text-emerald-100/55 hover:bg-emerald-300/10 hover:text-white" aria-label="ปิด SEND GATE"><X className="h-4 w-4" /></button></div>
+            <div className="mt-4 flex items-center gap-2 text-[10px] text-emerald-200/65"><span className="h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_12px_#6fffe0]" />{sendGateRows.length} CHANNELS MAPPED · CLICK CARD TO ENTER CHAT</div>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto p-4"><div className="grid gap-2 sm:grid-cols-2">
+            {sendGateRows.map((row, index) => { const href = chatHref(row); return <article key={`${clean(row.page_name)}-${clean(row.tracking_number)}-${index}`} className="group rounded-2xl border border-emerald-300/15 bg-emerald-300/[.035] p-3 transition hover:-translate-y-0.5 hover:border-emerald-200/50 hover:bg-emerald-300/[.08]">
+              <div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="truncate text-sm font-semibold text-white">{clean(row.page_name) || "ไม่ระบุเพจ"}</p><p className="mt-1 truncate font-mono text-[9px] text-emerald-200/50">{clean(row.chat_link_key) || `${clean(row.page_id)}_${clean(row.thread_id || row.threadId)}` || "NO CHAT KEY"}</p></div><span className="shrink-0 rounded-md border border-emerald-300/20 bg-emerald-300/[.08] px-1.5 py-0.5 text-[9px] text-emerald-200">🟢 OPEN</span></div>
+              <div className="mt-2 grid grid-cols-2 gap-1 text-[10px] text-cyan-100/60"><span>ลูกค้า · {clean(row.recipient_name) || "—"}</span><span>เลข · {clean(row.tracking_number) || "—"}</span></div>
+              {href ? <a href={href} onClick={() => setSendGateOpen(false)} className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-cyan-300/25 bg-cyan-400/[.07] px-2.5 py-2 text-[10px] font-semibold text-cyan-100 transition hover:border-cyan-200/60 hover:bg-cyan-400/[.15]"><MessageCircle className="h-3.5 w-3.5" />เข้าแชทห้องนี้<ArrowUpRight className="h-3.5 w-3.5" /></a> : <p className="mt-3 rounded-lg border border-amber-300/15 bg-amber-300/[.04] px-2 py-1.5 text-[9px] text-amber-100/60">ยังไม่มี chat_link_key สำหรับเปิดห้อง</p>}
+            </article>; })}
+            {!sendGateRows.length ? <div className="col-span-full rounded-2xl border border-emerald-300/15 bg-black/20 p-8 text-center text-sm text-emerald-100/50"><MessageCircle className="mx-auto mb-2 h-7 w-7 text-emerald-300/40" />ยังไม่มีห้องที่แมฟใน SEND GATE</div> : null}
+          </div></div>
+        </aside>
+      </div> : null}
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_390px]">
         <Card className="blackbox-queue overflow-hidden rounded-3xl border border-cyan-200/20 shadow-[0_0_26px_rgba(34,211,238,.08),0_18px_45px_rgba(2,6,23,.42)]">
@@ -361,7 +405,7 @@ export default function ParcelMapping() {
               return (
                 <article
                   key={key}
-                  className="trace-row rounded-2xl border border-cyan-200/20 bg-[linear-gradient(125deg,rgba(8,47,73,.30),rgba(15,23,42,.62)_50%,rgba(76,29,149,.16))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,.055)] transition duration-200 hover:border-cyan-200/50 hover:shadow-[0_0_22px_rgba(34,211,238,.12)]"
+                  className="trace-row rounded-2xl border border-cyan-200/20 bg-[linear-gradient(125deg,rgba(8,47,73,.30),rgba(15,23,42,.62)_50%,rgba(76,29,149,.16))] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,.055)] transition duration-200 hover:border-cyan-200/50 hover:shadow-[0_0_22px_rgba(34,211,238,.12)]"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -376,13 +420,13 @@ export default function ParcelMapping() {
                       </button>
                     </div>
                     <Badge variant="outline" className={meta.className}>
-                      {meta.icon} {meta.label}
+                      {isSent(row) ? "🔥SENT" : `${meta.icon} ${meta.label}`}
                       {age != null && status !== "sent"
                         ? ` · ${age.toFixed(1)} ชม.`
                         : ""}
                     </Badge>
                   </div>
-                  <div className="mt-3 grid gap-2 rounded-xl border border-white/10 bg-slate-950/45 p-3 text-sm shadow-[inset_0_0_18px_rgba(148,163,184,.035)] sm:grid-cols-2">
+                  <div className="mt-2 grid gap-1.5 rounded-xl border border-white/10 bg-slate-950/45 p-2.5 text-xs shadow-[inset_0_0_18px_rgba(148,163,184,.035)] sm:grid-cols-2">
                     <p className="text-white/85">
                       👤 {clean(row.recipient_name) || "ไม่ระบุชื่อผู้รับ"}
                     </p>
@@ -473,7 +517,7 @@ export default function ParcelMapping() {
               </Button>
             ) : null}
           </CardHeader>
-          <CardContent className="space-y-4 p-4">
+          <CardContent className="space-y-3 p-3">
             {!selected ? (
               <div className="flex min-h-64 flex-col items-center justify-center text-center text-white/35">
                 <PackageSearch className="mb-3 h-9 w-9 text-cyan-300/40" />
@@ -484,17 +528,21 @@ export default function ParcelMapping() {
               </div>
             ) : (
               <>
-                <div className="rounded-2xl border border-cyan-200/35 bg-[linear-gradient(135deg,rgba(8,145,178,.13),rgba(15,23,42,.48)_62%,rgba(126,34,206,.12))] p-4 shadow-[0_0_20px_rgba(34,211,238,.08)]">
+                <div className="rounded-2xl border border-cyan-200/35 bg-[linear-gradient(135deg,rgba(8,145,178,.13),rgba(15,23,42,.48)_62%,rgba(126,34,206,.12))] p-3 shadow-[0_0_20px_rgba(34,211,238,.08)]">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-100/85">
                     MESSAGE PREVIEW
                   </p>
                   <p className="mt-2 break-all font-mono text-lg font-bold text-cyan-50 drop-shadow-[0_0_8px_rgba(34,211,238,.28)]">
                     {clean(selected.tracking_number)}
                   </p>
-                  <p className="mt-1 text-sm text-white/60">
-                    {clean(selected.recipient_name)} ·{" "}
-                    {clean(selected.shipping_carrier) || "FLASH EXPRESS"}
-                  </p>
+                  <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-white/65">
+                    <p>ชื่อผู้รับ · {clean(selected.recipient_name) || "—"}</p>
+                    <p>เพจ · {clean(selected.page_name) || "—"}</p>
+                    <p>เบอร์โทร · {clean(selected.matched_phone) || "—"}</p>
+                    <p>ขนส่ง · {clean(selected.shipping_carrier) || "FLASH EXPRESS"}</p>
+                    <p>เลขออเดอร์ · {clean(selected.order_number_display || selected.order_number) || "—"}</p>
+                    <p className="font-semibold text-cyan-200">สถานะ · {isSent(selected) ? "🔥SENT" : clean(selected.parcel_status_emoji) || "รอตรวจ"}</p>
+                  </div>
                 </div>
                 <div className="grid gap-3">
                   {[
