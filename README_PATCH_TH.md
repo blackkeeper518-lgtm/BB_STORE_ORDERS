@@ -1,19 +1,13 @@
-# BB Script Atelier Patch
+# BB Script Atelier / Project Rooms Patch
 
-แพ็กเกจนี้มีเฉพาะไฟล์ที่แก้/เพิ่มสำหรับ Script Atelier และ SQL View สายพัสดุที่รวมจากไฟล์แนบ ไม่ใช่โปรเจกต์เต็ม
+แพ็กเกจนี้มีเฉพาะไฟล์ที่แก้/เพิ่มสำหรับ Script Atelier และหน้า Project Rooms ไม่ใช่โปรเจกต์เต็ม
 
-ให้แตก ZIP ทับในโฟลเดอร์โปรเจกต์เดิมโดยคงโครงสร้างโฟลเดอร์ไว้
+การแก้ล่าสุด:
+- ห้องโปรเจกต์แสดงเป็น ROOM 01 / ROOM 02 / ROOM 03 แบบกล่องลิ้นชักนีออน
+- เอาแท็บและ section `กล่องเก็บไฟล์` ที่ไม่ได้ใช้ออก
+- แก้ปุ่มลบไฟล์ให้เลือกไฟล์ถัดไปได้ถูกต้องหลังลบ
+- Script Atelier ค้นหา SKU แบบ autocomplete จาก 1–2 ตัวอักษร
+- Script Atelier ไม่เช็ก IN_STOCK/OUT_OF_STOCK
+- Script Atelier รองรับลากภาพโยนลงกล่องและเลือกหลายภาพ
 
-ไฟล์ SQL ใหม่ที่รวมจากไฟล์แนบคือ:
-
-`sql/views/parcel_delivery_views_combined.sql`
-
-ลำดับ View ในไฟล์คือ `SHADOW -> ROGUE -> VOID -> DEAD` และคง logic เดิมไว้
-
-รัน SQL ใน Supabase ตามความเหมาะสม:
-
-1. `sql/views/combined_views.sql` สำหรับ View ชุดหลักเดิม
-2. `sql/views/parcel_delivery_views_combined.sql` สำหรับ View สายพัสดุ 4 ตัวจากไฟล์แนบ
-3. `sql/20261106_script_atelier.sql` สำหรับ Script Atelier
-
-ไฟล์นี้ไม่ใช่โปรเจกต์เดี่ยว และต้องใช้ทับบน source project เดิม
+แตก ZIP ทับโฟลเดอร์โปรเจกต์เดิม โดยคงโครงสร้างโฟลเดอร์ไว้

@@ -8,7 +8,6 @@ import {
   Code2,
   FileCode2,
   FilePlus2,
-  FolderArchive,
   Home,
   ImagePlus,
   LockKeyhole,
@@ -54,17 +53,9 @@ type VaultDoc = {
   updatedAt: string;
 };
 type GalleryItem = { id: string; src: string; name: string; createdAt: string };
-type ArchiveCard = {
-  id: string;
-  title: string;
-  docIds: string[];
-  createdAt: string;
-};
-
 const ROOM_PASSWORD = "1234";
 const DOCS_KEY = "nightops-secret-vault-v2";
 const IMAGES_KEY = "nightops-secret-gallery-v1";
-const ARCHIVE_KEY = "nightops-secret-archive-v1";
 const SOUND_KEY = "nightops-chat-sound-v1";
 type ChatSoundSettings = { enabled: boolean; tone: "ping" | "bell" | "pop"; volume: number };
 const DEFAULT_SOUND_SETTINGS: ChatSoundSettings = { enabled: true, tone: "ping", volume: 0.35 };
@@ -119,9 +110,6 @@ export default function SecretGallery() {
   const [docs, setDocs] = useState<VaultDoc[]>(() => readLocal(DOCS_KEY, []));
   const [images, setImages] = useState<GalleryItem[]>(() =>
     readLocal(IMAGES_KEY, [])
-  );
-  const [archives, setArchives] = useState<ArchiveCard[]>(() =>
-    readLocal(ARCHIVE_KEY, [])
   );
   const [soundSettings, setSoundSettings] = useState<ChatSoundSettings>(() =>
     readLocal(SOUND_KEY, DEFAULT_SOUND_SETTINGS)
@@ -190,9 +178,6 @@ export default function SecretGallery() {
   useEffect(() => {
     localStorage.setItem(IMAGES_KEY, JSON.stringify(images));
   }, [images]);
-  useEffect(() => {
-    localStorage.setItem(ARCHIVE_KEY, JSON.stringify(archives));
-  }, [archives]);
   useEffect(() => {
     localStorage.setItem(SOUND_KEY, JSON.stringify(soundSettings));
   }, [soundSettings]);
@@ -308,15 +293,11 @@ export default function SecretGallery() {
   };
   const deleteDoc = (id: string) => {
     if (!window.confirm("ลบไฟล์นี้จากเครื่องนี้ใช่ไหม?")) return;
-    setDocs(current => current.filter(doc => doc.id !== id));
-    setArchives(current =>
-      current.map(card => ({
-        ...card,
-        docIds: card.docIds.filter(docId => docId !== id),
-      }))
-    );
-    if (activeId === id)
-      setActiveId(docs.find(doc => doc.id !== id)?.id ?? null);
+    setDocs(current => {
+      const next = current.filter(doc => doc.id !== id);
+      if (activeId === id) setActiveId(next[0]?.id ?? null);
+      return next;
+    });
   };
   const copyCode = async () => {
     if (!activeDoc) return;
@@ -409,56 +390,6 @@ export default function SecretGallery() {
       setImageMessage(e instanceof Error ? e.message : "คัดลอกรูปไม่สำเร็จ");
     }
   };
-  const createArchive = () => {
-    const title = window.prompt("ตั้งชื่อโฟลเดอร์เก็บโค้ด", "SQL งานสำคัญ");
-    if (!title?.trim()) return;
-    const card = {
-      id: crypto.randomUUID(),
-      title: title.trim(),
-      docIds: [],
-      createdAt: new Date().toISOString(),
-    };
-    setArchives(current => [card, ...current]);
-    setGalleryView("vault");
-  };
-  const dropDoc = (archiveId: string, docId = draggedDocId) => {
-    if (!docId) return;
-    setArchives(current =>
-      current.map(card =>
-        card.id === archiveId && !card.docIds.includes(docId)
-          ? { ...card, docIds: [...card.docIds, docId] }
-          : card
-      )
-    );
-    setDraggedDocId(null);
-  };
-  const dropOnReferenceTab = (docId = draggedDocId) => {
-    if (!docId) return;
-    setArchives(current => {
-      if (!current.length) {
-        return [
-          {
-            id: crypto.randomUUID(),
-            title: "โฟลเดอร์เก็บโค้ด",
-            docIds: [docId],
-            createdAt: new Date().toISOString(),
-          },
-        ];
-      }
-      return current.map((card, index) =>
-        index === 0 && !card.docIds.includes(docId)
-          ? { ...card, docIds: [...card.docIds, docId] }
-          : card
-      );
-    });
-    setDraggedDocId(null);
-    setGalleryView("vault");
-  };
-  const docsIn = (card: ArchiveCard) =>
-    card.docIds
-      .map(id => docs.find(doc => doc.id === id))
-      .filter(Boolean) as VaultDoc[];
-
   if (!unlocked)
     return (
       <div className="flex min-h-[calc(100vh-2rem)] items-center justify-center bg-[#090611] p-4 text-white">
@@ -545,11 +476,11 @@ export default function SecretGallery() {
             </div>
           </div>
         </header>
-        <Card className="neon-card rounded-3xl border-cyan-400/20 bg-black/20">
+        <Card className="neon-card project-room-card rounded-3xl border-cyan-400/20 bg-black/20">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-sm text-white">
               <LockKeyhole className="h-4 w-4 text-cyan-300" />
-              MAIN ORDER · HERMES / MULTIVERSE / SINGULARITY
+              ROOM 01 · ORDER CORE · HERMES / MULTIVERSE / SINGULARITY
             </CardTitle>
           </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-3">
@@ -585,10 +516,10 @@ export default function SecretGallery() {
           </CardContent>
         </Card>
         <div className="grid gap-5 xl:grid-cols-2">
-          <Card className="group relative overflow-hidden rounded-3xl border-cyan-300/35 bg-[radial-gradient(ellipse_at_top_right,rgba(34,211,238,.2),transparent_42%),linear-gradient(135deg,rgba(7,22,47,.98),rgba(11,10,37,.96))] shadow-[0_0_34px_rgba(34,211,238,.16)] transition duration-300 hover:-translate-y-1 hover:border-cyan-200/70 hover:shadow-[0_0_50px_rgba(34,211,238,.3)]">
+          <Card className="group project-room-card relative overflow-hidden rounded-3xl border-cyan-300/35 bg-[radial-gradient(ellipse_at_top_right,rgba(34,211,238,.2),transparent_42%),linear-gradient(135deg,rgba(7,22,47,.98),rgba(11,10,37,.96))] shadow-[0_0_34px_rgba(34,211,238,.16)] transition duration-300 hover:-translate-y-1 hover:border-cyan-200/70 hover:shadow-[0_0_50px_rgba(34,211,238,.3)]">
             <div className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full border border-cyan-200/20 shadow-[0_0_45px_rgba(34,211,238,.35)]" />
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-sm text-cyan-100"><MessageCircle className="h-5 w-5 text-cyan-300" />CHAT LANE · MESSENGER</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-sm text-cyan-100"><MessageCircle className="h-5 w-5 text-cyan-300" />ROOM 02 · CHAT CORE · MESSENGER</CardTitle>
               <p className="text-xs leading-5 text-cyan-100/65">แชทและ Page Token อ่านจาก <span className="font-mono text-cyan-200">page_tokens_vault</span> · ไม่ใช่ช่อง Page Token</p>
             </CardHeader>
             <CardContent className="grid gap-3 md:grid-cols-2">
@@ -602,10 +533,10 @@ export default function SecretGallery() {
               <p className="text-[10px] leading-4 text-cyan-100/45 md:col-span-2">ใส่เฉพาะ Anon/Publishable Key · ห้ามใส่ service-role, secret key หรือ Page Token · ถ้าไม่กรอกจะใช้ Tracking เดิม</p>
             </CardContent>
           </Card>
-          <Card className="group relative overflow-hidden rounded-3xl border-fuchsia-300/35 bg-[radial-gradient(ellipse_at_top_right,rgba(244,114,182,.2),transparent_42%),linear-gradient(135deg,rgba(35,12,48,.98),rgba(15,9,35,.96))] shadow-[0_0_34px_rgba(217,70,239,.16)] transition duration-300 hover:-translate-y-1 hover:border-fuchsia-200/70 hover:shadow-[0_0_50px_rgba(217,70,239,.3)]">
+          <Card className="group project-room-card relative overflow-hidden rounded-3xl border-fuchsia-300/35 bg-[radial-gradient(ellipse_at_top_right,rgba(244,114,182,.2),transparent_42%),linear-gradient(135deg,rgba(35,12,48,.98),rgba(15,9,35,.96))] shadow-[0_0_34px_rgba(217,70,239,.16)] transition duration-300 hover:-translate-y-1 hover:border-fuchsia-200/70 hover:shadow-[0_0_50px_rgba(217,70,239,.3)]">
             <div className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full border border-fuchsia-200/20 shadow-[0_0_45px_rgba(217,70,239,.35)]" />
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-sm text-fuchsia-100"><PackageOpen className="h-5 w-5 text-fuchsia-300" />PARCEL LANE · SHIPPING</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-sm text-fuchsia-100"><PackageOpen className="h-5 w-5 text-fuchsia-300" />ROOM 03 · PARCEL RETURN · SHIPPING</CardTitle>
               <p className="text-xs leading-5 text-fuchsia-100/65">พัสดุ คิวจับคู่ และประวัติส่งเลข · แยกจากฐานแชทและฐานออเดอร์</p>
             </CardHeader>
             <CardContent className="grid gap-3 md:grid-cols-2">
@@ -633,18 +564,7 @@ export default function SecretGallery() {
           </CardContent>
         </Card>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div
-            className="flex flex-wrap items-center gap-2"
-            onDragOver={e => e.preventDefault()}
-            onDrop={e => {
-              e.preventDefault();
-              dropOnReferenceTab(
-                e.dataTransfer.getData("text/plain") ||
-                  draggedDocId ||
-                  undefined
-              );
-            }}
-          >
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               onClick={() => setGalleryView("vault")}
               variant="outline"
@@ -656,13 +576,6 @@ export default function SecretGallery() {
             >
               <Code2 className="mr-2 h-4 w-4" />
               CODE VAULT · {docs.length}
-            </Button>
-            <Button
-              onClick={createArchive}
-              variant="outline"
-              className="border-cyan-400/40 bg-cyan-500/10 text-cyan-200"
-            >
-              <FolderArchive className="mr-2 h-4 w-4" />+ โฟลเดอร์เก็บโค้ด
             </Button>
             <Button
               onClick={() => setGalleryView("images")}
@@ -688,115 +601,12 @@ export default function SecretGallery() {
               <LockKeyhole className="mr-2 h-4 w-4" />
               ฐานค่าย · ตั้งค่าการเชื่อมต่อ
             </Button>
-            <Button
-              onDragOver={e => e.preventDefault()}
-              onDrop={e => {
-                e.preventDefault();
-                dropOnReferenceTab();
-              }}
-              variant="outline"
-              className="border-yellow-400/35 bg-yellow-500/10 text-yellow-200"
-            >
-              <FolderArchive className="mr-2 h-4 w-4" />
-              เก็บไฟล์{archives.length ? ` · ${archives.length} โฟลเดอร์` : ""}
-            </Button>
-            <span className="hidden text-[10px] text-white/35 lg:inline">
-              ลากไฟล์จากรายการซ้ายมาวางที่นี่
-            </span>
           </div>
           <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-cyan-200/45">
             <span className="h-2 w-2 animate-pulse rounded-full bg-cyan-300" />{" "}
             LOCAL VAULT · AUTOSAVE
           </div>
         </div>
-        {view === "vault" ? (
-          <section className="rounded-2xl border border-yellow-400/20 bg-yellow-500/[0.035] p-3 sm:p-4">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <h2 className="flex items-center gap-2 text-sm font-semibold text-yellow-100">
-                  <FolderArchive className="h-4 w-4 text-yellow-300" />{" "}
-                  กล่องเก็บไฟล์ · {archives.length} โฟลเดอร์
-                </h2>
-                <p className="mt-1 text-[11px] text-white/40">
-                  ลากไฟล์โค้ดจากรายการด้านล่างมาวางในโฟลเดอร์ได้เลย
-                  ไม่ต้องออกจากหน้านี้
-                </p>
-              </div>
-              <Button
-                onClick={createArchive}
-                variant="outline"
-                className="h-8 border-yellow-400/30 bg-transparent text-yellow-100"
-              >
-                <FolderArchive className="mr-2 h-4 w-4" />
-                สร้างโฟลเดอร์
-              </Button>
-            </div>
-            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-              {archives.map(card => (
-                <div
-                  key={card.id}
-                  onDragOver={e => e.preventDefault()}
-                  onDrop={e => {
-                    e.preventDefault();
-                    dropDoc(
-                      card.id,
-                      e.dataTransfer.getData("text/plain") ||
-                        draggedDocId ||
-                        undefined
-                    );
-                  }}
-                  className="min-h-24 rounded-xl border border-dashed border-yellow-300/25 bg-black/20 p-3 transition hover:border-yellow-300/60 hover:bg-yellow-500/[0.06]"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="truncate text-xs font-semibold text-yellow-100">
-                      {card.title}
-                    </p>
-                    <span className="shrink-0 text-[10px] text-white/35">
-                      {card.docIds.length} ไฟล์
-                    </span>
-                  </div>
-                  <div className="mt-2 flex max-h-20 flex-wrap gap-1 overflow-auto">
-                    {docsIn(card).length ? (
-                      docsIn(card).map(doc => (
-                        <button
-                          key={doc.id}
-                          type="button"
-                          onClick={() => {
-                            setActiveId(doc.id);
-                            setGalleryView("vault");
-                          }}
-                          className="max-w-full truncate rounded-md bg-white/[0.05] px-2 py-1 text-left font-mono text-[10px] text-cyan-100"
-                        >
-                          {languageMeta[doc.language].icon} {doc.title}
-                        </button>
-                      ))
-                    ) : (
-                      <span className="text-[10px] text-white/30">
-                        วางไฟล์ตรงนี้
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ))}
-              {!archives.length ? (
-                <div
-                  onDragOver={e => e.preventDefault()}
-                  onDrop={e => {
-                    e.preventDefault();
-                    dropOnReferenceTab(
-                      e.dataTransfer.getData("text/plain") ||
-                        draggedDocId ||
-                        undefined
-                    );
-                  }}
-                  className="flex min-h-24 items-center justify-center rounded-xl border border-dashed border-yellow-300/25 bg-black/15 text-xs text-white/40"
-                >
-                  วางไฟล์ตรงนี้เพื่อสร้างกล่องเก็บไฟล์แรก
-                </div>
-              ) : null}
-            </div>
-          </section>
-        ) : null}
         {view === "connect" ? (
           <ConnectSupabase />
         ) : view === "images" ? (
