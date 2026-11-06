@@ -110,6 +110,11 @@ function chatAttachmentPayload(row: any) {
   add(row?.attachments_raw);
   add(row?.attachment_urls);
   add(row?.attachment_url);
+  add(row?.image_urls);
+  add(row?.image_url);
+  add(row?.media_url);
+  add(row?.file_url);
+  add(row?.message_attachments);
   add(row?.sticker_url);
   return JSON.stringify(values);
 }
@@ -690,6 +695,16 @@ export async function readParcelMappingQueue(status: "all" | "sent" = "all", lim
     seen.add(key);
     return true;
   }).slice(0, safeLimit);
+}
+
+export async function readParcelByTrackingNumber(trackingNumber: string) {
+  const api = getSupabase("parcel");
+  if (!api) fail({ message: "ยังไม่ได้เชื่อมสาย Parcel: ไปที่ /secret-gallery แล้วบันทึก URL กับ Anon/Publishable Key" });
+  const exact = String(trackingNumber ?? "").trim().toUpperCase();
+  if (!exact) return [];
+  const { data, error } = await api.from("parcels").select("*").eq("tracking_number", exact).limit(20);
+  if (error) fail(error);
+  return data ?? [];
 }
 export type PostalMasterMatch = { district: string | null; amphoe: string | null; province: string | null; zipcode: string | null };
 export async function searchThailandPostalMaster(raw: string): Promise<PostalMasterMatch[]> {

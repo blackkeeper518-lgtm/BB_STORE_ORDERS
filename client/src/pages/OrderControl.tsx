@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import OrderEditWorkbench from "@/components/OrderEditWorkbench";
-import { getActiveCamp, orderTimeSortKey, readCanonicalOrders, readParcelMappingQueue } from "@/lib/canonical";
+import { getActiveCamp, orderTimeSortKey, readCanonicalOrders, readParcelByTrackingNumber, readParcelMappingQueue } from "@/lib/canonical";
 import { useQuery } from "@tanstack/react-query";
 import { CalendarDays, Check, CheckCircle2, Clock3, Database, Download, ExternalLink, MessageCircle, Pencil, RefreshCw, Search, Send, ShoppingCart, WalletCards, XCircle } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
@@ -91,6 +91,42 @@ function canSend(row: CanonicalOrderRow) {
   return !isSent(row) && (truthy(row.is_ready_to_pack) || truthy(row.send_eligible) || truthy(row.telegram_bill_send_eligible) || String(row.cod_check_status ?? "").toUpperCase() === "PASS");
 }
 
+// ⫘ TRACKING SEARCH · เลขพัสดุหลักค้นตรง ส่วนข้อความแต่งหล่อเป็นข้อมูลเสริม
+const PAGE_BUSINESS_MAP: Record<string, string> = {
+  "103411062505149": "200213502365612",
+  "1032290633303246": "200213502365612",
+  "1047257891810878": "200213502365612",
+  "111414924711459": "200213502365612",
+  "113923148350742": "200213502365612",
+  "1064404466767377": "3106079592877973",
+  "1235719106287717": "3106079592877973",
+};
+
+function extractPureTrackingNumber(value: unknown) {
+  const text = String(value ?? "").toUpperCase().replace(/[‐‑‒–—]/g, "-");
+  return text.match(/\bTH[A-Z0-9]{8,20}\b/)?.[0] ?? "";
+}
+
+function splitTrackingInput(value: unknown) {
+  const raw = String(value ?? "").trim();
+  const pure = extractPureTrackingNumber(raw);
+  return { raw, pure, isDecorated: Boolean(pure && raw !== pure) };
+}
+
+function pageIdFromRow(row: Record<string, any>) {
+  const direct = String(row.page_id ?? "").trim();
+  if (direct) return direct;
+  const key = String(row.chat_link_key ?? "");
+  return key.split(":", 1)[0].trim();
+}
+
+function businessInboxUrl(row: Record<string, any>) {
+  const pageId = pageIdFromRow(row);
+  const businessId = PAGE_BUSINESS_MAP[pageId];
+  if (!pageId || !businessId) return "";
+  return `https://business.facebook.com/latest/inbox/all/?business_id=${encodeURIComponent(businessId)}&asset_id=${encodeURIComponent(pageId)}`;
+}
+
 // ⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘
 // MAIN ROOM · โครงหลักของหน้า Order Control
 // แหล่งข้อมูล: readCanonicalOrders() → 🗝️HERMES_ARCHIVE
@@ -108,6 +144,7 @@ export default function OrderControl() {
   const [trackingSearch, setTrackingSearch] = useState("");
   const [trackingCopied, setTrackingCopied] = useState("");
   const [editOpen, setEditOpen] = useState(false);
+  const trackingInput = splitTrackingInput(trackingSearch);
   const query = useQuery({
     queryKey: ["canonical-orders", search, fromDate, untilDate],
     queryFn: () => readCanonicalOrders(search, fromDate || null, untilDate || null),
@@ -120,18 +157,27 @@ export default function OrderControl() {
     enabled: trackingDrawerOpen,
     staleTime: 15_000,
   });
+  const directParcelQuery = useQuery({
+    queryKey: ["parcel-direct-tracking-lookup", getActiveCamp(), trackingInput.pure],
+    queryFn: () => readParcelByTrackingNumber(trackingInput.pure),
+    enabled: trackingDrawerOpen && Boolean(trackingInput.pure),
+    staleTime: 15_000,
+  });
   // ⫘ ORDER SORT · ใช้ CENTRAL ORDER CLOCK เรียงล่าสุดไว้บนสุดเสมอ
   const rawOrders = [...((query.data?.orders ?? []) as CanonicalOrderRow[])].sort((a, b) => orderTimeSortKey(b.order_time_display) - orderTimeSortKey(a.order_time_display));
   const pageNames = Array.from(new Set(rawOrders.map((row) => String(row.page_name ?? "").trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, "th"));
   const orders = pageFilter === "ทั้งหมด" ? rawOrders : rawOrders.filter((row) => String(row.page_name ?? "").trim() === pageFilter);
   const selectedOrder = orders.find((row) => row.upsert_key === selectedKey) ?? orders[0] ?? null;
-  const trackingTerm = trackingSearch.trim().toLowerCase();
-  const trackingRows = (trackingQueueQuery.data ?? []).filter((row: any) => {
-    if (!trackingTerm) return false;
+  const trackingTerm = trackingInput.raw.toLowerCase();
+  const fallbackTrackingRows = (trackingQueueQuery.data ?? []).filter((row: any) => {
+    if (!trackingInput.raw) return false;
+    const rowTracking = extractPureTrackingNumber(row.tracking_number);
+    if (trackingInput.pure && rowTracking) return rowTracking === trackingInput.pure;
     const haystack = [row.tracking_number, row.recipient_name, row.matched_phone, row.order_number_display, row.order_number, row.page_name]
       .map((value) => String(value ?? "").trim().toLowerCase()).join(" ");
     return haystack.includes(trackingTerm);
   }).slice(0, 12);
+  const trackingRows = trackingInput.pure && directParcelQuery.data?.length ? directParcelQuery.data : fallbackTrackingRows;
   const todayOrders = orders.filter(isToday);
   const sentOrders = orders.filter(isSent);
   const sendableOrders = orders.filter(canSend);
@@ -213,19 +259,26 @@ export default function OrderControl() {
         {trackingDrawerOpen ? <div className="grid grid-rows-[1fr] border-t border-cyan-300/15 transition-all duration-300">
           <div className="min-h-0 p-3 sm:p-4">
             <div className="flex flex-col gap-2 sm:flex-row">
-              <Input value={trackingSearch} onChange={(event) => setTrackingSearch(event.target.value)} placeholder="กรอกเลขพัสดุ เบอร์ หรือชื่อลูกค้า…" className="h-10 min-w-0 border-cyan-300/20 bg-black/30 text-white placeholder:text-slate-500" />
-              <span className="self-center whitespace-nowrap text-[10px] text-slate-500">{trackingQueueQuery.isFetching ? "กำลังค้นคิวพัสดุ…" : trackingSearch.trim() ? `${trackingRows.length} รายการที่ตรง` : "พิมพ์คำค้นเพื่อแสดงผล"}</span>
+              <Input value={trackingSearch} onChange={(event) => setTrackingSearch(event.target.value)} placeholder="เลขพัสดุหลัก หรือวางข้อความแต่งหล่อ…" className="h-10 min-w-0 border-cyan-300/20 bg-black/30 text-white placeholder:text-slate-500" />
+              <span className="self-center whitespace-nowrap text-[10px] text-slate-500">{directParcelQuery.isFetching || trackingQueueQuery.isFetching ? "กำลังค้นข้อมูลพัสดุ…" : trackingInput.raw ? (trackingInput.pure ? `ค้น parcels.tracking_number ตรง · ${trackingRows.length} รายการ` : `${trackingRows.length} รายการที่ตรง`) : "พิมพ์เลขพัสดุเพื่อค้นตรง"}</span>
             </div>
+            {trackingInput.isDecorated ? <p className="mt-2 rounded-lg border border-fuchsia-300/15 bg-fuchsia-400/[0.04] px-3 py-2 text-[10px] text-fuchsia-100/75">ตรวจพบข้อความแต่งหล่อ · ระบบแยกเลขหลัก <span className="font-mono font-semibold text-fuchsia-100">{trackingInput.pure}</span> ไปค้นใน parcels โดยตรง</p> : null}
             {trackingQueueQuery.isError ? <p className="mt-3 rounded-xl border border-pink-300/20 bg-pink-400/[0.04] p-3 text-xs text-pink-200">ค้นคิวพัสดุไม่สำเร็จ: {trackingQueueQuery.error instanceof Error ? trackingQueueQuery.error.message : String(trackingQueueQuery.error)}</p> : null}
+            {directParcelQuery.isError ? <p className="mt-3 rounded-xl border border-pink-300/20 bg-pink-400/[0.04] p-3 text-xs text-pink-200">ค้น parcels โดยตรงไม่สำเร็จ: {directParcelQuery.error instanceof Error ? directParcelQuery.error.message : String(directParcelQuery.error)}</p> : null}
             {trackingTerm && !trackingQueueQuery.isFetching && !trackingQueueQuery.isError && trackingRows.length === 0 ? <p className="mt-3 p-3 text-center text-xs text-slate-500">ไม่พบรายการในคิวพัสดุที่โหลดได้</p> : null}
             <div className="mt-3 grid max-h-80 gap-2 overflow-y-auto lg:grid-cols-2">
               {trackingRows.map((row: any, index: number) => {
-                const trackingNo = String(row.tracking_number ?? "").trim();
+                const trackingNo = extractPureTrackingNumber(row.tracking_number) || String(row.tracking_number ?? "").trim();
+                const displayName = String(row.recipient_name || row.consignee || row.customer_name || "ไม่ระบุชื่อ");
+                const displayPhone = String(row.matched_phone || row.phone_number || row.order_phone || row.phone || "").trim();
                 const message = String(row.drakside_tracking_message || row.facebook_tracking_message || "").trim();
                 const copyKey = `${trackingNo}:${index}`;
+                const inboxUrl = businessInboxUrl(row);
                 return <article key={copyKey} className="rounded-xl border border-violet-300/20 bg-violet-500/[0.035] p-3">
-                  <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="font-mono text-sm font-semibold text-cyan-100">{trackingNo || "ไม่มีเลขพัสดุ"}</p><p className="mt-1 text-xs text-slate-200">{String(row.recipient_name || "ไม่ระบุชื่อ")}{row.matched_phone ? ` · ${row.matched_phone}` : ""}</p></div><span className="text-[10px] text-violet-200/75">{String(row.page_name || "ไม่ระบุเพจ")}</span></div>
+                  <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="font-mono text-sm font-semibold text-cyan-100">{trackingNo || "ไม่มีเลขพัสดุ"}</p><p className="mt-1 text-xs text-slate-200">{displayName}{displayPhone ? ` · ${displayPhone}` : ""}</p></div><span className="text-[10px] text-violet-200/75">{String(row.page_name || "ไม่ระบุเพจ")}</span></div>
                   <p className="mt-1 text-[10px] text-slate-400">{String(row.order_number_display || row.order_number || "ไม่พบเลขออเดอร์")} · {String(row.pickup_date || row.order_time_display || "ไม่ระบุวันเวลา")} · COD {String(row.cod_amount ?? "—")} บาท</p>
+                  <div className="mt-2 flex flex-wrap gap-2"><span className="rounded-md border border-cyan-300/15 bg-cyan-400/[0.04] px-2 py-1 text-[9px] text-cyan-100/65">ค้นตรง: parcels.tracking_number</span>{row.chat_link_key ? <span className="rounded-md border border-violet-300/15 bg-violet-400/[0.04] px-2 py-1 font-mono text-[9px] text-violet-100/70">{String(row.chat_link_key)}</span> : null}</div>
+                  {inboxUrl ? <a href={inboxUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center rounded-lg border border-cyan-300/25 bg-cyan-400/[0.06] px-3 py-1.5 text-[10px] font-semibold text-cyan-100 transition hover:border-cyan-200/60 hover:bg-cyan-400/15"><ExternalLink className="mr-1.5 h-3.5 w-3.5" />เปิด Inbox จริง</a> : <p className="mt-2 text-[10px] text-amber-200/70">ยังไม่มี Business mapping ของเพจนี้</p>}
                   {message ? <div className="mt-2 flex items-start gap-2"><pre className="max-h-24 min-w-0 flex-1 overflow-auto whitespace-pre-wrap break-words rounded-lg border border-fuchsia-300/15 bg-black/25 p-2 text-[10px] leading-4 text-fuchsia-50/85">{message}</pre><Button type="button" size="sm" variant="outline" onClick={() => { void navigator.clipboard.writeText(message).then(() => { setTrackingCopied(copyKey); window.setTimeout(() => setTrackingCopied(""), 1400); }); }} className="shrink-0 border-fuchsia-300/25 bg-fuchsia-400/[0.04] px-2 text-[10px] text-fuchsia-100">{trackingCopied === copyKey ? "คัดลอกแล้ว" : "คัดลอก"}</Button></div> : <p className="mt-2 text-[10px] text-slate-500">ไม่มีข้อความแจ้งพัสดุที่บันทึกไว้</p>}
                 </article>;
               })}
@@ -245,7 +298,7 @@ export default function OrderControl() {
             {query.isLoading ? <p className="p-8 text-center text-sm text-slate-500">กำลังอ่านข้อมูลจาก Supabase…</p> : null}
             {!query.isLoading && !query.error && orders.length === 0 ? <p className="p-8 text-center text-sm text-slate-500">ไม่พบข้อมูล</p> : null}
             {/* การ์ด 1 ใบ · คอลัมน์ที่ใช้: order_number, customer_name, phone, page_name, order_time_display, final_display_for_packer, delivery_status, sent_at */}
-            {orders.map((row) => <button key={row.upsert_key} type="button" onClick={() => setSelectedKey(row.upsert_key)} className={`order-list-card w-full rounded-2xl border p-3 text-left transition ${selectedOrder?.upsert_key === row.upsert_key ? "border-pink-300/60 bg-gradient-to-r from-fuchsia-500/15 to-emerald-400/5 shadow-[inset_3px_0_#ff5acb,0_0_18px_rgba(255,90,203,0.1)]" : "border-white/5 bg-black/15 hover:border-cyan-300/30 hover:bg-cyan-400/[0.04]"}`}>
+            {orders.map((row, index) => <button key={row.upsert_key} type="button" onClick={() => setSelectedKey(row.upsert_key)} className={`order-list-card ${index === 0 ? "order-list-card-latest" : ""} w-full rounded-2xl border p-3 text-left transition ${selectedOrder?.upsert_key === row.upsert_key ? "border-pink-300/60 bg-gradient-to-r from-fuchsia-500/15 to-emerald-400/5 shadow-[inset_3px_0_#ff5acb,0_0_18px_rgba(255,90,203,0.1)]" : "border-white/5 bg-black/15 hover:border-cyan-300/30 hover:bg-cyan-400/[0.04]"}`}>
               <div className="flex items-center justify-between gap-2"><span className="font-mono text-sm font-semibold text-cyan-200">{directText(row.order_number)}</span>{isSent(row) ? <span className="rounded-full border border-orange-300/30 bg-orange-400/10 px-2 py-0.5 text-[10px] font-semibold text-orange-200">🔥SENT</span> : <span className="rounded-full border border-cyan-300/20 px-2 py-0.5 text-[10px] text-cyan-200">รอส่ง</span>}</div>
               <div className="mt-2 text-xs"><span className="font-semibold text-white">{directText(row.customer_name)}</span><span className="ml-3 font-mono text-emerald-200/85">{directText(row.phone)}</span></div>
               <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-violet-200/70"><span>🍊 {directText(row.page_name)} · {directText(row.order_number)}</span><span>{row.order_time_display}</span></div>
