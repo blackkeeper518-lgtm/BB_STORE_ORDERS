@@ -83,9 +83,9 @@ function parseDateValue(value) {
   return Number.isFinite(utc) ? utc : null;
 }
 
-function getRealParcelStatusEmoji(row, alreadySent) {
-  // ส่งแล้วให้สถานะส่งก่อนเสมอ
-  if (alreadySent) return '🔥SENT';
+function getRealParcelStatusEmoji(row) {
+  // parcel_status_emoji เป็นสถานะหน้าต่างแชทเท่านั้น
+  // ห้ามปั๊ม 🔥SENT จากการมีเลขพัสดุ เพราะจะทำให้ทุกออเดอร์ถูกล็อก
 
   const raw = clean(row.customer_message_time_th);
   if (!raw) return clean(row.parcel_status_emoji);
@@ -133,17 +133,17 @@ function extractCarrier(text) {
 
 function extractAdminTracking(row) {
   const pageLatestMessage = String(
-    row.page_latest_message ?? row.page_latest_message_text ?? ''
+    row.page_latest_message ??
+    row.page_latest_message_text ??
+    row.last_page_message ??
+    row.lastPageMessage ??
+    ''
   );
 
-  const facebookTrackingMessage = String(
-    row.facebook_tracking_message ?? ''
-  );
-
-  const draksideTrackingMessage = String(
-    row.drakside_tracking_message ?? ''
-  );
-
+  // ตรวจข้อความเดิมที่ไหลเข้ามาจากฐานข้อมูลก่อนสร้างข้อความรอบใหม่
+  // marker เดียวกันในฟิวใดฟิวหนึ่งถือว่าเคยแจ้งเลขแล้ว
+  const facebookTrackingMessage = String(row.facebook_tracking_message ?? '');
+  const draksideTrackingMessage = String(row.drakside_tracking_message ?? '');
   const combinedMessage = [
     pageLatestMessage,
     facebookTrackingMessage,
@@ -159,7 +159,25 @@ function extractAdminTracking(row) {
     : null;
 
   const compactMessage = combinedMessage.replace(/\s+/g, '');
-  const hasTrackingNotice = /📌แจ้งเลขพัสดุจัดส่ง/.test(compactMessage);
+  // ตรวจเฉพาะ marker ใหม่จากข้อความที่ยิงจริง ลูกค้าจะเห็น 📣📌 ด้วย
+  const hasTrackingMarker = (message) =>
+    /📣\s*📌\s*แจ้งเลขพัสดุจัดส่ง/u.test(
+      String(message ?? '')
+    );
+  const hasPageTrackingNotice = hasTrackingMarker(pageLatestMessage);
+  const hasFacebookTrackingNotice = hasTrackingMarker(facebookTrackingMessage);
+  const hasDraksideTrackingNotice = hasTrackingMarker(draksideTrackingMessage);
+  const hasTrackingNotice =
+    hasPageTrackingNotice ||
+    hasFacebookTrackingNotice ||
+    hasDraksideTrackingNotice;
+  const sentStatus = [
+    row.delivery_status,
+    row.facebook_tracking_status,
+    row.parcel_delivery_status,
+  ]
+    .map(value => clean(value).toUpperCase())
+    .some(value => ['📣', '🔥SENT', 'SENT', 'SUCCESS', 'COMPLETED', 'DELIVERED', 'SENT_TO_TELEGRAM'].includes(value));
   const adminTrackingFound = Boolean(adminTrackingNumber);
 
   return {
@@ -170,7 +188,18 @@ function extractAdminTracking(row) {
       ? 'ADMIN_MESSAGE_TH_PREFIX'
       : null,
     has_tracking_notice: hasTrackingNotice,
-    already_sent: hasTrackingNotice || adminTrackingFound,
+    // กันส่งซ้ำด้วยหลักฐานข้อความจริงเท่านั้น
+    // การมีเลข TH อย่างเดียวไม่ถือว่าส่งแล้ว
+    already_sent: hasTrackingNotice || sentStatus,
+    already_sent_source: hasPageTrackingNotice
+      ? 'PAGE_LATEST_MESSAGE_TRACKING_MARKER'
+      : hasFacebookTrackingNotice
+        ? 'FACEBOOK_TRACKING_MESSAGE_MARKER'
+        : hasDraksideTrackingNotice
+          ? 'DRAKSIDE_TRACKING_MESSAGE_MARKER'
+      : sentStatus
+        ? 'DELIVERY_STATUS'
+        : null,
   };
 }
 
@@ -228,7 +257,7 @@ function buildFacebookTrackingMessage({
   pageName,
 }) {
   return [
-    `📌 แจ้งเลขพัสดุจัดส่ง 🚚: ${trackingNumber || 'รอเลขพัสดุ'}`,
+    `📣📌 แจ้งเลขพัสดุจัดส่ง 🚚: ${trackingNumber || 'รอเลขพัสดุ'}`,
     `🙏 หนูขอแจ้งเลขให้นะคะพี่ ${shippingCarrier}`,
     `🗓️ วันที่สั่งซื้อ: ${orderTimeDisplay}`,
     '',
@@ -342,10 +371,7 @@ for (const item of $input.all()) {
 
   // คำนวณอีโมจิจากเวลาข้อความลูกค้าจริงทุกครั้งที่ workflow รัน
   // ใช้ customer_message_time_th เป็นแหล่งเวลาหลัก ไม่เชื่อค่าเดิมที่ค้างในโต๊ะ
-  const realParcelStatusEmoji = getRealParcelStatusEmoji(
-    row,
-    adminTracking.already_sent
-  );
+  const realParcelStatusEmoji = getRealParcelStatusEmoji(row);
 
   const route = routeFromEmoji(
     {
@@ -447,6 +473,8 @@ for (const item of $input.all()) {
         adminTracking.has_tracking_notice,
       already_sent:
         adminTracking.already_sent,
+      already_sent_source:
+        adminTracking.already_sent_source,
 
       // route: already-sent guard ก่อน แล้วค่อยอ่าน emoji
       parcel_status_emoji: route.parcel_status_emoji,
