@@ -1,0 +1,398 @@
+From 124886de5f31eba7bd4ad6c84bf64560fa3ec34b Mon Sep 17 00:00:00 2001
+From: fairyfin06-dev <3.53485286e+08+fairyfin06-dev@users.noreply.github.com>
+Date: Sat, 7 Nov 2026 06:18:54 +0000
+Subject: [PATCH] =?UTF-8?q?=E2=AD=90=E2=AD=90=E2=AD=90?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ client/src/App.tsx                    |   2 +
+ client/src/pages/ChatSystemManual.tsx | 208 ++++++++++++++++++++++++++
+ client/src/pages/SystemManual.tsx     |  97 ++++++------
+ public/manus-routes.json              |   2 +-
+ 4 files changed, 255 insertions(+), 54 deletions(-)
+ create mode 100644 client/src/pages/ChatSystemManual.tsx
+
+diff --git a/client/src/App.tsx b/client/src/App.tsx
+index adedefa..f34064e 100644
+--- a/client/src/App.tsx
++++ b/client/src/App.tsx
+@@ -7,6 +7,7 @@ import DashboardLayout from "./components/DashboardLayout";
+ import { ThemeProvider } from "./contexts/ThemeContext";
+ import OrderControl from "./pages/OrderControl";
+ import ChatHub from "./pages/ChatHub";
++import ChatSystemManual from "./pages/ChatSystemManual";
+ import OrderPerformance from "./pages/OrderPerformance";
+ import StockRoom from "./pages/StockRoom";
+ import MappingDashboard from "./pages/MappingDashboard";
+@@ -44,6 +45,7 @@ function Router() {
+     <Route path="/blackbox"><Shell><BlackboxRoom /></Shell></Route>
+     <Route path="/order-performance"><Shell><OrderPerformance /></Shell></Route>
+     <Route path="/stock-room"><Shell><StockRoom /></Shell></Route>
++    <Route path="/system-manual/chat"><Shell><ChatSystemManual /></Shell></Route>
+     <Route path="/system-manual"><Shell><SystemManual /></Shell></Route>
+     <Route path="/mapping-dashboard"><Shell><MappingDashboard /></Shell></Route>
+     <Route path="/order-buckets"><Shell><OrderBuckets /></Shell></Route>
+diff --git a/client/src/pages/ChatSystemManual.tsx b/client/src/pages/ChatSystemManual.tsx
+new file mode 100644
+index 0000000..da8a575
+--- /dev/null
++++ b/client/src/pages/ChatSystemManual.tsx
+@@ -0,0 +1,208 @@
++import {
++  ArrowLeft,
++  ArrowRight,
++  BookOpen,
++  Database,
++  KeyRound,
++  MessageCircle,
++  RadioTower,
++  ShieldCheck,
++  Truck,
++} from "lucide-react";
++import { useEffect } from "react";
++import { Link } from "wouter";
++
++function TableSection({
++  id,
++  icon,
++  title,
++  side,
++  description,
++  tone,
++}: {
++  id: string;
++  icon: string;
++  title: string;
++  side: string;
++  description: string;
++  tone: "pink" | "cyan";
++}) {
++  const styles = tone === "pink"
++    ? {
++        border: "border-fuchsia-300/20",
++        glow: "shadow-fuchsia-950/20",
++        icon: "border-fuchsia-300/20 bg-fuchsia-300/10",
++        label: "text-fuchsia-200/65",
++        badge: "border-fuchsia-300/25 bg-fuchsia-300/10 text-fuchsia-100",
++        rule: "via-fuchsia-300/60",
++      }
++    : {
++        border: "border-cyan-300/20",
++        glow: "shadow-cyan-950/20",
++        icon: "border-cyan-300/20 bg-cyan-300/10",
++        label: "text-cyan-200/65",
++        badge: "border-cyan-300/25 bg-cyan-300/10 text-cyan-100",
++        rule: "via-cyan-300/60",
++      };
++
++  return (
++    <section
++      id={id}
++      className={`scroll-mt-8 rounded-[1.75rem] border ${styles.border} bg-[#0b1020]/90 p-5 shadow-xl ${styles.glow} sm:p-7`}
++    >
++      <div className={`mb-5 h-px bg-gradient-to-r from-transparent ${styles.rule} to-transparent`} />
++      <div className="flex flex-wrap items-start gap-4">
++        <span className={`grid h-12 w-12 shrink-0 place-items-center rounded-2xl border text-2xl ${styles.icon}`}>{icon}</span>
++        <div className="min-w-0 flex-1">
++          <p className={`text-[10px] font-semibold uppercase tracking-[0.22em] ${styles.label}`}>{side}</p>
++          <h2 className="mt-1 break-all font-mono text-xl font-bold text-white sm:text-2xl">{title}</h2>
++          <span className={`mt-3 inline-flex rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] ${styles.badge}`}>TABLE · แยกตามผู้ส่ง</span>
++        </div>
++      </div>
++      <p className="mt-5 max-w-3xl text-sm leading-7 text-slate-200/75">{description}</p>
++    </section>
++  );
++}
++
++export default function ChatSystemManual() {
++  useEffect(() => {
++    const targetId = window.location.hash.slice(1);
++    if (!targetId) return;
++    requestAnimationFrame(() => document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth", block: "start" }));
++  }, []);
++
++  return (
++    <main className="system-manual min-h-screen overflow-hidden bg-[#070912] text-slate-100">
++      <div className="system-manual-backdrop pointer-events-none fixed inset-0 opacity-60 [background-image:radial-gradient(circle_at_12%_8%,rgba(24,185,255,.16),transparent_28%),radial-gradient(circle_at_88%_20%,rgba(194,74,255,.13),transparent_26%),linear-gradient(rgba(255,255,255,.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.025)_1px,transparent_1px)] [background-size:auto,auto,32px_32px,32px_32px]" />
++      <div className="system-manual-content relative mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-10">
++        <header className="relative overflow-hidden rounded-[2rem] border border-fuchsia-300/20 bg-[radial-gradient(ellipse_at_top_right,rgba(217,70,239,.16),transparent_34%),radial-gradient(ellipse_at_bottom_left,rgba(34,211,238,.12),transparent_44%),linear-gradient(130deg,rgba(10,12,28,.97),rgba(20,10,38,.96))] p-6 shadow-[0_0_36px_rgba(217,70,239,.10),0_0_56px_rgba(34,211,238,.08)] backdrop-blur-xl sm:p-9">
++          <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-fuchsia-200/75"><BookOpen className="h-4 w-4" /> CHAT SYSTEM · TABLE GUIDE</p>
++          <h1 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-5xl">คู่มือสายแชท</h1>
++          <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-200/75 sm:text-base">
++            ภาพรวมบทบาทของ BB_CHAT การเก็บข้อความแยกตามผู้ส่ง และห้อง close-job-history โดยยึดการจัดกลุ่มและต้นทางข้อมูลตามโครงสร้างที่คุณกำหนด
++          </p>
++          <div className="mt-6 flex flex-wrap gap-3">
++            <Link href="/system-manual" className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/[.04] px-4 py-2.5 text-xs font-semibold text-white/85 transition hover:border-white/30 hover:bg-white/[.08]"><ArrowLeft className="h-4 w-4" /> กลับภาพรวม System Manual</Link>
++            <Link href="/chats" className="inline-flex items-center gap-2 rounded-xl border border-fuchsia-300/25 bg-fuchsia-300/10 px-4 py-2.5 text-xs font-semibold text-fuchsia-50 transition hover:bg-fuchsia-300/15"><MessageCircle className="h-4 w-4" /> เปิดห้องแชท</Link>
++            <Link href="/close-job-history" className="inline-flex items-center gap-2 rounded-xl border border-cyan-300/25 bg-cyan-300/10 px-4 py-2.5 text-xs font-semibold text-cyan-50 transition hover:bg-cyan-300/15"><ArrowRight className="h-4 w-4" /> เปิด close-job-history</Link>
++          </div>
++        </header>
++
++        <section className="mt-6 grid gap-3 lg:grid-cols-3">
++          <article className="rounded-2xl border border-fuchsia-300/15 bg-fuchsia-300/[.045] p-5">
++            <MessageCircle className="h-5 w-5 text-fuchsia-200" />
++            <h2 className="mt-3 text-sm font-semibold text-white">เจ้าของสายข้อมูล</h2>
++            <p className="mt-1 font-mono text-sm text-fuchsia-100">👑BB_CHAT</p>
++            <p className="mt-2 text-xs leading-5 text-slate-300/70">สายแชทเก็บและส่งต่อเหตุการณ์สนทนาของลูกค้าและเพจ</p>
++          </article>
++          <article className="rounded-2xl border border-violet-300/15 bg-violet-300/[.045] p-5">
++            <KeyRound className="h-5 w-5 text-violet-200" />
++            <h2 className="mt-3 text-sm font-semibold text-white">คีย์กลางออเดอร์</h2>
++            <p className="mt-1 font-mono text-sm text-violet-100">chat_link_key</p>
++            <p className="mt-2 text-xs leading-5 text-slate-300/70">ระบุออเดอร์เดียวกันข้ามทั้ง 3 โปรเจกต์ ตามสถาปัตยกรรมที่กำหนด</p>
++          </article>
++          <article className="rounded-2xl border border-cyan-300/15 bg-cyan-300/[.045] p-5">
++            <RadioTower className="h-5 w-5 text-cyan-200" />
++            <h2 className="mt-3 text-sm font-semibold text-white">รูปแบบ 5 workflow lanes</h2>
++            <p className="mt-1 text-sm font-semibold text-cyan-100">API เท่านั้น · ไม่มี Webhook</p>
++            <p className="mt-2 text-xs leading-5 text-slate-300/70">คงรูปแบบการเชื่อมต่อตามที่คุณระบุ ไม่ขยายความเป็น workflow แบบอื่น</p>
++          </article>
++        </section>
++
++        <section className="mt-8">
++          <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
++            <div>
++              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-fuchsia-200/60">MESSAGE STORAGE · BY SENDER</p>
++              <h2 className="mt-2 text-2xl font-semibold text-white">ตารางแชทแยกตามผู้ส่ง</h2>
++            </div>
++            <span className="rounded-full border border-white/10 bg-white/[.04] px-3 py-1.5 text-[10px] text-white/60">สองตาราง · คนละฝั่งผู้ส่ง · ไม่ใช่ตารางซ้ำ</span>
++          </div>
++          <div className="grid gap-4 lg:grid-cols-2">
++            <TableSection
++              id="chat_customer_messages"
++              icon="💬"
++              title="chat_customer_messages"
++              side="CUSTOMER SIDE · ข้อความจากลูกค้า"
++              description="ตารางสำหรับจัดเก็บข้อความฝั่งลูกค้า แยกจากข้อความที่เพจส่ง เพื่อให้เห็นที่มาของเหตุการณ์ตามผู้ส่ง"
++              tone="pink"
++            />
++            <TableSection
++              id="chat_page_messages"
++              icon="📣"
++              title="chat_page_messages"
++              side="PAGE SIDE · ข้อความจากเพจ"
++              description="ตารางสำหรับจัดเก็บข้อความฝั่งเพจ แยกจากข้อความที่ลูกค้าส่ง ทั้งสองตารางเป็นคนละฝั่งของประวัติแชท ไม่ใช่ข้อมูลซ้ำชุดเดียวกัน"
++              tone="cyan"
++            />
++          </div>
++        </section>
++
++        <section className="mt-6 rounded-2xl border border-cyan-300/15 bg-cyan-300/[.035] p-5 sm:p-6">
++          <div className="flex items-center gap-3">
++            <span className="grid h-10 w-10 place-items-center rounded-xl border border-cyan-300/20 bg-cyan-300/10"><RadioTower className="h-5 w-5 text-cyan-200" /></span>
++            <div>
++              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-200/65">N8N · API WRITE PATH</p>
++              <h2 className="mt-1 text-lg font-semibold text-white">Flow แยกปลายทางตามผู้ส่ง</h2>
++            </div>
++          </div>
++          <div className="mt-4 grid gap-3 md:grid-cols-2">
++            <div className="rounded-xl border border-fuchsia-300/15 bg-black/20 p-4">
++              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-fuchsia-200/65">CUSTOMER SIDE</p>
++              <p className="mt-2 break-all font-mono text-xs text-white">HTTP CUSTOMER left1 → chat_customer_messages</p>
++              <p className="mt-2 text-xs leading-5 text-slate-300/65">ส่งผ่าน HTTP API และกำหนด <code className="rounded bg-black/30 px-1 font-mono text-fuchsia-100">on_conflict=dedupe_key</code></p>
++            </div>
++            <div className="rounded-xl border border-cyan-300/15 bg-black/20 p-4">
++              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-200/65">PAGE SIDE</p>
++              <p className="mt-2 break-all font-mono text-xs text-white">chat_page_messages1 → chat_page_messages</p>
++              <p className="mt-2 text-xs leading-5 text-slate-300/65">ส่งผ่าน HTTP API และกำหนด <code className="rounded bg-black/30 px-1 font-mono text-cyan-100">on_conflict=dedupe_key</code></p>
++            </div>
++          </div>
++          <p className="mt-3 text-[11px] leading-5 text-slate-300/60">คีย์กลาง <code className="rounded bg-black/25 px-1 font-mono text-violet-100">chat_link_key</code> เดินทางไปกับข้อมูลเพื่อระบุออเดอร์เดียวกันข้าม 3 โปรเจกต์</p>
++        </section>
++
++        <section id="close-job-history" className="scroll-mt-8 mt-8 rounded-[2rem] border border-violet-300/15 bg-[#100c1c]/85 p-5 shadow-xl shadow-violet-950/10 sm:p-7">
++          <div className="flex flex-wrap items-center gap-3">
++            <span className="grid h-11 w-11 place-items-center rounded-xl border border-violet-300/20 bg-violet-300/10"><Database className="h-5 w-5 text-violet-200" /></span>
++            <div>
++              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-violet-200/65">CHAT LANE · CLOSE JOB HISTORY</p>
++              <h2 className="mt-1 text-xl font-semibold text-white">close-job-history</h2>
++            </div>
++          </div>
++          <p className="mt-4 max-w-4xl text-sm leading-7 text-slate-200/75">
++            จัดอยู่ในสายแชทตามต้นทางข้อมูลที่คุณกำหนด เพราะรับ data จากตารางแชท ไม่ได้ย้ายไปเป็นแหล่งออเดอร์หรือแหล่งเลขพัสดุ
++          </p>
++          <div className="mt-5 grid gap-3 md:grid-cols-2">
++            <article className="rounded-2xl border border-fuchsia-300/15 bg-fuchsia-300/[.045] p-4">
++              <div className="flex flex-wrap items-center justify-between gap-2">
++                <p className="font-mono text-sm font-semibold text-fuchsia-100">🏴‍☠️ SIRIUS_xXx_CRASH</p>
++                <span className="rounded-full border border-fuchsia-300/20 px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-fuchsia-100/70">SQL · TABLE</span>
++              </div>
++              <p className="mt-2 text-xs leading-5 text-slate-300/70">กลุ่มเคสลูกค้าสั่งเล่นตามการจัดกลุ่มของคุณ; SQL กำหนดเป็นตารางข้อมูลประกอบเคส ใช้ <code className="rounded bg-black/25 px-1 font-mono text-fuchsia-100">case_id</code> เป็น primary key และเก็บ branch, carrier_employee, area, updated_at</p>
++            </article>
++            <article className="rounded-2xl border border-cyan-300/15 bg-cyan-300/[.045] p-4">
++              <div className="flex flex-wrap items-center justify-between gap-2">
++                <p className="font-mono text-sm font-semibold text-cyan-100">🌓 VAGABOND_xXx_DISMISS</p>
++                <span className="rounded-full border border-cyan-300/20 px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-cyan-100/70">SQL · VIEW</span>
++              </div>
++              <p className="mt-2 text-xs leading-5 text-slate-300/70">พื้นที่ที่คุณจัดกลุ่มติดตามเรื่องขนส่งชอบขโมยของ; SQL สร้าง view จาก <code className="rounded bg-black/25 px-1 font-mono text-cyan-100">chat_customer_messages</code> และ <code className="rounded bg-black/25 px-1 font-mono text-cyan-100">chat_page_messages</code> โดยรวมข้อความสองฝั่งแล้วคัดเคสจากคำว่า “ปิดงาน”, “ยกเลิก”, “ไม่เอาแล้ว” และรูปแบบ “สั่ง…แล้วไม่รับ” พร้อมข้อมูล area, branch, carrier, order และ tracking</p>
++              <p className="mt-2 border-t border-cyan-300/10 pt-2 text-[10px] leading-5 text-cyan-50/55">หมายเหตุจาก SQL: เงื่อนไขของ view เป็นคำ/รูปแบบเคสข้างต้น ไม่ได้ตรวจคำเกี่ยวกับการขโมยโดยตรง</p>
++            </article>
++          </div>
++          <Link href="/close-job-history" className="mt-5 inline-flex items-center gap-2 rounded-xl border border-cyan-300/25 bg-cyan-300/10 px-4 py-2.5 text-xs font-semibold text-cyan-50 transition hover:bg-cyan-300/15">
++            <Truck className="h-4 w-4" /> ไปที่ห้อง close-job-history <ArrowRight className="h-4 w-4" />
++          </Link>
++        </section>
++
++        <section className="mt-8 flex items-start gap-3 rounded-2xl border border-emerald-300/15 bg-emerald-300/[.04] p-5 text-xs leading-6 text-emerald-50/75">
++          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-200" />
++          <p><strong className="text-emerald-100">ขอบเขตสายงาน:</strong> BB_CHAT คือสายเหตุการณ์สนทนา; BB_ORDER_SYSTEMS คือแหล่งออเดอร์หลักด้านลูกค้า สินค้า และ COD; BB_TRACK คือสายเลขพัสดุจาก parcels และการจับคู่กับออเดอร์ ส่วน <code className="rounded bg-black/25 px-1.5 py-0.5 font-mono text-emerald-100">chat_link_key</code> คือคีย์กลางของออเดอร์เดียวกันข้าม 3 โปรเจกต์</p>
++        </section>
++
++        <footer className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 py-5 text-xs text-slate-400/60">
++          <span className="flex items-center gap-2"><MessageCircle className="h-3.5 w-3.5 text-fuchsia-200" /> CHAT SYSTEM · TABLE GUIDE</span>
++          <Link href="/system-manual" className="inline-flex items-center gap-1.5 text-slate-300/70 transition hover:text-white"><ArrowLeft className="h-3.5 w-3.5" /> กลับภาพรวม System Manual</Link>
++        </footer>
++      </div>
++    </main>
++  );
++}
+diff --git a/client/src/pages/SystemManual.tsx b/client/src/pages/SystemManual.tsx
+index 6bcbd9d..6dab05d 100644
+--- a/client/src/pages/SystemManual.tsx
++++ b/client/src/pages/SystemManual.tsx
+@@ -196,7 +196,7 @@ export default function SystemManual() {
+               รับข้อมูลออเดอร์ แยกเส้นทางตามสถานะสี จัดเตรียมข้อมูลสำหรับส่ง และควบคุมคิวการดำเนินงาน
+             </p>
+           </div>
+-          <div className="rounded-2xl border border-fuchsia-300/15 bg-fuchsia-300/[0.045] p-5">
++          <Link href="/system-manual/chat" aria-label="เปิดคู่มือสายแชท" className="group rounded-2xl border border-fuchsia-300/15 bg-fuchsia-300/[0.045] p-5 transition hover:border-fuchsia-200/35 hover:bg-fuchsia-300/[0.075] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-200">
+             <MessageCircle className="h-5 w-5 text-fuchsia-300" />
+             <p className="mt-4 text-xs uppercase tracking-[0.18em] text-fuchsia-200/55">
+               Chat System
+@@ -205,9 +205,10 @@ export default function SystemManual() {
+               แชทลูกค้า/เพจ
+             </p>
+             <p className="mt-1 text-xs leading-5 text-slate-300/60">
+-              จัดเก็บข้อความลูกค้าและเพจแยกจากข้อมูลออเดอร์ เพื่อป้องกันการบันทึกข้อมูลซ้ำ
++              ดูภาพรวมการเก็บข้อความแยกตามผู้ส่ง และเปิดรายละเอียดตารางแชท
+             </p>
+-          </div>
++            <span className="mt-3 inline-flex items-center gap-1.5 text-[11px] font-semibold text-fuchsia-100/80">คู่มือสายแชท <ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" /></span>
++          </Link>
+           <div className="rounded-2xl border border-amber-300/15 bg-amber-300/[0.045] p-5">
+             <Truck className="h-5 w-5 text-amber-300" />
+             <p className="mt-4 text-xs uppercase tracking-[0.18em] text-amber-200/55">
+@@ -228,7 +229,7 @@ export default function SystemManual() {
+               </p>
+               <h2 className="mt-2 text-2xl font-semibold text-white">5 สายงานของระบบบน 3 โปรเจกต์</h2>
+               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300/70">
+-                ข้อมูลแบ่งตามหน้าที่ไว้ใน 3 โปรเจกต์ ส่วน <code className="rounded bg-black/30 px-1.5 py-0.5 text-emerald-200">chat_link_key</code> คือคีย์กลางที่ระบุออเดอร์เดียวกันข้ามทั้ง 3 โปรเจกต์; 5 สายด้านล่างคือ workflow ที่ดูแลแต่ละช่วงของงาน
++                ข้อมูลแบ่งตามหน้าที่ไว้ใน 3 โปรเจกต์ ส่วน <code className="rounded bg-black/30 px-1.5 py-0.5 text-emerald-200">chat_link_key</code> คือคีย์กลางที่ระบุออเดอร์เดียวกันข้ามทั้ง 3 โปรเจกต์; 5 สายด้านล่างคือ workflow ที่ดูแลแต่ละช่วงของงาน โดยไม่มี Webhook และใช้ API ตามที่กำหนด
+               </p>
+             </div>
+             <ToneBadge tone="cyan"><KeyRound className="mr-1.5 h-3.5 w-3.5" /> 3 PROJECTS · SHARED ORDER KEY</ToneBadge>
+@@ -270,62 +271,52 @@ export default function SystemManual() {
+         <section className="mt-8 rounded-[2rem] border border-fuchsia-300/15 bg-[#100c1c]/85 p-5 shadow-xl shadow-fuchsia-950/10 sm:p-7">
+           <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+             <div>
+-              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-fuchsia-300/70">
+-                LANE 00 · CHAT CORE
+-              </p>
+-              <h2 className="mt-2 text-2xl font-semibold text-white">
+-                สายแชทต้นทางและการจัดเก็บข้อความแยกตามผู้ส่ง
+-              </h2>
++              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-fuchsia-300/70">LANE 00 · CHAT CORE</p>
++              <h2 className="mt-2 text-2xl font-semibold text-white">สายแชทต้นทางและการจัดเก็บข้อความแยกตามผู้ส่ง</h2>
++              <p className="mt-2 max-w-3xl text-xs leading-5 text-slate-300/65">ภาพรวมสรุปหน้าที่; คลิกชื่อตารางเพื่อเปิดหน้ารายละเอียดของสายแชท</p>
++            </div>
++            <div className="flex flex-wrap items-center gap-2">
++              <ToneBadge tone="pink"><MessageCircle className="mr-1.5 h-3.5 w-3.5" /> CHAT SYSTEM</ToneBadge>
++              <Link href="/system-manual/chat" className="inline-flex items-center gap-1.5 rounded-full border border-fuchsia-300/25 bg-fuchsia-300/10 px-3 py-1.5 text-[10px] font-semibold text-fuchsia-50 transition hover:bg-fuchsia-300/15">คู่มือสายแชท <ArrowRight className="h-3.5 w-3.5" /></Link>
+             </div>
+-            <ToneBadge tone="pink">
+-              <MessageCircle className="mr-1.5 h-3.5 w-3.5" /> CHAT SYSTEM
+-            </ToneBadge>
+           </div>
+           <div className="mt-6 grid gap-4 md:grid-cols-2">
+-            <StageCard
+-              icon="💬"
+-              title="chat_customer_messages"
+-              detail="ตารางสำหรับจัดเก็บข้อความขาเข้าจากลูกค้า พร้อม message_id, thread_id, customer_id, เนื้อหา และเวลาที่เกิดเหตุการณ์"
+-              type="table"
+-            />
+-            <StageCard
+-              icon="📣"
+-              title="chat_page_messages"
+-              detail="ตารางสำหรับจัดเก็บข้อความขาออกจากเพจหรือระบบ โดยแยกจากข้อความลูกค้าเพื่อรักษาลำดับเหตุการณ์และป้องกันข้อมูลซ้ำ"
+-              type="table"
+-            />
++            <Link href="/system-manual/chat#chat_customer_messages" aria-label="ดูรายละเอียดตาราง chat_customer_messages" className="group rounded-2xl border border-fuchsia-300/20 bg-black/20 p-4 transition hover:-translate-y-0.5 hover:border-fuchsia-200/45 hover:bg-fuchsia-300/[.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-200">
++              <div className="flex items-start gap-3">
++                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-fuchsia-300/20 bg-fuchsia-300/10 text-xl">💬</span>
++                <div className="min-w-0">
++                  <div className="flex flex-wrap items-center gap-2"><h3 className="break-all font-mono text-sm font-semibold text-white">chat_customer_messages</h3><span className="rounded-md border border-white/10 px-1.5 py-0.5 text-[9px] uppercase tracking-[0.18em] text-white/40">table</span></div>
++                  <p className="mt-1 text-xs leading-5 text-slate-300/70">ตารางข้อความฝั่งลูกค้า</p>
++                  <span className="mt-3 inline-flex items-center gap-1.5 text-[10px] font-semibold text-fuchsia-100/80">คลิกเพื่อดูรายละเอียด <ArrowRight className="h-3 w-3 transition group-hover:translate-x-0.5" /></span>
++                </div>
++              </div>
++            </Link>
++            <Link href="/system-manual/chat#chat_page_messages" aria-label="ดูรายละเอียดตาราง chat_page_messages" className="group rounded-2xl border border-cyan-300/20 bg-black/20 p-4 transition hover:-translate-y-0.5 hover:border-cyan-200/45 hover:bg-cyan-300/[.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200">
++              <div className="flex items-start gap-3">
++                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-cyan-300/20 bg-cyan-300/10 text-xl">📣</span>
++                <div className="min-w-0">
++                  <div className="flex flex-wrap items-center gap-2"><h3 className="break-all font-mono text-sm font-semibold text-white">chat_page_messages</h3><span className="rounded-md border border-white/10 px-1.5 py-0.5 text-[9px] uppercase tracking-[0.18em] text-white/40">table</span></div>
++                  <p className="mt-1 text-xs leading-5 text-slate-300/70">ตารางข้อความฝั่งเพจ</p>
++                  <span className="mt-3 inline-flex items-center gap-1.5 text-[10px] font-semibold text-cyan-100/80">คลิกเพื่อดูรายละเอียด <ArrowRight className="h-3 w-3 transition group-hover:translate-x-0.5" /></span>
++                </div>
++              </div>
++            </Link>
+           </div>
+-          <div className="mt-5 grid gap-3 lg:grid-cols-[1fr_auto_1fr] lg:items-center">
+-            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+-              <p className="text-sm font-semibold text-white">
+-                ขอบเขตการทำงานของระบบแชท
+-              </p>
+-              <p className="mt-2 text-xs leading-5 text-slate-300/65">
+-                จัดเก็บประวัติสนทนา ป้องกันข้อความซ้ำด้วย message_id หรือ dedupe_key
+-                และคำนวณข้อมูลอายุแชทกับสิทธิ์การส่งตามเงื่อนไขของระบบ
+-              </p>
++          <div className="mt-5 flex flex-wrap items-center gap-2 rounded-2xl border border-violet-300/15 bg-violet-300/[.045] p-4 text-xs leading-5 text-violet-50/75">
++            <KeyRound className="h-4 w-4 shrink-0 text-violet-200" />
++            <span>สองตารางแยกตามผู้ส่ง ไม่ใช่ตารางซ้ำ; <code className="rounded bg-black/25 px-1.5 py-0.5 font-mono text-violet-100">chat_link_key</code> เป็นคีย์กลางที่ระบุออเดอร์เดียวกันข้าม 3 โปรเจกต์</span>
++          </div>
++          <div className="mt-4 flex flex-col justify-between gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 sm:flex-row sm:items-center">
++            <div>
++              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-violet-200/65">CHAT LANE · close-job-history</p>
++              <p className="mt-1 font-mono text-xs text-white/85">🏴‍☠️SIRIUS_xXx_CRASH · 🌓VAGABOND_xXx_DISMISS</p>
++              <p className="mt-1 text-[11px] leading-5 text-slate-300/65">จัดอยู่ในสายแชทตามต้นทางข้อมูลจากตารางแชท</p>
+             </div>
+-            <ArrowRight className="mx-auto hidden h-5 w-5 text-fuchsia-300/60 lg:block" />
+-            <div className="rounded-2xl border border-fuchsia-300/15 bg-fuchsia-300/[0.06] p-4">
+-              <p className="text-sm font-semibold text-fuchsia-100">
+-                ข้อมูลสัญญาณที่อนุญาตให้ระบบอื่นใช้งาน
+-              </p>
+-              <div className="mt-2 flex flex-wrap gap-2">
+-                <ToneBadge tone="pink">chat_age_hours</ToneBadge>
+-                <ToneBadge tone="pink">send_facebook_route</ToneBadge>
+-                <ToneBadge tone="pink">thread_id</ToneBadge>
+-                <ToneBadge tone="pink">page_id</ToneBadge>
+-              </div>
++            <div className="flex flex-wrap gap-2">
++              <Link href="/system-manual/chat#close-job-history" className="inline-flex items-center gap-1.5 rounded-lg border border-violet-300/20 bg-violet-300/[.07] px-3 py-2 text-[10px] font-semibold text-violet-50 transition hover:bg-violet-300/15">รายละเอียด <ArrowRight className="h-3 w-3" /></Link>
++              <Link href="/close-job-history" className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-300/20 bg-cyan-300/[.07] px-3 py-2 text-[10px] font-semibold text-cyan-50 transition hover:bg-cyan-300/15">เปิดห้อง <ArrowRight className="h-3 w-3" /></Link>
+             </div>
+           </div>
+-          <div className="mt-5 flex items-start gap-2 rounded-2xl border border-red-300/15 bg-red-400/[0.04] p-4 text-xs leading-5 text-red-100/75">
+-            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-red-300" />
+-            <span>
+-              <strong className="text-red-200">หลักเกณฑ์การแยกข้อมูล:</strong>{" "}
+-              ระบบแชทไม่ทำหน้าที่จัดเก็บออเดอร์หรือสร้างเลขพัสดุ และไม่ควรนำ COD ที่อยู่ หรือรายละเอียดสินค้า
+-              มาบันทึกซ้ำในตารางข้อความ ส่วนระบบออเดอร์จะไม่ดึงประวัติแชททั้งหมดมาปนเป็นข้อมูลออเดอร์
+-            </span>
+-          </div>
+         </section>
+ 
+         <section className="mt-8 rounded-[2rem] border border-white/10 bg-[#0b1020]/80 p-5 shadow-xl shadow-black/20 sm:p-7">
+diff --git a/public/manus-routes.json b/public/manus-routes.json
+index 1493dd5..f524a4d 100644
+--- a/public/manus-routes.json
++++ b/public/manus-routes.json
+@@ -1 +1 @@
+-{"routes":[{"path":"/","title":"Order Control"},{"path":"/orders","title":"Order Control"},{"path":"/order-editor","title":"Order Editor"},{"path":"/script-atelier","title":"Script Atelier"},{"path":"/parcel-mapping","title":"Parcel Mapping"},{"path":"/chats","title":"Chat Hub"},{"path":"/close-job-history","title":"Close Job History"},{"path":"/telegram-delivery","title":"Telegram Delivery"},{"path":"/andromeda","title":"Andromeda"},{"path":"/telegram-sent-history","title":"Telegram Sent History"},{"path":"/alert-room","title":"Alert Room"},{"path":"/blackbox","title":"Blackbox"},{"path":"/order-performance","title":"Order Performance"},{"path":"/stock-room","title":"Stock Room"},{"path":"/system-manual","title":"System Manual"},{"path":"/mapping-dashboard","title":"Mapping Dashboard"},{"path":"/order-buckets","title":"Order Buckets"},{"path":"/daily-chat-summary","title":"Daily Chat Summary"},{"path":"/order-history","title":"Order History"},{"path":"/secret-gallery","title":"Secret Gallery"},{"path":"/secret-gallery/images","title":"Secret Gallery Images"},{"path":"/secret-gallery/connect","title":"Secret Gallery Connect"}]}
+\ No newline at end of file
++{"routes":[{"path":"/","title":"Order Control"},{"path":"/orders","title":"Order Control"},{"path":"/order-editor","title":"Order Editor"},{"path":"/script-atelier","title":"Script Atelier"},{"path":"/parcel-mapping","title":"Parcel Mapping"},{"path":"/chats","title":"Chat Hub"},{"path":"/close-job-history","title":"Close Job History"},{"path":"/telegram-delivery","title":"Telegram Delivery"},{"path":"/andromeda","title":"Andromeda"},{"path":"/telegram-sent-history","title":"Telegram Sent History"},{"path":"/alert-room","title":"Alert Room"},{"path":"/blackbox","title":"Blackbox"},{"path":"/order-performance","title":"Order Performance"},{"path":"/stock-room","title":"Stock Room"},{"path":"/system-manual","title":"System Manual"},{"path":"/system-manual/chat","title":"Chat System Manual"},{"path":"/mapping-dashboard","title":"Mapping Dashboard"},{"path":"/order-buckets","title":"Order Buckets"},{"path":"/daily-chat-summary","title":"Daily Chat Summary"},{"path":"/order-history","title":"Order History"},{"path":"/secret-gallery","title":"Secret Gallery"},{"path":"/secret-gallery/images","title":"Secret Gallery Images"},{"path":"/secret-gallery/connect","title":"Secret Gallery Connect"}]}
+-- 
+2.43.0
+
