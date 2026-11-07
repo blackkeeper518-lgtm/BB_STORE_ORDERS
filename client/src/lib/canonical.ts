@@ -452,6 +452,44 @@ export async function readBbOrderEvidenceBatch(upsertKeys: string[]) {
 
   return evidence;
 }
+export async function updateBbOrderByKey(
+  upsertKey: string,
+  patch: Record<string, unknown>,
+  sourceTable:
+    | "🗝️HERMES_ARCHIVE"
+    | "🌀SINGULARITY_xXx_EXCHANGE" = "🗝️HERMES_ARCHIVE",
+) {
+  const api = getSupabase();
+
+  if (!api) {
+    fail({
+      message:
+        "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key",
+    });
+  }
+
+  const { data, error } = await api
+    .from(sourceTable)
+    .update(patch)
+    .eq("upsert_key", upsertKey)
+    .select("upsert_key");
+
+  if (error) fail(error);
+
+  if (!data?.length) {
+    fail({
+      message: `ไม่พบออเดอร์ upsert_key=${upsertKey} หรือสิทธิ์ RLS ไม่อนุญาตให้อัปเดต`,
+    });
+  }
+
+  if (data.length > 1) {
+    fail({
+      message: `พบ upsert_key ซ้ำ ${data.length} แถว ต้องตรวจข้อมูลก่อนแก้ไข`,
+    });
+  }
+
+  return data[0];
+}
 
 
 async function withSentWriteTimeout<T>(request: PromiseLike<T>, timeoutMs = 15_000): Promise<T> {
