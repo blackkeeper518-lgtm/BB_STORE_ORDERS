@@ -1,0 +1,45 @@
+From 9bc7079c6d2a69f7f53eda2f2ecac0c03cd81226 Mon Sep 17 00:00:00 2001
+From: fairyfin06-dev <fairyfin06-dev@users.noreply.github.com>
+Date: Sat, 7 Nov 2026 05:51:54 +0000
+Subject: [PATCH] =?UTF-8?q?=E2=AD=90=E2=AD=90=E2=AD=90?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ client/src/lib/canonical.ts | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/client/src/lib/canonical.ts b/client/src/lib/canonical.ts
+index a52786a..e3356cd 100644
+--- a/client/src/lib/canonical.ts
++++ b/client/src/lib/canonical.ts
+@@ -611,7 +611,7 @@ export async function readDailyParcels(date: string, search = "") {
+   });
+   return { parcels, total: parcels.length, sourceTable: "parcels", fetchedAt: new Date().toISOString() };
+ }
+-async function readChatRows(requirePageTable = false) {
++async function readChatRows() {
+   const api = getSupabase("chat");
+   if (!api) fail({ message: "ยังไม่ได้เชื่อม Tracking & Messenger: ไปที่ /secret-gallery แล้วกรอก URL และ Anon Key" });
+   // Read the newest window first. Ascending + limit would permanently return
+@@ -622,7 +622,6 @@ async function readChatRows(requirePageTable = false) {
+     api.from("chat_page_messages").select("*").gte("occurred_at", cutoff).order("occurred_at", { ascending: false }).limit(10000),
+   ]);
+   if (customerResult.error) fail(customerResult.error);
+-  if (requirePageTable && pageResult.error) fail(pageResult.error);
+   const customers = customerResult.data ?? [];
+   const pages = pageResult.error ? [] : (pageResult.data ?? []);
+   const rows = [
+@@ -663,7 +662,7 @@ export async function readChatThreads() {
+   return Array.from(map.values()).sort((a, b) => new Date(b.latestAt || 0).getTime() - new Date(a.latestAt || 0).getTime());
+ }
+ export async function readChatMessages(pageId: string, threadId: string) {
+-  const rows = await readChatRows(true);
++  const rows = await readChatRows();
+   const expectedPageId = String(pageId).trim();
+   const expectedThreadId = String(threadId).trim();
+   return rows
+-- 
+2.43.0
+

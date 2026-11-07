@@ -1,35 +1,22 @@
-From 4d205709a10c2130ab38834e89434885dfc5e075 Mon Sep 17 00:00:00 2001
+From 026ca5546b4a0d41de7f7ba4716bfbc3cac7568c Mon Sep 17 00:00:00 2001
 From: fairyfin06-dev <fairyfin06-dev@users.noreply.github.com>
-Date: Sat, 7 Nov 2026 05:04:54 +0000
+Date: Sat, 7 Nov 2026 05:53:47 +0000
 Subject: [PATCH] =?UTF-8?q?=E2=AD=90=E2=AD=90=E2=AD=90?=
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 
 ---
- client/src/lib/canonical.ts  | 17 +++++++++++++----
+ client/src/lib/canonical.ts  | 14 +++++++++++---
  client/src/pages/ChatHub.tsx |  4 ++--
  server/meta.ts               | 22 +++++++++++++---------
- 3 files changed, 28 insertions(+), 15 deletions(-)
+ 3 files changed, 26 insertions(+), 14 deletions(-)
 
 diff --git a/client/src/lib/canonical.ts b/client/src/lib/canonical.ts
-index e5d1fb5..a52786a 100644
+index e5d1fb5..e3356cd 100644
 --- a/client/src/lib/canonical.ts
 +++ b/client/src/lib/canonical.ts
-@@ -611,7 +611,7 @@ export async function readDailyParcels(date: string, search = "") {
-   });
-   return { parcels, total: parcels.length, sourceTable: "parcels", fetchedAt: new Date().toISOString() };
- }
--async function readChatRows() {
-+async function readChatRows(requirePageTable = false) {
-   const api = getSupabase("chat");
-   if (!api) fail({ message: "ยังไม่ได้เชื่อม Tracking & Messenger: ไปที่ /secret-gallery แล้วกรอก URL และ Anon Key" });
-   // Read the newest window first. Ascending + limit would permanently return
-@@ -622,11 +622,12 @@ async function readChatRows() {
-     api.from("chat_page_messages").select("*").gte("occurred_at", cutoff).order("occurred_at", { ascending: false }).limit(10000),
-   ]);
-   if (customerResult.error) fail(customerResult.error);
-+  if (requirePageTable && pageResult.error) fail(pageResult.error);
+@@ -625,8 +625,8 @@ async function readChatRows() {
    const customers = customerResult.data ?? [];
    const pages = pageResult.error ? [] : (pageResult.data ?? []);
    const rows = [
@@ -40,13 +27,13 @@ index e5d1fb5..a52786a 100644
    ];
    return rows.sort((a, b) => new Date(a._occurred || a.occurred_at || a.synced_at || 0).getTime() - new Date(b._occurred || b.occurred_at || b.synced_at || 0).getTime());
  }
-@@ -661,7 +662,15 @@ export async function readChatThreads() {
+@@ -661,7 +661,15 @@ export async function readChatThreads() {
    }
    return Array.from(map.values()).sort((a, b) => new Date(b.latestAt || 0).getTime() - new Date(a.latestAt || 0).getTime());
  }
 -export async function readChatMessages(pageId: string, threadId: string) { const rows = await readChatRows(); return rows.filter(row => String(row.page_id) === String(pageId) && String(row._thread) === String(threadId)).map((row: any) => ({ id: row.id, text: row._text || (row._hasAttachment ? "ส่งรูปภาพ" : ""), message_text: row._text, direction: row._speaker === "page" ? "outbound" : "inbound", senderType: row._speaker, senderName: row._name, side: row._side, occurredAt: row._occurred || row.occurred_at || row.synced_at, attachmentsJson: chatAttachmentPayload(row), imageUrls: row.image_urls || [] })); }
 +export async function readChatMessages(pageId: string, threadId: string) {
-+  const rows = await readChatRows(true);
++  const rows = await readChatRows();
 +  const expectedPageId = String(pageId).trim();
 +  const expectedThreadId = String(threadId).trim();
 +  return rows
