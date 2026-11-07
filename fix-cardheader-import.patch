@@ -1,0 +1,25 @@
+From 796f1b01fd79983d83e603c91f60e7b0c51fdb42 Mon Sep 17 00:00:00 2001
+From: Manus <dev-agent@manus.ai>
+Date: Sat, 7 Nov 2026 21:31:18 +0000
+Subject: [PATCH] Fix OrderControl card header imports
+
+---
+ client/src/pages/OrderControl.tsx | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/client/src/pages/OrderControl.tsx b/client/src/pages/OrderControl.tsx
+index c8b6a00..a36a660 100644
+--- a/client/src/pages/OrderControl.tsx
++++ b/client/src/pages/OrderControl.tsx
+@@ -25,7 +25,7 @@
+ 
+ import { Badge } from "@/components/ui/badge";
+ import { Button } from "@/components/ui/button";
+-import { Card, CardContent } from "@/components/ui/card";
++import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+ import { Input } from "@/components/ui/input";
+ import { trpc } from "@/lib/trpc";
+ import { getActiveCamp, readBbOrderEvidence, readBbOrderEvidenceBatch, readCanonicalOrders } from "@/lib/canonical";
+-- 
+2.43.0
+

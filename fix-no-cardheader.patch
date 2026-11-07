@@ -1,0 +1,24 @@
+[1mdiff --git a/client/src/pages/OrderControl.tsx b/client/src/pages/OrderControl.tsx[m
+[1mindex a36a660..8c04ab1 100644[m
+[1m--- a/client/src/pages/OrderControl.tsx[m
+[1m+++ b/client/src/pages/OrderControl.tsx[m
+[36m@@ -25,7 +25,7 @@[m
+ [m
+ import { Badge } from "@/components/ui/badge";[m
+ import { Button } from "@/components/ui/button";[m
+[31m-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";[m
+[32m+[m[32mimport { Card, CardContent } from "@/components/ui/card";[m
+ import { Input } from "@/components/ui/input";[m
+ import { trpc } from "@/lib/trpc";[m
+ import { getActiveCamp, readBbOrderEvidence, readBbOrderEvidenceBatch, readCanonicalOrders } from "@/lib/canonical";[m
+[36m@@ -403,8 +403,8 @@[m [mexport default function OrderControl() {[m
+       <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-[#111116] p-3 sm:flex-row sm:items-center sm:justify-between"><div className="flex flex-wrap items-center gap-2"><Filter className="ml-1 h-4 w-4 text-slate-500" />{([ ["all", "ทั้งหมด", stats?.total ?? 0], ["mapped", "แมปแล้ว", stats?.mapped ?? 0], ["review", "ต้องตรวจ", stats?.review ?? 0], ["cod", "เช็คยอด", stats?.codCheck ?? 0] ] as const).map(([key, label, count]) => <button key={key} onClick={() => setFilter(key)} className={`rounded-xl px-3 py-2 text-xs transition ${filter === key ? "bg-orange-500 font-semibold text-black" : "text-slate-400 hover:bg-white/5 hover:text-white"}`}>{label} <span className="ml-1 opacity-60">{count}</span></button>)}</div><div className="relative sm:w-80"><Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" /><Input value={search} onChange={event => setSearch(event.target.value)} placeholder="ค้นหาออเดอร์, ลูกค้า, SKU…" className="h-9 rounded-xl border-white/10 bg-black/20 pl-9 text-sm text-white placeholder:text-slate-600 focus-visible:ring-amber-400" /></div></div>[m
+ [m
+         <Card className="order-detail-card border-cyan-300/15 bg-[#08070e]/95 shadow-[0_0_24px_rgba(88,225,255,0.045)]">[m
+[31m-          {/* DETAIL CARD · แก้หัวการ์ดตรง CardHeader / ขนาดเนื้อหาตรง CardContent */}[m
+[31m-          <CardHeader className="order-detail-head border-b border-cyan-300/15"><CardTitle className="flex flex-wrap items-center justify-between gap-2 text-base text-cyan-100"><span><span className="mr-2 text-cyan-300">◈</span>ออเดอร์ที่เลือก <span className="ml-2 text-[10px] font-mono font-normal uppercase tracking-[0.18em] text-cyan-200/60">ORDER DECK · LIVE</span></span><span className="rounded-full border border-emerald-300/25 bg-emerald-400/[0.06] px-2 py-1 text-[9px] font-mono tracking-wider text-emerald-200">AUTO VIEW · READ ONLY</span></CardTitle></CardHeader>[m
+[32m+[m[32m          {/* DETAIL CARD · READ ONLY · ใช้ div ธรรมดา ไม่สร้าง logic ซ้ำ */}[m
+[32m+[m[32m          <div className="order-detail-head border-b border-cyan-300/15 px-6 py-4"><div className="flex flex-wrap items-center justify-between gap-2 text-base text-cyan-100"><span><span className="mr-2 text-cyan-300">◈</span>ออเดอร์ที่เลือก <span className="ml-2 text-[10px] font-mono font-normal uppercase tracking-[0.18em] text-cyan-200/60">ORDER DECK · LIVE</span></span><span className="rounded-full border border-emerald-300/25 bg-emerald-400/[0.06] px-2 py-1 text-[9px] font-mono tracking-wider text-emerald-200">AUTO VIEW · READ ONLY</span></div></div>[m
+           <CardContent className="space-y-5 p-5">[m
+             {!selectedOrder ? <p className="py-12 text-center text-sm text-slate-500">เลือกออเดอร์เพื่อดูข้อมูล</p> : <>[m
+               <div className="flex flex-wrap items-center justify-between gap-3">[m
