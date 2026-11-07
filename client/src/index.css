@@ -184,17 +184,21 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .script-select,.script-field select { border:1px solid rgba(190,116,255,.2); border-radius:.7rem; padding:.62rem .75rem; background:#160b24; color:#f5dfff; }
 .script-card-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),1fr)); gap:1rem; }
 .script-card { position:relative; overflow:hidden; border:1px solid rgba(198,120,255,.18); border-radius:1.35rem; background:linear-gradient(145deg,rgba(25,10,40,.95),rgba(12,8,24,.94)); box-shadow:0 0 0 1px rgba(255,88,211,.02),0 16px 45px rgba(0,0,0,.25); transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease; }
-.script-card:hover { transform:translateY(-5px); border-color:rgba(255,109,220,.48); box-shadow:0 0 24px rgba(239,78,220,.2),0 18px 55px rgba(0,0,0,.4); }
-.script-card-cover { position:relative; display:grid; min-height:170px; place-items:center; overflow:hidden; background:radial-gradient(circle at 50% 20%,rgba(255,86,210,.22),transparent 38%),linear-gradient(135deg,#1a0a2c,#0c1225); }
-.script-card-cover img { width:100%; height:100%; min-height:170px; object-fit:cover; opacity:.88; }
+.script-card:hover { transform:translateY(-4px); border-color:rgba(255,109,220,.48); box-shadow:0 0 24px rgba(239,78,220,.2),0 18px 55px rgba(0,0,0,.4); }
+.script-card-cover { position:relative; display:grid; min-height:190px; place-items:center; overflow:hidden; background:radial-gradient(circle at 50% 20%,rgba(255,86,210,.22),transparent 38%),linear-gradient(135deg,#1a0a2c,#0c1225); }
+.script-card-cover-action { position:relative; display:grid; width:100%; min-height:190px; place-items:center; overflow:hidden; border:0; padding:0; background:transparent; color:inherit; }
+.script-card-cover-action img { display:block; width:100%; height:190px; object-fit:cover; opacity:.9; transition:transform .25s ease,opacity .25s ease; }
+.script-card-cover-action:hover img { transform:scale(1.035); opacity:1; }
+.script-cover-hint { position:absolute; bottom:.7rem; left:.7rem; display:inline-flex; align-items:center; gap:.35rem; border:1px solid rgba(255,150,232,.28); border-radius:999px; padding:.35rem .55rem; background:rgba(8,4,16,.72); color:#ffe4f7; font-size:.68rem; backdrop-filter:blur(8px); }
 .script-card-orbit { display:grid; width:94px; height:94px; place-items:center; border:1px solid rgba(255,117,224,.6); border-radius:50%; color:#ff9ce8; box-shadow:0 0 18px #f552c9,0 0 60px rgba(175,77,255,.5),inset 0 0 24px rgba(255,78,209,.25); animation:atelier-orbit 7s linear infinite; }
 @keyframes atelier-orbit { to { transform:rotate(360deg); } }
-.script-status { position:absolute; right:.75rem; top:.75rem; border:1px solid currentColor; border-radius:999px; padding:.28rem .55rem; background:rgba(8,4,16,.74); font:600 9px/1 'IBM Plex Mono',monospace; letter-spacing:.12em; }
+.script-status { position:absolute; right:.75rem; top:.75rem; border:1px solid currentColor; border-radius:999px; padding:.28rem .55rem; background:rgba(8,4,16,.74); font:600 9px/1 'IBM Plex Mono',monospace; letter-spacing:.12em; pointer-events:none; }
 .script-status-draft { color:#ffc867; }.script-status-active { color:#72ffc4; }.script-status-archived { color:#b99ecb; }
+.script-card-open { display:block; width:100%; border:0; padding:1rem 1rem .6rem; background:transparent; text-align:left; }
+.script-card-open:focus-visible,.script-card-cover-action:focus-visible,.script-card-copy:focus-visible,.script-editor-image:focus-visible { outline:2px solid #ff8bdd; outline-offset:-3px; }
+.script-card-copy { display:inline-flex; align-items:center; gap:.35rem; border:0; border-radius:999px; padding:.3rem .55rem; background:rgba(255,91,211,.07); color:#f7c4ea; }
+.script-card-copy:hover { background:rgba(255,91,211,.17); color:#fff; }
 .script-empty { display:flex; min-height:280px; flex-direction:column; align-items:center; justify-content:center; gap:1rem; border:1px dashed rgba(206,119,255,.26); border-radius:1.5rem; color:rgba(249,224,255,.58); }
-.script-drawer-backdrop { position:fixed; z-index:70; inset:0; border:0; background:rgba(3,1,8,.62); backdrop-filter:blur(4px); }
-.script-drawer { position:fixed; z-index:71; top:0; right:0; display:flex; width:min(650px,100vw); height:100dvh; flex-direction:column; border-left:1px solid rgba(255,105,220,.3); background:linear-gradient(160deg,rgba(26,8,43,.98),rgba(8,7,20,.99) 65%); box-shadow:-18px 0 60px rgba(0,0,0,.5),-4px 0 28px rgba(218,75,235,.12); animation:atelier-drawer-in .24s ease-out; }
-@keyframes atelier-drawer-in { from { transform:translateX(100%); opacity:.4; } to { transform:translateX(0); opacity:1; } }
 .script-icon-button { display:grid; width:2.1rem; height:2.1rem; place-items:center; border:1px solid rgba(255,126,222,.25); border-radius:.7rem; color:#ffd2f2; background:rgba(255,83,205,.08); }
 .script-icon-button:hover { background:rgba(255,83,205,.2); }
 .script-field { display:flex; flex-direction:column; gap:.45rem; color:#eeb5e5; font-size:.72rem; font-weight:600; letter-spacing:.06em; }
@@ -202,22 +206,15 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .script-field input:focus,.script-field textarea:focus,.script-field select:focus { border-color:rgba(255,105,220,.7); box-shadow:0 0 0 3px rgba(255,88,211,.1); }
 .script-field textarea { min-height:88px; resize:vertical; line-height:1.65; }
 .script-editor { min-height:340px !important; white-space:pre-wrap; }
-.script-reader { white-space:pre-wrap; overflow-wrap:anywhere; border-left:2px solid rgba(255,89,211,.55); padding:1rem 0 1rem 1rem; color:#fff2fb; font-size:.98rem; line-height:1.85; text-shadow:0 0 10px rgba(255,87,211,.08); }
-@media (max-width:640px) { .script-drawer { width:100vw; } .script-atelier-hero h1 { font-size:2rem; } .script-search { min-width:100%; } }
-.script-sku-suggestions { position:absolute; z-index:10; top:calc(100% + .35rem); left:0; right:0; max-height:260px; overflow:auto; border:1px solid rgba(255,105,220,.35); border-radius:.8rem; background:#160b24; box-shadow:0 16px 35px rgba(0,0,0,.45),0 0 20px rgba(226,68,216,.14); }
-.script-sku-option { display:flex; width:100%; align-items:center; gap:.65rem; padding:.65rem .75rem; text-align:left; color:#fff; }
-.script-sku-option:hover { background:rgba(255,82,211,.14); }
-.script-sku-option b { display:block; color:#ffe2f7; font:600 .78rem/1.2 'IBM Plex Mono',monospace; }
-.script-sku-option small { display:block; margin-top:.2rem; color:rgba(255,223,249,.58); font-size:.72rem; }
-.script-sku-emoji { display:grid; width:1.8rem; height:1.8rem; flex:none; place-items:center; border-radius:.55rem; background:rgba(255,93,215,.1); }
-.script-sku-empty { padding:.8rem; color:rgba(255,223,249,.55); font-size:.76rem; }
-.script-field-hint { color:rgba(255,213,245,.42); font-size:.68rem; font-weight:400; letter-spacing:0; line-height:1.5; }
+.script-editor-dialog { box-shadow:0 0 60px rgba(201,60,230,.2),0 24px 90px rgba(0,0,0,.6); }
+.script-editor-image { display:block; width:100%; border:0; padding:0; background:transparent; }
 .script-dropzone { display:flex; min-height:92px; align-items:center; gap:.75rem; border:1px dashed rgba(89,224,255,.35); border-radius:1rem; padding:.9rem; background:rgba(38,200,255,.035); color:#a9f4ff; transition:border-color .2s,background .2s,box-shadow .2s; }
 .script-dropzone > div { min-width:0; flex:1; }
 .script-dropzone b,.script-dropzone small { display:block; }
 .script-dropzone b { font-size:.78rem; }
 .script-dropzone small { margin-top:.25rem; color:rgba(190,246,255,.5); font-size:.68rem; font-weight:400; }
 .script-dropzone.is-dragging { border-color:#ff8bdc; background:rgba(255,83,211,.12); box-shadow:0 0 24px rgba(255,83,211,.2); color:#ffd1f2; }
+@media (max-width:640px) { .script-atelier-hero h1 { font-size:2rem; } .script-search { min-width:100%; } .script-dropzone { flex-wrap:wrap; } }
 
 
 /* DARKSIDE COSMIC SUITE · shared visual language for Orders + System Manual */

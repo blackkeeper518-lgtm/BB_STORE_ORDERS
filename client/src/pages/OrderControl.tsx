@@ -6,9 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import OrderEditWorkbench from "@/components/OrderEditWorkbench";
 import { getActiveCamp,  orderTimeSortKey, readCanonicalOrders, readChatThreads, readParcelByTrackingNumber, readParcelMappingQueue } from "@/lib/canonical";
+import { getOrderWarnings } from "@/lib/orderWarnings";
 import { useQuery } from "@tanstack/react-query";
 import { CalendarDays, Check, CheckCircle2, Clock3, Database, Download, ExternalLink, MessageCircle, Pencil, RefreshCw, Search, Send, ShoppingCart, WalletCards, XCircle } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
 
 type CanonicalOrderRow = Record<string, any> & {
@@ -178,10 +179,16 @@ export default function OrderControl() {
     staleTime: 60_000,
   });
   // ⫘ ORDER SORT · ใช้ CENTRAL ORDER CLOCK เรียงล่าสุดไว้บนสุดเสมอ
-  const rawOrders = [...((query.data?.orders ?? []) as CanonicalOrderRow[])].sort((a, b) => orderTimeSortKey(b.order_time_display) - orderTimeSortKey(a.order_time_display));
-  const pageNames = Array.from(new Set(rawOrders.map((row) => String(row.page_name ?? "").trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, "th"));
-  const orders = pageFilter === "ทั้งหมด" ? rawOrders : rawOrders.filter((row) => String(row.page_name ?? "").trim() === pageFilter);
+  const rawOrders = useMemo(() => [...((query.data?.orders ?? []) as CanonicalOrderRow[])].sort((a, b) => orderTimeSortKey(b.order_time_display) - orderTimeSortKey(a.order_time_display)), [query.data?.orders]);
+  const pageNames = useMemo(() => Array.from(new Set(rawOrders.map((row) => String(row.page_name ?? "").trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, "th")), [rawOrders]);
+  const orders = useMemo(() => pageFilter === "ทั้งหมด" ? rawOrders : rawOrders.filter((row) => String(row.page_name ?? "").trim() === pageFilter), [pageFilter, rawOrders]);
   const selectedOrder = orders.find((row) => row.upsert_key === selectedKey) ?? orders[0] ?? null;
+  const orderWarningsByKey = useMemo(() => new Map(orders.map((row) => [row.upsert_key, getOrderWarnings(row)])), [orders]);
+  const selectedOrderWarnings = selectedOrder ? orderWarningsByKey.get(selectedOrder.upsert_key) ?? getOrderWarnings(selectedOrder) : [];
+  const orderWarningRows = Array.from(orderWarningsByKey.values()).filter((warnings) => warnings.length > 0);
+  const blockedWarningCount = orderWarningRows.reduce((count, warnings) => count + warnings.filter((warning) => warning.severity === "BLOCK").length, 0);
+  const reviewWarningCount = orderWarningRows.reduce((count, warnings) => count + warnings.filter((warning) => warning.severity === "REVIEW").length, 0);
+  const warnedOrderCount = orderWarningRows.length;
   const trackingTerm = trackingInput.raw.toLowerCase();
   const phoneSearch = /^[+\d\s().-]+$/.test(search.trim()) ? normalizePhoneForSearch(search) : "";
   const fallbackTrackingRows = (trackingQueueQuery.data ?? []).filter((row: any) => {
@@ -342,6 +349,11 @@ export default function OrderControl() {
         <Metric icon={XCircle} label="ส่งไม่ได้ / ต้องตรวจ" value={blockedOrders.length} suffix="รายการ" tone="rose" />
       </section>
 
+      <section className={`flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-3 ${blockedWarningCount ? "border-rose-300/35 bg-rose-950/25 shadow-[0_0_22px_rgba(251,113,133,.12)]" : warnedOrderCount ? "border-amber-300/30 bg-amber-950/20" : "border-emerald-300/25 bg-emerald-950/15"}`} aria-live="polite">
+        <div><p className={`text-[10px] font-bold uppercase tracking-[.22em] ${blockedWarningCount ? "text-rose-200" : warnedOrderCount ? "text-amber-200" : "text-emerald-200"}`}>ORDER SAFETY RADAR</p><p className="mt-1 text-sm text-slate-100">{warnedOrderCount ? `พบออเดอร์มีจุดเตือน ${warnedOrderCount} รายการ จาก ${orders.length} รายการ` : `ไม่พบจุดเตือนจากข้อมูลที่อ่านได้ · ${orders.length} รายการ`}</p></div>
+        <div className="flex flex-wrap gap-2 text-[10px] font-semibold">{blockedWarningCount > 0 && <span className="rounded-full border border-rose-300/35 bg-rose-400/10 px-3 py-1 text-rose-100">งดส่ง {blockedWarningCount} จุด</span>}{reviewWarningCount > 0 && <span className="rounded-full border border-amber-300/30 bg-amber-400/10 px-3 py-1 text-amber-100">ตรวจเพิ่ม {reviewWarningCount} จุด</span>}<span className="rounded-full border border-white/10 px-3 py-1 text-slate-300">คำนวณจากข้อมูลที่หน้าอ่านได้ · ไม่เขียนกลับฐาน</span></div>
+      </section>
+
       {query.error ? <Card className="border-pink-400/30 bg-pink-950/20 shadow-[0_0_24px_rgba(255,70,190,0.1)]"><CardContent className="p-5 text-sm text-pink-200">อ่านข้อมูลไม่สำเร็จ: {query.error instanceof Error ? query.error.message : String(query.error)}</CardContent></Card> : null}
 
       {/* ⫘ WORKBENCH · ซ้ายรายการออเดอร์ / ขวารายละเอียดออเดอร์ */}
@@ -353,14 +365,15 @@ export default function OrderControl() {
             {query.isLoading ? <p className="p-8 text-center text-sm text-slate-500">กำลังอ่านข้อมูลจาก Supabase…</p> : null}
             {!query.isLoading && !query.error && orders.length === 0 ? <p className="p-8 text-center text-sm text-slate-500">ไม่พบข้อมูล</p> : null}
             {/* การ์ด 1 ใบ · คอลัมน์ที่ใช้: order_number, customer_name, phone, page_name, order_time_display, final_display_for_packer, delivery_status, sent_at */}
-            {orders.map((row, index) => <button key={row.upsert_key} type="button" onClick={() => setSelectedKey(row.upsert_key)} className={`order-list-card ${index === 0 ? "order-list-card-latest" : ""} w-full rounded-2xl border p-3 text-left transition ${selectedOrder?.upsert_key === row.upsert_key ? "order-list-card-selected border-cyan-300/40" : "border-white/5 bg-black/15 hover:border-cyan-300/30 hover:bg-cyan-400/[0.04]"}`}>
+            {orders.map((row, index) => { const rowWarnings = orderWarningsByKey.get(row.upsert_key) ?? []; return <button key={row.upsert_key} type="button" onClick={() => setSelectedKey(row.upsert_key)} className={`order-list-card ${index === 0 ? "order-list-card-latest" : ""} w-full rounded-2xl border p-3 text-left transition ${selectedOrder?.upsert_key === row.upsert_key ? "order-list-card-selected border-cyan-300/40" : "border-white/5 bg-black/15 hover:border-cyan-300/30 hover:bg-cyan-400/[0.04]"}`}>
               <div className="flex items-center justify-between gap-2"><span className="font-mono text-sm font-semibold text-cyan-200">{directText(row.order_number)}</span>{isSent(row) ? <span className="rounded-full border border-orange-300/30 bg-orange-400/10 px-2 py-0.5 text-[10px] font-semibold text-orange-200">🔥SENT</span> : <span className="rounded-full border border-cyan-300/20 px-2 py-0.5 text-[10px] text-cyan-200">รอส่ง</span>}</div>
               <div className="mt-2 text-xs"><span className="font-semibold text-white">{directText(row.customer_name)}</span><span className="ml-3 font-mono text-emerald-200/85">{directText(row.phone)}</span></div>
               <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-violet-200/70"><span>🍊 {directText(row.page_name)} · {directText(row.order_number)}</span><span>{row.order_time_display}</span></div>
               <div className="mt-1 text-sm font-semibold text-amber-100">{money(row.cod_amount)}</div>
               <div className="mt-1 line-clamp-2 text-[11px] leading-4 text-slate-200/85">{directText(row.final_address_for_bill || row.address_display_packer || row.full_address || row.addressclean)}</div>
               <div className="order-card-copy-preview mt-1 line-clamp-1 whitespace-pre-line text-[11px] leading-4 text-emerald-100/80">📦 {directText(row.final_display_for_packer || row.telegram_product_display || row.final_product || row.sku)}</div>
-            </button>)}
+              {rowWarnings.length > 0 && <div className="mt-2 flex flex-wrap gap-1.5">{rowWarnings.slice(0, 2).map((warning) => <span key={warning.code} title={warning.message} className={`max-w-full truncate rounded-full border px-2 py-0.5 text-[9px] ${warning.severity === "BLOCK" ? "border-rose-300/35 bg-rose-500/10 text-rose-100" : "border-amber-300/25 bg-amber-500/[.08] text-amber-100"}`}>{warning.severity === "BLOCK" ? "งดส่ง · " : "ตรวจ · "}{warning.message}</span>)}{rowWarnings.length > 2 && <span className="rounded-full border border-white/10 px-2 py-0.5 text-[9px] text-slate-300">+{rowWarnings.length - 2}</span>}</div>}
+            </button>; })}
           </CardContent>
         </Card>
 
@@ -373,6 +386,10 @@ export default function OrderControl() {
                 <div><p className="font-mono text-base font-semibold text-emerald-200">{directText(selectedOrder.order_number)}</p><p className="mt-1 text-xs text-slate-400">{directText(selectedOrder.customer_name)} · {directText(selectedOrder.phone)} · 📢 {directText(selectedOrder.page_name)}</p></div>
                 <div className="flex items-center gap-2">{isSent(selectedOrder) && <span className="rounded-full border border-orange-300/30 bg-orange-400/10 px-3 py-1 text-xs font-semibold text-orange-200">🔥SENT</span>}<span className="inline-flex items-center gap-2 rounded-lg border border-cyan-400/30 bg-cyan-400/5 px-2 py-1 text-[11px] text-cyan-100"><Clock3 className="h-3.5 w-3.5" />{selectedOrder.order_time_display}</span></div>
               </div>
+              <section className={`rounded-2xl border p-3 sm:p-4 ${selectedOrderWarnings.some((warning) => warning.severity === "BLOCK") ? "border-rose-300/45 bg-rose-950/20" : selectedOrderWarnings.length ? "border-amber-300/35 bg-amber-950/15" : "border-emerald-300/25 bg-emerald-950/10"}`} aria-live="polite">
+                <div className="flex flex-wrap items-center justify-between gap-2"><h3 className={`text-xs font-bold uppercase tracking-[.18em] ${selectedOrderWarnings.some((warning) => warning.severity === "BLOCK") ? "text-rose-100" : selectedOrderWarnings.length ? "text-amber-100" : "text-emerald-100"}`}>{selectedOrderWarnings.length ? "คำเตือนก่อนจัด/ส่ง" : "ตรวจเบื้องต้น · ไม่พบคำเตือน"}</h3><span className="text-[9px] text-slate-400">{selectedOrderWarnings.filter((warning) => warning.severity === "BLOCK").length} งดส่ง · {selectedOrderWarnings.filter((warning) => warning.severity === "REVIEW").length} ตรวจเพิ่ม</span></div>
+                {selectedOrderWarnings.length > 0 ? <ul className="mt-2 space-y-1.5">{selectedOrderWarnings.map((warning) => <li key={warning.code} className={`flex items-start gap-2 text-xs leading-5 ${warning.severity === "BLOCK" ? "text-rose-100" : "text-amber-100"}`}><span className="shrink-0 rounded border px-1.5 py-0.5 text-[9px] font-bold">{warning.severity === "BLOCK" ? "งดส่ง" : "ตรวจ"}</span><span>{warning.message}</span></li>)}</ul> : <p className="mt-2 text-xs text-emerald-100/75">ระบบตรวจจากฟิลด์ที่หน้านี้อ่านได้เท่านั้น ไม่แก้หรือเขียนสถานะกลับ</p>}
+              </section>
               {/* SUMMARY + SOURCE · สรุปตรวจเร็วแยกจากก้อนออเดอร์แท้ */}
               <div className="grid min-w-0 gap-3 2xl:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)]">
                 <section className="order-summary-well min-w-0 rounded-2xl border border-cyan-300/20 bg-cyan-400/[0.025] p-3 sm:p-4">
