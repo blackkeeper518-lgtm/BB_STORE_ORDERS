@@ -1,0 +1,40 @@
+From 9b1f5b42f026d6d64610690eef33605d34e5cefe Mon Sep 17 00:00:00 2001
+From: fairyfin06-dev <3.53485286e+08+fairyfin06-dev@users.noreply.github.com>
+Date: Sat, 7 Nov 2026 11:38:12 +0000
+Subject: [PATCH] =?UTF-8?q?=E2=AD=90=E2=AD=90=E2=AD=90?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ client/src/pages/OrderControl.tsx | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/client/src/pages/OrderControl.tsx b/client/src/pages/OrderControl.tsx
+index ae74668..0087b6f 100644
+--- a/client/src/pages/OrderControl.tsx
++++ b/client/src/pages/OrderControl.tsx
+@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
+ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+ import { Input } from "@/components/ui/input";
+ import OrderEditWorkbench from "@/components/OrderEditWorkbench";
+-import { getActiveCamp, normalizePhoneForSearch, orderTimeSortKey, readCanonicalOrders, readChatThreads, readParcelByTrackingNumber, readParcelMappingQueue } from "@/lib/canonical";
++import { getActiveCamp, orderTimeSortKey, readCanonicalOrders, readChatThreads, readParcelByTrackingNumber, readParcelMappingQueue } from "@/lib/canonical";
+ import { useQuery } from "@tanstack/react-query";
+ import { CalendarDays, Check, CheckCircle2, Clock3, Database, Download, ExternalLink, MessageCircle, Pencil, RefreshCw, Search, Send, ShoppingCart, WalletCards, XCircle } from "lucide-react";
+ import { useEffect, useState } from "react";
+@@ -16,6 +16,11 @@ type CanonicalOrderRow = Record<string, any> & {
+   order_time_display: string;
+ };
+ 
++function normalizePhoneForSearch(value: unknown): string {
++  const digits = String(value ?? "").replace(/\D/g, "");
++  return digits.startsWith("66") && digits.length >= 9 ? `0${digits.slice(2)}` : digits;
++}
++
+ // ⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘
+ // FORMATTERS · ฟังก์ชันแปลงค่าก่อนนำไปแสดงบนการ์ด
+ // money       = ยอด COD
+-- 
+2.43.0
+
