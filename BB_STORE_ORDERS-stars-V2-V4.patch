@@ -1,0 +1,703 @@
+From 40defaafbe9a2e4e4a71bb295c6d86e565588233 Mon Sep 17 00:00:00 2001
+From: fairyfin06-dev <3.53485286e+08+fairyfin06-dev@users.noreply.github.com>
+Date: Sat, 7 Nov 2026 12:31:14 +0000
+Subject: [PATCH 1/3] =?UTF-8?q?=E2=AD=90=E2=AD=90=E2=AD=90V2?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ client/src/pages/OrderControl.tsx | 65 +++++++++++++++++++++++--------
+ 1 file changed, 49 insertions(+), 16 deletions(-)
+
+diff --git a/client/src/pages/OrderControl.tsx b/client/src/pages/OrderControl.tsx
+index 8e978b4..ff0495d 100644
+--- a/client/src/pages/OrderControl.tsx
++++ b/client/src/pages/OrderControl.tsx
+@@ -4,6 +4,7 @@
+ import { Button } from "@/components/ui/button";
+ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+ import { Input } from "@/components/ui/input";
++import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+ import OrderEditWorkbench from "@/components/OrderEditWorkbench";
+ import { getActiveCamp,  orderTimeSortKey, readCanonicalOrders, readChatThreads, readParcelByTrackingNumber, readParcelMappingQueue } from "@/lib/canonical";
+ import { useQuery } from "@tanstack/react-query";
+@@ -149,6 +150,7 @@ export default function OrderControl() {
+   const [clock, setClock] = useState(() => new Date());
+   const [copied, setCopied] = useState(false);
+   const [searchPanelOpen, setSearchPanelOpen] = useState(false);
++  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
+   const [trackingCopied, setTrackingCopied] = useState("");
+   const [editOpen, setEditOpen] = useState(false);
+   const trackingInput = splitTrackingInput(search);
+@@ -261,9 +263,52 @@ export default function OrderControl() {
+               <span>ค้นหาออเดอร์และพัสดุ</span>
+               <span className="order-search-phone-badge">เบอร์โทรเป็นหลัก</span>
+             </label>
+-            <Button type="button" variant="outline" aria-expanded={searchPanelOpen} onClick={() => setSearchPanelOpen((open) => !open)} className="order-search-toggle h-9 justify-between gap-3 whitespace-nowrap px-3">
+-              <span>{searchPanelOpen ? "ซ่อนตัวกรอง / ผลพัสดุ" : "ตัวกรอง / ผลพัสดุ"}</span><span className="font-mono text-lg leading-none">{searchPanelOpen ? "−" : "+"}</span>
+-            </Button>
++            <div className="flex flex-wrap items-center gap-2">
++              <Sheet open={filterDrawerOpen} onOpenChange={setFilterDrawerOpen}>
++                <SheetTrigger asChild>
++                  <Button type="button" variant="outline" className="order-search-toggle h-9 gap-2 whitespace-nowrap px-3">
++                    <CalendarDays className="h-3.5 w-3.5" /> วันที่ / เพจ
++                  </Button>
++                </SheetTrigger>
++                <SheetContent side="right" className="w-[min(92vw,28rem)] max-w-none gap-0 border-violet-300/20 bg-[#070610] p-0 text-white shadow-2xl">
++                  <SheetHeader className="border-b border-violet-300/15 p-5 pr-12">
++                    <SheetTitle className="text-base text-violet-100">ตัวกรองออเดอร์</SheetTitle>
++                    <SheetDescription className="text-xs leading-5 text-slate-400">เลือกช่วงวันที่หรือเพจเมื่อจำเป็น · ตัวกรองจะเปลี่ยนรายการออเดอร์ทันที</SheetDescription>
++                  </SheetHeader>
++                  <div className="flex-1 space-y-3 overflow-y-auto p-4">
++                    <label className="flex w-full flex-col gap-2 rounded-xl border border-violet-300/20 bg-black/30 p-3 text-xs font-semibold text-violet-100">
++                      <span>ตั้งแต่</span>
++                      <input type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} className="h-10 rounded-lg border border-cyan-300/15 bg-[#090b15] px-3 text-sm text-cyan-50 [color-scheme:dark] focus:border-cyan-300/50 focus:outline-none" />
++                    </label>
++                    <label className="flex w-full flex-col gap-2 rounded-xl border border-violet-300/20 bg-black/30 p-3 text-xs font-semibold text-violet-100">
++                      <span>ถึง</span>
++                      <input type="date" value={untilDate} onChange={(event) => setUntilDate(event.target.value)} className="h-10 rounded-lg border border-cyan-300/15 bg-[#090b15] px-3 text-sm text-cyan-50 [color-scheme:dark] focus:border-cyan-300/50 focus:outline-none" />
++                    </label>
++                    <label className="flex w-full flex-col gap-2 rounded-xl border border-violet-300/20 bg-black/30 p-3 text-xs font-semibold text-violet-100">
++                      <span>เพจ</span>
++                      <select value={pageFilter} onChange={(event) => setPageFilter(event.target.value)} className="h-10 rounded-lg border border-cyan-300/15 bg-[#090b15] px-3 text-sm text-cyan-50 focus:border-cyan-300/50 focus:outline-none">
++                        <option value="ทั้งหมด">ทุกเพจ</option>
++                        {pageNames.map((page) => <option key={page} value={page}>{page}</option>)}
++                      </select>
++                    </label>
++                  </div>
++                  <div className="grid gap-2 border-t border-violet-300/15 p-4">
++                    <Button type="button" variant="outline" onClick={() => { void query.refetch(); if (searchPanelOpen && trackingSearchReady) { void trackingQueueQuery.refetch(); void chatThreadsQuery.refetch(); } if (searchPanelOpen && trackingInput.pure) void directParcelQuery.refetch(); }} disabled={isRefreshing} className="order-refresh-action min-h-10 rounded-xl">
++                      <RefreshCw className={`mr-2 h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />{isRefreshing ? "กำลังอัปเดต" : "อัปเดตข้อมูล"}
++                    </Button>
++                    <Button type="button" variant="outline" onClick={() => exportOrdersCsv(orders)} className="min-h-10 rounded-xl border-cyan-300/30 bg-cyan-400/5 text-cyan-100 hover:bg-cyan-400/15">
++                      <Download className="mr-2 h-4 w-4" />เอ็กซ์พอร์ต {orders.length} รายการ
++                    </Button>
++                    <Button type="button" variant="outline" onClick={() => { setSearch(""); setFromDate(""); setUntilDate(""); setPageFilter("ทั้งหมด"); setFilterDrawerOpen(false); }} className="min-h-10 rounded-xl border-violet-300/25 bg-violet-400/5 text-violet-100 hover:bg-violet-400/15">
++                      ล้างตัวเลือก
++                    </Button>
++                  </div>
++                </SheetContent>
++              </Sheet>
++              <Button type="button" variant="outline" aria-expanded={searchPanelOpen} onClick={() => setSearchPanelOpen((open) => !open)} className="order-search-toggle h-9 justify-between gap-3 whitespace-nowrap px-3">
++                <span>{searchPanelOpen ? "ซ่อนผลพัสดุ / Chat" : "ผลพัสดุ / Chat"}</span><span className="font-mono text-lg leading-none">{searchPanelOpen ? "−" : "+"}</span>
++              </Button>
++            </div>
+           </div>
+           <div className="order-search-input-shell">
+             <Search aria-hidden="true" className="order-search-input-icon h-4 w-4" />
+@@ -273,18 +318,6 @@ export default function OrderControl() {
+         </div>
+         {searchPanelOpen ? <div id="order-search-filters" className="grid grid-rows-[1fr] border-t border-cyan-300/15 transition-all duration-300">
+           <div className="min-h-0 p-3 sm:p-4">
+-            <div className="order-filter-bar mb-3 rounded-2xl border border-cyan-300/15 bg-black/25 p-3">
+-              <div className="order-filter-fields flex flex-wrap items-end gap-2">
+-                <label className="filter-field filter-field-date"><span>ตั้งแต่</span><input type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} /></label>
+-                <label className="filter-field filter-field-date"><span>ถึง</span><input type="date" value={untilDate} onChange={(event) => setUntilDate(event.target.value)} /></label>
+-                <label className="filter-field filter-field-page"><span>เพจ</span><select value={pageFilter} onChange={(event) => setPageFilter(event.target.value)}><option value="ทั้งหมด">ทุกเพจ</option>{pageNames.map((page) => <option key={page} value={page}>{page}</option>)}</select></label>
+-              </div>
+-              <div className="order-filter-actions mt-3 flex flex-wrap justify-end gap-2 border-t border-white/[0.06] pt-3">
+-                <Button type="button" variant="outline" onClick={() => { void query.refetch(); if (searchPanelOpen && trackingSearchReady) { void trackingQueueQuery.refetch(); void chatThreadsQuery.refetch(); } if (searchPanelOpen && trackingInput.pure) void directParcelQuery.refetch(); }} disabled={isRefreshing} className="order-refresh-action"><RefreshCw className={`mr-2 h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />{isRefreshing ? "กำลังอัปเดต" : "อัปเดตข้อมูล"}</Button>
+-                <Button type="button" variant="outline" onClick={() => exportOrdersCsv(orders)} className="border-cyan-300/30 bg-cyan-400/5 text-cyan-100 hover:bg-cyan-400/15"><Download className="mr-2 h-4 w-4" />เอ็กซ์พอร์ต {orders.length} รายการ</Button>
+-                <Button type="button" variant="outline" onClick={() => { setSearch(""); setFromDate(""); setUntilDate(""); setPageFilter("ทั้งหมด"); }} className="border-violet-300/25 bg-violet-400/5 text-violet-100 hover:bg-violet-400/15">ล้างตัวเลือก</Button>
+-              </div>
+-            </div>
+             <div className="order-search-result-summary mb-3 flex flex-col justify-between gap-2 rounded-xl border border-cyan-300/10 bg-black/20 px-3 py-2 sm:flex-row sm:items-center">
+               <span className="text-[10px] text-slate-400">{query.isFetching ? "กำลังค้นออเดอร์…" : `ออเดอร์ที่ตรง ${orders.length} รายการ`} · {trackingInput.raw ? `พัสดุ ${trackingRows.length} · แชท ${matchingChatThreads.length}` : "พิมพ์เบอร์เพื่อค้นทั้ง 3 แหล่ง"}</span>
+               <span className="text-[10px] text-cyan-100/65">{isRefreshing ? "กำลังค้นข้อมูลจาก HERMES · Chat · Parcel…" : !trackingInput.raw ? "ค้นได้ด้วยเบอร์ / ชื่อ / เลขออเดอร์ / SKU / chat_link_key / เลขพัสดุ" : !trackingSearchReady ? "พิมพ์อย่างน้อย 3 ตัวอักษรเพื่อค้นทุกแหล่ง" : trackingInput.pure ? `เลขพัสดุตรง ${trackingRows.length} · แชทที่ตรง ${matchingChatThreads.length}` : `พัสดุที่ตรง ${trackingRows.length} · แชทที่ตรง ${matchingChatThreads.length}`}</span>
+@@ -426,4 +459,4 @@ function Info({ label, value }: { label: string; value: unknown }) {
+ 
+ function Metric({ icon: Icon, label, value, suffix, tone }: { icon: typeof ShoppingCart; label: string; value: string | number; suffix?: string; tone: "pink" | "violet" | "cyan" | "green" | "fuchsia" | "amber" | "sky" | "rose" }) {
+   return <div className={`signal-metric signal-${tone}`}><div className="flex h-full items-start justify-between gap-3"><div className="min-w-0"><p className="min-h-7 text-[10px] font-semibold leading-4 tracking-[0.08em] text-slate-300/70">{label}</p><p className="mt-2 break-words text-xl font-semibold leading-tight tracking-tight text-white">{value} {suffix ? <span className="text-[10px] font-normal text-slate-300/60">{suffix}</span> : null}</p></div><span className="metric-icon shrink-0"><Icon /></span></div></div>;
+-}
+\ No newline at end of file
++}
+-- 
+2.43.0
+
+
+From e9d8e2820e868893f9c5677625e284ef272a1108 Mon Sep 17 00:00:00 2001
+From: fairyfin06-dev <3.53485286e+08+fairyfin06-dev@users.noreply.github.com>
+Date: Sat, 7 Nov 2026 12:33:26 +0000
+Subject: [PATCH 2/3] =?UTF-8?q?=E2=AD=90=E2=AD=90=E2=AD=90V3?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ client/src/pages/SystemManual.tsx | 370 ++++--------------------------
+ 1 file changed, 41 insertions(+), 329 deletions(-)
+
+diff --git a/client/src/pages/SystemManual.tsx b/client/src/pages/SystemManual.tsx
+index 500c5b9..d96f669 100644
+--- a/client/src/pages/SystemManual.tsx
++++ b/client/src/pages/SystemManual.tsx
+@@ -1,50 +1,14 @@
+ import {
+-  Archive,
+-  ArrowDown,
+   ArrowRight,
+   BookOpen,
+-  CheckCircle2,
+-  ChevronRight,
+-  CircleDot,
+   Database,
+-  FileUp,
+   KeyRound,
+   MessageCircle,
+-  PackageCheck,
+-  RadioTower,
+-  Send,
+   ShieldCheck,
+-  Skull,
+   Sparkles,
+-  Table2,
+   Truck,
+-  Waypoints,
+ } from "lucide-react";
+ 
+-const orderSources = [
+-  {
+-    icon: "🗝️",
+-    name: "HERMES_ARCHIVE",
+-    detail: "ตารางหลักสำหรับจัดเก็บออเดอร์ทั่วไปในเส้นทางสีขาวและสีน้ำเงิน",
+-    colors: "⚪ 🟦",
+-    tone: "cyan",
+-  },
+-  {
+-    icon: "🌀",
+-    name: "SINGULARITY_xXx_EXCHANGE",
+-    detail: "ตารางหลักสำหรับจัดเก็บออเดอร์เปลี่ยนหรือเคลมสินค้าในเส้นทางสีเหลืองและสีส้ม",
+-    colors: "🟨 🟠",
+-    tone: "amber",
+-  },
+-  {
+-    icon: "💀",
+-    name: "THANATOS_xXx_DEATH_NOTE",
+-    detail: "ตารางหลักสำหรับจัดเก็บรายการที่ระบบบอทส่งกลับมาตรวจสอบซ้ำในเส้นทางสีดำ",
+-    colors: "⚫",
+-    tone: "slate",
+-  },
+-];
+-
+ const livePipelines = [
+   { icon: "💬", name: "👑BB_CHAT", detail: "สายแชท เก็บและส่งต่อเหตุการณ์สนทนาของลูกค้าและเพจ", tone: "pink" as const },
+   { icon: "🧾", name: "👑BB_ORDER_SYSTEMS", detail: "ออเดอร์หลัก รับและประกอบข้อมูลออเดอร์ สินค้า COD และคีย์กลาง", tone: "cyan" as const },
+@@ -53,38 +17,6 @@ const livePipelines = [
+   { icon: "🚚", name: "👑BB_TRACK", detail: "สายส่งเลข ดึงเลขจาก parcels จับคู่กับออเดอร์ และสร้างข้อความแจ้งเลข", tone: "amber" as const },
+ ];
+ 
+-const parcelStages: Array<{
+-  icon: string;
+-  title: string;
+-  detail: string;
+-  type: "table" | "view";
+-}> = [
+-  {
+-    icon: "📦",
+-    title: "parcels",
+-    detail: "ตารางศูนย์กลางสำหรับรับและจัดเก็บข้อมูลเลขพัสดุจากไฟล์ของผู้ให้บริการขนส่ง",
+-    type: "table",
+-  },
+-  {
+-    icon: "🔮",
+-    title: "SHADOW_xXx_RECALL",
+-    detail: "วิวที่คัดเลือกเฉพาะรายการซึ่งยังไม่ได้บันทึกสถานะการส่งสำเร็จ",
+-    type: "view",
+-  },
+-  {
+-    icon: "🦅",
+-    title: "ROGUE_xXx_SHIPPINGz",
+-    detail: "วิวที่รวมเลขพัสดุกับข้อมูลออเดอร์ที่จำเป็นต่อการจัดทำข้อความส่ง",
+-    type: "view",
+-  },
+-  {
+-    icon: "⛩️",
+-    title: "VOID_xXx_GATEWAYz",
+-    detail: "วิวปลายทางที่รวมข้อมูลและเลือกโทเคนของเพจให้ตรงกับผู้รับข้อความ",
+-    type: "view",
+-  },
+-];
+-
+ function ToneBadge({
+   children,
+   tone = "cyan",
+@@ -164,48 +96,33 @@ export default function SystemManual() {
+             </div>
+             <div className="flex flex-wrap gap-2 lg:max-w-xs lg:justify-end">
+               <ToneBadge tone="cyan">
+-                <KeyRound className="mr-1.5 h-3.5 w-3.5" /> 🌍
+-                GALACTIC_GATEWAY_TOKEN
++                <KeyRound className="mr-1.5 h-3.5 w-3.5" /> 3 PROJECTS · chat_link_key
+               </ToneBadge>
+               <ToneBadge tone="pink">
+-                <ShieldCheck className="mr-1.5 h-3.5 w-3.5" /> 2 SYSTEM LANES
++                <ShieldCheck className="mr-1.5 h-3.5 w-3.5" /> API-ONLY · NO WEBHOOKS
+               </ToneBadge>
+             </div>
+           </div>
+         </header>
+ 
+         <section className="mt-8 grid gap-4 md:grid-cols-3">
+-          <div className="rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.045] p-5">
+-            <Database className="h-5 w-5 text-cyan-300" />
+-            <p className="mt-4 text-xs uppercase tracking-[0.18em] text-cyan-200/55">
+-              Order System
+-            </p>
+-            <p className="mt-1 text-lg font-semibold text-white">ออเดอร์หลัก</p>
+-            <p className="mt-1 text-xs leading-5 text-slate-300/60">
+-              รับข้อมูลออเดอร์ แยกเส้นทางตามสถานะสี จัดเตรียมข้อมูลสำหรับส่ง และควบคุมคิวการดำเนินงาน
+-            </p>
+-          </div>
+           <div className="rounded-2xl border border-fuchsia-300/15 bg-fuchsia-300/[0.045] p-5">
+             <MessageCircle className="h-5 w-5 text-fuchsia-300" />
+-            <p className="mt-4 text-xs uppercase tracking-[0.18em] text-fuchsia-200/55">
+-              Chat System
+-            </p>
+-            <p className="mt-1 text-lg font-semibold text-white">
+-              แชทลูกค้า/เพจ
+-            </p>
+-            <p className="mt-1 text-xs leading-5 text-slate-300/60">
+-              จัดเก็บข้อความลูกค้าและเพจแยกจากข้อมูลออเดอร์ เพื่อป้องกันการบันทึกข้อมูลซ้ำ
+-            </p>
++            <p className="mt-4 text-xs uppercase tracking-[0.18em] text-fuchsia-200/55">PROJECT 01</p>
++            <p className="mt-1 font-mono text-lg font-semibold text-white">👑BB_CHAT</p>
++            <p className="mt-1 text-xs leading-5 text-slate-300/60">สายแชท เก็บและส่งต่อเหตุการณ์สนทนาของลูกค้าและเพจ</p>
++          </div>
++          <div className="rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.045] p-5">
++            <Database className="h-5 w-5 text-cyan-300" />
++            <p className="mt-4 text-xs uppercase tracking-[0.18em] text-cyan-200/55">PROJECT 02</p>
++            <p className="mt-1 font-mono text-lg font-semibold text-white">👑BB_ORDER_SYSTEMS</p>
++            <p className="mt-1 text-xs leading-5 text-slate-300/60">แหล่งข้อมูลหลักของลูกค้า สินค้า และ COD</p>
+           </div>
+           <div className="rounded-2xl border border-amber-300/15 bg-amber-300/[0.045] p-5">
+             <Truck className="h-5 w-5 text-amber-300" />
+-            <p className="mt-4 text-xs uppercase tracking-[0.18em] text-amber-200/55">
+-              Parcel System
+-            </p>
+-            <p className="mt-1 text-lg font-semibold text-white">เลขพัสดุ</p>
+-            <p className="mt-1 text-xs leading-5 text-slate-300/60">
+-              รับข้อมูลเลขพัสดุ ประกอบข้อมูลที่จำเป็น และส่งกลับไปยังแชทของลูกค้า
+-            </p>
++            <p className="mt-4 text-xs uppercase tracking-[0.18em] text-amber-200/55">PROJECT 03</p>
++            <p className="mt-1 font-mono text-lg font-semibold text-white">👑BB_EXPRESS_ORDERS</p>
++            <p className="mt-1 text-xs leading-5 text-slate-300/60">ส่งออเดอร์เข้าแพ็ก พร้อมข้อมูลสินค้า จำนวน และ COD</p>
+           </div>
+         </section>
+ 
+@@ -213,11 +130,11 @@ export default function SystemManual() {
+           <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+             <div>
+               <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-emerald-300/70">
+-                LIVE ARCHITECTURE · FIVE LANES
++                LIVE ARCHITECTURE · 3 PROJECTS / FIVE WORKFLOW LANES
+               </p>
+-              <h2 className="mt-2 text-2xl font-semibold text-white">โครงสร้าง 5 สายของระบบปัจจุบัน</h2>
++              <h2 className="mt-2 text-2xl font-semibold text-white">3 โปรเจกต์ · 5 เวิร์กโฟลว์</h2>
+               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300/70">
+-                แต่ละสายแยกหน้าที่กันชัดเจน และใช้ <code className="rounded bg-black/30 px-1.5 py-0.5 text-emerald-200">chat_link_key</code> เป็นคีย์กลางเดียวกันเมื่อจำเป็นต้องเชื่อมข้อมูล
++                ข้อมูลแบ่งตามหน้าที่ใน 3 โปรเจกต์; <code className="rounded bg-black/30 px-1.5 py-0.5 text-emerald-200">chat_link_key</code> คือคีย์กลางที่ระบุออเดอร์เดียวกันข้ามทั้ง 3 โปรเจกต์ ส่วน 5 สายด้านล่างคือ workflow ที่ดูแลแต่ละช่วงของงาน
+               </p>
+             </div>
+             <ToneBadge tone="cyan"><KeyRound className="mr-1.5 h-3.5 w-3.5" /> SHARED KEY · chat_link_key</ToneBadge>
+@@ -235,7 +152,7 @@ export default function SystemManual() {
+                   </div>
+                 </div>
+                 <p className="mt-3 text-xs leading-5 text-slate-300/65">{lane.detail}</p>
+-                <div className="mt-3"><ToneBadge tone={lane.tone}>chat_link_key เดียวกัน</ToneBadge></div>
++                <div className="mt-3"><ToneBadge tone={lane.tone}>คีย์ออเดอร์กลาง · chat_link_key</ToneBadge></div>
+               </div>
+             ))}
+           </div>
+@@ -317,245 +234,40 @@ export default function SystemManual() {
+           </div>
+         </section>
+ 
+-        <section className="mt-8 rounded-[2rem] border border-white/10 bg-[#0b1020]/80 p-5 shadow-xl shadow-black/20 sm:p-7">
++        <section className="mt-8 rounded-[2rem] border border-violet-300/15 bg-[#0c0918]/85 p-5 shadow-xl shadow-violet-950/10 sm:p-7">
+           <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+             <div>
+-              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-cyan-300/70">
+-                LANE 01 · ORDER CORE
+-              </p>
+-              <h2 className="mt-2 text-2xl font-semibold text-white">
+-                สายงานออเดอร์หลัก
+-              </h2>
++              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-violet-300/70">DATA OWNERSHIP · API FLOW</p>
++              <h2 className="mt-2 text-2xl font-semibold text-white">ขอบเขตข้อมูลและการส่งต่องาน</h2>
++              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300/70">แต่ละโปรเจกต์ดูแลข้อมูลตามหน้าที่ ส่วน workflow ส่งต่อสัญญาณหรือข้อมูลที่จำเป็น โดยไม่ทำให้แหล่งข้อมูลหลักปะปนกัน</p>
+             </div>
+-            <ToneBadge tone="cyan">🌍 ใช้โทเคนตามขอบเขตโครงการ</ToneBadge>
++            <ToneBadge tone="pink"><ShieldCheck className="mr-1.5 h-3.5 w-3.5" /> API-ONLY · NO WEBHOOKS</ToneBadge>
+           </div>
+-          <div className="mt-6 grid gap-3 lg:grid-cols-3">
+-            {orderSources.map(source => (
+-              <div
+-                key={source.name}
+-                className="rounded-2xl border border-white/10 bg-black/20 p-4"
+-              >
+-                <div className="flex items-start gap-3">
+-                  <span className="text-2xl">{source.icon}</span>
+-                  <div className="min-w-0">
+-                    <p className="font-mono text-sm font-semibold text-white">
+-                      {source.name}
+-                    </p>
+-                    <p className="mt-1 text-xs leading-5 text-slate-300/65">
+-                      {source.detail}
+-                    </p>
+-                    <ToneBadge tone={source.tone as "cyan" | "amber" | "slate"}>
+-                      {source.colors}
+-                    </ToneBadge>
+-                  </div>
+-                </div>
+-              </div>
+-            ))}
+-          </div>
+-          <div className="mt-5 rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.035] p-4 sm:p-5">
+-            <div className="mb-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-200/60">
+-              <RadioTower className="h-4 w-4" /> MAIN ORDER PIPELINE ·
+-              เส้นทางประมวลผลออเดอร์หลัก
+-            </div>
+-            <div className="grid gap-3 xl:grid-cols-[1.1fr_auto_1.25fr_auto_1.25fr_auto_1.1fr] xl:items-center">
+-              <StageCard
+-                icon="🌍"
+-                title="GALACTIC_GATEWAY_TOKEN"
+-                detail="ตารางสำหรับจัดเก็บและจัดการโทเคนที่กระบวนการ n8n ใช้เชื่อมต่อระบบ"
+-                type="table"
+-              />
+-              <ArrowRight className="mx-auto hidden h-5 w-5 text-cyan-300/55 xl:block" />
+-              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+-                <p className="font-mono text-sm font-semibold text-white">
+-                  รับออเดอร์แยกตามสี
+-                </p>
+-                <p className="mt-2 text-xs leading-5 text-slate-300/65">
+-                  ⚪ 🟦 → HERMES_ARCHIVE
+-                  <br />
+-                  🟨 🟠 → SINGULARITY_xXx_EXCHANGE
+-                </p>
+-              </div>
+-              <ArrowRight className="mx-auto hidden h-5 w-5 text-cyan-300/55 xl:block" />
+-              <StageCard
+-                icon="🌌"
+-                title="MULTIVERSE_xXx_NEXUS"
+-                detail="วิวศูนย์กลางที่รวมออเดอร์ทั้งสี่เส้นทาง และเชื่อมข้อมูลสินค้าจาก product_master ตามโครงสร้างที่กำหนด"
+-                type="view"
+-              />
+-              <ArrowRight className="mx-auto hidden h-5 w-5 text-cyan-300/55 xl:block" />
+-              <StageCard
+-                icon="🛰️"
+-                title="PIONEER_xXx_CAPSULE"
+-                detail="วิวคิวสำหรับจัดเรียงออเดอร์ทั้งสี่เส้นทางก่อนส่งต่อไปยังกระบวนการ Telegram"
+-                type="view"
+-              />
+-            </div>
+-            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-300/65">
+-              <ArrowDown className="hidden h-4 w-4 text-cyan-300/60 sm:block" />
+-              <span>ส่งต่อไปยัง</span>
+-              <span className="rounded-lg border border-fuchsia-300/20 bg-fuchsia-300/10 px-2 py-1 font-mono text-fuchsia-100">
+-                ANDROMEDA_xXx_SENT
+-              </span>
+-              <span>→ เมื่อส่งสำเร็จ ระบบจะนำรายการออกจากคิวส่ง →</span>
+-              <span className="rounded-lg border border-violet-300/20 bg-violet-300/10 px-2 py-1 font-mono text-violet-100">
+-                GENESIS_xXx_HISTORY
+-              </span>
+-            </div>
+-          </div>
+-          <div className="my-6 flex items-center gap-3 text-cyan-200/40">
+-            <div className="h-px flex-1 bg-gradient-to-r from-transparent to-cyan-300/20" />
+-            <Waypoints className="h-5 w-5" />
+-            <div className="h-px flex-1 bg-gradient-to-l from-transparent to-cyan-300/20" />
+-          </div>
+-          <div className="grid gap-3 md:grid-cols-3">
+-            <StageCard
+-              icon="🌌"
+-              title="MULTIVERSE_xXx_NEXUS"
+-              detail="วิวศูนย์กลางสำหรับรวมข้อมูลออเดอร์และข้อมูลสินค้าที่ผ่านการประมวลผลจากต้นทาง"
+-              type="view"
+-            />
+-            <StageCard
+-              icon="🛒"
+-              title="product_master"
+-              detail="ตารางข้อมูลสินค้าและสถานะสต๊อกสำหรับการแสดงผลในระบบที่ได้รับอนุญาต"
+-              type="table"
+-            />
+-            <StageCard
+-              icon="🛰️"
+-              title="PIONEER_xXx_CAPSULE"
+-              detail="วิวคิวส่ง Telegram ที่คัดเฉพาะรายการซึ่งยังไม่มีสถานะส่งสำเร็จ"
+-              type="view"
+-            />
+-          </div>
+-          <div className="mt-4 grid gap-3 md:grid-cols-3">
+-            <StageCard
+-              icon="🪐"
+-              title="ANDROMEDA_xXx_SENT"
+-              detail="วิวสำหรับรายการที่ผ่านกระบวนการส่ง Telegram ของทั้งสี่เส้นทาง"
+-              type="view"
+-            />
+-            <StageCard
+-              icon="🌟"
+-              title="GENESIS_xXx_HISTORY"
+-              detail="วิวประวัติถาวรสำหรับออเดอร์ที่ดำเนินการเสร็จสิ้นและไม่อยู่ในคิวส่ง"
+-              type="view"
+-            />
+-            <StageCard
+-              icon="💀"
+-              title="THANATOS_xXx_DEATH_NOTE"
+-              detail="ตารางสำหรับจัดเก็บรายการที่ต้องทบทวนหรือตรวจสอบสถานะออเดอร์ซ้ำ"
+-              type="table"
+-            />
+-          </div>
+-          <div className="mt-5 flex flex-wrap items-center gap-2 rounded-2xl border border-amber-300/15 bg-amber-300/[0.045] p-4 text-xs text-amber-100/80">
+-            <CheckCircle2 className="h-4 w-4 shrink-0 text-amber-300" />
+-            <span>
+-              <strong className="text-amber-200">หลักการเขียนข้อมูลกลับ:</strong>{" "}
+-              ระบบต้องเขียนกลับไปยังตารางต้นทางตามเส้นทางที่กำหนด โดยสีขาวและสีน้ำเงินเขียนไปที่ HERMES_ARCHIVE
+-              ส่วนสีเหลืองและสีส้มเขียนไปที่ SINGULARITY_xXx_EXCHANGE
+-            </span>
+-          </div>
+-        </section>
+ 
+-        <section className="mt-8 rounded-[2rem] border border-amber-300/15 bg-[#100f1a]/85 p-5 shadow-xl shadow-black/20 sm:p-7">
+-          <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+-            <div>
+-              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-amber-300/70">
+-                LANE 02 · PARCEL RETURN
+-              </p>
+-              <h2 className="mt-2 text-2xl font-semibold text-white">
+-                สายงานเลขพัสดุและการแจ้งกลับลูกค้า
+-              </h2>
+-            </div>
+-            <ToneBadge tone="amber">
+-              <FileUp className="mr-1.5 h-3.5 w-3.5" /> ไฟล์ขนส่งเข้าสู่ parcels
+-            </ToneBadge>
+-          </div>
+-          <div className="mt-6 grid gap-3 lg:grid-cols-4">
+-            {parcelStages.map((stage, index) => (
+-              <div key={stage.title} className="relative">
+-                <StageCard {...stage} />
+-                {index < parcelStages.length - 1 ? (
+-                  <ArrowRight className="absolute -right-3 top-9 z-10 hidden h-5 w-5 text-amber-300/60 lg:block" />
+-                ) : null}
+-              </div>
+-            ))}
+-          </div>
+-          <div className="mt-6 grid gap-4 lg:grid-cols-[1fr_auto_1fr] lg:items-center">
+-            <div className="rounded-2xl border border-fuchsia-300/15 bg-fuchsia-400/[0.045] p-5">
+-              <div className="flex items-center gap-3">
+-                <KeyRound className="h-5 w-5 text-fuchsia-300" />
+-                <p className="font-mono text-sm font-semibold text-white">
+-                  page_tokens_vault
+-                </p>
+-              </div>
+-              <p className="mt-2 text-xs leading-5 text-slate-300/65">
+-                จัดเก็บโทเคนของแต่ละเพจ เพื่อให้ระบบเลือกสิทธิ์และเส้นทางการส่งกลับได้ถูกต้อง
+-              </p>
+-            </div>
+-            <ArrowRight className="mx-auto hidden h-6 w-6 text-fuchsia-300/60 lg:block" />
+-            <div className="rounded-2xl border border-cyan-300/15 bg-cyan-400/[0.045] p-5">
+-              <div className="flex items-center gap-3">
+-                <Send className="h-5 w-5 text-cyan-300" />
+-                <p className="font-mono text-sm font-semibold text-white">
+-                  ส่งเลขพัสดุกลับไปยังแชทลูกค้า
+-                </p>
+-              </div>
+-              <p className="mt-2 text-xs leading-5 text-slate-300/65">
+-                VOID รวมเลขพัสดุ ข้อมูลออเดอร์ และโทเคนเพจ จากนั้นส่งต่อให้ n8n ดำเนินการเรียก API
+-              </p>
++          <div className="mt-6 grid gap-3 md:grid-cols-2">
++            <div className="rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.045] p-4">
++              <p className="font-mono text-sm font-semibold text-cyan-100">👑BB_SIGNALS</p>
++              <p className="mt-2 text-xs leading-5 text-slate-300/65">สายสัญญาณออเดอร์และแชทล่าสุดสำหรับส่งต่อสถานะการทำงาน</p>
+             </div>
+-          </div>
+-          <div className="mt-5 flex flex-col items-start gap-3 rounded-2xl border border-emerald-300/15 bg-emerald-400/[0.045] p-4 text-xs text-emerald-100/80 sm:flex-row sm:items-center">
+-            <PackageCheck className="h-5 w-5 shrink-0 text-emerald-300" />
+-            <div>
+-              <strong className="text-emerald-200">
+-                เมื่อส่งสำเร็จ ให้ปรับปรุงสถานะกลับที่ parcels เท่านั้น:
+-              </strong>
+-              <code className="ml-2 rounded bg-black/30 px-2 py-1 text-[11px] text-emerald-100">
+-                delivery_status = '🔥SENT'
+-              </code>
+-              <code className="ml-2 rounded bg-black/30 px-2 py-1 text-[11px] text-emerald-100">
+-                sent_at = NOW()
+-              </code>
++            <div className="rounded-2xl border border-amber-300/15 bg-amber-300/[0.045] p-4">
++              <p className="font-mono text-sm font-semibold text-amber-100">👑BB_TRACK</p>
++              <p className="mt-2 text-xs leading-5 text-slate-300/65">สายส่งเลข ใช้เลขจาก parcels จับคู่กับออเดอร์ และสร้างข้อความแจ้งเลข</p>
+             </div>
+           </div>
+-        </section>
+ 
+-        <section className="mt-8 grid gap-4 lg:grid-cols-2">
+-          <div className="rounded-[2rem] border border-red-300/15 bg-red-400/[0.035] p-6">
+-            <div className="flex items-center gap-3">
+-              <Skull className="h-5 w-5 text-red-300" />
+-              <h2 className="text-lg font-semibold text-white">
+-                📓 DEAD_xXx_NOTE
+-              </h2>
++          <div className="mt-5 grid gap-3 lg:grid-cols-3">
++            <div className="rounded-2xl border border-fuchsia-300/15 bg-fuchsia-300/[0.045] p-4">
++              <p className="text-sm font-semibold text-fuchsia-100">แหล่งข้อมูลแชท</p>
++              <p className="mt-1 text-xs leading-5 text-slate-300/65">BB_CHAT เป็นสายเหตุการณ์สนทนา ไม่ใช่แหล่งเลขพัสดุ</p>
+             </div>
+-            <p className="mt-3 text-sm leading-6 text-slate-300/70">
+-              จัดเก็บประวัติการส่งเลขพัสดุที่เสร็จสิ้น รวมถึงข้อมูลผู้รับ เพจ เลขพัสดุ เวลา
+-              และผลการส่ง โดยไม่ทำหน้าที่เป็นคิวสำหรับส่งซ้ำ
+-            </p>
+-          </div>
+-          <div className="rounded-[2rem] border border-violet-300/15 bg-violet-400/[0.035] p-6">
+-            <div className="flex items-center gap-3">
+-              <ShieldCheck className="h-5 w-5 text-violet-300" />
+-              <h2 className="text-lg font-semibold text-white">
+-                หลักเกณฑ์การกำหนดเจ้าของข้อมูล
+-              </h2>
++            <div className="rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.045] p-4">
++              <p className="text-sm font-semibold text-cyan-100">แหล่งข้อมูลออเดอร์</p>
++              <p className="mt-1 text-xs leading-5 text-slate-300/65">BB_ORDER_SYSTEMS เป็นแหล่งข้อมูลหลักของลูกค้า สินค้า และ COD</p>
++            </div>
++            <div className="rounded-2xl border border-amber-300/15 bg-amber-300/[0.045] p-4">
++              <p className="text-sm font-semibold text-amber-100">คีย์กลางและการเชื่อมต่อ</p>
++              <p className="mt-1 text-xs leading-5 text-slate-300/65"><code className="rounded bg-black/30 px-1.5 py-0.5 text-amber-100">chat_link_key</code> ระบุออเดอร์เดียวกันข้าม 3 โปรเจกต์ · ทุกสายใช้ API ไม่มี webhook</p>
+             </div>
+-            <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-300/70">
+-              <li className="flex gap-2">
+-                <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-violet-300" />
+-                parcels เป็นแหล่งข้อมูลหลักของเลขพัสดุและสถานะการส่ง
+-              </li>
+-              <li className="flex gap-2">
+-                <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-violet-300" />
+-                ORDERCONTROL เป็นแหล่งข้อมูลหลักของข้อมูลที่ใช้จัดทำบิล
+-              </li>
+-              <li className="flex gap-2">
+-                <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-violet-300" />
+-                ทุกวิวต้องอ่านสถานะจากแหล่งข้อมูลต้นทาง และไม่สร้างสำเนาสถานะที่ขัดแย้งกัน
+-              </li>
+-            </ul>
+           </div>
+         </section>
+ 
+-- 
+2.43.0
+
+
+From bca01336a0a41d2e5e4e5d4b99ab6355d28065b7 Mon Sep 17 00:00:00 2001
+From: fairyfin06-dev <3.53485286e+08+fairyfin06-dev@users.noreply.github.com>
+Date: Sat, 7 Nov 2026 12:46:59 +0000
+Subject: [PATCH 3/3] =?UTF-8?q?=E2=AD=90=E2=AD=90=E2=AD=90V4?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ client/src/pages/OrderControl.tsx | 79 +++++++++++++++++++++++++++++++
+ 1 file changed, 79 insertions(+)
+
+diff --git a/client/src/pages/OrderControl.tsx b/client/src/pages/OrderControl.tsx
+index ff0495d..60e2151 100644
+--- a/client/src/pages/OrderControl.tsx
++++ b/client/src/pages/OrderControl.tsx
+@@ -17,6 +17,40 @@ type CanonicalOrderRow = Record<string, any> & {
+   order_time_display: string;
+ };
+ 
++type LookupState = "idle" | "loading" | "found" | "missing" | "error";
++
++function LookupStatusCard({ source, state, summary, detail }: {
++  source: string;
++  state: LookupState;
++  summary: string;
++  detail: string;
++}) {
++  const styles: Record<LookupState, string> = {
++    idle: "border-violet-300/15 bg-violet-400/[0.035] text-violet-100/70",
++    loading: "border-cyan-300/25 bg-cyan-400/[0.05] text-cyan-100",
++    found: "border-emerald-300/25 bg-emerald-400/[0.05] text-emerald-100",
++    missing: "border-amber-300/20 bg-amber-400/[0.045] text-amber-100",
++    error: "border-pink-300/25 bg-pink-400/[0.05] text-pink-100",
++  };
++  const labels: Record<LookupState, string> = {
++    idle: "รอค้น",
++    loading: "กำลังค้น",
++    found: "พบ",
++    missing: "ไม่พบ",
++    error: "อ่านไม่ได้",
++  };
++  return (
++    <div className={`min-w-0 rounded-xl border px-2.5 py-2 ${styles[state]}`}>
++      <div className="flex min-w-0 items-center justify-between gap-1">
++        <span className="truncate text-[9px] font-bold uppercase tracking-[0.12em]">{source}</span>
++        <span className="shrink-0 rounded-md border border-current/20 px-1 py-0.5 text-[8px] font-semibold">{labels[state]}</span>
++      </div>
++      <p className="mt-1 break-words text-[10px] font-semibold leading-4 text-white">{summary}</p>
++      <p className="mt-0.5 line-clamp-2 break-words text-[9px] leading-3.5 opacity-70">{detail}</p>
++    </div>
++  );
++}
++
+ // ⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘
+ // FORMATTERS · ฟังก์ชันแปลงค่าก่อนนำไปแสดงบนการ์ด
+ // money       = ยอด COD
+@@ -204,6 +238,25 @@ export default function OrderControl() {
+     const phoneDigits = normalizePhoneForSearch(thread.customerPhone);
+     return haystack.includes(trackingTerm) || (phoneSearch.length >= 7 && phoneDigits.includes(phoneSearch));
+   }).slice(0, 8);
++  const hasLookupTerm = Boolean(search.trim());
++  const orderLookupStatus: LookupState = !hasLookupTerm ? "idle" : query.isError ? "error" : query.isLoading ? "loading" : orders.length ? "found" : "missing";
++  const chatLookupStatus: LookupState = !hasLookupTerm || !trackingSearchReady ? "idle" : chatThreadsQuery.isError ? "error" : chatThreadsQuery.isLoading ? "loading" : matchingChatThreads.length ? "found" : "missing";
++  const parcelLookupStatus: LookupState = !hasLookupTerm || !trackingSearchReady ? "idle" : trackingQueueQuery.isError || directParcelQuery.isError ? "error" : trackingQueueQuery.isLoading || (Boolean(trackingInput.pure) && directParcelQuery.isLoading) ? "loading" : trackingRows.length ? "found" : "missing";
++  const lookupStates = [orderLookupStatus, chatLookupStatus, parcelLookupStatus];
++  const lookupFoundCount = lookupStates.filter((state) => state === "found").length;
++  const lookupHasError = lookupStates.includes("error");
++  const lookupIsLoading = lookupStates.includes("loading");
++  const lookupHeadline = !hasLookupTerm
++    ? "พิมพ์เบอร์โทรเพื่อเริ่มตรวจ HERMES · Chat · Parcels"
++    : lookupIsLoading
++      ? "กำลังตรวจข้อมูลจาก HERMES · Chat · Parcels"
++      : !trackingSearchReady
++        ? orderLookupStatus === "error" ? "อ่าน HERMES ไม่ได้ · พิมพ์อย่างน้อย 3 ตัวเพื่อเช็ก Chat / Parcels" : `HERMES ${orderLookupStatus === "found" ? "พบออเดอร์" : "ไม่พบออเดอร์"} · พิมพ์อย่างน้อย 3 ตัวเพื่อเช็ก Chat / Parcels`
++        : `${lookupFoundCount}/3 แหล่งพบข้อมูล${lookupHasError ? " · มีต้นทางอ่านไม่ได้" : ""}`;
++  const firstOrderMatch = orders[0];
++  const firstChatMatch = matchingChatThreads[0];
++  const firstParcelMatch = trackingRows[0] as any | undefined;
++  const firstParcelNumber = firstParcelMatch ? extractPureTrackingNumber(firstParcelMatch.tracking_number) || String(firstParcelMatch.tracking_number ?? "").trim() : "";
+   const isRefreshing = query.isFetching || trackingQueueQuery.isFetching || directParcelQuery.isFetching || chatThreadsQuery.isFetching;
+   const todayOrders = orders.filter(isToday);
+   const sentOrders = orders.filter(isSent);
+@@ -316,6 +369,32 @@ export default function OrderControl() {
+           </div>
+           <p className="order-search-helper mt-2 text-[10px] leading-4">ค้น HERMES · Chat · Parcel ด้วยเบอร์โทรหรือ chat_link_key · วันที่/เพจใช้กรองรายการออเดอร์</p>
+         </div>
++        <section aria-live="polite" aria-label="สถานะการค้นหาออเดอร์ แชท และพัสดุ" className="border-t border-violet-300/15 bg-violet-950/[0.12] px-3 py-2.5 sm:px-4">
++          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
++            <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-violet-100/65">LOOKUP STATUS · HERMES / CHAT / PARCELS</span>
++            <span className="text-[10px] font-semibold text-cyan-100/75">{lookupHeadline}</span>
++          </div>
++          {hasLookupTerm ? <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
++            <LookupStatusCard
++              source="HERMES · ORDER"
++              state={orderLookupStatus}
++              summary={orderLookupStatus === "found" ? `พบ ${orders.length} ออเดอร์` : orderLookupStatus === "loading" ? "กำลังค้นออเดอร์" : orderLookupStatus === "error" ? "อ่าน HERMES ไม่สำเร็จ" : orderLookupStatus === "missing" ? "ไม่พบออเดอร์ที่ตรง" : "รอคำค้น"}
++              detail={firstOrderMatch ? `#${String(firstOrderMatch.order_number_display || firstOrderMatch.order_number || firstOrderMatch.upsert_key)} · ${String(firstOrderMatch.page_name || "ไม่ระบุเพจ")} · COD ${money(firstOrderMatch.cod_amount)}` : orderLookupStatus === "missing" ? "ตัวกรองวันที่/เพจมีผลกับรายการนี้" : "ค้นจากแหล่งออเดอร์หลัก"}
++            />
++            <LookupStatusCard
++              source="CHAT"
++              state={chatLookupStatus}
++              summary={chatLookupStatus === "found" ? `พบ ${matchingChatThreads.length} ห้อง` : chatLookupStatus === "loading" ? "กำลังค้นห้องแชท" : chatLookupStatus === "error" ? "อ่าน Chat ไม่สำเร็จ" : chatLookupStatus === "missing" ? "ไม่พบห้องที่ตรง" : !trackingSearchReady && hasLookupTerm ? "พิมพ์อย่างน้อย 3 ตัว" : "รอคำค้น"}
++              detail={firstChatMatch ? `${String(firstChatMatch.customerName || firstChatMatch.customerPhone || "พบห้องแชท")} · ${String(firstChatMatch.pageName || "ไม่ระบุเพจ")} · ${String(firstChatMatch.preview || (firstChatMatch.chatLinkKey ? `chat_link_key ${firstChatMatch.chatLinkKey}` : "พบรายการแชท"))}` : chatLookupStatus === "missing" ? "ไม่พบแชทที่จับคู่กับคำค้นนี้" : "ค้นจากข้อมูล Chat ที่อ่านได้"}
++            />
++            <LookupStatusCard
++              source="PARCELS · TRACKING"
++              state={parcelLookupStatus}
++              summary={parcelLookupStatus === "found" ? (firstParcelNumber || "พบรายการพัสดุ แต่ไม่มีเลข") : parcelLookupStatus === "loading" ? "กำลังค้นเลขพัสดุ" : parcelLookupStatus === "error" ? "อ่าน Parcels ไม่สำเร็จ" : parcelLookupStatus === "missing" ? orders.length ? "พบออเดอร์ แต่ไม่พบเลขที่จับคู่" : "ไม่พบเลขพัสดุที่ตรง" : !trackingSearchReady && hasLookupTerm ? "พิมพ์อย่างน้อย 3 ตัว" : "รอคำค้น"}
++              detail={firstParcelMatch ? `${String(firstParcelMatch.delivery_status || "ยังไม่ระบุสถานะส่ง")} · ${String(firstParcelMatch.page_name || "ไม่ระบุเพจ")}` : parcelLookupStatus === "missing" && orders.length ? "ไม่พบรายการพัสดุที่จับคู่กับออเดอร์นี้" : "ค้นจากคิว parcels และเลขพัสดุตรง"}
++            />
++          </div> : null}
++        </section>
+         {searchPanelOpen ? <div id="order-search-filters" className="grid grid-rows-[1fr] border-t border-cyan-300/15 transition-all duration-300">
+           <div className="min-h-0 p-3 sm:p-4">
+             <div className="order-search-result-summary mb-3 flex flex-col justify-between gap-2 rounded-xl border border-cyan-300/10 bg-black/20 px-3 py-2 sm:flex-row sm:items-center">
+-- 
+2.43.0
+

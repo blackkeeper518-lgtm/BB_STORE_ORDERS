@@ -1,0 +1,119 @@
+From bca01336a0a41d2e5e4e5d4b99ab6355d28065b7 Mon Sep 17 00:00:00 2001
+From: fairyfin06-dev <3.53485286e+08+fairyfin06-dev@users.noreply.github.com>
+Date: Sat, 7 Nov 2026 12:46:59 +0000
+Subject: [PATCH] =?UTF-8?q?=E2=AD=90=E2=AD=90=E2=AD=90V4?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ client/src/pages/OrderControl.tsx | 79 +++++++++++++++++++++++++++++++
+ 1 file changed, 79 insertions(+)
+
+diff --git a/client/src/pages/OrderControl.tsx b/client/src/pages/OrderControl.tsx
+index ff0495d..60e2151 100644
+--- a/client/src/pages/OrderControl.tsx
++++ b/client/src/pages/OrderControl.tsx
+@@ -17,6 +17,40 @@ type CanonicalOrderRow = Record<string, any> & {
+   order_time_display: string;
+ };
+ 
++type LookupState = "idle" | "loading" | "found" | "missing" | "error";
++
++function LookupStatusCard({ source, state, summary, detail }: {
++  source: string;
++  state: LookupState;
++  summary: string;
++  detail: string;
++}) {
++  const styles: Record<LookupState, string> = {
++    idle: "border-violet-300/15 bg-violet-400/[0.035] text-violet-100/70",
++    loading: "border-cyan-300/25 bg-cyan-400/[0.05] text-cyan-100",
++    found: "border-emerald-300/25 bg-emerald-400/[0.05] text-emerald-100",
++    missing: "border-amber-300/20 bg-amber-400/[0.045] text-amber-100",
++    error: "border-pink-300/25 bg-pink-400/[0.05] text-pink-100",
++  };
++  const labels: Record<LookupState, string> = {
++    idle: "รอค้น",
++    loading: "กำลังค้น",
++    found: "พบ",
++    missing: "ไม่พบ",
++    error: "อ่านไม่ได้",
++  };
++  return (
++    <div className={`min-w-0 rounded-xl border px-2.5 py-2 ${styles[state]}`}>
++      <div className="flex min-w-0 items-center justify-between gap-1">
++        <span className="truncate text-[9px] font-bold uppercase tracking-[0.12em]">{source}</span>
++        <span className="shrink-0 rounded-md border border-current/20 px-1 py-0.5 text-[8px] font-semibold">{labels[state]}</span>
++      </div>
++      <p className="mt-1 break-words text-[10px] font-semibold leading-4 text-white">{summary}</p>
++      <p className="mt-0.5 line-clamp-2 break-words text-[9px] leading-3.5 opacity-70">{detail}</p>
++    </div>
++  );
++}
++
+ // ⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘
+ // FORMATTERS · ฟังก์ชันแปลงค่าก่อนนำไปแสดงบนการ์ด
+ // money       = ยอด COD
+@@ -204,6 +238,25 @@ export default function OrderControl() {
+     const phoneDigits = normalizePhoneForSearch(thread.customerPhone);
+     return haystack.includes(trackingTerm) || (phoneSearch.length >= 7 && phoneDigits.includes(phoneSearch));
+   }).slice(0, 8);
++  const hasLookupTerm = Boolean(search.trim());
++  const orderLookupStatus: LookupState = !hasLookupTerm ? "idle" : query.isError ? "error" : query.isLoading ? "loading" : orders.length ? "found" : "missing";
++  const chatLookupStatus: LookupState = !hasLookupTerm || !trackingSearchReady ? "idle" : chatThreadsQuery.isError ? "error" : chatThreadsQuery.isLoading ? "loading" : matchingChatThreads.length ? "found" : "missing";
++  const parcelLookupStatus: LookupState = !hasLookupTerm || !trackingSearchReady ? "idle" : trackingQueueQuery.isError || directParcelQuery.isError ? "error" : trackingQueueQuery.isLoading || (Boolean(trackingInput.pure) && directParcelQuery.isLoading) ? "loading" : trackingRows.length ? "found" : "missing";
++  const lookupStates = [orderLookupStatus, chatLookupStatus, parcelLookupStatus];
++  const lookupFoundCount = lookupStates.filter((state) => state === "found").length;
++  const lookupHasError = lookupStates.includes("error");
++  const lookupIsLoading = lookupStates.includes("loading");
++  const lookupHeadline = !hasLookupTerm
++    ? "พิมพ์เบอร์โทรเพื่อเริ่มตรวจ HERMES · Chat · Parcels"
++    : lookupIsLoading
++      ? "กำลังตรวจข้อมูลจาก HERMES · Chat · Parcels"
++      : !trackingSearchReady
++        ? orderLookupStatus === "error" ? "อ่าน HERMES ไม่ได้ · พิมพ์อย่างน้อย 3 ตัวเพื่อเช็ก Chat / Parcels" : `HERMES ${orderLookupStatus === "found" ? "พบออเดอร์" : "ไม่พบออเดอร์"} · พิมพ์อย่างน้อย 3 ตัวเพื่อเช็ก Chat / Parcels`
++        : `${lookupFoundCount}/3 แหล่งพบข้อมูล${lookupHasError ? " · มีต้นทางอ่านไม่ได้" : ""}`;
++  const firstOrderMatch = orders[0];
++  const firstChatMatch = matchingChatThreads[0];
++  const firstParcelMatch = trackingRows[0] as any | undefined;
++  const firstParcelNumber = firstParcelMatch ? extractPureTrackingNumber(firstParcelMatch.tracking_number) || String(firstParcelMatch.tracking_number ?? "").trim() : "";
+   const isRefreshing = query.isFetching || trackingQueueQuery.isFetching || directParcelQuery.isFetching || chatThreadsQuery.isFetching;
+   const todayOrders = orders.filter(isToday);
+   const sentOrders = orders.filter(isSent);
+@@ -316,6 +369,32 @@ export default function OrderControl() {
+           </div>
+           <p className="order-search-helper mt-2 text-[10px] leading-4">ค้น HERMES · Chat · Parcel ด้วยเบอร์โทรหรือ chat_link_key · วันที่/เพจใช้กรองรายการออเดอร์</p>
+         </div>
++        <section aria-live="polite" aria-label="สถานะการค้นหาออเดอร์ แชท และพัสดุ" className="border-t border-violet-300/15 bg-violet-950/[0.12] px-3 py-2.5 sm:px-4">
++          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
++            <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-violet-100/65">LOOKUP STATUS · HERMES / CHAT / PARCELS</span>
++            <span className="text-[10px] font-semibold text-cyan-100/75">{lookupHeadline}</span>
++          </div>
++          {hasLookupTerm ? <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
++            <LookupStatusCard
++              source="HERMES · ORDER"
++              state={orderLookupStatus}
++              summary={orderLookupStatus === "found" ? `พบ ${orders.length} ออเดอร์` : orderLookupStatus === "loading" ? "กำลังค้นออเดอร์" : orderLookupStatus === "error" ? "อ่าน HERMES ไม่สำเร็จ" : orderLookupStatus === "missing" ? "ไม่พบออเดอร์ที่ตรง" : "รอคำค้น"}
++              detail={firstOrderMatch ? `#${String(firstOrderMatch.order_number_display || firstOrderMatch.order_number || firstOrderMatch.upsert_key)} · ${String(firstOrderMatch.page_name || "ไม่ระบุเพจ")} · COD ${money(firstOrderMatch.cod_amount)}` : orderLookupStatus === "missing" ? "ตัวกรองวันที่/เพจมีผลกับรายการนี้" : "ค้นจากแหล่งออเดอร์หลัก"}
++            />
++            <LookupStatusCard
++              source="CHAT"
++              state={chatLookupStatus}
++              summary={chatLookupStatus === "found" ? `พบ ${matchingChatThreads.length} ห้อง` : chatLookupStatus === "loading" ? "กำลังค้นห้องแชท" : chatLookupStatus === "error" ? "อ่าน Chat ไม่สำเร็จ" : chatLookupStatus === "missing" ? "ไม่พบห้องที่ตรง" : !trackingSearchReady && hasLookupTerm ? "พิมพ์อย่างน้อย 3 ตัว" : "รอคำค้น"}
++              detail={firstChatMatch ? `${String(firstChatMatch.customerName || firstChatMatch.customerPhone || "พบห้องแชท")} · ${String(firstChatMatch.pageName || "ไม่ระบุเพจ")} · ${String(firstChatMatch.preview || (firstChatMatch.chatLinkKey ? `chat_link_key ${firstChatMatch.chatLinkKey}` : "พบรายการแชท"))}` : chatLookupStatus === "missing" ? "ไม่พบแชทที่จับคู่กับคำค้นนี้" : "ค้นจากข้อมูล Chat ที่อ่านได้"}
++            />
++            <LookupStatusCard
++              source="PARCELS · TRACKING"
++              state={parcelLookupStatus}
++              summary={parcelLookupStatus === "found" ? (firstParcelNumber || "พบรายการพัสดุ แต่ไม่มีเลข") : parcelLookupStatus === "loading" ? "กำลังค้นเลขพัสดุ" : parcelLookupStatus === "error" ? "อ่าน Parcels ไม่สำเร็จ" : parcelLookupStatus === "missing" ? orders.length ? "พบออเดอร์ แต่ไม่พบเลขที่จับคู่" : "ไม่พบเลขพัสดุที่ตรง" : !trackingSearchReady && hasLookupTerm ? "พิมพ์อย่างน้อย 3 ตัว" : "รอคำค้น"}
++              detail={firstParcelMatch ? `${String(firstParcelMatch.delivery_status || "ยังไม่ระบุสถานะส่ง")} · ${String(firstParcelMatch.page_name || "ไม่ระบุเพจ")}` : parcelLookupStatus === "missing" && orders.length ? "ไม่พบรายการพัสดุที่จับคู่กับออเดอร์นี้" : "ค้นจากคิว parcels และเลขพัสดุตรง"}
++            />
++          </div> : null}
++        </section>
+         {searchPanelOpen ? <div id="order-search-filters" className="grid grid-rows-[1fr] border-t border-cyan-300/15 transition-all duration-300">
+           <div className="min-h-0 p-3 sm:p-4">
+             <div className="order-search-result-summary mb-3 flex flex-col justify-between gap-2 rounded-xl border border-cyan-300/10 bg-black/20 px-3 py-2 sm:flex-row sm:items-center">
+-- 
+2.43.0
+
