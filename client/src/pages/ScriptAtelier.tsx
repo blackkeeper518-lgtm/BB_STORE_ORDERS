@@ -63,6 +63,7 @@ type ImageSelection = {
 const SCRIPT_TABLE = "sales_script_cards";
 const IMAGE_BUCKET = "sales-script-images";
 const SCRIPT_COLUMNS = "id,title,subtitle,script_text,ai_context,ai_instruction,blocks_json,status,version,updated_at,created_at";
+const SCRIPT_ATELIER_SUPABASE_URL = "https://efieodrwkmpcxftnlaqx.supabase.co";
 
 const emptyDraft = (): ScriptCard => ({
   id: "",
@@ -81,10 +82,10 @@ const emptyDraft = (): ScriptCard => ({
 function errorText(error: unknown) {
   const message = String((error as any)?.message ?? error ?? "เกิดข้อผิดพลาด");
   if (/PGRST205|42P01|sales_script_cards.*(schema cache|does not exist|not found)|(schema cache|does not exist|not found).*sales_script_cards/i.test(message)) {
-    return "ไม่พบตาราง sales_script_cards ใน Supabase โปรเจกต์ Tracking ตรวจว่าได้รัน sql/20261106_script_atelier.sql ในโปรเจกต์เดียวกับที่ตั้งค่าไว้แล้ว";
+    return "ไม่พบตาราง sales_script_cards ใน Supabase efieodrwkmpcxftnlaqx ตรวจว่าได้รัน sql/20261106_script_atelier.sql ในโปรเจกต์นี้แล้ว";
   }
   if (/bucket.*sales-script-images|sales-script-images.*(not found|does not exist)/i.test(message)) {
-    return "ไม่พบคลังภาพ sales-script-images ใน Supabase Tracking ตรวจ migration ของ Script Atelier";
+    return "ไม่พบคลังภาพ sales-script-images ใน Supabase efieodrwkmpcxftnlaqx ตรวจ migration ของ Script Atelier";
   }
   return message;
 }
@@ -120,11 +121,11 @@ export default function ScriptAtelier() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [uncommittedImagePaths, setUncommittedImagePaths] = useState<string[]>([]);
   const [pendingDeletePaths, setPendingDeletePaths] = useState<string[]>([]);
-  const api = getSupabase("tracking");
+  const api = getSupabase("tracking", SCRIPT_ATELIER_SUPABASE_URL);
 
   const load = async () => {
     if (!api) {
-      setError("ยังไม่ได้ตั้งค่า Supabase โปรเจกต์ Tracking ไปที่ /secret-gallery/connect แล้วเชื่อมโปรเจกต์ Tracking ก่อน");
+      setError("ยังไม่พบ Anon/Publishable Key ของ Supabase efieodrwkmpcxftnlaqx: ตั้งค่า VITE_TRACKING_SUPABASE_ANON_KEY ใน Render ด้วย public anon/publishable key ของโปรเจกต์นี้ (ห้ามใช้ service_role)");
       setLoading(false);
       return;
     }
