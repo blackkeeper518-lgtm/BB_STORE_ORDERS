@@ -1,12 +1,7 @@
--- BB STORE ORDERS · PARCEL DELIVERY VIEWS · FINAL COMBINED
--- ลำดับ: SHADOW -> ROGUE -> VOID -> DEAD
--- ORDERCONTROL = ท่อหลัก / HUNTER = เติมข้อความแต่งบิล 2 คอลัมน์เท่านั้น
--- รันไฟล์นี้ครั้งเดียวเพื่อสร้างวิวชุดใหม่
-
-drop view if exists public."⛩️VOID_xXx_GATEWAYz" cascade;
-drop view if exists public."🦅ROGUE_xXx_SHIPPINGz" cascade;
-drop view if exists public."🔮SHADOW_xXx_RECALL" cascade;
-drop view if exists public."📓DEAD_xXx_NOTE" cascade;
+-- BB STORE ORDERS · Parcel Delivery Views
+-- รวมจากไฟล์แนบ pasted_content_2.txt
+-- ลำดับ dependency: SHADOW -> ROGUE -> VOID -> DEAD
+-- คง logic ของ SQL เดิม ไม่ได้เพิ่มเงื่อนไขทางธุรกิจ
 
 -- 1. SHADOW · จับคู่พัสดุกับออเดอร์
 create view public."🔮SHADOW_xXx_RECALL" as
@@ -23,17 +18,7 @@ select
   p.delivery_status,
   p.sent_at,
   m.parcel_status_emoji,
-  m.upsert_key,
-  COALESCE(
-    NULLIF(btrim(p.chat_link_key), ''::text),
-    NULLIF(btrim(m.chat_link_key), ''::text),
-    CASE
-      WHEN NULLIF(btrim(m.page_id), ''::text) IS NOT NULL
-       AND NULLIF(btrim(m."threadId"), ''::text) IS NOT NULL
-      THEN btrim(m.page_id) || '_' || btrim(m."threadId")
-      ELSE NULL::text
-    END
-  ) as chat_link_key
+  m.upsert_key
 from
   parcels p
   join lateral (
@@ -41,18 +26,7 @@ from
       ord.portal_key,
       ord.page_name,
       ord.parcel_status_emoji,
-      ord.upsert_key,
-      ord.page_id,
-      ord."threadId",
-      COALESCE(
-        NULLIF(btrim(ord.chat_link_key), ''::text),
-        CASE
-          WHEN NULLIF(btrim(ord.page_id), ''::text) IS NOT NULL
-           AND NULLIF(btrim(ord."threadId"), ''::text) IS NOT NULL
-          THEN btrim(ord.page_id) || '_' || btrim(ord."threadId")
-          ELSE NULL::text
-        END
-      ) as chat_link_key
+      ord.upsert_key
     from
       "🧿BB_xXx_ORDERCONTROL" ord
     where
@@ -134,13 +108,193 @@ where
   );
 
   -- 2. ROGUE · คิวพัสดุรอส่งเลข
-create view public."🦅ROGUE_xXx_SHIPPINGz" as
+create or replace view public."🦅ROGUE_xXx_SHIPPINGz" as
 select
   pcl.tracking_number,
   pcl.phone_number as matched_phone,
   COALESCE(
-    NULLIF(btrim(pcl.consignee), ''::text),
-    NULLIF(btrim(ord.customer_name), ''::text)
+    NULLIF(btrim(ord.customer_name), ''::text),
+    NULLIF(btrim(ord.facebook_name), ''::text)
+  ) as recipient_name,
+  pcl.address as parcel_address,
+  ord.sku,
+  ord.cod_amount,
+  ord.upsert_key,
+  ord.page_id,
+  ord."threadId",
+  ord.customer_id,
+  ord.message_id,
+  jsonb_build_object('id', ord.message_id) as m,
+  ord.shipping_carrier,
+  ord.facebook_tracking_status,
+  ord.order_number,
+  ord.order_number_display,
+  ord.order_time_display,
+  pcl.id as parcel_row_id,
+  pcl.pickup_date,
+  pcl.delivery_status,
+  pcl.sent_at,
+  ord.page_name,
+  ord.portal_key,
+  ord.facebook_name,
+  ord.customer_name,
+  ord.phone,
+  ord.extracted_phone,
+  ord.order_date,
+  ord.order_time,
+  ord.time_th,
+  ord.address_display_packer,
+  ord.addressclean,
+  ord.district,
+  ord.amphoe,
+  ord.province,
+  ord.zipcode,
+  ord.manus_for_packer,
+  ord.telegram_copy_text,
+  ord.delivery_state,
+  ord.delivery_status as order_delivery_status,
+  ord.carton_count,
+  ord.created_at,
+  ord.updated_at,
+  ord.assigned_agent,
+  ord.facebook_tracking_sent_at,
+  ord.target_room,
+  ord.chat_age_hours,
+  ord.is_within_24h,
+  ord.can_send_standard,
+  ord.messaging_tag_required,
+  ord.customer_latest_message,
+  ord.customer_message_time_th,
+  ord.page_latest_message,
+  ord.page_message_time_th,
+  ord.send_facebook_route,
+  ord.parcel_status_emoji,
+  ord.facebook_tracking_message,
+  ord.drakside_tracking_message,
+  ord.chat_link_key
+from
+  "🔮SHADOW_xXx_RECALL" pcl
+  join "🏹HUNTER_xXx_TARGET" ord on ord.upsert_key = pcl.upsert_key
+where
+  NULLIF(btrim(pcl.tracking_number), ''::text) is not null
+  and (
+    ord.facebook_tracking_status is null
+    or (
+      upper(btrim(ord.facebook_tracking_status)) <> all (
+        array[
+          'SENT'::text,
+          'DELIVERED'::text,
+          '🔥SENT'::text,
+          'SENT_TO_TELEGRAM'::text,
+          'SUCCESS'::text,
+          'COMPLETED'::text
+        ]
+      )
+    )
+  )
+  and not (
+    COALESCE(ord.page_latest_message, ''::text) ~~* '%แจ้งเลขพัสดุจัดส่ง%'::text
+    or COALESCE(ord.page_latest_message, ''::text) ~~* '%เลขพัสดุจะเริ่มเช็คสถานะ%'::text
+  );
+select
+  pcl.tracking_number,
+  pcl.phone_number as matched_phone,
+  COALESCE(
+    NULLIF(btrim(ord.customer_name), ''::text),
+    NULLIF(btrim(ord.facebook_name), ''::text)
+  ) as recipient_name,
+  pcl.address as parcel_address,
+  ord.sku,
+  ord.cod_amount,
+  ord.upsert_key,
+  ord.page_id,
+  ord."threadId",
+  ord.customer_id,
+  ord.message_id,
+  jsonb_build_object('id', ord.message_id) as m,
+  ord.shipping_carrier,
+  ord.facebook_tracking_status,
+  ord.order_number,
+  ord.order_number_display,
+  ord.order_time_display,
+  pcl.id as parcel_row_id,
+  pcl.pickup_date,
+  pcl.delivery_status,
+  pcl.sent_at,
+  ord.page_name,
+  ord.portal_key,
+  ord.facebook_name,
+  ord.customer_name,
+  ord.phone,
+  ord.extracted_phone,
+  ord.order_date,
+  ord.order_time,
+  ord.time_th,
+  ord.address_display_packer,
+  ord.addressclean,
+  ord.district,
+  ord.amphoe,
+  ord.province,
+  ord.zipcode,
+  ord.manus_for_packer,
+  ord.telegram_copy_text,
+  ord.delivery_state,
+  ord.delivery_status as order_delivery_status,
+  ord.carton_count,
+  ord.created_at,
+  ord.updated_at,
+  ord.assigned_agent,
+  ord.facebook_tracking_sent_at,
+  ord.target_room,
+  ord.chat_age_hours,
+  ord.is_within_24h,
+  ord.can_send_standard,
+  ord.messaging_tag_required,
+  ord.customer_latest_message,
+  ord.customer_message_time_th,
+  ord.page_latest_message,
+  ord.page_message_time_th,
+  ord.send_facebook_route,
+  ord.parcel_status_emoji,
+  ord.facebook_tracking_message,
+  h.drakside_tracking_message,
+  ord.dedupe_key
+from
+  public."🔮SHADOW_xXx_RECALL" pcl
+  join public."🧿BB_xXx_ORDERCONTROL" ord
+    on ord.upsert_key = pcl.upsert_key
+
+  -- HUNTER เป็นท่อเสริม ไม่ใช่ต้นทางหลัก
+  left join public."🏹HUNTER_xXx_TARGET" h
+    on h.upsert_key = ord.upsert_key
+
+where
+  NULLIF(btrim(pcl.tracking_number), ''::text) is not null
+  and (
+    ord.facebook_tracking_status is null
+    or (
+      upper(btrim(ord.facebook_tracking_status)) <> all (
+        array[
+          'SENT'::text,
+          'DELIVERED'::text,
+          '🔥SENT'::text,
+          'SENT_TO_TELEGRAM'::text,
+          'SUCCESS'::text,
+          'COMPLETED'::text
+        ]
+      )
+    )
+  )
+  and not (
+    COALESCE(ord.page_latest_message, ''::text) ~~* '%แจ้งเลขพัสดุจัดส่ง%'::text
+    or COALESCE(ord.page_latest_message, ''::text) ~~* '%เลขพัสดุจะเริ่มเช็คสถานะ%'::text
+  );
+select
+  pcl.tracking_number,
+  pcl.phone_number as matched_phone,
+  COALESCE(
+    NULLIF(btrim(ord.customer_name), ''::text),
+    NULLIF(btrim(ord.facebook_name), ''::text)
   ) as recipient_name,
   pcl.address as parcel_address,
   ord.sku,
@@ -197,21 +351,16 @@ select
   ord.parcel_status_emoji,
   h.facebook_tracking_message,
   h.drakside_tracking_message,
-  COALESCE(
-    NULLIF(btrim(ord.chat_link_key), ''::text),
-    CASE
-      WHEN NULLIF(btrim(ord.page_id), ''::text) IS NOT NULL
-       AND NULLIF(btrim(ord."threadId"), ''::text) IS NOT NULL
-      THEN btrim(ord.page_id) || '_' || btrim(ord."threadId")
-      ELSE NULL::text
-    END
-  ) as chat_link_key
+  ord.chat_link_key
 from
-  "🔮SHADOW_xXx_RECALL" pcl
-  join "🧿BB_xXx_ORDERCONTROL" ord
+  public."🔮SHADOW_xXx_RECALL" pcl
+  join public."🧿BB_xXx_ORDERCONTROL" ord
     on ord.upsert_key = pcl.upsert_key
-  left join "🏹HUNTER_xXx_TARGET" h
+
+  -- HUNTER เป็นท่อเสริม ไม่ใช่ต้นทางหลัก
+  left join public."🏹HUNTER_xXx_TARGET" h
     on h.upsert_key = ord.upsert_key
+
 where
   NULLIF(btrim(pcl.tracking_number), ''::text) is not null
   and (
@@ -234,7 +383,7 @@ where
     or COALESCE(ord.page_latest_message, ''::text) ~~* '%เลขพัสดุจะเริ่มเช็คสถานะ%'::text
   );
 
-
+  
   -- 3. VOID · ประตูส่งเลขไป Facebook
 create view public."⛩️VOID_xXx_GATEWAYz" as
 select
@@ -296,6 +445,7 @@ select
   pulse.parcel_status_emoji,
   pulse.facebook_tracking_message,
   pulse.drakside_tracking_message,
+  pulse.chat_link_key,
   page_map.access_token
 from
   "🦅ROGUE_xXx_SHIPPINGz" pulse
@@ -331,7 +481,6 @@ where
       ]
     )
   );
-
 
   -- 4. DEAD · ประวัติส่งเลขแล้ว
 create view public."📓DEAD_xXx_NOTE" as
@@ -414,7 +563,7 @@ where
           'COMPLETED'::text,
           'DELIVERED'::text
         ]
-      )c
+      )
     )
     or (
       upper(
