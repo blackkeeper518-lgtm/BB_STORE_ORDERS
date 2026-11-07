@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import OrderEditWorkbench from "@/components/OrderEditWorkbench";
-import { getActiveCamp, normalizePhoneForSearch, orderTimeSortKey, readCanonicalOrders, readChatThreads, readParcelByTrackingNumber, readParcelMappingQueue } from "@/lib/canonical";
+import { getActiveCamp,  orderTimeSortKey, readCanonicalOrders, readChatThreads, readParcelByTrackingNumber, readParcelMappingQueue } from "@/lib/canonical";
 import { useQuery } from "@tanstack/react-query";
 import { CalendarDays, Check, CheckCircle2, Clock3, Database, Download, ExternalLink, MessageCircle, Pencil, RefreshCw, Search, Send, ShoppingCart, WalletCards, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -22,6 +22,12 @@ type CanonicalOrderRow = Record<string, any> & {
 // directText  = ช่องว่างให้แสดงเป็นขีด
 // numeric     = ใช้รวมยอดเงิน
 // ⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘
+function normalizePhoneForSearch(value: unknown): string {
+  const digits = String(value ?? "").replace(/\D/g, "");
+  return digits.startsWith("66") && digits.length >= 9 ? `0${digits.slice(2)}` : digits;
+}
+
+
 function money(value: unknown) {
   if (value === null || value === undefined || String(value).trim() === "") return "—";
   const amount = Number(value);
