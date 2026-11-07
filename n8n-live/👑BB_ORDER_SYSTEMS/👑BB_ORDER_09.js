@@ -62,6 +62,146 @@ function bestAddress(row) {
   ]).replace(/^📍\s*/u, '').trim();
 }
 
+// Non-blocking check of the values that buildBill() actually prints.
+// The audit only adds text to the existing balloonnotice field; it never changes routing.
+const BILL_AUDIT_MARKER = '⚠️ BILL_AUDIT:';
+const RESTRICTED_AREAS = [
+  { name: 'นครราชสีมา', prefix: '30' }, { name: 'บุรีรัมย์', prefix: '31' },
+  { name: 'สุรินทร์', prefix: '32' }, { name: 'ศรีสะเกษ', prefix: '33' },
+  { name: 'อุบลราชธานี', prefix: '34' }, { name: 'ยโสธร', prefix: '35' },
+  { name: 'ชัยภูมิ', prefix: '36' }, { name: 'อำนาจเจริญ', prefix: '37' },
+  { name: 'บึงกาฬ', prefix: '38' }, { name: 'หนองบัวลำภู', prefix: '39' },
+  { name: 'ขอนแก่น', prefix: '40' }, { name: 'อุดรธานี', prefix: '41' },
+  { name: 'เลย', prefix: '42' }, { name: 'หนองคาย', prefix: '43' },
+  { name: 'มหาสารคาม', prefix: '44' }, { name: 'ร้อยเอ็ด', prefix: '45' },
+  { name: 'กาฬสินธุ์', prefix: '46' }, { name: 'สกลนคร', prefix: '47' },
+  { name: 'นครพนม', prefix: '48' }, { name: 'มุกดาหาร', prefix: '49' }
+];
+
+function isMissingBillValue(value) {
+  const s = text(value).trim();
+  return !s || /^(?:DATA[\s_-]*MISSING|DATA[\s_-]*MISS|MISSING|NULL|UNDEFINED|N\/A|NONE|ยังไม่มี(?:ที่อยู่|สินค้า|เบอร์)?|ไม่พบ(?:ที่อยู่|สินค้า|เบอร์)?|🔴\s*รอเช็คที่อยู่)$/iu.test(s);
+}
+
+function normalizedAddressPart(value) {
+  return text(value).normalize('NFC')
+    .replace(/กรุงเทพ(?:มหานคร|ฯ)?|กทม\.?|bangkok/giu, 'กรุงเทพ')
+    .replace(/ตำบล|ตําบล|ต\.|อำเภอ|อําเภอ|อ\.|จังหวัด|จ\.|แขวง|เขต/gu, '')
+    .replace(/[^\p{L}\p{M}\p{N}]/gu, '')
+    .toLowerCase();
+}
+
+function addressHasFieldPart(address, fieldPart) {
+  if (isMissingBillValue(fieldPart)) return false;
+  const part = normalizedAddressPart(fieldPart);
+  return part.length >= 2 && /\p{L}/u.test(part) && normalizedAddressPart(address).includes(part);
+}
+
+function auditBillFields(d, bill) {
+  const warnings = [];
+  const added = new Set();
+  const add = (code, message) => {
+    if (added.has(code)) return;
+    added.add(code);
+    warnings.push(`[${code}] ${message}`);
+  };
+
+  const customer = text(d.customer_name);
+  if (isMissingBillValue(customer)) add('NAME_MISSING', 'ฟิลด์ customer_name ที่บิลใช้ว่างหรือเป็น DATA_MISSING');
+
+  let phoneDigits = text(d.extracted_phone).replace(/\D/g, '');
+  if (phoneDigits.startsWith('66') && phoneDigits.length === 11) phoneDigits = `0${phoneDigits.slice(2)}`;
+  if (!/^0\d{9}$/.test(phoneDigits)) add('PHONE_INVALID', 'ฟิลด์ extracted_phone ที่บิลใช้ไม่ครบ 10 หลัก');
+
+  const product = billProductDisplay(d);
+  if (isMissingBillValue(product)) add('PRODUCT_MISSING', 'ไม่พบรายการสินค้าในฟิลด์ที่ BILL BUILDER1 ใช้');
+
+  const codText = text(d.cod_amount).replace(/,/g, '');
+  if (isMissingBillValue(d.cod_amount) || !Number.isFinite(Number(codText))) {
+    add('COD_INVALID', 'ฟิลด์ cod_amount ที่บิลใช้ว่างหรือไม่ใช่ตัวเลข');
+  }
+
+  const address = bestAddress(d);
+  const addressCore = address.replace(/^.*?(?:ที่อยู่|address)\s*[:：]\s*/isu, '').trim();
+  const province = text(d.province);
+  const zipcode = text(d.zipcode);
+  const postalMatches = Array.from(addressCore.matchAll(/(?:^|\D)(\d{5})(?!\d)/gu), match => match[1]);
+  const postal = postalMatches[postalMatches.length - 1] || '';
+  const riskyArea = RESTRICTED_AREAS.find(({ name, prefix }) =>
+    `${province} ${addressCore}`.replace(/\s+/g, '').includes(name) || postal.startsWith(prefix)
+  );
+  const explicitRisk = bool(d.high_risk_area) || bool(d.risk_area)
+    || /พื้นที่เสี่ยงสูง|RISK\s*AREA|ของโดนขโมย|งดส่งพื้นที่/iu.test(text(d.warning_tag));
+  if (riskyArea || explicitRisk) {
+    add('RESTRICTED_AREA', `พบพื้นที่เสี่ยง${riskyArea ? ` · ${riskyArea.name}` : ''} — ตรวจสอบก่อนจัดส่ง`);
+  }
+
+  if (isMissingBillValue(address)) {
+    add('ADDRESS_MISSING', 'ฟิลด์ที่อยู่ที่ BILL BUILDER1 เลือกว่างหรือเป็น DATA_MISSING');
+  } else {
+    const missingParts = [];
+    if (addressCore.length < 15) missingParts.push('ที่อยู่สั้นผิดปกติ');
+    const houseOrPlace = /^\s*(?:(?:บ้าน(?:เลขที่)?|เลขที่)\s*)?\d{1,5}(?:\/\d{1,6})?(?=$|[\s,])/u.test(addressCore)
+      || /(?:บ้าน(?:เลขที่)?|เลขที่)\s*\d{1,6}(?:\/\d{1,6})?/u.test(addressCore)
+      || /วัด|มัสยิด|โบสถ์|โรงเรียน|มหาวิทยาลัย|โรงพยาบาล|คลินิก|ตลาด|ห้าง|บริษัท|โรงงาน|โรงแรม|รีสอร์ต|รีสอร์ท|หมู่บ้าน|ชุมชน|อาคาร|คอนโด|หอพัก|ร้าน|ศูนย์|สำนักงาน|ท่าเรือ|ท่ารถ|สนามบิน|ปั๊ม|สถานี|สวน|ไร่|ฟาร์ม|ไม่มีบ้านเลขที่|ใกล้|ตรงข้าม|เยื้อง|ข้าง(?:หน้า|หลัง)?|ปากซอย|ท้ายซอย|หน้าวัด|หลังวัด|หมู่ที่\s*\d|ม\.?\s*\d|ถนน\s*[\p{L}\p{M}\d]{2,}|ซอย\s*[\p{L}\p{M}\d]{2,}/iu.test(addressCore);
+    if (!houseOrPlace) missingParts.push('บ้านเลขที่หรือสถานที่/จุดสังเกต');
+
+    const isBangkok = /กรุงเทพ|กทม|bangkok/iu.test(`${province} ${addressCore}`);
+    const subdistrict = firstExisting(d, ['district', 'subdistrict', 'sub_district', 'tambon', 'tambol']);
+    const amphoe = firstExisting(d, ['amphoe', 'amphur', 'amphur_name', 'district_name']);
+    const subdistrictPattern = isBangkok ? /แขวง\s*[\p{L}\p{M}]/u : /(?:ตำบล|ต\.)\s*[\p{L}\p{M}]/u;
+    const amphoePattern = isBangkok ? /เขต\s*[\p{L}\p{M}]/u : /(?:อำเภอ|อ\.)\s*[\p{L}\p{M}]/u;
+    const provincePattern = /(?:จังหวัด|จ\.)\s*[\p{L}\p{M}]|กรุงเทพ(?:มหานคร|ฯ)?|กทม\.?/iu;
+    if (!(addressHasFieldPart(addressCore, subdistrict) || (isMissingBillValue(subdistrict) && subdistrictPattern.test(addressCore)))) {
+      missingParts.push(isBangkok ? 'แขวง' : 'ตำบล');
+    }
+    if (!(addressHasFieldPart(addressCore, amphoe) || (isMissingBillValue(amphoe) && amphoePattern.test(addressCore)))) {
+      missingParts.push(isBangkok ? 'เขต' : 'อำเภอ');
+    }
+    if (!(addressHasFieldPart(addressCore, province) || (isMissingBillValue(province) && provincePattern.test(addressCore)))) {
+      missingParts.push('จังหวัด');
+    }
+    if (!/^\d{5}$/u.test(postal)) missingParts.push('รหัสไปรษณีย์ 5 หลัก');
+    const expectedPostal = zipcode.match(/\d{5}/u)?.[0] || '';
+    if (expectedPostal && postal && expectedPostal !== postal) missingParts.push('รหัสไปรษณีย์ในบิลไม่ตรงกับฟิลด์ zipcode');
+    if (/(?:ชื่อ|เบอร์|โทร(?:ศัพท์)?|name|phone)\s*[:：]/iu.test(address)) {
+      missingParts.push('ฟิลด์ที่อยู่มีชื่อ/เบอร์ปน');
+    }
+    if (missingParts.length) add('ADDRESS_REVIEW', `ที่อยู่ในบิลควรตรวจ: ${missingParts.join(' · ')}`);
+  }
+
+  const packer = d.packer_obj && typeof d.packer_obj === 'object' ? d.packer_obj : {};
+  const completeFlag = d.darksideBillDataComplete ?? d.bill_data_complete
+    ?? packer.darksideBillDataComplete ?? packer.bill_data_complete;
+  const completeness = text(d.darkside_completeness_status ?? packer.darkside_completeness_status).toUpperCase();
+  const rawReasons = d.darkside_missing_reasons ?? packer.darkside_missing_reasons;
+  const reasons = Array.isArray(rawReasons) ? rawReasons.map(text).filter(Boolean).join(', ') : text(rawReasons);
+  const flagSaysIncomplete = completeFlag === false || ['false', '0', 'no', 'n'].includes(text(completeFlag).toLowerCase());
+  const hasReasons = Boolean(reasons && !['[]', 'null', 'DATA_MISSING'].includes(reasons.toUpperCase()));
+  if (flagSaysIncomplete || /INCOMPLETE|DATA[\s_-]*MISS/iu.test(completeness) || hasReasons) {
+    add('DATA_MISS', `พบสัญญาณข้อมูลไม่ครบจาก n8n${reasons ? ` · ${reasons}` : ''}`);
+  }
+
+  if (/บอท.{0,20}(?:ทวน|ยืนยัน)|(?:ทวน|ยืนยัน).{0,20}บิล|รอ.{0,12}(?:ทวน|ยืนยัน)|กรุณา.{0,24}(?:ตรวจ|ทวน|ยืนยัน)|ตรวจสอบ.{0,16}(?:ก่อนส่ง|บิล)|bot.{0,20}(?:review|confirm|verify)/iu.test(text(bill))) {
+    add('BOT_RECHECK', 'พบข้อความบอทให้ทวน/ยืนยันในข้อความบิล');
+  }
+  if (/ยกเลิก(?:สินค้า|รายการ)|สินค้า.{0,16}(?:ถูกยกเลิก|ยกเลิกแล้ว)|(?:cancelled|canceled)\s+(?:item|product)/iu.test(product)) {
+    add('ITEM_CANCELLED', 'พบข้อความยกเลิกสินค้าในรายการสินค้าของบิล');
+  }
+
+  return warnings;
+}
+
+function mergeBillAuditNotice(existingNotice, warnings) {
+  const original = text(existingNotice);
+  const markerIndex = original.lastIndexOf(BILL_AUDIT_MARKER);
+  const base = (markerIndex >= 0 ? original.slice(0, markerIndex) : original)
+    .replace(/\s*(?:\||·)\s*$/u, '').trim();
+  if (!warnings.length) return base;
+  const auditText = `${BILL_AUDIT_MARKER} ${warnings.join('; ')}`;
+  return [base, auditText].filter(Boolean).join(' | ');
+}
+
 function parseTime(v) {
   const s = text(v);
   if (!s) return 0;
@@ -406,6 +546,12 @@ for (const group of groups.values()) {
                 : '⚪ ใบเดี่ยวสมบูรณ์จากโหนดต้นทาง';
 
     const bill = buildBill(row.json);
+    // Audit the current bill only. These notices are informational and do not affect routing.
+    const billWarnings = isNew ? auditBillFields(row.json, bill) : [];
+    const existingBalloonNotice = row.json.balloonnotice ?? row.json.balloonNotice ?? '';
+    const balloonnotice = isNew
+      ? mergeBillAuditNotice(existingBalloonNotice, billWarnings)
+      : existingBalloonNotice;
     const oldWarning = isOld
       ? '\n⚠️ <i>ใบนี้ไม่ถูกเลือก เก็บเป็นประวัติเท่านั้น และไม่ใช้ส่งซ้ำ</i>'
       : '';
@@ -418,6 +564,7 @@ for (const group of groups.values()) {
     result.push({
       json: {
         ...row.json,
+        balloonnotice,
         customer_change_audit_group_key: groupKey(row.json, row.index),
         customer_change_audit_group_size: String(Math.max(ordered.length, declaredSize)),
         customer_change_audit_is_current: isNew,
