@@ -1,0 +1,568 @@
+---
+ client/src/index.css              | 285 ++++++++++++++++++++++++++++++
+ client/src/pages/OrderControl.tsx | 164 ++++++++++-------
+ 2 files changed, 390 insertions(+), 59 deletions(-)
+
+diff --git a/client/src/index.css b/client/src/index.css
+index 9398242..903824d 100644
+--- a/client/src/index.css
++++ b/client/src/index.css
+@@ -218,3 +218,288 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
+ .script-dropzone b { font-size:.78rem; }
+ .script-dropzone small { margin-top:.25rem; color:rgba(190,246,255,.5); font-size:.68rem; font-weight:400; }
+ .script-dropzone.is-dragging { border-color:#ff8bdc; background:rgba(255,83,211,.12); box-shadow:0 0 24px rgba(255,83,211,.2); color:#ffd1f2; }
++
++
++/* DARKSIDE COSMIC SUITE · shared visual language for Orders + System Manual */
++:root {
++  --darkside-deep: #08040f;
++  --darkside-panel: #13091f;
++  --darkside-violet: #ad5cff;
++  --darkside-magenta: #ff4fc8;
++  --darkside-lilac: #f0d8ff;
++}
++
++.singto-cyber-edge::before {
++  background: linear-gradient(90deg, transparent, rgba(255, 76, 197, .88), rgba(170, 83, 255, .92), rgba(255, 76, 197, .88), transparent) border-box;
++}
++.singto-cyber-edge::after {
++  background: repeating-linear-gradient(0deg, transparent 0, transparent 3px, rgba(226, 94, 239, .035) 4px);
++}
++.singto-cyber-edge [data-active="true"] {
++  background: linear-gradient(90deg, rgba(255, 72, 199, .17), rgba(151, 77, 255, .13)) !important;
++  box-shadow: inset 2px 0 #ff53cb, 0 0 18px rgba(190, 67, 255, .13) !important;
++}
++
++/* Orders: deep-space black, violet identity, restrained pink and crisp cyan signals. */
++.order-control-room {
++  --cosmic-pink: #ed68c8;
++  --cosmic-violet: #a78bfa;
++  --cosmic-cyan: #67e8f9;
++  background-color: #04030a !important;
++  background-image: radial-gradient(ellipse at 16% 0%, rgba(124, 77, 230, .075), transparent 34rem), radial-gradient(ellipse at 88% 7%, rgba(68, 205, 255, .035), transparent 31rem), radial-gradient(ellipse at 50% 100%, rgba(101, 68, 190, .055), transparent 40rem) !important;
++}
++.order-control-room::before {
++  opacity: .31;
++  background-image: radial-gradient(circle, rgba(245, 244, 255, .78) 0 1px, transparent 1.5px), radial-gradient(circle, rgba(103, 232, 249, .7) 0 1px, transparent 1.6px);
++}
++.order-control-room::after {
++  background: linear-gradient(115deg, transparent 0 42%, rgba(103, 232, 249, .018) 47%, transparent 52%), radial-gradient(ellipse at 50% 105%, rgba(117, 76, 230, .075), transparent 46%);
++}
++.order-control-room .blackbox-hero {
++  border-color: rgba(158, 126, 233, .38) !important;
++  background: radial-gradient(ellipse at 84% 0%, rgba(103, 232, 249, .09), transparent 32%), radial-gradient(ellipse at 10% 0%, rgba(174, 77, 255, .16), transparent 35%), radial-gradient(ellipse at 55% 110%, rgba(235, 86, 214, .055), transparent 48%), linear-gradient(115deg, rgba(5, 5, 13, .99), rgba(12, 9, 25, .98) 58%, rgba(6, 9, 17, .99)) !important;
++  box-shadow: 0 0 0 1px rgba(132, 104, 215, .09), 0 0 30px rgba(116, 84, 231, .15), 0 0 54px rgba(225, 68, 204, .055), 0 18px 55px rgba(0, 0, 0, .32), inset 0 0 34px rgba(102, 170, 255, .035) !important;
++}
++.order-control-room .hero-scanline { background: repeating-linear-gradient(0deg, transparent 0, transparent 5px, rgba(103, 232, 249, .018) 6px); }
++.order-control-room .cyber-title { text-shadow: 0 0 15px rgba(133, 102, 255, .20), 0 0 28px rgba(103, 232, 249, .08); }
++.order-control-room .orbit-kicker { color: #a9dce9; }
++.order-control-room .central-clock {
++  border-color: rgba(103, 232, 249, .38);
++  background: linear-gradient(145deg, rgba(5, 13, 19, .98), rgba(10, 7, 20, .97));
++  color: #d8fbff;
++  box-shadow: 0 0 14px rgba(103, 232, 249, .14), 0 0 34px rgba(130, 86, 230, .08), inset 0 0 26px rgba(103, 232, 249, .045);
++}
++.order-control-room .central-clock-label { color: #78e7f5; text-shadow: 0 0 8px rgba(103, 232, 249, .38); }
++.order-control-room .central-clock strong { color: #f3fdff; text-shadow: 0 0 9px rgba(103, 232, 249, .38), 0 0 23px rgba(103, 232, 249, .20); }
++.order-control-room .central-clock-date { color: #c8bdff; text-shadow: 0 0 8px rgba(167, 139, 250, .24); }
++.order-control-room .signal-ticker { border-color: rgba(103, 232, 249, .14); color: rgba(167, 232, 242, .58); }
++.order-control-room .live-chip { border-color: rgba(103, 232, 249, .34); color: #c5faff; background: rgba(34, 211, 238, .055); }
++.order-control-room .live-dot { background: #67e8f9; box-shadow: 0 0 10px rgba(103, 232, 249, .78); }
++.order-control-room .signal-metric {
++  background: linear-gradient(145deg, rgba(8, 8, 16, .98), rgba(5, 5, 11, .98));
++  box-shadow: 0 0 7px color-mix(in srgb, currentColor 62%, transparent), 0 0 19px color-mix(in srgb, currentColor 16%, transparent), inset 0 0 20px color-mix(in srgb, currentColor 7%, transparent);
++}
++.order-control-room .signal-cyan { color: #67e8f9; }
++.order-control-room .signal-amber { color: #f5c46d; }
++.order-control-room .signal-sky { color: #7dd3fc; }
++.order-control-room .signal-rose { color: #fb7185; }
++.order-control-room .order-search-drawer {
++  border-color: rgba(137, 119, 219, .34) !important;
++  background: radial-gradient(ellipse at 8% 0%, rgba(151, 91, 255, .09), transparent 42%), radial-gradient(ellipse at 96% 0%, rgba(77, 216, 255, .065), transparent 38%), linear-gradient(145deg, rgba(5, 6, 14, .99), rgba(8, 7, 18, .98)) !important;
++  box-shadow: 0 0 0 1px rgba(133, 106, 219, .08), 0 0 18px rgba(96, 87, 211, .10), 0 0 42px rgba(222, 71, 205, .045), inset 0 0 30px rgba(103, 232, 249, .025);
++  transition: border-color .2s ease, box-shadow .2s ease;
++}
++.order-control-room .order-search-drawer:focus-within { border-color: rgba(130, 215, 255, .46) !important; box-shadow: 0 0 0 1px rgba(135, 109, 231, .12), 0 0 24px rgba(103, 232, 249, .10), 0 0 48px rgba(218, 75, 207, .075), inset 0 0 34px rgba(103, 232, 249, .035); }
++.order-control-room .order-search-label { color: #e9ddff; }
++.order-control-room .order-search-label-icon { display: grid; width: 1.65rem; height: 1.65rem; place-items: center; border: 1px solid rgba(103, 232, 249, .3); border-radius: .58rem; background: linear-gradient(145deg, rgba(103, 232, 249, .13), rgba(139, 92, 246, .1)); color: #96f3ff; box-shadow: 0 0 14px rgba(103, 232, 249, .1); }
++.order-control-room .order-search-phone-badge { border: 1px solid rgba(228, 117, 229, .25); border-radius: 999px; padding: .25rem .55rem; background: rgba(179, 75, 219, .08); color: #f0caff; font-size: 9px; letter-spacing: .04em; }
++.order-control-room .order-search-input-shell { position: relative; }
++.order-control-room .order-search-input-icon { position: absolute; z-index: 1; top: 50%; left: 1rem; transform: translateY(-50%); color: #7deafa; filter: drop-shadow(0 0 7px rgba(103, 232, 249, .52)); pointer-events: none; }
++.order-control-room .order-search-input { border-color: rgba(151, 127, 227, .42) !important; padding-left: 2.9rem !important; background: linear-gradient(108deg, rgba(13, 14, 29, .98), rgba(7, 10, 20, .98) 58%, rgba(12, 8, 23, .98)) !important; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .055), 0 0 0 1px rgba(86, 74, 158, .12), 0 8px 26px rgba(0, 0, 0, .24); transition: border-color .18s ease, box-shadow .18s ease, background .18s ease; }
++.order-control-room .order-search-input::placeholder { color: rgba(185, 191, 215, .52); }
++.order-control-room .order-search-input:focus-visible { border-color: rgba(112, 230, 255, .72) !important; outline: none; box-shadow: 0 0 0 3px rgba(103, 232, 249, .10), 0 0 24px rgba(103, 232, 249, .16), 0 0 40px rgba(211, 83, 220, .08), inset 0 1px 0 rgba(255, 255, 255, .06); }
++.order-control-room .order-search-helper { color: rgba(181, 185, 211, .62); }
++.order-control-room .order-search-toggle { border-color: rgba(132, 115, 217, .35); background: linear-gradient(110deg, rgba(96, 64, 165, .16), rgba(35, 151, 181, .08)); color: #d8eaff; box-shadow: 0 0 14px rgba(118, 91, 220, .08); }
++.order-control-room .order-search-toggle:hover:not(:disabled) { border-color: rgba(111, 224, 255, .65); background: linear-gradient(110deg, rgba(124, 74, 205, .22), rgba(34, 180, 205, .14)); color: #f5fdff; box-shadow: 0 0 20px rgba(103, 232, 249, .14), 0 0 26px rgba(214, 81, 213, .08); }
++.order-control-room .order-filter-bar { border-color: rgba(127, 111, 196, .27); background: linear-gradient(145deg, rgba(5, 6, 14, .92), rgba(8, 7, 17, .9)); box-shadow: inset 0 0 24px rgba(103, 232, 249, .025), 0 0 20px rgba(112, 78, 201, .055); }
++.order-control-room .order-filter-fields { align-items: stretch; }
++.order-control-room .filter-field { display: flex; flex: 0 1 11rem; min-width: min(100%, 10rem); flex-direction: column; align-items: stretch; gap: .35rem; border-color: rgba(119, 134, 197, .27); border-radius: .8rem; padding: .55rem .65rem; background: linear-gradient(145deg, rgba(4, 7, 15, .92), rgba(8, 7, 17, .92)); color: #aebed2; font: 600 9px/1.2 'IBM Plex Mono', monospace; }
++.order-control-room .filter-field-date { flex-basis: 11rem; max-width: 12rem; }
++.order-control-room .filter-field-page { flex-basis: 13rem; max-width: 15rem; }
++.order-control-room .filter-field input,
++.order-control-room .filter-field select { width: 100%; min-width: 0; border: 0; background: transparent; color: #e2fbff; font: 500 11px/1.3 'IBM Plex Mono', monospace; }
++.order-control-room .filter-field option { background: #0b0b17; color: #e2fbff; }
++.order-control-room .filter-field:focus-within { border-color: rgba(103, 232, 249, .65); box-shadow: 0 0 0 2px rgba(103, 232, 249, .08), 0 0 16px rgba(103, 232, 249, .13); }
++.order-control-room .order-filter-actions > button { min-height: 2.35rem; border-radius: .75rem; }
++.order-control-room .order-search-result-summary { border-color: rgba(126, 128, 195, .22); background: linear-gradient(105deg, rgba(9, 9, 20, .9), rgba(6, 9, 16, .86)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .025); }
++.order-control-room .order-search-empty { border-color: rgba(149, 111, 225, .18); background: radial-gradient(ellipse at 50% 0%, rgba(120, 81, 203, .075), transparent 72%), rgba(7, 6, 16, .72); }
++.order-control-room .order-refresh-action { border-color: rgba(103, 232, 249, .28); background: rgba(34, 211, 238, .055); color: #c4f7fc; box-shadow: 0 0 13px rgba(103, 232, 249, .055); }
++.order-control-room .order-refresh-action:hover:not(:disabled) { border-color: rgba(103, 232, 249, .62); background: rgba(34, 211, 238, .12); color: #f0fdff; }
++.order-control-room .order-list-panel,
++.order-control-room .order-detail-card { border-color: rgba(124, 111, 188, .24) !important; background-color: rgba(7, 6, 13, .97) !important; box-shadow: 0 14px 42px rgba(0, 0, 0, .30), 0 0 22px rgba(110, 80, 203, .055), inset 0 0 26px rgba(103, 232, 249, .018) !important; }
++.order-control-room .order-detail-head { border-color: rgba(103, 232, 249, .15) !important; background: linear-gradient(90deg, rgba(5, 10, 16, .98), rgba(12, 8, 22, .97) 58%, rgba(6, 10, 16, .98)) !important; }
++.order-control-room .order-list-card { border-color: rgba(119, 106, 176, .20); background: linear-gradient(132deg, rgba(10, 9, 22, .94), rgba(4, 6, 13, .96)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .035), 0 8px 20px rgba(0, 0, 0, .19); }
++.order-control-room .order-list-card:hover,
++.order-control-room .order-list-card:focus-visible { border-color: rgba(103, 232, 249, .48); background: linear-gradient(120deg, rgba(18, 24, 37, .9), rgba(19, 10, 30, .9)); box-shadow: 0 0 0 1px rgba(103, 232, 249, .12), 0 0 24px rgba(103, 232, 249, .11), 0 0 28px rgba(176, 84, 231, .07); }
++.order-control-room .order-list-card-selected { border-color: rgba(103, 232, 249, .5) !important; background: linear-gradient(100deg, rgba(34, 211, 238, .09), rgba(112, 80, 207, .10) 55%, rgba(194, 62, 180, .055)) !important; box-shadow: inset 3px 0 #67e8f9, 0 0 0 1px rgba(103, 232, 249, .08), 0 0 22px rgba(103, 232, 249, .10), 0 0 26px rgba(190, 76, 217, .055) !important; }
++.order-control-room .order-list-card-latest::after { background: linear-gradient(90deg, transparent, rgba(103, 232, 249, .27), rgba(167, 139, 250, .11), transparent); }
++.order-control-room .order-parcel-result,
++.order-control-room .order-chat-match { border-color: rgba(142, 118, 216, .27); background: linear-gradient(128deg, rgba(13, 10, 25, .96), rgba(5, 8, 15, .96) 72%, rgba(8, 10, 19, .96)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .035), 0 8px 22px rgba(0, 0, 0, .2), 0 0 16px rgba(121, 79, 214, .045); transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease; }
++.order-control-room .order-parcel-result:hover,
++.order-control-room .order-chat-match:hover { border-color: rgba(103, 232, 249, .46); box-shadow: 0 0 0 1px rgba(103, 232, 249, .08), 0 0 20px rgba(103, 232, 249, .10), 0 0 28px rgba(209, 72, 207, .06); transform: translateY(-1px); }
++@media (max-width: 640px) {
++  .order-control-room .filter-field,
++  .order-control-room .filter-field-date { flex: 1 1 calc(50% - .5rem); max-width: none; }
++  .order-control-room .filter-field-page { flex: 1 1 100%; max-width: none; }
++  .order-control-room .order-filter-actions { justify-content: stretch; }
++  .order-control-room .order-filter-actions > button { flex: 1 1 8rem; }
++  .order-control-room .order-search-topline { align-items: flex-start; }
++}
++.order-control-room [class*="text-cyan-"] { color: #a9f2fa !important; }
++.order-control-room [class*="border-cyan-"] { border-color: rgba(103, 232, 249, .26) !important; }
++.order-control-room [class*="bg-cyan-"] { background-color: rgba(34, 211, 238, .075) !important; }
++.order-control-room [class*="hover:bg-cyan-"]:hover { background-color: rgba(34, 211, 238, .13) !important; }
++.order-control-room [class*="hover:border-cyan-"]:hover { border-color: rgba(103, 232, 249, .62) !important; }
++.order-control-room [class*="to-cyan-"] { --tw-gradient-to: rgba(34, 211, 238, .08) !important; }
++.order-control-room [class*="from-cyan-"] { --tw-gradient-from: rgba(34, 211, 238, .08) !important; --tw-gradient-to: rgb(34 211 238 / 0) !important; }
++.order-control-room [class*="via-cyan-"] { --tw-gradient-via: rgba(34, 211, 238, .07) !important; }
++.order-control-room .order-manual-bridge:hover { border-color: rgba(103, 232, 249, .44); color: #effdff; background: rgba(103, 232, 249, .08); box-shadow: 0 0 15px rgba(103, 232, 249, .08); }
++
++.order-manual-bridge {
++  display: inline-flex;
++  align-items: center;
++  gap: .4rem;
++  border: 1px solid rgba(220, 132, 255, .25);
++  border-radius: 999px;
++  padding: .35rem .62rem;
++  color: #e9c8ff;
++  background: linear-gradient(100deg, rgba(168, 69, 255, .09), rgba(255, 79, 200, .07));
++  font-size: 10px;
++  font-weight: 600;
++  letter-spacing: .04em;
++  transition: border-color .18s ease, background .18s ease, box-shadow .18s ease, transform .18s ease;
++}
++.order-manual-bridge:hover { border-color: rgba(255, 104, 215, .62); color: #fff4ff; background: rgba(255, 74, 194, .14); box-shadow: 0 0 17px rgba(210, 69, 255, .16); transform: translateY(-1px); }
++.order-manual-bridge:focus-visible,
++.manual-primary-link:focus-visible { outline: 2px solid #ff7cd8; outline-offset: 3px; }
++
++/* System Manual: turn the data map into a readable cosmic atlas. */
++.system-manual {
++  position: relative;
++  isolation: isolate;
++  background-color: #08040f !important;
++  background-image: radial-gradient(ellipse at 16% 0%, rgba(164, 62, 255, .13), transparent 34rem), radial-gradient(ellipse at 90% 16%, rgba(255, 67, 192, .10), transparent 31rem) !important;
++}
++.system-manual-backdrop {
++  opacity: .78 !important;
++  background-image: radial-gradient(circle at 16% 8%, rgba(171, 70, 255, .15), transparent 29rem), radial-gradient(circle at 88% 18%, rgba(255, 70, 199, .10), transparent 28rem), linear-gradient(rgba(197, 118, 255, .026) 1px, transparent 1px), linear-gradient(90deg, rgba(197, 118, 255, .026) 1px, transparent 1px) !important;
++  background-size: auto, auto, 34px 34px, 34px 34px !important;
++}
++.system-manual-content { position: relative; z-index: 1; }
++.system-manual-hero {
++  isolation: isolate;
++  border-color: rgba(255, 86, 203, .36) !important;
++  background: radial-gradient(ellipse at 82% 0%, rgba(176, 81, 255, .19), transparent 38%), linear-gradient(118deg, rgba(31, 9, 48, .97), rgba(13, 6, 24, .96) 60%, rgba(39, 8, 38, .93)) !important;
++  box-shadow: 0 0 0 1px rgba(255, 85, 205, .06), 0 0 28px rgba(174, 65, 255, .16), 0 20px 55px rgba(0, 0, 0, .3), inset 0 0 38px rgba(219, 76, 238, .065) !important;
++}
++.system-manual-hero::after {
++  content: "";
++  position: absolute;
++  right: 8%;
++  bottom: 0;
++  left: 8%;
++  height: 1px;
++  pointer-events: none;
++  background: linear-gradient(90deg, transparent, #ff58cb, #ad67ff, transparent);
++  box-shadow: 0 0 16px rgba(255, 83, 204, .75);
++  animation: manual-warp-glint 7s ease-in-out infinite;
++}
++.system-manual-hero-art {
++  position: absolute;
++  top: 50%;
++  right: 3%;
++  width: clamp(190px, 25vw, 310px);
++  aspect-ratio: 1;
++  pointer-events: none;
++  opacity: .72;
++  transform: translateY(-50%);
++}
++.manual-orbit {
++  position: absolute;
++  inset: 8%;
++  border: 1px solid rgba(255, 99, 214, .42);
++  border-radius: 50%;
++  box-shadow: 0 0 22px rgba(226, 74, 255, .08), inset 0 0 24px rgba(183, 80, 255, .06);
++}
++.manual-orbit-one { transform: rotate(-22deg) scaleY(.72); }
++.manual-orbit-one::after {
++  content: "";
++  position: absolute;
++  inset: 16% -12%;
++  border: 1px solid rgba(182, 108, 255, .35);
++  border-radius: 50%;
++  transform: rotate(53deg);
++}
++.manual-orbit-two { inset: 20%; border-color: rgba(185, 110, 255, .30); transform: rotate(44deg) scaleY(.76); }
++.manual-planet {
++  position: absolute;
++  top: 37%;
++  left: 40%;
++  width: 21%;
++  aspect-ratio: 1;
++  border-radius: 50%;
++  background: radial-gradient(circle at 32% 27%, #fff1ff 0 4%, #ff87dd 13%, #a951ff 48%, #29103d 76%, #0b0412 100%);
++  box-shadow: 0 0 17px rgba(255, 99, 218, .75), 0 0 54px rgba(159, 69, 255, .52);
++  animation: manual-planet-float 5.5s ease-in-out infinite;
++}
++.manual-planet::after {
++  content: "";
++  position: absolute;
++  inset: 26% -45%;
++  border: 1px solid rgba(255, 155, 228, .65);
++  border-radius: 50%;
++  box-shadow: 0 0 11px rgba(255, 88, 206, .28);
++  transform: rotate(-24deg);
++}
++.manual-kicker { color: #f2a6e8 !important; text-shadow: 0 0 16px rgba(255, 76, 197, .2); }
++.manual-title { max-width: 18ch; text-shadow: 0 0 18px rgba(255, 78, 198, .20), 0 0 40px rgba(166, 91, 255, .14); }
++.manual-primary-link {
++  display: inline-flex;
++  align-items: center;
++  gap: .55rem;
++  border: 1px solid rgba(255, 145, 223, .42);
++  border-radius: .85rem;
++  padding: .7rem .95rem;
++  color: #fff4ff;
++  background: linear-gradient(105deg, #8e45e8, #d83db9 66%, #a84aff);
++  box-shadow: 0 0 18px rgba(230, 68, 205, .24), inset 0 0 14px rgba(255, 255, 255, .08);
++  font-size: .78rem;
++  font-weight: 700;
++  transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
++}
++.manual-primary-link:hover { filter: brightness(1.13); transform: translateY(-2px); box-shadow: 0 0 28px rgba(231, 67, 205, .38), 0 0 40px rgba(160, 75, 255, .18); }
++.manual-route-note { color: rgba(226, 194, 239, .48); font: 600 9px/1.5 'IBM Plex Mono', monospace; letter-spacing: .13em; }
++.system-manual-content > section[class*="rounded-[2rem]"] {
++  border-color: rgba(191, 113, 255, .20) !important;
++  background: radial-gradient(ellipse at 90% 0%, rgba(171, 64, 255, .07), transparent 34%), linear-gradient(145deg, rgba(19, 8, 31, .93), rgba(9, 6, 18, .93)) !important;
++  box-shadow: 0 16px 42px rgba(0, 0, 0, .21), inset 0 0 28px rgba(175, 71, 255, .035) !important;
++}
++.system-manual-content > section[class*="rounded-[2rem]"] > * { position: relative; z-index: 1; }
++.system-manual [class*="border-cyan-"],
++.system-manual [class*="border-emerald-"],
++.system-manual [class*="border-amber-"] { border-color: rgba(195, 116, 255, .24) !important; }
++.system-manual [class*="text-cyan-"] { color: #e6adf3 !important; }
++.system-manual [class*="text-emerald-"] { color: #d9b0ff !important; }
++.system-manual [class*="text-amber-"] { color: #ffb9e5 !important; }
++.system-manual [class*="bg-cyan-"],
++.system-manual [class*="bg-emerald-"],
++.system-manual [class*="bg-amber-"] { background-color: rgba(170, 70, 255, .075) !important; }
++.system-manual [class*="shadow-cyan-"],
++.system-manual [class*="shadow-emerald-"],
++.system-manual [class*="shadow-amber-"] { --tw-shadow-color: rgba(177, 70, 255, .14) !important; }
++.system-manual [class*="from-cyan-"],
++.system-manual [class*="from-emerald-"],
++.system-manual [class*="from-amber-"] { --tw-gradient-from: #c65de4 !important; --tw-gradient-to: rgb(198 93 228 / 0) !important; }
++.system-manual [class*="via-cyan-"],
++.system-manual [class*="via-emerald-"],
++.system-manual [class*="via-amber-"] { --tw-gradient-via: #b26aff !important; }
++.system-manual [class*="to-cyan-"],
++.system-manual [class*="to-emerald-"],
++.system-manual [class*="to-amber-"] { --tw-gradient-to: #a45bf2 !important; }
++.system-manual [class*="border-white/10"] { border-color: rgba(197, 144, 255, .15) !important; }
++.system-manual [class*="bg-white/"] { background-color: rgba(180, 88, 255, .045) !important; }
++.system-manual [class*="hover:border-cyan-"]:hover { border-color: rgba(255, 102, 214, .48) !important; }
++.system-manual [class*="hover:bg-cyan-"]:hover { background-color: rgba(255, 73, 198, .10) !important; }
++
++@keyframes manual-planet-float { 0%, 100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(7px) rotate(4deg); } }
++@keyframes manual-warp-glint { 0%, 100% { opacity: .55; filter: brightness(.9); } 50% { opacity: 1; filter: brightness(1.25); } }
++@media (max-width: 767px) {
++  .system-manual-hero-art { top: 5%; right: -13%; width: 190px; opacity: .38; transform: none; }
++  .manual-title { max-width: 16ch; }
++  .manual-primary-link { width: 100%; justify-content: center; }
++  .manual-route-note { width: 100%; text-align: center; }
++}
++@media (prefers-reduced-motion: reduce) {
++  .system-manual-hero::after, .manual-planet { animation: none !important; }
++  .manual-primary-link, .order-manual-bridge { transition: none; }
++}
+diff --git a/client/src/pages/OrderControl.tsx b/client/src/pages/OrderControl.tsx
+index 2271265..ae74668 100644
+--- a/client/src/pages/OrderControl.tsx
++++ b/client/src/pages/OrderControl.tsx
+@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
+ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+ import { Input } from "@/components/ui/input";
+ import OrderEditWorkbench from "@/components/OrderEditWorkbench";
+-import { getActiveCamp, orderTimeSortKey, readCanonicalOrders, readParcelByTrackingNumber, readParcelMappingQueue } from "@/lib/canonical";
++import { getActiveCamp, normalizePhoneForSearch, orderTimeSortKey, readCanonicalOrders, readChatThreads, readParcelByTrackingNumber, readParcelMappingQueue } from "@/lib/canonical";
+ import { useQuery } from "@tanstack/react-query";
+ import { CalendarDays, Check, CheckCircle2, Clock3, Database, Download, ExternalLink, MessageCircle, Pencil, RefreshCw, Search, Send, ShoppingCart, WalletCards, XCircle } from "lucide-react";
+ import { useEffect, useState } from "react";
+@@ -142,11 +142,11 @@ export default function OrderControl() {
+   const [selectedKey, setSelectedKey] = useState("");
+   const [clock, setClock] = useState(() => new Date());
+   const [copied, setCopied] = useState(false);
+-  const [trackingDrawerOpen, setTrackingDrawerOpen] = useState(false);
+-  const [trackingSearch, setTrackingSearch] = useState("");
++  const [searchPanelOpen, setSearchPanelOpen] = useState(false);
+   const [trackingCopied, setTrackingCopied] = useState("");
+   const [editOpen, setEditOpen] = useState(false);
+-  const trackingInput = splitTrackingInput(trackingSearch);
++  const trackingInput = splitTrackingInput(search);
++  const trackingSearchReady = search.trim().length >= 3;
+   const query = useQuery({
+     queryKey: ["canonical-orders", search, fromDate, untilDate],
+     queryFn: () => readCanonicalOrders(search, fromDate || null, untilDate || null),
+@@ -156,30 +156,47 @@ export default function OrderControl() {
+   const trackingQueueQuery = useQuery({
+     queryKey: ["home-tracking-lookup", getActiveCamp()],
+     queryFn: () => readParcelMappingQueue("all", 300),
+-    enabled: trackingDrawerOpen,
++    enabled: searchPanelOpen && trackingSearchReady,
+     staleTime: 15_000,
+   });
+   const directParcelQuery = useQuery({
+     queryKey: ["parcel-direct-tracking-lookup", getActiveCamp(), trackingInput.pure],
+     queryFn: () => readParcelByTrackingNumber(trackingInput.pure),
+-    enabled: trackingDrawerOpen && Boolean(trackingInput.pure),
++    enabled: searchPanelOpen && Boolean(trackingInput.pure),
+     staleTime: 15_000,
+   });
++  const chatThreadsQuery = useQuery({
++    queryKey: ["order-control-chat-search", getActiveCamp()],
++    queryFn: () => readChatThreads(),
++    enabled: searchPanelOpen && trackingSearchReady,
++    staleTime: 60_000,
++  });
+   // ⫘ ORDER SORT · ใช้ CENTRAL ORDER CLOCK เรียงล่าสุดไว้บนสุดเสมอ
+   const rawOrders = [...((query.data?.orders ?? []) as CanonicalOrderRow[])].sort((a, b) => orderTimeSortKey(b.order_time_display) - orderTimeSortKey(a.order_time_display));
+   const pageNames = Array.from(new Set(rawOrders.map((row) => String(row.page_name ?? "").trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, "th"));
+   const orders = pageFilter === "ทั้งหมด" ? rawOrders : rawOrders.filter((row) => String(row.page_name ?? "").trim() === pageFilter);
+   const selectedOrder = orders.find((row) => row.upsert_key === selectedKey) ?? orders[0] ?? null;
+   const trackingTerm = trackingInput.raw.toLowerCase();
++  const phoneSearch = /^[+\d\s().-]+$/.test(search.trim()) ? normalizePhoneForSearch(search) : "";
+   const fallbackTrackingRows = (trackingQueueQuery.data ?? []).filter((row: any) => {
+     if (!trackingInput.raw) return false;
+     const rowTracking = extractPureTrackingNumber(row.tracking_number);
+     if (trackingInput.pure && rowTracking) return rowTracking === trackingInput.pure;
+-    const haystack = [row.tracking_number, row.recipient_name, row.matched_phone, row.order_number_display, row.order_number, row.page_name]
++    const haystack = [row.tracking_number, row.recipient_name, row.matched_phone, row.order_number_display, row.order_number, row.page_name, row.chat_link_key]
+       .map((value) => String(value ?? "").trim().toLowerCase()).join(" ");
+-    return haystack.includes(trackingTerm);
++    const phoneMatch = phoneSearch.length >= 7 && [row.matched_phone, row.phone_number, row.order_phone, row.phone]
++      .some((value) => normalizePhoneForSearch(value).includes(phoneSearch));
++    return haystack.includes(trackingTerm) || phoneMatch;
+   }).slice(0, 12);
+   const trackingRows = trackingInput.pure && directParcelQuery.data?.length ? directParcelQuery.data : fallbackTrackingRows;
++  const matchingChatThreads = (chatThreadsQuery.data ?? []).filter((thread: any) => {
++    if (!trackingTerm) return false;
++    const haystack = [thread.chatLinkKey, thread.key, thread.customerPhone, thread.customerName, thread.customerId, thread.pageName, thread.preview, ...(thread.chatTimeline ?? [])]
++      .map((value) => String(value ?? "").trim().toLowerCase()).join(" ");
++    const phoneDigits = normalizePhoneForSearch(thread.customerPhone);
++    return haystack.includes(trackingTerm) || (phoneSearch.length >= 7 && phoneDigits.includes(phoneSearch));
++  }).slice(0, 8);
++  const isRefreshing = query.isFetching || trackingQueueQuery.isFetching || directParcelQuery.isFetching || chatThreadsQuery.isFetching;
+   const todayOrders = orders.filter(isToday);
+   const sentOrders = orders.filter(isSent);
+   const sendableOrders = orders.filter(canSend);
+@@ -210,65 +227,68 @@ export default function OrderControl() {
+   }
+ 
+   return (
+-    <div className="cosmic-stage min-h-full space-y-3 p-2 text-white sm:p-3 lg:p-4">
++    <div className="cosmic-stage order-control-room min-h-full space-y-3 p-2 text-white sm:p-3 lg:p-4">
+       <span className="cosmic-corner tl" /><span className="cosmic-corner br" />
+       <header className="blackbox-hero cyber-glow relative flex flex-wrap items-center justify-between gap-3 overflow-hidden rounded-2xl border border-fuchsia-400/20 p-4 sm:p-5">
+         <div className="hero-scanline" />
+         <div className="relative z-10 max-w-3xl">
+-          <p className="orbit-kicker flex items-center gap-2 text-cyan-200/80"><Database className="h-3.5 w-3.5 text-cyan-300" /> ORBITAL ORDER CONTROL · N8N / SUPABASE</p>
+-          <h1 className="cyber-title mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">ข้อมูลออเดอร์ <span className="text-fuchsia-300">//</span> COMMAND DECK</h1>
+-          <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-300/75">ศูนย์ควบคุมออเดอร์จาก n8n · เห็นต้นทาง สถานะ และเวลาจริงในจอเดียว</p>
+-          <div className="mt-3 flex flex-wrap items-center gap-2"><span className="live-chip"><span className="live-dot" /> LIVE ORDER STREAM</span><span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-300/70">HERMES ARCHIVE · SECURE LINK</span></div>
++          <p className="orbit-kicker flex items-center gap-2 text-cyan-200/80"><Database className="h-3.5 w-3.5 text-cyan-300" /> ศูนย์ควบคุมออเดอร์จาก n8n ·</p>
++          <h1 className="cyber-title mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">ORDER CONTROL <span className="text-cyan-300">✦</span> BB STORE</h1>
++          <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-300/75">เห็นต้นทาง สถานะ และเวลาจริงในจอเดียว</p>
++          <div className="mt-3 flex flex-wrap items-center gap-2">
++            <span className="live-chip"><span className="live-dot" /> LIVE ORDER STREAM</span>
++            <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-300/70">HERMES ARCHIVE · SECURE LINK</span>
++            <Link href="/system-manual" className="order-manual-bridge" aria-label="เปิดคู่มือระบบและแผนผังข้อมูล">
++              <Database className="h-3.5 w-3.5" /> คู่มือระบบ <ExternalLink className="h-3 w-3 opacity-70" />
++            </Link>
++          </div>
+         </div>
+         <div className="central-clock hero-clock relative z-10"><span className="central-clock-label">ORDER_TIME_DISPLAY · BANGKOK</span><strong>{clock.toLocaleTimeString("th-TH", { timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit", second: "2-digit" })}</strong><span className="central-clock-date">{clock.toLocaleDateString("th-TH", { timeZone: "Asia/Bangkok", weekday: "long", day: "numeric", month: "long", year: "numeric" })}</span><small>ศูนย์เวลาออเดอร์จาก n8n · ไม่ใช้เวลาระบบ</small></div>
+       </header>
+ 
+-      <div className="signal-ticker rounded-xl"><span>✦ HERMES ARCHIVE // ORDER SIGNAL // COD VERIFIED // PRODUCT MAP ONLINE // TELEGRAM ROUTE READY // </span></div>
+-
+-      {/* ⫘ SUMMARY CARDS · การ์ดสรุปยอดด้านบน: แก้สี/ขนาดที่ component Metric ด้านล่าง */}
+-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+-        <Metric icon={ShoppingCart} label="ออเดอร์ทั้งหมด" value={orders.length} suffix="รายการ" tone="fuchsia" />
+-        <Metric icon={CalendarDays} label="ออเดอร์วันนี้" value={todayOrders.length} suffix="รายการ · รอบ 14:00" tone="violet" />
+-        <Metric icon={WalletCards} label="ยอด COD ทั้งหมด" value={money(totalCod)} tone="cyan" />
+-        <Metric icon={WalletCards} label="ยอด COD วันนี้" value={money(todayCod)} suffix="รอบ 14:00" tone="amber" />
+-        <Metric icon={CheckCircle2} label="ส่งแล้ว" value={sentOrders.length} suffix="รายการ" tone="green" />
+-        <Metric icon={Send} label="ส่งได้" value={sendableOrders.length} suffix="รายการ" tone="sky" />
+-        <Metric icon={XCircle} label="ส่งไม่ได้ / ต้องตรวจ" value={blockedOrders.length} suffix="รายการ" tone="rose" />
+-      </section>
+-
+-      {/* ⫘ SEARCH BAR · ช่องค้นหา: ค้นจากข้อมูลแถวใน HERMES */}
+-      <div className="relative cyber-grid rounded-2xl">
+-        <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-cyan-300/70" />
+-        <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ค้นหา order / ลูกค้า / เบอร์ / SKU จาก Supabase" className="h-12 rounded-2xl border-cyan-300/20 bg-[#0d0a18]/90 pl-11 text-white shadow-[0_0_24px_rgba(88,239,255,0.06)] placeholder:text-slate-500 focus-visible:border-fuchsia-300/60 focus-visible:ring-fuchsia-400/20" />
+-      </div>
+-
+-      <div className="order-filter-bar flex flex-wrap items-center gap-2 rounded-2xl border border-cyan-300/15 bg-[#0d0a18]/80 p-2">
+-        <label className="filter-field"><span>ตั้งแต่</span><input type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} /></label>
+-        <label className="filter-field"><span>ถึง</span><input type="date" value={untilDate} onChange={(event) => setUntilDate(event.target.value)} /></label>
+-        <label className="filter-field"><span>เพจ</span><select value={pageFilter} onChange={(event) => setPageFilter(event.target.value)}><option value="ทั้งหมด">ทุกเพจ</option>{pageNames.map((page) => <option key={page} value={page}>{page}</option>)}</select></label>
+-        <div className="ml-auto flex flex-wrap gap-2">
+-          <Button type="button" variant="outline" onClick={() => void query.refetch()} disabled={query.isFetching} className="order-refresh-action"><RefreshCw className={`mr-2 h-3.5 w-3.5 ${query.isFetching ? "animate-spin" : ""}`} />{query.isFetching ? "กำลังอัปเดต" : "อัปเดตข้อมูล"}</Button>
+-          <Button type="button" variant="outline" onClick={() => exportOrdersCsv(orders)} className="border-cyan-300/30 bg-cyan-400/5 text-cyan-100 hover:bg-cyan-400/15"><Download className="mr-2 h-4 w-4" />เอ็กซ์พอร์ต {orders.length} รายการ</Button>
+-          <Button type="button" variant="outline" onClick={() => { setFromDate(""); setUntilDate(""); setPageFilter("ทั้งหมด"); }} className="border-violet-300/25 bg-violet-400/5 text-violet-100 hover:bg-violet-400/15">ล้างตัวเลือก</Button>
++      {/* UNIVERSAL SEARCH DRAWER · ช่องเดียวค้นคลังออเดอร์และคิวพัสดุที่เชื่อมอยู่ */}
++      <section className="order-search-drawer overflow-hidden rounded-2xl border border-cyan-300/20 bg-[#05070d]/95 shadow-[0_0_22px_rgba(76,236,255,0.06)]">
++        <div className="order-search-head p-3 sm:p-4">
++          <div className="order-search-topline mb-3 flex flex-wrap items-center justify-between gap-2">
++            <label htmlFor="order-universal-search" className="order-search-label flex min-w-0 flex-wrap items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em]">
++              <span className="order-search-label-icon"><Search className="h-3.5 w-3.5" /></span>
++              <span>ค้นหาออเดอร์และพัสดุ</span>
++              <span className="order-search-phone-badge">เบอร์โทรเป็นหลัก</span>
++            </label>
++            <Button type="button" variant="outline" aria-expanded={searchPanelOpen} onClick={() => setSearchPanelOpen((open) => !open)} className="order-search-toggle h-9 justify-between gap-3 whitespace-nowrap px-3">
++              <span>{searchPanelOpen ? "ซ่อนตัวกรอง / ผลพัสดุ" : "ตัวกรอง / ผลพัสดุ"}</span><span className="font-mono text-lg leading-none">{searchPanelOpen ? "−" : "+"}</span>
++            </Button>
++          </div>
++          <div className="order-search-input-shell">
++            <Search aria-hidden="true" className="order-search-input-icon h-4 w-4" />
++            <Input id="order-universal-search" value={search} onChange={(event) => { setSearch(event.target.value); if (event.target.value.trim()) setSearchPanelOpen(true); }} placeholder="เบอร์โทรศัพท์ · ชื่อลูกค้า · เลขออเดอร์ · SKU · chat_link_key · เลขพัสดุ" className="order-search-input h-12 w-full rounded-xl border text-sm text-white placeholder:text-slate-500" />
++          </div>
++          <p className="order-search-helper mt-2 text-[10px] leading-4">ค้น HERMES · Chat · Parcel ด้วยเบอร์โทรหรือ chat_link_key · วันที่/เพจใช้กรองรายการออเดอร์</p>
+         </div>
+-      </div>
+-
+-      {/* TRACKING DRAWER · ค้นเลข/ชื่อ/เบอร์ได้จาก parcel queue เดิม โดยโหลดเมื่อเปิดลิ้นชักเท่านั้น */}
+-      <section className="tracking-drawer overflow-hidden rounded-2xl border border-cyan-300/20 bg-[#0d0a18]/85 shadow-[0_0_22px_rgba(76,236,255,0.07)]">
+-        <Button type="button" variant="ghost" aria-expanded={trackingDrawerOpen} onClick={() => setTrackingDrawerOpen((open) => !open)} className="flex h-auto w-full items-center justify-between rounded-none px-4 py-3 text-left text-cyan-100 hover:bg-cyan-400/[0.06]">
+-          <span className="flex items-center gap-2"><Search className="h-4 w-4 text-cyan-300" /><span><span className="block text-xs font-semibold">ลิ้นชักค้นหาเลขพัสดุ</span><span className="mt-0.5 block text-[10px] text-slate-400">ค้นเลขพัสดุ · เบอร์ · ชื่อลูกค้า · เลขออเดอร์ · เพจ</span></span></span>
+-          <span className="text-lg leading-none text-cyan-300">{trackingDrawerOpen ? "−" : "+"}</span>
+-        </Button>
+-        {trackingDrawerOpen ? <div className="grid grid-rows-[1fr] border-t border-cyan-300/15 transition-all duration-300">
++        {searchPanelOpen ? <div id="order-search-filters" className="grid grid-rows-[1fr] border-t border-cyan-300/15 transition-all duration-300">
+           <div className="min-h-0 p-3 sm:p-4">
+-            <div className="flex flex-col gap-2 sm:flex-row">
+-              <Input value={trackingSearch} onChange={(event) => setTrackingSearch(event.target.value)} placeholder="เลขพัสดุหลัก หรือวางข้อความแต่งหล่อ…" className="h-10 min-w-0 border-cyan-300/20 bg-black/30 text-white placeholder:text-slate-500" />
+-              <span className="self-center whitespace-nowrap text-[10px] text-slate-500">{directParcelQuery.isFetching || trackingQueueQuery.isFetching ? "กำลังค้นข้อมูลพัสดุ…" : trackingInput.raw ? (trackingInput.pure ? `ค้น parcels.tracking_number ตรง · ${trackingRows.length} รายการ` : `${trackingRows.length} รายการที่ตรง`) : "พิมพ์เลขพัสดุเพื่อค้นตรง"}</span>
++            <div className="order-filter-bar mb-3 rounded-2xl border border-cyan-300/15 bg-black/25 p-3">
++              <div className="order-filter-fields flex flex-wrap items-end gap-2">
++                <label className="filter-field filter-field-date"><span>ตั้งแต่</span><input type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} /></label>
++                <label className="filter-field filter-field-date"><span>ถึง</span><input type="date" value={untilDate} onChange={(event) => setUntilDate(event.target.value)} /></label>
++                <label className="filter-field filter-field-page"><span>เพจ</span><select value={pageFilter} onChange={(event) => setPageFilter(event.target.value)}><option value="ทั้งหมด">ทุกเพจ</option>{pageNames.map((page) => <option key={page} value={page}>{page}</option>)}</select></label>
++              </div>
++              <div className="order-filter-actions mt-3 flex flex-wrap justify-end gap-2 border-t border-white/[0.06] pt-3">
++                <Button type="button" variant="outline" onClick={() => { void query.refetch(); if (searchPanelOpen && trackingSearchReady) { void trackingQueueQuery.refetch(); void chatThreadsQuery.refetch(); } if (searchPanelOpen && trackingInput.pure) void directParcelQuery.refetch(); }} disabled={isRefreshing} className="order-refresh-action"><RefreshCw className={`mr-2 h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />{isRefreshing ? "กำลังอัปเดต" : "อัปเดตข้อมูล"}</Button>
++                <Button type="button" variant="outline" onClick={() => exportOrdersCsv(orders)} className="border-cyan-300/30 bg-cyan-400/5 text-cyan-100 hover:bg-cyan-400/15"><Download className="mr-2 h-4 w-4" />เอ็กซ์พอร์ต {orders.length} รายการ</Button>
++                <Button type="button" variant="outline" onClick={() => { setSearch(""); setFromDate(""); setUntilDate(""); setPageFilter("ทั้งหมด"); }} className="border-violet-300/25 bg-violet-400/5 text-violet-100 hover:bg-violet-400/15">ล้างตัวเลือก</Button>
++              </div>
++            </div>
++            <div className="order-search-result-summary mb-3 flex flex-col justify-between gap-2 rounded-xl border border-cyan-300/10 bg-black/20 px-3 py-2 sm:flex-row sm:items-center">
++              <span className="text-[10px] text-slate-400">{query.isFetching ? "กำลังค้นออเดอร์…" : `ออเดอร์ที่ตรง ${orders.length} รายการ`} · {trackingInput.raw ? `พัสดุ ${trackingRows.length} · แชท ${matchingChatThreads.length}` : "พิมพ์เบอร์เพื่อค้นทั้ง 3 แหล่ง"}</span>
++              <span className="text-[10px] text-cyan-100/65">{isRefreshing ? "กำลังค้นข้อมูลจาก HERMES · Chat · Parcel…" : !trackingInput.raw ? "ค้นได้ด้วยเบอร์ / ชื่อ / เลขออเดอร์ / SKU / chat_link_key / เลขพัสดุ" : !trackingSearchReady ? "พิมพ์อย่างน้อย 3 ตัวอักษรเพื่อค้นทุกแหล่ง" : trackingInput.pure ? `เลขพัสดุตรง ${trackingRows.length} · แชทที่ตรง ${matchingChatThreads.length}` : `พัสดุที่ตรง ${trackingRows.length} · แชทที่ตรง ${matchingChatThreads.length}`}</span>
+             </div>
+             {trackingInput.isDecorated ? <p className="mt-2 rounded-lg border border-fuchsia-300/15 bg-fuchsia-400/[0.04] px-3 py-2 text-[10px] text-fuchsia-100/75">ตรวจพบข้อความแต่งหล่อ · ระบบแยกเลขหลัก <span className="font-mono font-semibold text-fuchsia-100">{trackingInput.pure}</span> ไปค้นใน parcels โดยตรง</p> : null}
++            {!trackingInput.raw ? <p className="order-search-empty mb-3 rounded-xl border border-violet-300/10 bg-violet-400/[0.025] p-3 text-center text-[11px] text-slate-400">เริ่มจากเบอร์โทรได้เลย · ระบบจะแสดงออเดอร์ที่ตรงด้านล่าง และค้นคิวพัสดุในแผงนี้</p> : null}
+             {trackingQueueQuery.isError ? <p className="mt-3 rounded-xl border border-pink-300/20 bg-pink-400/[0.04] p-3 text-xs text-pink-200">ค้นคิวพัสดุไม่สำเร็จ: {trackingQueueQuery.error instanceof Error ? trackingQueueQuery.error.message : String(trackingQueueQuery.error)}</p> : null}
+             {directParcelQuery.isError ? <p className="mt-3 rounded-xl border border-pink-300/20 bg-pink-400/[0.04] p-3 text-xs text-pink-200">ค้น parcels โดยตรงไม่สำเร็จ: {directParcelQuery.error instanceof Error ? directParcelQuery.error.message : String(directParcelQuery.error)}</p> : null}
+-            {trackingTerm && !trackingQueueQuery.isFetching && !trackingQueueQuery.isError && trackingRows.length === 0 ? <p className="mt-3 p-3 text-center text-xs text-slate-500">ไม่พบรายการในคิวพัสดุที่โหลดได้</p> : null}
++            {chatThreadsQuery.isError ? <p className="mt-3 rounded-xl border border-violet-300/20 bg-violet-400/[0.04] p-3 text-xs text-violet-100">ค้นโปรเจกต์ Chat ไม่สำเร็จ: {chatThreadsQuery.error instanceof Error ? chatThreadsQuery.error.message : String(chatThreadsQuery.error)}</p> : null}
++            {trackingTerm && trackingSearchReady && !trackingQueueQuery.isFetching && !trackingQueueQuery.isError && trackingRows.length === 0 ? <p className="mt-3 p-3 text-center text-xs text-slate-500">ไม่พบรายการในคิวพัสดุที่โหลดได้</p> : null}
+             <div className="mt-3 grid max-h-80 gap-2 overflow-y-auto lg:grid-cols-2">
+               {trackingRows.map((row: any, index: number) => {
+                 const trackingNo = extractPureTrackingNumber(row.tracking_number) || String(row.tracking_number ?? "").trim();
+@@ -277,7 +297,7 @@ export default function OrderControl() {
+                 const message = String(row.drakside_tracking_message || row.facebook_tracking_message || "").trim();
+                 const copyKey = `${trackingNo}:${index}`;
+                 const inboxUrl = businessInboxUrl(row);
+-                return <article key={copyKey} className="rounded-xl border border-violet-300/20 bg-violet-500/[0.035] p-3">
++                return <article key={copyKey} className="order-parcel-result rounded-xl border p-3">
+                   <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="font-mono text-sm font-semibold text-cyan-100">{trackingNo || "ไม่มีเลขพัสดุ"}</p><p className="mt-1 text-xs text-slate-200">{displayName}{displayPhone ? ` · ${displayPhone}` : ""}</p></div><span className="text-[10px] text-violet-200/75">{String(row.page_name || "ไม่ระบุเพจ")}</span></div>
+                   <p className="mt-1 text-[10px] text-slate-400">{String(row.order_number_display || row.order_number || "ไม่พบเลขออเดอร์")} · {String(row.pickup_date || row.order_time_display || "ไม่ระบุวันเวลา")} · COD {String(row.cod_amount ?? "—")} บาท</p>
+                   <div className="mt-2 flex flex-wrap gap-2"><span className="rounded-md border border-cyan-300/15 bg-cyan-400/[0.04] px-2 py-1 text-[9px] text-cyan-100/65">ค้นตรง: parcels.tracking_number</span>{row.chat_link_key ? <span className="rounded-md border border-violet-300/15 bg-violet-400/[0.04] px-2 py-1 font-mono text-[9px] text-violet-100/70">{String(row.chat_link_key)}</span> : null}</div>
+@@ -286,22 +306,48 @@ export default function OrderControl() {
+                 </article>;
+               })}
+             </div>
++            {matchingChatThreads.length ? <div className="mt-4">
++              <div className="mb-2 flex flex-wrap items-center justify-between gap-2"><h3 className="text-[10px] font-bold uppercase tracking-[0.18em] text-violet-100">ผลจาก Chat · {matchingChatThreads.length} ห้อง</h3><span className="text-[9px] text-slate-500">จับคู่ด้วยเบอร์ / chat_link_key / ข้อความ</span></div>
++              <div className="grid gap-2 lg:grid-cols-2">
++                {matchingChatThreads.map((thread: any) => {
++                  const chatSearch = String(thread.customerName || thread.customerPhone || thread.chatLinkKey || thread.threadId || search);
++                  return <article key={thread.key} className="order-chat-match rounded-xl border p-3">
++                    <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="text-xs font-semibold text-white">{String(thread.customerName || "ไม่ระบุชื่อลูกค้า")}</p><p className="mt-1 font-mono text-[10px] text-cyan-100/80">{String(thread.customerPhone || "ไม่พบเบอร์ในแชท")}</p></div><span className="text-[10px] text-violet-200/75">{String(thread.pageName || "ไม่ระบุเพจ")}</span></div>
++                    <p className="mt-2 line-clamp-2 text-[10px] leading-4 text-slate-300">{String(thread.preview || "ไม่มีข้อความตัวอย่าง")}</p>
++                    <div className="mt-2 flex flex-wrap items-center justify-between gap-2"><span className="max-w-full truncate font-mono text-[9px] text-violet-200/70">{thread.chatLinkKey ? `chat_link_key · ${String(thread.chatLinkKey)}` : `thread key · ${String(thread.key)}`}</span><Link href={`/chats?search=${encodeURIComponent(chatSearch)}`} className="inline-flex items-center gap-1 rounded-lg border border-cyan-300/20 bg-cyan-400/[0.04] px-2.5 py-1.5 text-[10px] font-semibold text-cyan-100 hover:bg-cyan-400/[0.1]">เปิดห้องแชท <ExternalLink className="h-3 w-3" /></Link></div>
++                  </article>;
++                })}
++              </div>
++            </div> : null}
+           </div>
+         </div> : null}
+       </section>
+ 
++      <div className="signal-ticker rounded-xl"><span>✦ HERMES ARCHIVE // ORDER SIGNAL // COD VERIFIED // PRODUCT MAP ONLINE // TELEGRAM ROUTE READY // </span></div>
++
++      {/* ⫘ SUMMARY CARDS · การ์ดสรุปยอดด้านบน: แก้สี/ขนาดที่ component Metric ด้านล่าง */}
++      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
++        <Metric icon={ShoppingCart} label="ออเดอร์ทั้งหมด" value={orders.length} suffix="รายการ" tone="fuchsia" />
++        <Metric icon={CalendarDays} label="ออเดอร์วันนี้" value={todayOrders.length} suffix="รายการ · รอบ 14:00" tone="violet" />
++        <Metric icon={WalletCards} label="ยอด COD ทั้งหมด" value={money(totalCod)} tone="cyan" />
++        <Metric icon={WalletCards} label="ยอด COD วันนี้" value={money(todayCod)} suffix="รอบ 14:00" tone="amber" />
++        <Metric icon={CheckCircle2} label="ส่งแล้ว" value={sentOrders.length} suffix="รายการ" tone="green" />
++        <Metric icon={Send} label="ส่งได้" value={sendableOrders.length} suffix="รายการ" tone="sky" />
++        <Metric icon={XCircle} label="ส่งไม่ได้ / ต้องตรวจ" value={blockedOrders.length} suffix="รายการ" tone="rose" />
++      </section>
++
+       {query.error ? <Card className="border-pink-400/30 bg-pink-950/20 shadow-[0_0_24px_rgba(255,70,190,0.1)]"><CardContent className="p-5 text-sm text-pink-200">อ่านข้อมูลไม่สำเร็จ: {query.error instanceof Error ? query.error.message : String(query.error)}</CardContent></Card> : null}
+ 
+       {/* ⫘ WORKBENCH · ซ้ายรายการออเดอร์ / ขวารายละเอียดออเดอร์ */}
+-      <div className="grid gap-4 xl:grid-cols-[minmax(320px,0.8fr)_minmax(0,1.2fr)]">
+-        <Card className="overflow-hidden border-violet-400/20 bg-[#10091b]/90 shadow-[0_0_28px_rgba(151,75,255,0.08)]">
++      <div className="grid gap-4 xl:grid-cols-[minmax(390px,0.96fr)_minmax(0,1.04fr)]">
++        <Card className="order-list-panel overflow-hidden border-violet-300/15 bg-[#08070e]/95 shadow-[0_0_24px_rgba(111,83,180,0.07)]">
+           <CardHeader className="border-b border-violet-300/15 bg-violet-500/[0.04]"><CardTitle className="flex items-center justify-between text-base text-violet-100"><span><span className="mr-2 text-emerald-300">✦</span>รายการออเดอร์</span><span className="rounded-full border border-emerald-300/25 bg-emerald-400/10 px-2 py-0.5 text-xs font-mono font-normal text-emerald-200">{orders.length} SIGNALS</span></CardTitle></CardHeader>
+           {/* รายการการ์ดซ้าย: ลด/เพิ่มความสูงที่ max-h และระยะห่างที่ p-3 */}
+           <CardContent className="max-h-[72vh] space-y-2 overflow-auto p-3">
+             {query.isLoading ? <p className="p-8 text-center text-sm text-slate-500">กำลังอ่านข้อมูลจาก Supabase…</p> : null}
+             {!query.isLoading && !query.error && orders.length === 0 ? <p className="p-8 text-center text-sm text-slate-500">ไม่พบข้อมูล</p> : null}
+             {/* การ์ด 1 ใบ · คอลัมน์ที่ใช้: order_number, customer_name, phone, page_name, order_time_display, final_display_for_packer, delivery_status, sent_at */}
+-            {orders.map((row, index) => <button key={row.upsert_key} type="button" onClick={() => setSelectedKey(row.upsert_key)} className={`order-list-card ${index === 0 ? "order-list-card-latest" : ""} w-full rounded-2xl border p-3 text-left transition ${selectedOrder?.upsert_key === row.upsert_key ? "border-pink-300/60 bg-gradient-to-r from-fuchsia-500/15 to-emerald-400/5 shadow-[inset_3px_0_#ff5acb,0_0_18px_rgba(255,90,203,0.1)]" : "border-white/5 bg-black/15 hover:border-cyan-300/30 hover:bg-cyan-400/[0.04]"}`}>
++            {orders.map((row, index) => <button key={row.upsert_key} type="button" onClick={() => setSelectedKey(row.upsert_key)} className={`order-list-card ${index === 0 ? "order-list-card-latest" : ""} w-full rounded-2xl border p-3 text-left transition ${selectedOrder?.upsert_key === row.upsert_key ? "order-list-card-selected border-cyan-300/40" : "border-white/5 bg-black/15 hover:border-cyan-300/30 hover:bg-cyan-400/[0.04]"}`}>
+               <div className="flex items-center justify-between gap-2"><span className="font-mono text-sm font-semibold text-cyan-200">{directText(row.order_number)}</span>{isSent(row) ? <span className="rounded-full border border-orange-300/30 bg-orange-400/10 px-2 py-0.5 text-[10px] font-semibold text-orange-200">🔥SENT</span> : <span className="rounded-full border border-cyan-300/20 px-2 py-0.5 text-[10px] text-cyan-200">รอส่ง</span>}</div>
+               <div className="mt-2 text-xs"><span className="font-semibold text-white">{directText(row.customer_name)}</span><span className="ml-3 font-mono text-emerald-200/85">{directText(row.phone)}</span></div>
+               <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-violet-200/70"><span>🍊 {directText(row.page_name)} · {directText(row.order_number)}</span><span>{row.order_time_display}</span></div>
+@@ -312,9 +358,9 @@ export default function OrderControl() {
+           </CardContent>
+         </Card>
+ 
+-        <Card className="border-fuchsia-400/20 bg-[#10091b]/90 shadow-[0_0_28px_rgba(255,75,197,0.07)]">
++        <Card className="order-detail-card border-cyan-300/15 bg-[#08070e]/95 shadow-[0_0_24px_rgba(88,225,255,0.045)]">
+           {/* DETAIL CARD · แก้หัวการ์ดตรง CardHeader / ขนาดเนื้อหาตรง CardContent */}
+-          <CardHeader className="border-b border-fuchsia-300/20 bg-gradient-to-r from-fuchsia-500/[0.08] via-violet-500/[0.05] to-cyan-400/[0.04]"><CardTitle className="flex flex-wrap items-center justify-between gap-2 text-base text-fuchsia-100"><span><span className="mr-2 text-fuchsia-300">◈</span>ออเดอร์ที่เลือก <span className="ml-2 text-[10px] font-mono font-normal uppercase tracking-[0.18em] text-cyan-200/60">ORDER DECK · LIVE</span></span><span className="rounded-full border border-emerald-300/25 bg-emerald-400/[0.06] px-2 py-1 text-[9px] font-mono tracking-wider text-emerald-200">AUTO VIEW · READ ONLY</span></CardTitle></CardHeader>
++          <CardHeader className="order-detail-head border-b border-cyan-300/15"><CardTitle className="flex flex-wrap items-center justify-between gap-2 text-base text-cyan-100"><span><span className="mr-2 text-cyan-300">◈</span>ออเดอร์ที่เลือก <span className="ml-2 text-[10px] font-mono font-normal uppercase tracking-[0.18em] text-cyan-200/60">ORDER DECK · LIVE</span></span><span className="rounded-full border border-emerald-300/25 bg-emerald-400/[0.06] px-2 py-1 text-[9px] font-mono tracking-wider text-emerald-200">AUTO VIEW · READ ONLY</span></CardTitle></CardHeader>
+           <CardContent className="space-y-5 p-5">
+             {!selectedOrder ? <p className="py-12 text-center text-sm text-slate-500">เลือกออเดอร์เพื่อดูข้อมูล</p> : <>
+               <div className="flex flex-wrap items-center justify-between gap-3">
+-- 
+2.43.0
+
