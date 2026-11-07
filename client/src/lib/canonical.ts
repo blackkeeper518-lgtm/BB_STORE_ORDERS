@@ -667,8 +667,8 @@ export async function readCloseJobCases(limit = 10000): Promise<CloseJobCase[]> 
   const api = getSupabase("tracking");
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Tracking & Messenger: ไปที่ /secret-gallery แล้วบันทึก URL กับ Anon/Publishable Key" });
   const [casesResult, notesResult] = await Promise.all([
-    api.from("vw_bb_close_job_cases").select("*").order("occurred_at", { ascending: false }).limit(Math.max(1, Math.min(limit, 10000))),
-    api.from("bb_delivery_case_notes").select("case_id,branch,carrier_employee,area"),
+    api.from("🌓VAGABOND_xXx_DISMISS").select("*").order("occurred_at", { ascending: false }).limit(Math.max(1, Math.min(limit, 10000))),
+    api.from("🏴‍☠️SIRIUS_xXx_CRASH").select("case_id,branch,carrier_employee,area"),
   ]);
   if (casesResult.error) fail(casesResult.error);
   if (notesResult.error) fail(notesResult.error);
