@@ -171,17 +171,11 @@ function isoDateKey(value: string | null): string {
 // Keep only known columns; upsert_key is the row key (the table has no id column).
 const HERMES_WEB_ORDER_COLUMNS = [
   "upsert_key",
-  "bb_express_send_route",
-  "currentThreadTotalBills",
-  "duplicate_count_th",
-  "balloonNotice",
   "sniperAuthorClass",
   "facebook_name",
   "threadId",
   "time_th",
   "customer_id",
-  "tracking_request_same_thai_date",
-  "tracking_request_route_hint",
   "order_date",
   "order_time",
   "order_time_display",
@@ -308,10 +302,8 @@ const HERMES_WEB_ORDER_COLUMNS = [
 ].join(",");
 
 // HERMES_ARCHIVE stores the three aliased view fields with their original names.
-const HERMES_DIRECT_ORDER_COLUMNS = HERMES_WEB_ORDER_COLUMNS
-  .replace("currentThreadTotalBills", "currentthreadtotalbills")
-  .replace("balloonNotice", "balloonnotice")
-  .replace("sniperAuthorClass", "sniperauthorclass");
+
+
 
 // Only fields used by TelegramDeliveryRoom; avoid returning all 330 view columns.
 const TELEGRAM_WEB_ORDER_COLUMNS = [
