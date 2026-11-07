@@ -395,24 +395,101 @@ export async function readBlackboxRoom(search = "") {
   return (data ?? []).filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query));
 }
 
-export async function updateBbOrder(upsertKey: string | number, patch: Record<string, unknown>) {
+export async function readBbOrderEvidence(upsertKey: string) {
   const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  const { data, error } = await api.from(defaultOrderView("BB")).update(patch).eq("upsert_key", String(upsertKey)).select("upsert_key");
+  if (!api) {
+    fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
+  }
+
+  const { data, error } = await api
+    .from(defaultOrderView("BB"))
+    .select("upsert_key,chat_timeline,customer_change_diff_json,telegram_copy_text")
+    .eq("upsert_key", upsertKey)
+    .maybeSingle();
+
   if (error) fail(error);
-  if (!data?.length) fail({ message: `ไม่พบออเดอร์ upsert_key=${upsertKey} หรือสิทธิ์ RLS ไม่อนุญาตให้อัปเดต` });
-  if (data.length > 1) fail({ message: `พบออเดอร์ซ้ำ ${data.length} แถวด้วย upsert_key=${upsertKey}` });
+
+  const row: any = data ?? {};
+
+  return {
+    ...row,
+    normalized_chat_timeline: row.chat_timeline ?? null,
+    telegram_copy_text: row.telegram_copy_text ?? null,
+  };
+}
+
+export async function readBbOrderEvidenceBatch(upsertKeys: string[]) {
+  const keys = Array.from(
+    new Set(upsertKeys.map((key) => String(key ?? "").trim()).filter(Boolean))
+  );
+
+  if (!keys.length) return [];
+
+  const api = getSupabase();
+  if (!api) {
+    fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
+  }
+
+  const evidence: any[] = [];
+
+  for (let offset = 0; offset < keys.length; offset += 100) {
+    const { data, error } = await api
+      .from(defaultOrderView("BB"))
+      .select("upsert_key,chat_timeline,customer_change_diff_json,telegram_copy_text")
+      .in("upsert_key", keys.slice(offset, offset + 100));
+
+    if (error) fail(error);
+
+    evidence.push(
+      ...(data ?? []).map((row: any) => ({
+        ...row,
+        normalized_chat_timeline: row.chat_timeline ?? null,
+        telegram_copy_text: row.telegram_copy_text ?? null,
+      }))
+    );
+  }
+
+  return evidence;
+}
+export async function updateBbOrderByKey(
+  upsertKey: string,
+  patch: Record<string, unknown>,
+  sourceTable:
+    | "🗝️HERMES_ARCHIVE"
+    | "🌀SINGULARITY_xXx_EXCHANGE" = "🗝️HERMES_ARCHIVE",
+) {
+  const api = getSupabase();
+
+  if (!api) {
+    fail({
+      message:
+        "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key",
+    });
+  }
+
+  const { data, error } = await api
+    .from(sourceTable)
+    .update(patch)
+    .eq("upsert_key", upsertKey)
+    .select("upsert_key");
+
+  if (error) fail(error);
+
+  if (!data?.length) {
+    fail({
+      message: `ไม่พบออเดอร์ upsert_key=${upsertKey} หรือสิทธิ์ RLS ไม่อนุญาตให้อัปเดต`,
+    });
+  }
+
+  if (data.length > 1) {
+    fail({
+      message: `พบ upsert_key ซ้ำ ${data.length} แถว ต้องตรวจข้อมูลก่อนแก้ไข`,
+    });
+  }
+
   return data[0];
 }
-export async function updateBbOrderByKey(upsertKey: string, patch: Record<string, unknown>, sourceTable: "🗝️HERMES_ARCHIVE" | "🌀SINGULARITY_xXx_EXCHANGE" = "🗝️HERMES_ARCHIVE") {
-  const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  const { data, error } = await api.from(sourceTable).update(patch).eq("upsert_key", upsertKey).select("upsert_key");
-  if (error) fail(error);
-  if (!data?.length) fail({ message: `ไม่พบออเดอร์ upsert_key=${upsertKey} หรือสิทธิ์ RLS ไม่อนุญาตให้อัปเดต` });
-  if (data.length > 1) fail({ message: `พบ upsert_key ซ้ำ ${data.length} แถว ต้องตรวจข้อมูลก่อนแก้ไข` });
-  return data[0];
-}
+
 
 async function withSentWriteTimeout<T>(request: PromiseLike<T>, timeoutMs = 15_000): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
