@@ -13,7 +13,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 function timeLabel(value: string | null | undefined) {
   if (!value) return "—";
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat("th-TH", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }).format(date);
+  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat("th-TH", { hour: "2-digit", minute: "2-digit" }).format(date);
 }
 
 function imageUrls(value: string | null | undefined) {
@@ -34,36 +34,10 @@ function imageUrls(value: string | null | undefined) {
   } catch { return []; }
 }
 
-function stripSpeakerPrefix(value: string) { return value.replace(/^\s*\[(?:เพจ|ลูกค้า)\]\s*/i, "").trim(); }
 function isPageTimelineLine(line: string) { return /\[\s*เพจ\s*[:：]/i.test(line); }
 function isCustomerTimelineLine(line: string) { return /\[\s*ลูกค้า\s*[:：]/i.test(line); }
 function isThreadControlConflict(message: string) { return /META_THREAD_CONTROL_CONFLICT|another app|currently controlling|ควบคุมเธรด|แอพอื่นกำลังควบคุม/i.test(message); }
 function isTransientMetaInternal(message: string) { return /META_TRANSIENT_INTERNAL|2018012|code=-1/i.test(message); }
-
-
-const CHAT_SOUND_KEY = "nightops-chat-sound-v1";
-function playChatNotificationSound() {
-  try {
-    const settings = JSON.parse(localStorage.getItem(CHAT_SOUND_KEY) || "{}");
-    if (settings.enabled === false) return;
-    const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AudioContextClass) return;
-    const context = new AudioContextClass();
-    const oscillator = context.createOscillator();
-    const gain = context.createGain();
-    const tone = settings.tone === "bell" ? 880 : settings.tone === "pop" ? 520 : 660;
-    const duration = settings.tone === "bell" ? 0.42 : 0.18;
-    oscillator.type = settings.tone === "pop" ? "square" : "sine";
-    oscillator.frequency.value = tone;
-    gain.gain.setValueAtTime(0.0001, context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(Math.max(0.01, Number(settings.volume) || 0.35), context.currentTime + 0.01);
-    gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + duration);
-    oscillator.connect(gain).connect(context.destination);
-    oscillator.start();
-    oscillator.stop(context.currentTime + duration + 0.03);
-    window.setTimeout(() => void context.close(), 700);
-  } catch { /* Browser may block audio until a user gesture. */ }
-}
 
 const quickReplies = [
   "สวัสดีค่ะ สนใจรับกี่คอตดีคะ?",
@@ -76,21 +50,15 @@ export default function ChatHub() {
   const isMobile = useIsMobile();
   const [search, setSearch] = useState("");
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const [composerOpen, setComposerOpen] = useState(true);
-  const [toolsOpen, setToolsOpen] = useState(() => typeof window === "undefined" || window.innerWidth >= 1440);
-  const [toolsWidth, setToolsWidth] = useState(320);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [pageFilterOpen, setPageFilterOpen] = useState(false);
-  const [selectedPages, setSelectedPages] = useState<string[]>(() => {
-    if (typeof window === "undefined") return [];
-    try { return JSON.parse(window.localStorage.getItem("darkside-chat-page-filter") || "[]"); } catch { return []; }
-  });
+  const [selectedPages, setSelectedPages] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState<"all" | "unread" | "ordered">("all");
   const [replyText, setReplyText] = useState("");
   const [replyImageUrl, setReplyImageUrl] = useState("");
   const [stickerId, setStickerId] = useState("");
+  const [simulationPreview, setSimulationPreview] = useState<string | null>(null);
   const [deliveryStatus, setDeliveryStatus] = useState<"idle" | "sending" | "sent" | "failed">("idle");
-  const [replyNotice, setReplyNotice] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [summaryText, setSummaryText] = useState("");
@@ -113,7 +81,7 @@ export default function ChatHub() {
     const query = search.trim().toLowerCase();
     return threads.filter(thread => {
       const matchesPage = selectedPages.length === 0 || Boolean(thread.pageId && selectedPages.includes(thread.pageId));
-      const matchesStatus = statusFilter === "all" || (statusFilter === "unread" ? thread.unread : thread.codSignalCount > 0);
+      const matchesStatus = statusFilter === "all" || (statusFilter === "unread" ? thread.unread : thread.orderCount > 0);
       const matchesSearch = !query || [thread.customerName, thread.pageName, thread.preview, thread.searchText, thread.latestOrderNumber].some(value => String(value ?? "").toLowerCase().includes(query));
       return matchesPage && matchesStatus && matchesSearch;
     });
@@ -122,21 +90,7 @@ export default function ChatHub() {
   const selectedPageId = selected?.pageId ?? selected?.orders[0]?.page_id ?? "";
   const selectedThreadId = selected?.threadId ?? "";
   const selectedCustomerId = selected?.customerId ?? "";
-  const [handoffTracking, setHandoffTracking] = useState<Record<string, any> | null>(null);
-  useEffect(() => { window.localStorage.setItem("darkside-chat-page-filter", JSON.stringify(selectedPages)); }, [selectedPages]);
   const messagesQuery = useQuery({ queryKey: ["canonical-chat-messages", selectedPageId, selectedThreadId], queryFn: () => readChatMessages(selectedPageId, selectedThreadId), enabled: Boolean(selectedPageId && selectedThreadId), refetchInterval: 5_000 });
-  useEffect(() => {
-    if (!selectedPageId || !selectedThreadId || typeof window === "undefined") {
-      setHandoffTracking(null);
-      return;
-    }
-    try {
-      const raw = window.sessionStorage.getItem(`darkside-send-gate:${selectedPageId}:${selectedThreadId}`);
-      setHandoffTracking(raw ? JSON.parse(raw) : null);
-    } catch {
-      setHandoffTracking(null);
-    }
-  }, [selectedPageId, selectedThreadId]);
   useEffect(() => {
     const unsubscribe = subscribeToChatMessages(() => {
       void threadsQuery.refetch();
@@ -144,53 +98,12 @@ export default function ChatHub() {
     });
     return unsubscribe;
   }, [selectedPageId, selectedThreadId]);
-  const soundSnapshotRef = useRef({ room: "", count: 0 });
-  useEffect(() => {
-    const room = `${selectedPageId}:${selectedThreadId}`;
-    const messages = messagesQuery.data ?? [];
-    if (soundSnapshotRef.current.room !== room) {
-      soundSnapshotRef.current = { room, count: messages.length };
-      return;
-    }
-    if (messages.length > soundSnapshotRef.current.count) {
-      const newest = messages[messages.length - 1];
-      if (newest?.direction === "inbound" || newest?.senderType === "customer") playChatNotificationSound();
-    }
-    soundSnapshotRef.current.count = messages.length;
-  }, [messagesQuery.data, selectedPageId, selectedThreadId]);
-  const linkedOrders = selected?.orders ?? [];
-  const selectedTrackingRows = useMemo(() => {
-    if (!selected) return [];
-    const room = selected as Record<string, any>;
-    const row = {
-      tracking_number: room.tracking_number ?? room.parcel_tracking_number ?? "",
-      order_number: room.order_number ?? "",
-      order_number_display: room.order_number_display ?? "",
-      shipping_carrier: room.shipping_carrier ?? "",
-      facebook_tracking_message: room.facebook_tracking_message ?? "",
-      drakside_tracking_message: room.drakside_tracking_message ?? "",
-    };
-    const merged = { ...handoffTracking };
-    Object.entries(row).forEach(([key, value]) => {
-      if (String(value ?? "").trim()) merged[key] = value;
-    });
-    return Object.values(merged).some(value => String(value ?? "").trim()) ? [merged] : [];
-  }, [selected, handoffTracking]);
+  const linkedOrdersQuery = trpc.orders.forThread.useQuery({ pageId: selectedPageId, threadId: selectedThreadId }, { enabled: Boolean(selectedPageId && selectedThreadId), refetchInterval: 60_000 });
   const chatEvidenceQuery = trpc.orders.chatEvidence.useQuery({ pageId: selectedPageId, threadId: selectedThreadId }, { enabled: Boolean(selectedPageId && selectedThreadId && orderDetailOpen), refetchInterval: 60_000 });
   const totalMessages = useMemo(() => threads.reduce((total, thread) => total + thread.messageCount, 0), [threads]);
   const uploadImage = trpc.chat.uploadImage.useMutation({ onSuccess: result => setReplyImageUrl(`${window.location.origin}${result.url}`) });
-  const sendReply = trpc.chat.sendReply.useMutation({
-    onMutate: () => { setDeliveryStatus("sending"); setReplyNotice("กำลังส่งไปยัง Facebook…"); },
-    onSuccess: () => {
-      setDeliveryStatus("sent");
-      setReplyNotice("ส่งข้อความสำเร็จแล้ว");
-      setReplyText("");
-      setReplyImageUrl("");
-      setStickerId("");
-      void Promise.all([messagesQuery.refetch(), threadsQuery.refetch()]);
-    },
-    onError: error => { setDeliveryStatus("failed"); setReplyNotice(error.message || "ส่งข้อความไม่สำเร็จ"); },
-  });
+  const sendReply = trpc.chat.sendReply.useMutation({ onMutate: () => setDeliveryStatus("sending"), onSuccess: () => { setDeliveryStatus("sent"); setReplyText(""); setReplyImageUrl(""); setStickerId(""); messagesQuery.refetch(); }, onError: () => setDeliveryStatus("failed") });
+  const simulateSend = trpc.chat.simulateSend.useMutation({ onSuccess: result => setSimulationPreview(JSON.stringify(result.payload, null, 2)) });
   const generateSummary = trpc.orders.generateSummary.useMutation({ onSuccess: result => { setSummary(result); setSummaryText(""); setReplyText(result.copyText); } });
   const summaryTimingsQuery = trpc.orders.summaryTimings.useQuery({ limit: 8 }, { enabled: summaryOpen, refetchInterval: false });
   const metaErrorsQuery = trpc.chat.metaErrors.useQuery(undefined, { refetchInterval: 60_000 });
@@ -215,19 +128,13 @@ export default function ChatHub() {
     const pageId = params.get("page_id");
     const threadId = params.get("thread_id");
     if (!pageId || !threadId) return;
-    setSelectedPages(current => current.length === 1 && current[0] === pageId ? current : [pageId]);
     const target = threads.find(thread => thread.pageId === pageId && thread.threadId === threadId);
     if (target) {
       setSelectedKey(target.key);
       if (isMobile) setMobileOpen(true);
     }
   }, [threads, isMobile]);
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const targetKey = params.get("page_id") && params.get("thread_id") ? `${params.get("page_id")}:${params.get("thread_id")}` : "";
-    if (targetKey && selectedKey === targetKey) return;
-    if (selectedKey && !filteredThreads.some(thread => thread.key === selectedKey)) setSelectedKey(filteredThreads[0]?.key ?? null);
-  }, [filteredThreads, selectedKey]);
+  useEffect(() => { if (selectedKey && !filteredThreads.some(thread => thread.key === selectedKey)) setSelectedKey(filteredThreads[0]?.key ?? null); }, [filteredThreads, selectedKey]);
   useEffect(() => {
     const element = chatTimelineRef.current;
     if (!element) return;
@@ -258,17 +165,12 @@ export default function ChatHub() {
   };
 
   const sendCurrentReply = () => {
-    const text = replyText.trim();
-    const imageUrl = replyImageUrl.trim();
-    if (sendReply.isPending || !selectedPageId || !selectedThreadId || (!text && !imageUrl)) return;
-    if (!selectedCustomerId) { setDeliveryStatus("failed"); setReplyNotice("ห้องนี้ยังไม่มี Customer PSID จึงยังส่งข้อความไม่ได้"); return; }
-    sendReply.mutate({
-      pageId: selectedPageId,
-      threadId: selectedThreadId,
-      recipientId: selectedCustomerId,
-      text: text || undefined,
-      imageUrl: imageUrl || undefined,
-    });
+    if (!selectedPageId || !selectedThreadId || !selectedCustomerId || (!replyText.trim() && !replyImageUrl.trim() && !stickerId.trim())) return;
+    sendReply.mutate({ pageId: selectedPageId, threadId: selectedThreadId, recipientId: selectedCustomerId, text: replyText.trim() || undefined, imageUrl: replyImageUrl.trim() || undefined, stickerId: stickerId.trim() || undefined });
+  };
+  const simulate = (kind: "text" | "image") => {
+    if (!selectedPageId || !selectedThreadId || !selectedCustomerId) return;
+    simulateSend.mutate({ pageId: selectedPageId, threadId: selectedThreadId, recipientId: selectedCustomerId, kind, text: kind === "text" ? (replyText.trim() || "ข้อความทดสอบ NIGHTOPS") : undefined, imageUrl: kind === "image" ? (replyImageUrl.trim() || "https://example.com/test-image.jpg") : undefined });
   };
   const handleImageUpload = (file?: File) => {
     if (!file) return;
@@ -286,7 +188,6 @@ export default function ChatHub() {
   };
   const visibleTimeline = (selected?.chatTimeline ?? []).filter((line: string) => messageFilter === "all" || (messageFilter === "page" ? isPageTimelineLine(line) : isCustomerTimelineLine(line)));
   const visibleStoredMessages = (messagesQuery.data ?? []).filter(message => messageFilter === "all" || (messageFilter === "page" ? message.direction === "outbound" : message.direction === "inbound"));
-
   const composer = <div className="min-h-0 overflow-hidden border-t border-cyan-300/20 pt-2">
     <div className="mb-2 flex shrink-0 flex-wrap items-center gap-2"><input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" className="hidden" onChange={event => { handleImageUpload(event.target.files?.[0]); event.currentTarget.value = ""; }} /><Button type="button" size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploadImage.isPending} className="h-8 border-cyan-300/25 bg-cyan-300/[0.06] text-xs text-cyan-100 shadow-[0_0_12px_rgba(34,211,238,.08)]"><ImagePlus className="mr-1 h-3.5 w-3.5" />{uploadImage.isPending ? "กำลังอัปโหลด…" : "แนบรูป"}</Button>{replyImageUrl ? <span className="max-w-40 truncate text-[10px] text-emerald-300">รูปพร้อมส่ง</span> : null}</div>
     <div className="mb-2 flex flex-nowrap gap-1.5 overflow-x-auto whitespace-nowrap pb-1">{quickReplies.map(reply => <button key={reply} type="button" onClick={() => setReplyText(reply)} className="shrink-0 rounded-lg border border-violet-300/20 bg-gradient-to-r from-violet-500/[0.10] to-fuchsia-500/[0.08] px-2.5 py-1.5 text-xs text-fuchsia-100/85 transition hover:border-cyan-300/40 hover:bg-cyan-400/10 hover:text-white">{reply}</button>)}{["😊", "👍", "❤️", "🙏", "📦"].map(emoji => <button key={emoji} type="button" onClick={() => addEmoji(emoji)} className="shrink-0 rounded-lg border border-cyan-300/20 bg-cyan-400/[0.06] px-2.5 py-1.5 text-base transition hover:border-fuchsia-300/40 hover:bg-fuchsia-500/15">{emoji}</button>)}</div>
