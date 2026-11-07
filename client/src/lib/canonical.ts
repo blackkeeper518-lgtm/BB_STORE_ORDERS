@@ -327,10 +327,6 @@ const TELEGRAM_WEB_ORDER_COLUMNS = [
 function firstText(...values: unknown[]): string {
   return values.map(value => String(value ?? "").trim()).find(Boolean) ?? "";
 }
-export function normalizePhoneForSearch(value: unknown): string {
-  const digits = String(value ?? "").replace(/\D/g, "");
-  return digits.startsWith("66") && digits.length >= 9 ? `0${digits.slice(2)}` : digits;
-}
 function asBoolean(value: unknown): boolean {
   if (value === true || value === 1) return true;
   return ["true", "t", "1", "yes", "ใช่"].includes(String(value ?? "").trim().toLowerCase());
@@ -348,15 +344,10 @@ export async function readCanonicalOrders(search = "", since: string | null = nu
   if (ordersResult.error) fail(ordersResult.error);
 
   const query = search.trim().toLowerCase();
-  const phoneSearch = /^[+\d\s().-]+$/.test(search.trim()) ? normalizePhoneForSearch(search) : "";
-  const searchByPhone = phoneSearch.length >= 7 && phoneSearch.length <= 11;
   const fromKey = isoDateKey(since);
   const untilKey = isoDateKey(until);
   const orders = (ordersResult.data ?? []).filter((row: any) => {
-      const textMatch = !query || JSON.stringify(row).toLowerCase().includes(query);
-      const phoneMatch = searchByPhone && [row.phone, row.extracted_phone, row.phone_number, row.customer_phone, row.customer_phone_current, row.customer_phone_previous]
-        .some((value) => normalizePhoneForSearch(value).includes(phoneSearch));
-      if (query && !textMatch && !phoneMatch) return false;
+      if (query && !JSON.stringify(row).toLowerCase().includes(query)) return false;
       const dateKey = displayDateKey(row.order_time_display);
       return (!fromKey || (dateKey && dateKey >= fromKey)) && (!untilKey || (dateKey && dateKey <= untilKey));
     }).sort((a: any, b: any) => orderTimeSortKey(b.order_time_display) - orderTimeSortKey(a.order_time_display)) as unknown as CanonicalOrder[];
@@ -639,8 +630,6 @@ export async function readChatThreads() {
     const key = `${pageId}:${threadId}`;
     const current = map.get(key) ?? {
       key, pageId, threadId, customerId: row.customer_id || row.recipient_id || row.customerId || row.sender_id, pageName: row.page_name || "ไม่ระบุเพจ",
-      chatLinkKey: firstText(row.chat_link_key, row.chatLinkKey),
-      customerPhone: firstText(row.customer_phone, row.customerPhone, row.phone_number, row.phone, row.matched_phone, row.extracted_phone),
       customerName: row.customer_name || row._name || "ลูกค้า", latestAt: row._occurred || row.occurred_at || row.synced_at,
       preview: row._text || (row._hasAttachment ? "[ไฟล์แนบ]" : ""), unread: false, messageCount: 0, chatTimeline: [],
     };
@@ -648,8 +637,6 @@ export async function readChatThreads() {
     current.preview = row._text || (row._hasAttachment ? "[ไฟล์แนบ]" : current.preview);
     current.customerId ||= row.customer_id || row.recipient_id || row.customerId || row.sender_id;
     current.customerName = current.customerName === "ลูกค้า" ? row.customer_name || row._name || current.customerName : current.customerName;
-    current.customerPhone ||= firstText(row.customer_phone, row.customerPhone, row.phone_number, row.phone, row.matched_phone, row.extracted_phone);
-    current.chatLinkKey = firstText(row.chat_link_key, row.chatLinkKey, current.chatLinkKey);
     current.messageCount += 1;
     current.chatTimeline.push(`${row._speaker === "page" ? "[เพจ]" : "[ลูกค้า]"} ${row._text || (row._hasAttachment ? "[ไฟล์แนบ]" : "")}`);
     // Tracking fields are supplied directly on either room-side table; keep the newest non-empty value.
@@ -667,8 +654,8 @@ export async function readCloseJobCases(limit = 10000): Promise<CloseJobCase[]> 
   const api = getSupabase("tracking");
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Tracking & Messenger: ไปที่ /secret-gallery แล้วบันทึก URL กับ Anon/Publishable Key" });
   const [casesResult, notesResult] = await Promise.all([
-    api.from("🌓VAGABOND_xXx_DISMISS").select("*").order("occurred_at", { ascending: false }).limit(Math.max(1, Math.min(limit, 10000))),
-    api.from("🏴‍☠️SIRIUS_xXx_CRASH").select("case_id,branch,carrier_employee,area"),
+    api.from("vw_bb_close_job_cases").select("*").order("occurred_at", { ascending: false }).limit(Math.max(1, Math.min(limit, 10000))),
+    api.from("bb_delivery_case_notes").select("case_id,branch,carrier_employee,area"),
   ]);
   if (casesResult.error) fail(casesResult.error);
   if (notesResult.error) fail(notesResult.error);
