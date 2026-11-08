@@ -62,6 +62,23 @@ function isMissing(v) {
   return /^(?:DATA_MISSING|DATA\s*MISSING|N\/A|NA|null|undefined|ไม่มีข้อมูล|-|_)$/iu.test(oneLine(v));
 }
 
+function parsePackerObject(value) {
+  if (value && typeof value === 'object' && !Array.isArray(value)) return value;
+  const raw = asText(value);
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch (_) {
+    return {};
+  }
+}
+
+function standaloneHouseToken(value) {
+  const s = oneLine(value);
+  return /^(?:บ้านเลขที่\s*)?\d{1,5}(?:[/-]\d{1,5})?(?:\s+(?:หมู่(?:ที่)?\s*\d+|ม\.\s*\d+))?$/iu.test(s) ? s : '';
+}
+
 // ------------------------------------------------------------
 // Purifier / Guard
 // ------------------------------------------------------------
@@ -111,7 +128,7 @@ function stripToAddressPayload(rawValue, customerName, phoneValue) {
   s = s.split(/(?:=|\s)(?:โทรศัพท์|โทร|เบอร์|มือถือ)\s*[:：=]?/iu)[0];
 
   // หา Address anchor จริง ไม่ใช้วันที่/COD/ชื่อสินค้าเป็นจุดเริ่ม
-  const starts = [...s.matchAll(/(?:บ้านเลขที่\s*\d+[\/]?\d*|เลขที่\s*\d+[\/]?\d*|\b\d{1,5}\/\d{1,5}\b|หมู่บ้าน|หมู่(?:ที่)?\s*\d+|\bม\.\s*\d+|ตําบล|ตำบล|ต\.|อําเภอ|อำเภอ|อ\.|จังหวัด|จ\.|แขวง|เขต|ถนน|ถ\.|ซอย|ซ\.)/giu)]
+  const starts = [...s.matchAll(/(?:บ้านเลขที่\s*\d+[\/]?\d*|เลขที่\s*\d+[\/]?\d*|\b\d{1,5}\/\d{1,5}\b|หมู่บ้าน|หมู่(?:ที่)?\s*\d+|\bม\.\s*\d+|วัด|สำนักสงฆ์|ที่พักสงฆ์|ศาลเจ้า|หอพัก|คอนโด|อาคาร|บ้านพัก|ตําบล|ตำบล|ต\.|อําเภอ|อำเภอ|อ\.|จังหวัด|จ\.|แขวง|เขต|ถนน|ถ\.|ซอย|ซ\.)/giu)]
     .map(m => ({ index: m.index, token: m[0] }))
     .filter(x => Number.isInteger(x.index));
 
@@ -143,7 +160,7 @@ if (phoneDigits.length >= 9) {
     .replace(/ตําบล/gu, 'ตำบล')
     .replace(/อําเภอ/gu, 'อำเภอ')
     .replace(/(?:กทม\.?\s*,?\s*)?(?:จ\.?\s*)?กรุงเทพมหานคร/giu, 'กรุงเทพมหานคร')
-    .replace(/กรุงเทพฯ|กทม\.?/giu, 'กรุงเทพมหานคร')
+    .replace(/(?:กรุงเทพ(?!มหานคร)(?:ฯ)?|กทม\.?(?:ฯ)?)/giu, 'กรุงเทพมหานคร')
     .replace(/\s+/gu, ' ')
     .trim();
 }
@@ -178,15 +195,25 @@ function system3Evidence(row) {
 // System 1 / System 2 candidates
 // ------------------------------------------------------------
 function system1Candidates(row) {
+  const packer = parsePackerObject(row.packer_obj ?? row.packerObj);
   return [
     ['formatted_address', row.formatted_address],
     ['address_display_packer', row.address_display_packer],
     ['addressclean', row.addressclean],
     ['full_address', row.full_address],
-    ['final_address_for_bill', row.final_address_for_bill]
+    ['final_address_for_bill', row.final_address_for_bill],
+    ['packer_obj.formatted_address', packer.formatted_address],
+    ['packer_obj.address_display_packer', packer.address_display_packer],
+    ['packer_obj.final_address_for_bill', packer.final_address_for_bill],
+    ['packer_obj.finalAddress', packer.finalAddress],
+    ['packer_obj.full_address', packer.full_address],
+    ['packer_obj.addressclean', packer.addressclean],
+    ['packer_obj.address', packer.address],
+    ['packer_obj.short_address', packer.short_address]
   ]
     .filter(([, value]) => value !== undefined && value !== null && !isMissing(value))
-    .map(([field, raw]) => ({ system: 'SYSTEM_1_UPSTREAM', field, sender: '', raw: asText(raw) }));
+    .map(([field, raw]) => ({ system: 'SYSTEM_1_UPSTREAM', field, sender: '', raw: asText(raw) }))
+    .filter(candidate => !candidate.field.startsWith('packer_obj.') || !standaloneHouseToken(candidate.raw));
 }
 function system2Candidates(row) {
   const out = [];
@@ -263,7 +290,7 @@ function removeThaiDistrictProvincePrefixes(addressText) {
 
   return s;
 }
-  const isBangkok = /กรุงเทพมหานคร/iu.test(clean);
+  const isBangkok = /(?:กรุงเทพมหานคร|กรุงเทพ(?!มหานคร)(?:ฯ)?|กทม\.?)/iu.test(clean);
   const hasHouse = /(?:บ้านเลขที่|เลขที่|^\d{1,5}(?:\/|-)?\s*\d{0,5}\b|\d+\s*ม\.?|อาคาร|ห้อง)/iu.test(clean);
   const hasVillage = /(?:หมู่บ้าน|หมู่(?:ที่)?\s*\d+|\bม\.\s*\d+)/iu.test(clean);
   const hasLocal = isBangkok ? /แขวง\s*[^\s]+/iu.test(clean) : /(?:ตำบล|ต\.)\s*[^\s]+/iu.test(clean);
@@ -291,10 +318,26 @@ function removeThaiDistrictProvincePrefixes(addressText) {
     complete,
     usable,
     landmark_address: landmarkUsable,
+    has_house_number: hasHouse,
+    has_zipcode: hasZip,
+    has_local_area: hasLocal,
+    has_district_area: hasDistrict,
+    has_province: hasProvince,
+    contaminated,
     issues,
     address_type: isBangkok ? 'BANGKOK_KHWANG_KHET' : 'PROVINCE_TAMBON_AMPHOE',
     score: 0
   };
+}
+
+function addressCandidateQuality(candidate) {
+  return (candidate?.has_house_number ? 5 : 0)
+    + (candidate?.landmark_address ? 4 : 0)
+    + (candidate?.has_zipcode ? 1 : 0)
+    + (candidate?.has_local_area ? 1 : 0)
+    + (candidate?.has_district_area ? 1 : 0)
+    + (candidate?.has_province ? 1 : 0)
+    - (candidate?.contaminated ? 5 : 0);
 }
 
 function cascadeAddress(row) {
@@ -307,10 +350,35 @@ function cascadeAddress(row) {
   const firstUsable = list => list.find(x => x.usable === true);
 
   // คงลำดับเดิมของ Systems 1–3; Rescue เป็น System 4
-  const selected = firstComplete(s1) || firstComplete(s2) || firstComplete(s3) || firstComplete(s4)
+  let selected = firstComplete(s1) || firstComplete(s2) || firstComplete(s3) || firstComplete(s4)
     || firstUsable(s1) || firstUsable(s2) || firstUsable(s3) || firstUsable(s4)
     || s1[0] || s2[0] || s3[0] || s4[0]
     || { system: 'NONE', field: '', sender: '', raw: '', clean: '', score: -999, complete: false, usable: false, issues: ['ADDRESS_NOT_FOUND'], address_type: 'UNKNOWN' };
+
+  // If the preferred candidate is incomplete, upgrade only to a richer usable packer_obj landmark address.
+  if (!selected.complete) {
+    const richerPackerAddress = s1
+      .filter(candidate => candidate.field.startsWith('packer_obj.') && candidate.usable && !candidate.contaminated && candidate.landmark_address)
+      .sort((a, b) => addressCandidateQuality(b) - addressCandidateQuality(a))[0];
+    if (richerPackerAddress && addressCandidateQuality(richerPackerAddress) > addressCandidateQuality(selected)) {
+      selected = richerPackerAddress;
+    }
+  }
+
+  // A standalone house number from packer_obj is a fragment, not a full candidate.
+  // Merge it with the selected location only when that location has no house number.
+  const packer = parsePackerObject(row.packer_obj ?? row.packerObj);
+  const packerHouse = [packer.house_number, packer.house_no, packer.house, packer.address, packer.short_address]
+    .map(standaloneHouseToken)
+    .find(Boolean) || '';
+  if (packerHouse && selected.clean && !selected.has_house_number) {
+    const merged = assessCandidate({
+      ...selected,
+      field: `packer_obj.house_number+${selected.field || 'selected_address'}`,
+      raw: `${packerHouse} ${selected.clean}`
+    }, row);
+    if (merged.clean) selected = merged;
+  }
 
   const level = selected.system === 'SYSTEM_1_UPSTREAM' ? 'PRIMARY'
     : selected.system === 'SYSTEM_2_FUSION_BACKUP' ? 'FALLBACK_1'
