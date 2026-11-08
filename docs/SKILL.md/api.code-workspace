@@ -1,0 +1,34 @@
+{
+	"folders": [
+		{
+			"path": "../../api"
+		},
+		{
+			"path": "../../client"
+		},
+		{
+			"path": ".."
+		},
+		{
+			"path": "../../drizzle"
+		},
+		{
+			"path": "../../n8n-live"
+		},
+		{
+			"path": "../../patches"
+		},
+		{
+			"path": "../../public"
+		},
+		{
+			"path": "../../server"
+		},
+		{
+			"path": "../../shared"
+		},
+		{
+			"path": "../../SQL"
+		}
+	]
+}
