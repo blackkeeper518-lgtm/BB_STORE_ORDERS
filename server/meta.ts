@@ -3,23 +3,29 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 export type MetaAttachment = { type: string; url?: string; payload?: Record<string, unknown> };
 
 async function pageToken(pageId: string) {
-  const lanes = [
-    { name: "CHAT", url: process.env.CHAT_SUPABASE_URL, key: process.env.CHAT_SUPABASE_SERVICE_ROLE_KEY },
-    { name: "TRACKING", url: process.env.TRACKING_SUPABASE_URL, key: process.env.TRACKING_SUPABASE_SERVICE_ROLE_KEY },
-    { name: "MAIN", url: process.env.SUPABASE_URL, key: process.env.SUPABASE_SERVICE_ROLE_KEY },
-  ].filter(candidate => candidate.url?.trim() && candidate.key?.trim());
-  for (const lane of lanes) {
-    const supabaseUrl = lane.url!.trim().replace(/\/$/, "");
-    const serviceRoleKey = lane.key!.trim();
-    const params = new URLSearchParams({ select: "*", page_id: `eq.${pageId}`, limit: "1" });
+  // The Chat lane is optional. Existing deployments continue using Tracking
+  // until the new Chat variables are added on Render.
+  // Select URL + service key as a pair. Do not combine Chat URL with Tracking key
+  // when only one of the new Chat environment variables has been configured.
+  const lane = [
+    { url: process.env.CHAT_SUPABASE_URL, key: process.env.CHAT_SUPABASE_SERVICE_ROLE_KEY },
+    { url: process.env.TRACKING_SUPABASE_URL, key: process.env.TRACKING_SUPABASE_SERVICE_ROLE_KEY },
+    { url: process.env.SUPABASE_URL, key: process.env.SUPABASE_SERVICE_ROLE_KEY },
+  ].find(candidate => candidate.url?.trim() && candidate.key?.trim());
+  const supabaseUrl = lane?.url?.trim().replace(/\/$/, "");
+  const serviceRoleKey = lane?.key?.trim();
+  if (supabaseUrl && serviceRoleKey) {
+    const params = new URLSearchParams({ select: "page_id,page_name,access_token", page_id: `eq.${pageId}`, limit: "1" });
     const response = await fetch(`${supabaseUrl}/rest/v1/page_tokens_vault?${params}`, { headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` } });
     if (response.ok) {
       const rows = await response.json() as Array<Record<string, unknown>>;
       const row = rows[0];
-      const token = row?.page_access_token ?? row?.access_token ?? row?.pageAccessToken ?? row?.token;
-      if (typeof token === "string" && token.trim()) return token.trim();
+      if (row) {
+        const token = row.page_access_token ?? row.access_token ?? row.pageAccessToken ?? row.token;
+        if (typeof token === "string" && token.trim()) return token.trim();
+      }
     } else if (response.status !== 404) {
-      throw new Error(`Supabase ${lane.name} page_tokens_vault returned HTTP ${response.status}`);
+      throw new Error(`Supabase page_tokens_vault returned HTTP ${response.status}`);
     }
   }
   const configured = process.env.META_PAGES_JSON;
