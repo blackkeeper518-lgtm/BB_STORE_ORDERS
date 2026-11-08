@@ -13,6 +13,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { trpc } from "@/lib/trpc";
 import { getActiveCamp, readBbOrderEvidence, readBbOrderEvidenceBatch, readCanonicalOrders } from "@/lib/canonical";
+import { getOrderWarnings } from "@/lib/orderWarnings";
 import {
   AlertTriangle,
   Check,
@@ -277,6 +278,7 @@ export default function OrderControl() {
     })
     .sort((a, b) => orderDisplaySortKey(b.order_time_display) - orderDisplaySortKey(a.order_time_display)), [orders, searchNeedle, filter, dateFrom, dateTo, timeFrom, timeTo, pageFilter]);
   const selectedOrder = orders.find(order => order.order_number === selectedNumber) ?? null;
+  const selectedOrderWarnings = selectedOrder ? getOrderWarnings(selectedOrder) : [];
   const selectedParcelRows = useMemo(() => {
     if (!selectedOrder) return [] as Array<Record<string, any>>;
     const normalize = (value: unknown) => String(value ?? "").replace(/\D/g, "");
@@ -396,10 +398,10 @@ export default function OrderControl() {
                 <div><p className="font-mono text-base font-semibold text-emerald-200">{directText(selectedOrder.order_number)}</p><p className="mt-1 text-xs text-slate-400">{directText(selectedOrder.customer_name)} · {directText(selectedOrder.phone)} · 📢 {directText(selectedOrder.page_name)}</p></div>
                 <div className="flex items-center gap-2">{isSent(selectedOrder) && <span className="rounded-full border border-orange-300/30 bg-orange-400/10 px-3 py-1 text-xs font-semibold text-orange-200">🔥SENT</span>}<span className="inline-flex items-center gap-2 rounded-lg border border-cyan-400/30 bg-cyan-400/5 px-2 py-1 text-[11px] text-cyan-100"><Clock3 className="h-3.5 w-3.5" />{selectedOrder.order_time_display}</span></div>
               </div>
-              <section className={`rounded-2xl border p-3 sm:p-4 ${selectedOrderWarnings.some((warning) => warning.severity === "BLOCK") ? "border-rose-300/45 bg-rose-950/20" : selectedOrderWarnings.length ? "border-amber-300/35 bg-amber-950/15" : "border-emerald-300/25 bg-emerald-950/10"}`} aria-live="polite">
-                <div className="flex flex-wrap items-center justify-between gap-2"><h3 className={`text-xs font-bold uppercase tracking-[.18em] ${selectedOrderWarnings.some((warning) => warning.severity === "BLOCK") ? "text-rose-100" : selectedOrderWarnings.length ? "text-amber-100" : "text-emerald-100"}`}>{selectedOrderWarnings.length ? "คำเตือนก่อนจัด/ส่ง" : "ตรวจเบื้องต้น · ไม่พบคำเตือน"}</h3><span className="text-[9px] text-slate-400">{selectedOrderWarnings.filter((warning) => warning.severity === "BLOCK").length} งดส่ง · {selectedOrderWarnings.filter((warning) => warning.severity === "REVIEW").length} ตรวจเพิ่ม</span></div>
-                {selectedOrderWarnings.length > 0 ? <ul className="mt-2 space-y-1.5">{selectedOrderWarnings.map((warning) => <li key={warning.code} className={`flex items-start gap-2 text-xs leading-5 ${warning.severity === "BLOCK" ? "text-rose-100" : "text-amber-100"}`}><span className="shrink-0 rounded border px-1.5 py-0.5 text-[9px] font-bold">{warning.severity === "BLOCK" ? "งดส่ง" : "ตรวจ"}</span><span>{warning.message}</span></li>)}</ul> : <p className="mt-2 text-xs text-emerald-100/75">ระบบตรวจจากฟิลด์ที่หน้านี้อ่านได้เท่านั้น ไม่แก้หรือเขียนสถานะกลับ</p>}
-              </section>
+              {selectedOrderWarnings.length > 0 ? <section className="rounded-2xl border border-rose-300/45 bg-rose-950/20 p-3 sm:p-4" aria-live="polite">
+                <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-xs font-bold uppercase tracking-[.18em] text-rose-100">จังหวัดเสี่ยง / งดส่ง</h3><span className="text-[9px] text-slate-400">แสดงตามสัญญาณพื้นที่เท่านั้น</span></div>
+                <ul className="mt-2 space-y-1.5">{selectedOrderWarnings.map((warning) => <li key={warning.code} className="flex items-start gap-2 text-xs leading-5 text-rose-100"><span className="shrink-0 rounded border border-rose-200/40 px-1.5 py-0.5 text-[9px] font-bold">งดส่ง</span><span>{warning.message}</span></li>)}</ul>
+              </section> : null}
               {/* SUMMARY + SOURCE · สรุปตรวจเร็วแยกจากก้อนออเดอร์แท้ */}
               <div className="grid min-w-0 gap-3 2xl:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)]">
                 <section className="order-summary-well min-w-0 rounded-2xl border border-cyan-300/20 bg-cyan-400/[0.025] p-3 sm:p-4">

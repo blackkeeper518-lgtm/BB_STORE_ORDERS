@@ -30,7 +30,7 @@ describe("getOrderWarnings", () => {
     }
   });
 
-  it("flags a short address, incomplete phone, DATA MISS, and bot bill recheck", () => {
+  it("ignores all non-province warnings", () => {
     const warnings = getOrderWarnings({
       ...cleanOrder,
       phone: "12345",
@@ -38,21 +38,25 @@ describe("getOrderWarnings", () => {
       zipcode: "",
       datamiss: true,
       telegram_copy_text: "บอททวนบิลก่อนจัดส่ง",
+      cancel_status: "CANCELLED",
+      order_fibo_product: "ยกเลิกสินค้า 1 ชิ้น",
     });
-    const codes = warnings.map((warning) => warning.code);
-    expect(codes).toContain("PHONE_INVALID");
-    expect(codes).toContain("ADDRESS_SHORT");
-    expect(codes).toContain("POSTCODE_MISSING");
-    expect(codes).toContain("DATA_MISS");
-    expect(codes).toContain("BOT_RECHECK");
+    expect(warnings).toEqual([]);
   });
 
-  it("blocks cancelled orders and flags a cancellation note in item details", () => {
-    expect(getOrderWarnings({ ...cleanOrder, cancel_status: "CANCELLED" }).some((warning) => warning.code === "ORDER_CANCELLED" && warning.severity === "BLOCK")).toBe(true);
-    expect(getOrderWarnings({ ...cleanOrder, order_fibo_product: "ยกเลิกสินค้า 1 ชิ้น" }).some((warning) => warning.code === "ITEM_CANCELLED" && warning.severity === "REVIEW")).toBe(true);
+  it("uses a source risk signal without inventing other warnings", () => {
+    expect(getOrderWarnings({ ...cleanOrder, high_risk_area: true })).toEqual([{
+      code: "RESTRICTED_AREA",
+      severity: "BLOCK",
+      message: "งดส่ง/พื้นที่เสี่ยง · กรุงเทพมหานคร",
+    }]);
   });
 
-  it("recognizes Thailand mobile numbers with country code 66", () => {
-    expect(getOrderWarnings({ ...cleanOrder, phone: "+66812345678" }).some((warning) => warning.code === "PHONE_INVALID")).toBe(false);
+  it("recognizes a restricted province from the province field", () => {
+    expect(getOrderWarnings({ ...cleanOrder, province: "บุรีรัมย์", zipcode: "" })).toEqual([{
+      code: "RESTRICTED_AREA",
+      severity: "BLOCK",
+      message: "งดส่ง/พื้นที่เสี่ยง · บุรีรัมย์",
+    }]);
   });
 });
