@@ -59,10 +59,11 @@ export async function recordOutgoingChatMessage(input: { portalKey?: string; cha
   const chatLinkKey = input.chatLinkKey?.trim() || `${input.pageId}_t_${input.threadId}`;
   const payload = { chat_link_key: chatLinkKey, page_id: input.pageId, page_name: input.pageName?.trim() || null, portal_key: input.portalKey?.trim() || null, thread_id: input.threadId, recipient_id: input.recipientId, message_id: messageId, speaker: "page", is_sent: true, time: iso, occurred_at: iso, message_time_display: iso, message_text: input.text?.trim() || null, page_latest_message: input.text?.trim() || null, page_message_time_th: iso, sync_status: "SENT", dedupe_key: messageId ? `${chatLinkKey}:${messageId}` : `${chatLinkKey}:${iso}` };
   const pageMessagePayload = { chat_link_key: chatLinkKey, page_id: input.pageId, page_name: input.pageName?.trim() || null, portal_key: input.portalKey?.trim() || null, thread_id: input.threadId, recipient_id: input.recipientId, sender_id: input.pageId, sender_name: input.pageName?.trim() || null, speaker_type: "page", speaker: "page", side: "right", is_sent: true, message_id: messageId, message_text: input.text?.trim() || null, time: iso, occurred_at: iso, dedupe_key: messageId ? `${chatLinkKey}:${messageId}` : `${chatLinkKey}:${iso}` };
-  try { await supabasePost<Record<string, unknown>[]>("chat_page_messages?on_conflict=dedupe_key", pageMessagePayload, "chat", "resolution=merge-duplicates,return=representation"); }
+  // Always append each outgoing reply; no upsert/unique-key requirement.
+  try { await supabasePost<Record<string, unknown>[]>("chat_page_messages", pageMessagePayload, "chat", "return=representation"); }
   catch (error) { console.error("[chat] canonical page-message write failed", error); }
   const relation = encodeURIComponent("🧿BB_xXx_ORDERCONTROL");
-  return supabasePost<Record<string, unknown>[]>(relation, payload, "chat", "resolution=merge-duplicates,return=representation");
+  return supabasePost<Record<string, unknown>[]>(relation, payload, "chat", "return=representation");
 }
 export async function fetchParcelMappingQueue(input: { status: "all" | "sent"; limit: number }) {
   // These are quoted PostgreSQL relation names; keep the space after the emoji.
