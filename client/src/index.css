@@ -717,3 +717,67 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
     transition: none !important;
   }
 }
+
+/* NEON PAGE SIGNS — hand-drawn pink tubing, like a real neon wall sign */
+.page-holo-label { position:relative; isolation:isolate; min-height:42px; overflow:visible; border:0 !important; border-radius:38% 18% 34% 22% / 28% 24% 32% 26% !important; padding-inline:14px !important; color:#fff3fc !important; background:linear-gradient(145deg,#a90061 0%,#e50082 48%,#8b084f 100%) !important; box-shadow:inset 0 0 12px rgba(255,117,221,.42),0 0 8px rgba(255,46,188,.75),0 0 22px rgba(255,15,157,.42),0 8px 18px rgba(45,0,30,.38); transition:transform .22s ease,filter .22s ease,box-shadow .22s ease; }
+.page-holo-label::before { content:""; position:absolute; z-index:-1; inset:-5px -7px; pointer-events:none; border:2px solid rgba(255,213,245,.9); border-radius:42% 16% 37% 20% / 30% 25% 34% 23%; box-shadow:0 0 5px #fff,0 0 12px #ffb6ea,0 0 27px rgba(255,34,184,.95),inset 0 0 8px rgba(255,92,209,.32); transform:rotate(-.4deg); }
+.page-holo-label::after { content:""; position:absolute; z-index:0; inset:2px 10px; pointer-events:none; border-radius:50%; background:linear-gradient(100deg,transparent 12%,rgba(255,255,255,.5) 34%,transparent 47%); background-size:220% 100%; opacity:.42; animation:neon-sign-sheen 4.4s ease-in-out infinite; }
+.page-holo-label > * { position:relative; z-index:1; text-shadow:0 0 2px #fff,0 0 7px #fff,0 0 15px #ffb9ed,0 0 24px #ff25b7; }
+.page-holo-label:hover { transform:translateY(-2px) rotate(-.4deg); filter:brightness(1.18) saturate(1.18); box-shadow:inset 0 0 16px rgba(255,168,235,.55),0 0 12px #ff72d5,0 0 34px rgba(255,15,157,.7),0 12px 24px rgba(45,0,30,.46); }
+.page-holo-label--live { animation:neon-sign-flicker 2.7s ease-in-out infinite; }
+.cod-neon-sign { position:relative; display:inline-flex; align-items:center; justify-content:center; min-width:34px; height:19px; padding:0 7px; border:1px solid rgba(255,237,252,.95); border-radius:48% 18% 46% 22% / 35% 30% 38% 25%; background:#f01898; color:#fff !important; font:700 9px/1 'IBM Plex Mono',monospace; letter-spacing:.08em; text-shadow:0 0 3px #fff,0 0 8px #fff,0 0 14px #ffb5e9; box-shadow:0 0 4px #fff,0 0 10px #ffb5e9,0 0 22px rgba(255,22,171,.86),inset 0 0 8px rgba(255,255,255,.4); animation:cod-neon-flicker 1.9s ease-in-out infinite; }
+.cod-neon-sign::before { content:""; position:absolute; inset:-3px -4px; border:1px solid rgba(255,194,237,.8); border-radius:50%; box-shadow:0 0 7px rgba(255,87,205,.9); pointer-events:none; }
+@keyframes cod-neon-flicker { 0%,100% { opacity:1; filter:brightness(1); } 7% { opacity:.78; filter:brightness(.88); } 10% { opacity:1; filter:brightness(1.22); } 54% { opacity:.94; } 58% { opacity:1; filter:brightness(1.15); } }
+
+.page-holo-label--live::before { box-shadow:0 0 5px #fff,0 0 14px #ffd4f2,0 0 34px #ff1cad,0 0 54px rgba(255,0,153,.62); }
+@keyframes neon-sign-sheen { 0%,65% { background-position:180% 0; opacity:.15; } 78%,90% { background-position:-20% 0; opacity:.65; } 100% { background-position:-40% 0; opacity:.15; } }
+@keyframes neon-sign-flicker { 0%,100% { filter:brightness(1); } 8% { filter:brightness(1.22); } 11% { filter:brightness(.88); } 14% { filter:brightness(1.14); } 55% { filter:brightness(1.08); } 57% { filter:brightness(.94); } 60% { filter:brightness(1.18); } }
+@media (prefers-reduced-motion:reduce) { .page-holo-label::after,.page-holo-label--live { animation:none; } }
+
+/* ROOM CONSOLE — put the cyberpunk weight on the actual room list and tools */
+.room-list-card { position:relative; isolation:isolate; overflow:hidden; border:1px solid rgba(149,91,221,.16); background:linear-gradient(108deg,rgba(17,12,32,.92),rgba(13,19,35,.7) 52%,rgba(23,8,35,.82)); box-shadow:inset 3px 0 rgba(114,75,193,.28),inset 0 1px rgba(255,255,255,.025); }
+.room-list-card::before { content:""; position:absolute; z-index:-1; inset:0; pointer-events:none; background:linear-gradient(90deg,transparent,rgba(92,236,255,.07),transparent); transform:translateX(-100%); transition:transform .42s ease; }
+.room-list-card::after { content:""; position:absolute; z-index:-1; left:13px; right:13px; top:0; height:1px; background:linear-gradient(90deg,transparent,rgba(255,81,207,.5),rgba(92,236,255,.42),transparent); opacity:.3; }
+.room-list-card:hover::before { transform:translateX(100%); }
+.room-list-card:hover { border-color:rgba(255,91,210,.42); box-shadow:inset 3px 0 #ff58cc,0 0 18px rgba(184,66,255,.14); transform:translateX(2px); }
+.room-list-card--signal { border-color:rgba(255,74,204,.48); box-shadow:inset 3px 0 #ff4fc8,0 0 16px rgba(255,35,181,.16),0 0 28px rgba(120,54,255,.08); }
+.room-list-card--signal::after { opacity:.9; background:linear-gradient(90deg,transparent,#ff74d7,#fff1fc,#ff42bf,transparent); box-shadow:0 0 8px #ff54ca; }
+.order-signal-tools { position:relative; isolation:isolate; border-color:rgba(255,81,207,.28) !important; background:linear-gradient(160deg,rgba(24,8,39,.96),rgba(8,18,31,.96) 58%,rgba(30,7,32,.92)) !important; box-shadow:inset 1px 0 rgba(255,92,207,.45),inset 0 0 28px rgba(113,44,178,.12),-12px 0 30px rgba(81,36,133,.12) !important; }
+.order-signal-tools::before { content:""; position:absolute; z-index:0; top:0; bottom:0; left:0; width:2px; background:linear-gradient(#57efff,#ff57cf,#a66bff,#57efff); box-shadow:0 0 10px #ff57cf; animation:tools-spine 3.4s linear infinite; }
+.order-signal-tools::after { content:""; position:absolute; z-index:0; inset:0; pointer-events:none; background:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.018) 1px,transparent 1px); background-size:100% 18px,18px 100%; mask-image:linear-gradient(90deg,rgba(0,0,0,.65),transparent 92%); }
+.order-signal-tools > * { position:relative; z-index:1; }
+@keyframes tools-spine { 0%,100% { filter:brightness(.75); } 45% { filter:brightness(1.5); } 55% { filter:brightness(.9); } }
+/* keep the page picker useful, but make it a quiet selector rather than the hero */
+.page-holo-label { min-height:30px; padding-inline:9px !important; border-radius:9px !important; background:rgba(28,15,45,.82) !important; box-shadow:inset 2px 0 rgba(255,77,202,.38),0 0 0 rgba(255,20,170,0) !important; }
+.page-holo-label::before { inset:0; border:1px solid rgba(255,124,221,.28); border-radius:9px; box-shadow:none; opacity:.7; }
+.page-holo-label::after { opacity:.12; }
+.page-holo-label > * { text-shadow:0 0 5px rgba(255,107,217,.45); }
+.page-holo-label:hover { transform:none; box-shadow:inset 3px 0 #ff63cf,0 0 13px rgba(255,63,201,.25) !important; }
+.page-holo-label--live { background:linear-gradient(90deg,rgba(100,11,73,.55),rgba(34,15,52,.85)) !important; box-shadow:inset 3px 0 #ff58ce,0 0 13px rgba(255,44,194,.23) !important; animation:none; }
+.page-holo-label--live::before { box-shadow:0 0 7px rgba(255,67,202,.55); }
+
+/* COD ROOM SIGNAL — same pink neon language at list badge and room header */
+.cod-room-sign { position:relative; border-color:#ffb8ec !important; background:#e91592 !important; color:#fff !important; text-shadow:0 0 3px #fff,0 0 8px #ffb7e9; box-shadow:0 0 4px #fff,0 0 10px #ff8ddd,0 0 22px rgba(255,24,174,.72) !important; }
+.cod-room-sign::after { content:""; position:absolute; inset:-3px -4px; border:1px solid rgba(255,188,235,.82); border-radius:50%; box-shadow:0 0 7px rgba(255,67,202,.85); pointer-events:none; }
+.cod-room-header { border-color:#ffb8ec !important; background:rgba(226,18,142,.28) !important; color:#fff !important; text-shadow:0 0 3px #fff,0 0 10px #ff8ddd; box-shadow:0 0 6px #ff70d1,0 0 18px rgba(255,25,180,.5); }
+
+/* COD LEADERBOARD — quiet pressure, visible mathematics */
+.cod-leaderboard-marquee { position:relative; min-height:31px; overflow:hidden; border:1px solid rgba(255,83,204,.3); border-radius:12px; background:linear-gradient(90deg,rgba(38,8,48,.88),rgba(20,13,39,.92),rgba(38,8,48,.88)); box-shadow:inset 0 0 16px rgba(255,40,190,.08),0 0 14px rgba(255,37,183,.12); }
+.cod-leaderboard-marquee::before { content:"COD RANKING // TODAY"; position:absolute; z-index:2; left:0; top:0; bottom:0; display:flex; align-items:center; padding:0 10px; background:linear-gradient(90deg,#17091f 72%,transparent); color:#ff9ce5; font:600 8px/1 'IBM Plex Mono',monospace; letter-spacing:.14em; pointer-events:none; }
+.cod-leaderboard-track { display:flex; width:max-content; align-items:center; gap:24px; padding:7px 18px 7px 170px; animation:cod-rank-run 32s linear infinite; white-space:nowrap; }
+.cod-leaderboard-item { color:#ffd4f3; font:500 10px/1.2 'IBM Plex Mono',monospace; text-shadow:0 0 8px rgba(255,91,213,.48); }
+.cod-leaderboard-item b { color:#ff65cf; }
+.cod-leaderboard-item strong { color:#fff; font-weight:700; }
+@keyframes cod-rank-run { from { transform:translateX(0); } to { transform:translateX(-50%); } }
+.cod-leaderboard-marquee:hover .cod-leaderboard-track { animation-play-state:paused; }
+.telegram-green-frame { position:relative; isolation:isolate; }
+.telegram-green-frame::before { content:""; position:fixed; z-index:-1; inset:8px; pointer-events:none; border:1px solid rgba(93,255,204,.5); border-radius:24px; box-shadow:0 0 8px rgba(93,255,204,.75),0 0 26px rgba(31,255,189,.32),0 0 70px rgba(31,255,189,.18),inset 0 0 38px rgba(31,255,189,.08); }
+.telegram-green-frame::after { content:""; position:fixed; z-index:-1; inset:0; pointer-events:none; background:radial-gradient(ellipse at top,rgba(75,255,202,.08),transparent 45%),radial-gradient(ellipse at bottom,rgba(75,255,202,.08),transparent 50%); }
+
+/* RANKING COMEDY MODE — champion shimmer, last-place ambulance alert */
+.cod-rank-winner { color:#fff6fd; font-weight:700; text-shadow:0 0 3px #fff,0 0 8px #ffb8ed,0 0 18px #ff4fc8; animation:cod-winner-sparkle 1.7s ease-in-out infinite; }
+.cod-rank-winner b { color:#ffb4e8; }
+.cod-rank-emergency { color:#ffe9f5; border-radius:4px; padding:2px 5px; background:linear-gradient(90deg,rgba(255,35,101,.24),rgba(255,255,255,.14),rgba(255,35,101,.24)); text-shadow:0 0 3px #fff,0 0 8px #ff426e; animation:cod-ambulance 1.05s steps(1,end) infinite; }
+.cod-rank-emergency b { color:#ff577d; }
+@keyframes cod-winner-sparkle { 0%,100% { filter:brightness(1); transform:translateY(0); } 38% { filter:brightness(1.38); } 46% { filter:brightness(.96); } 52% { filter:brightness(1.22); } 68% { filter:brightness(1.08); } }
+@keyframes cod-ambulance { 0%,48% { color:#fff5fa; background:rgba(255,36,100,.32); box-shadow:0 0 7px rgba(255,36,100,.72); } 49%,100% { color:#fff; background:rgba(255,255,255,.28); box-shadow:0 0 8px rgba(255,255,255,.85); } }
