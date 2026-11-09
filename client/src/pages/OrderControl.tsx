@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import OrderEditWorkbench from "@/components/OrderEditWorkbench";
-import { getActiveCamp,  orderTimeSortKey, readCanonicalOrders, readChatThreads, readParcelByTrackingNumber, readParcelMappingQueue } from "@/lib/canonical";
+import { getActiveCamp, orderTimeSortKey, readCanonicalOrders, readChatThreads, readParcelByTrackingNumber, readParcelMappingQueue, readTelegramDeliveryOrders } from "@/lib/canonical";
 import { getOrderWarnings } from "@/lib/orderWarnings";
 import { useQuery } from "@tanstack/react-query";
 import { CalendarDays, Check, CheckCircle2, Clock3, Database, Download, ExternalLink, MessageCircle, Pencil, RefreshCw, Search, Send, ShoppingCart, WalletCards, XCircle } from "lucide-react";
@@ -96,6 +96,20 @@ function isSent(row: CanonicalOrderRow) {
   return String(row.delivery_status ?? "").trim().toUpperCase().replace(/^🔥\s*/, "") === "SENT" && Boolean(String(row.sent_at ?? "").trim());
 }
 
+function telegramRowIsSent(row: Record<string, any>) {
+  const statuses = [row.delivery_status, row.delivery_state, row.telegram_status].map((value) => String(value ?? "").trim().toUpperCase().replace(/^🔥\s*/, ""));
+  return Boolean(String(row.sent_at ?? row.telegram_sent_at ?? "").trim()) || statuses.some((status) => ["SENT", "DELIVERED", "SENT_TO_TELEGRAM"].includes(status)) || ["true", "t", "1", "yes"].includes(String(row.telegram_sent ?? "").trim().toLowerCase());
+}
+
+function telegramChatId(row: Record<string, any>) {
+  const raw = row.telegram_body ?? row.telegramBody;
+  let body = raw;
+  if (typeof raw === "string") {
+    try { body = JSON.parse(raw); } catch { body = null; }
+  }
+  return String(body?.chat_id ?? row.telegram_chat_id ?? row.chat_id ?? "").trim();
+}
+
 // สถานะส่งได้: แก้เงื่อนไขตรงนี้ได้ ถ้ากติกา n8n เปลี่ยน
 function canSend(row: CanonicalOrderRow) {
   return !isSent(row) && (truthy(row.is_ready_to_pack) || truthy(row.send_eligible) || truthy(row.telegram_bill_send_eligible) || String(row.cod_check_status ?? "").toUpperCase() === "PASS");
@@ -179,6 +193,18 @@ export default function OrderControl() {
     enabled: searchPanelOpen && trackingSearchReady,
     staleTime: 60_000,
   });
+  const telegramQueueQuery = useQuery({
+    queryKey: ["order-control-telegram-queue", getActiveCamp(), search.trim()],
+    queryFn: () => readTelegramDeliveryOrders(search, "queue"),
+    enabled: searchPanelOpen && trackingSearchReady,
+    staleTime: 15_000,
+  });
+  const telegramSentQuery = useQuery({
+    queryKey: ["order-control-telegram-sent", getActiveCamp(), search.trim()],
+    queryFn: () => readTelegramDeliveryOrders(search, "sent"),
+    enabled: searchPanelOpen && trackingSearchReady,
+    staleTime: 15_000,
+  });
   // ⫘ ORDER SORT · ใช้ CENTRAL ORDER CLOCK เรียงล่าสุดไว้บนสุดเสมอ
   const rawOrders = useMemo(() => [...((query.data?.orders ?? []) as CanonicalOrderRow[])].sort((a, b) => orderTimeSortKey(b.order_time_display) - orderTimeSortKey(a.order_time_display)), [query.data?.orders]);
   const pageNames = useMemo(() => Array.from(new Set(rawOrders.map((row) => String(row.page_name ?? "").trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, "th")), [rawOrders]);
@@ -210,7 +236,11 @@ export default function OrderControl() {
     const phoneDigits = normalizePhoneForSearch(thread.customerPhone);
     return haystack.includes(trackingTerm) || (phoneSearch.length >= 7 && phoneDigits.includes(phoneSearch));
   }).slice(0, 8);
-  const isRefreshing = query.isFetching || trackingQueueQuery.isFetching || directParcelQuery.isFetching || chatThreadsQuery.isFetching;
+  const telegramTraceRows = [
+    ...(telegramSentQuery.data?.orders ?? []).map((row: any) => ({ ...row, _traceRoom: "sent" })),
+    ...(telegramQueueQuery.data?.orders ?? []).map((row: any) => ({ ...row, _traceRoom: "queue" })),
+  ].slice(0, 12);
+  const isRefreshing = query.isFetching || trackingQueueQuery.isFetching || directParcelQuery.isFetching || chatThreadsQuery.isFetching || telegramQueueQuery.isFetching || telegramSentQuery.isFetching;
   const todayOrders = orders.filter(isToday);
   const sentOrders = orders.filter(isSent);
   const sendableOrders = orders.filter(canSend);
@@ -290,7 +320,7 @@ export default function OrderControl() {
               <Search aria-hidden="true" className="order-search-input-icon h-4 w-4" />
               <Input id="order-universal-search" value={search} onChange={(event) => { setSearch(event.target.value); if (event.target.value.trim()) setSearchPanelOpen(true); }} placeholder="เบอร์โทรศัพท์ · ชื่อลูกค้า · เลขออเดอร์ · SKU · chat_link_key · เลขพัสดุ" className="order-search-input h-12 w-full rounded-xl border text-sm text-white placeholder:text-slate-500" />
             </div>
-            <p className="order-search-helper mt-2 text-[10px] leading-4">ค้น HERMES · Chat · Parcel ด้วยเบอร์โทรหรือ chat_link_key · วันที่/เพจใช้กรองรายการออเดอร์</p>
+            <p className="order-search-helper mt-2 text-[10px] leading-4">ค้น HERMES · Chat · Parcel · Telegram ด้วยเบอร์โทร เลขออเดอร์ หรือ chat_link_key · วันที่/เพจใช้กรองรายการออเดอร์</p>
           </div>
           {searchPanelOpen ? <div id="order-search-filters" className="grid grid-rows-[1fr] border-t border-cyan-300/15 transition-all duration-300">
             <div className="min-h-0 p-3 sm:p-4">
@@ -301,20 +331,21 @@ export default function OrderControl() {
                   <label className="filter-field filter-field-page"><span>เพจ</span><select value={pageFilter} onChange={(event) => setPageFilter(event.target.value)}><option value="ทั้งหมด">ทุกเพจ</option>{pageNames.map((page) => <option key={page} value={page}>{page}</option>)}</select></label>
                 </div>
                 <div className="order-filter-actions mt-3 flex flex-wrap justify-end gap-2 border-t border-white/[0.06] pt-3">
-                  <Button type="button" variant="outline" onClick={() => { void query.refetch(); if (searchPanelOpen && trackingSearchReady) { void trackingQueueQuery.refetch(); void chatThreadsQuery.refetch(); } if (searchPanelOpen && trackingInput.pure) void directParcelQuery.refetch(); }} disabled={isRefreshing} className="order-refresh-action"><RefreshCw className={`mr-2 h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />{isRefreshing ? "กำลังอัปเดต" : "อัปเดตข้อมูล"}</Button>
+                  <Button type="button" variant="outline" onClick={() => { void query.refetch(); if (searchPanelOpen && trackingSearchReady) { void trackingQueueQuery.refetch(); void chatThreadsQuery.refetch(); void telegramQueueQuery.refetch(); void telegramSentQuery.refetch(); } if (searchPanelOpen && trackingInput.pure) void directParcelQuery.refetch(); }} disabled={isRefreshing} className="order-refresh-action"><RefreshCw className={`mr-2 h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />{isRefreshing ? "กำลังอัปเดต" : "อัปเดตข้อมูล"}</Button>
                   <Button type="button" variant="outline" onClick={() => exportOrdersCsv(orders)} className="border-cyan-300/30 bg-cyan-400/5 text-cyan-100 hover:bg-cyan-400/15"><Download className="mr-2 h-4 w-4" />เอ็กซ์พอร์ต {orders.length} รายการ</Button>
                   <Button type="button" variant="outline" onClick={() => { setSearch(""); setFromDate(""); setUntilDate(""); setPageFilter("ทั้งหมด"); }} className="border-violet-300/25 bg-violet-400/5 text-violet-100 hover:bg-violet-400/15">ล้างตัวเลือก</Button>
                 </div>
               </div>
               <div className="order-search-result-summary mb-3 flex flex-col justify-between gap-2 rounded-xl border border-cyan-300/10 bg-black/20 px-3 py-2 sm:flex-row sm:items-center">
-                <span className="text-[10px] text-slate-400">{query.isFetching ? "กำลังค้นออเดอร์…" : `ออเดอร์ที่ตรง ${orders.length} รายการ`} · {trackingInput.raw ? `พัสดุ ${trackingRows.length} · แชท ${matchingChatThreads.length}` : "พิมพ์เบอร์เพื่อค้นทั้ง 3 แหล่ง"}</span>
-                <span className="text-[10px] text-cyan-100/65">{isRefreshing ? "กำลังค้นข้อมูลจาก HERMES · Chat · Parcel…" : !trackingInput.raw ? "ค้นได้ด้วยเบอร์ / ชื่อ / เลขออเดอร์ / SKU / chat_link_key / เลขพัสดุ" : !trackingSearchReady ? "พิมพ์อย่างน้อย 3 ตัวอักษรเพื่อค้นทุกแหล่ง" : trackingInput.pure ? `เลขพัสดุตรง ${trackingRows.length} · แชทที่ตรง ${matchingChatThreads.length}` : `พัสดุที่ตรง ${trackingRows.length} · แชทที่ตรง ${matchingChatThreads.length}`}</span>
+                <span className="text-[10px] text-slate-400">{query.isFetching ? "กำลังค้นออเดอร์…" : `ออเดอร์ที่ตรง ${orders.length} รายการ`} · {trackingInput.raw ? `พัสดุ ${trackingRows.length} · แชท ${matchingChatThreads.length} · Telegram ${telegramTraceRows.length}` : "พิมพ์เบอร์เพื่อค้นทั้ง 4 แหล่ง"}</span>
+                <span className="text-[10px] text-cyan-100/65">{isRefreshing ? "กำลังค้นข้อมูลจาก HERMES · Chat · Parcel · Telegram…" : !trackingInput.raw ? "ค้นได้ด้วยเบอร์ / ชื่อ / เลขออเดอร์ / SKU / chat_link_key / เลขพัสดุ" : !trackingSearchReady ? "พิมพ์อย่างน้อย 3 ตัวอักษรเพื่อค้นทุกแหล่ง" : trackingInput.pure ? `เลขพัสดุตรง ${trackingRows.length} · แชท ${matchingChatThreads.length} · Telegram ${telegramTraceRows.length}` : `พัสดุ ${trackingRows.length} · แชท ${matchingChatThreads.length} · Telegram ${telegramTraceRows.length}`}</span>
               </div>
               {trackingInput.isDecorated ? <p className="mt-2 rounded-lg border border-fuchsia-300/15 bg-fuchsia-400/[0.04] px-3 py-2 text-[10px] text-fuchsia-100/75">ตรวจพบข้อความแต่งหล่อ · ระบบแยกเลขหลัก <span className="font-mono font-semibold text-fuchsia-100">{trackingInput.pure}</span> ไปค้นใน parcels โดยตรง</p> : null}
               {!trackingInput.raw ? <p className="order-search-empty mb-3 rounded-xl border border-violet-300/10 bg-violet-400/[0.025] p-3 text-center text-[11px] text-slate-400">เริ่มจากเบอร์โทรได้เลย · ระบบจะแสดงออเดอร์ที่ตรงด้านล่าง และค้นคิวพัสดุในแผงนี้</p> : null}
               {trackingQueueQuery.isError ? <p className="mt-3 rounded-xl border border-pink-300/20 bg-pink-400/[0.04] p-3 text-xs text-pink-200">ค้นคิวพัสดุไม่สำเร็จ: {trackingQueueQuery.error instanceof Error ? trackingQueueQuery.error.message : String(trackingQueueQuery.error)}</p> : null}
               {directParcelQuery.isError ? <p className="mt-3 rounded-xl border border-pink-300/20 bg-pink-400/[0.04] p-3 text-xs text-pink-200">ค้น parcels โดยตรงไม่สำเร็จ: {directParcelQuery.error instanceof Error ? directParcelQuery.error.message : String(directParcelQuery.error)}</p> : null}
               {chatThreadsQuery.isError ? <p className="mt-3 rounded-xl border border-violet-300/20 bg-violet-400/[0.04] p-3 text-xs text-violet-100">ค้นโปรเจกต์ Chat ไม่สำเร็จ: {chatThreadsQuery.error instanceof Error ? chatThreadsQuery.error.message : String(chatThreadsQuery.error)}</p> : null}
+              {telegramQueueQuery.isError || telegramSentQuery.isError ? <p className="mt-3 rounded-xl border border-sky-300/20 bg-sky-400/[0.04] p-3 text-xs text-sky-100">ตรวจคิว/ประวัติ Telegram ไม่สำเร็จ: {telegramQueueQuery.error instanceof Error ? telegramQueueQuery.error.message : telegramSentQuery.error instanceof Error ? telegramSentQuery.error.message : "ไม่ทราบสาเหตุ"}</p> : null}
               {trackingTerm && trackingSearchReady && !trackingQueueQuery.isFetching && !trackingQueueQuery.isError && trackingRows.length === 0 ? <p className="mt-3 p-3 text-center text-xs text-slate-500">ไม่พบรายการในคิวพัสดุที่โหลดได้</p> : null}
               <div className="mt-3 grid max-h-80 gap-2 overflow-y-auto lg:grid-cols-2">
                 {trackingRows.map((row: any, index: number) => {
@@ -346,6 +377,25 @@ export default function OrderControl() {
                   })}
                 </div>
               </div> : null}
+              {telegramTraceRows.length ? <div className="mt-4">
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2"><h3 className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-100">ผลจาก Telegram · {telegramTraceRows.length} รายการ</h3><span className="text-[9px] text-slate-500">เทียบคีย์ออเดอร์จาก PIONEER queue / GENESIS history</span></div>
+                <div className="grid gap-2 lg:grid-cols-2">
+                  {telegramTraceRows.map((row: any, index: number) => {
+                    const key = String(row.upsert_key || row.order_number || `${row.order_time_display}:${index}`);
+                    const sent = row._traceRoom === "sent" || telegramRowIsSent(row);
+                    const room = row._traceRoom === "sent" ? "sent" : "queue";
+                    const chatId = telegramChatId(row);
+                    const sentAt = String(row.sent_at || row.telegram_sent_at || "").trim();
+                    return <article key={`${room}:${key}`} className="rounded-xl border border-sky-300/20 bg-sky-400/[0.035] p-3">
+                      <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="text-xs font-semibold text-white">{String(row.order_number_display || row.order_number || "ไม่พบเลขออเดอร์")}</p><p className="mt-1 max-w-full break-all font-mono text-[9px] text-slate-400">upsert_key · {key}</p></div><span className={`rounded-full border px-2 py-1 text-[9px] font-semibold ${sent ? "border-emerald-300/25 bg-emerald-400/[0.08] text-emerald-100" : "border-amber-300/25 bg-amber-400/[0.08] text-amber-100"}`}>{sent ? "SENT · GENESIS" : "QUEUE · PIONEER"}</span></div>
+                      <p className="mt-2 text-[10px] text-slate-300">เพจ {String(row.page_name || "ไม่ระบุ")} · กลุ่ม Telegram {chatId || "ไม่มี chat_id ใน telegram_body"}</p>
+                      <p className="mt-1 text-[9px] text-slate-500">{sentAt ? `เวลาสถานะ SENT · ${sentAt}` : "ยังไม่มี sent_at ในแถวสถานะ"}</p>
+                      <Link href={`/telegram-delivery?search=${encodeURIComponent(key)}&room=${room}`} className="mt-2 inline-flex items-center gap-1 rounded-lg border border-sky-300/20 bg-sky-400/[0.04] px-2.5 py-1.5 text-[10px] font-semibold text-sky-100 hover:bg-sky-400/[0.1]">เปิดรายการ Telegram <ExternalLink className="h-3 w-3" /></Link>
+                    </article>;
+                  })}
+                </div>
+                <p className="mt-2 text-[9px] leading-4 text-slate-500">สถานะ SENT อ่านจาก Supabase GENESIS archive หลัง webhook ตอบกลับ ไม่ได้เปิดอ่านข้อความในกลุ่ม Telegram สดโดยตรง</p>
+              </div> : trackingSearchReady && !telegramQueueQuery.isFetching && !telegramSentQuery.isFetching && !telegramQueueQuery.isError && !telegramSentQuery.isError ? <p className="mt-4 rounded-lg border border-sky-300/10 bg-sky-400/[0.02] p-3 text-center text-[10px] text-slate-500">ไม่พบคีย์นี้ในคิว PIONEER หรือประวัติ GENESIS ของ Telegram</p> : null}
             </div>
           </div> : null}
       </section>
@@ -436,7 +486,7 @@ export default function OrderControl() {
               <div className="flex flex-wrap gap-2">
                 <Button type="button" variant="outline" onClick={() => void copySelectedOrder()} className="border-emerald-300/30 bg-emerald-400/5 text-emerald-100 hover:bg-emerald-400/15">{copied ? <Check className="mr-2 h-4 w-4" /> : <Download className="mr-2 h-4 w-4" />} {copied ? "คัดลอกแล้ว" : "คัดลอกข้อมูลออเดอร์"}</Button>
                 <Link href={`/order-history?search=${encodeURIComponent(selectedOrder.upsert_key)}`}><Button variant="outline" className="border-cyan-300/25 bg-cyan-400/5 text-cyan-100"><ExternalLink className="mr-2 h-4 w-4" />ประวัติ</Button></Link>
-                <Link href={`/telegram-delivery?search=${encodeURIComponent(selectedOrder.upsert_key)}&room=queue`}><Button variant="outline" className="border-fuchsia-300/25 bg-fuchsia-400/5 text-fuchsia-100"><Send className="mr-2 h-4 w-4" />ส่งไป Telegram</Button></Link>
+                <Link href={`/telegram-delivery?search=${encodeURIComponent(selectedOrder.upsert_key)}&room=${isSent(selectedOrder) ? "sent" : "queue"}`}><Button variant="outline" className="border-fuchsia-300/25 bg-fuchsia-400/5 text-fuchsia-100"><Send className="mr-2 h-4 w-4" />เปิดสถานะ Telegram</Button></Link>
                 <Link href={`/chats?search=${encodeURIComponent(selectedOrder.customer_name ?? selectedOrder.order_number ?? "")}`}><Button variant="outline" className="border-emerald-300/25 bg-emerald-400/5 text-emerald-100"><MessageCircle className="mr-2 h-4 w-4" />ไปห้องแชท</Button></Link>
                 <Button type="button" variant="outline" onClick={() => setEditOpen(true)} className="border-pink-300/25 bg-pink-400/5 text-pink-100"><Pencil className="mr-2 h-4 w-4" />EDIT TARGET · แก้ไขออเดอร์</Button>
               </div>
