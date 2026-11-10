@@ -39,14 +39,12 @@ function profileKey(_camp: Camp, project: SupabaseProject) {
   if (project === "parcel") return PARCEL_CONFIG_KEY;
   return CONFIG_KEY;
 }
-export function getSupabaseConfig(camp: Camp = getActiveCamp(), project: SupabaseProject = "main", urlOverride?: string): SupabaseConfig | null {
+export function getSupabaseConfig(camp: Camp = getActiveCamp(), project: SupabaseProject = "main"): SupabaseConfig | null {
   try {
-    const pinnedUrl = String(urlOverride ?? "").trim().replace(/\/$/, "");
     const raw = localStorage.getItem(profileKey(camp, project));
     if (raw) {
       const value = JSON.parse(raw) as Partial<SupabaseConfig>;
-      const url = pinnedUrl || String(value.url ?? "").trim().replace(/\/$/, "");
-      if (url && value.anonKey) return { url, anonKey: value.anonKey, orderTable: project === "main" ? defaultOrderView(camp) : undefined };
+      if (value.url && value.anonKey) return { url: value.url.replace(/\/$/, ""), anonKey: value.anonKey, orderTable: project === "main" ? defaultOrderView(camp) : undefined };
     }
     if (project === "chat" || project === "parcel") {
       const fallback = localStorage.getItem(TRACKING_CONFIG_KEY);
@@ -56,7 +54,7 @@ export function getSupabaseConfig(camp: Camp = getActiveCamp(), project: Supabas
       }
     }
   } catch { /* invalid local value; try deployment defaults */ }
-  const url = String(urlOverride ?? "").trim().replace(/\/$/, "") || (project === "tracking" ? DEPLOYMENT_TRACKING_URL : project === "chat" ? DEPLOYMENT_CHAT_URL || DEPLOYMENT_TRACKING_URL : project === "parcel" ? DEPLOYMENT_PARCEL_URL || DEPLOYMENT_TRACKING_URL : DEPLOYMENT_SUPABASE_URL);
+  const url = project === "tracking" ? DEPLOYMENT_TRACKING_URL : project === "chat" ? DEPLOYMENT_CHAT_URL || DEPLOYMENT_TRACKING_URL : project === "parcel" ? DEPLOYMENT_PARCEL_URL || DEPLOYMENT_TRACKING_URL : DEPLOYMENT_SUPABASE_URL;
   const anonKey = project === "tracking" ? DEPLOYMENT_TRACKING_ANON_KEY : project === "chat" ? DEPLOYMENT_CHAT_ANON_KEY || DEPLOYMENT_TRACKING_ANON_KEY : project === "parcel" ? DEPLOYMENT_PARCEL_ANON_KEY || DEPLOYMENT_TRACKING_ANON_KEY : DEPLOYMENT_SUPABASE_ANON_KEY;
   return url && anonKey ? { url, anonKey, orderTable: project === "main" ? defaultOrderView(camp) : undefined } : null;
 }
@@ -68,8 +66,8 @@ export function saveSupabaseConfig(config: SupabaseConfig, camp: Camp = getActiv
 export function clearSupabaseConfig(camp: Camp = getActiveCamp(), project: SupabaseProject = "main") {
   localStorage.removeItem(profileKey(camp, project)); delete clients[project]; delete clientSignatures[project];
 }
-export function getSupabase(project: SupabaseProject = "main", urlOverride?: string) {
-  const config = getSupabaseConfig(getActiveCamp(), project, urlOverride);
+export function getSupabase(project: SupabaseProject = "main") {
+  const config = getSupabaseConfig(getActiveCamp(), project);
   if (!config) return null;
   const signature = `${getActiveCamp()}|${config.url}|${config.anonKey}`;
   if (!clients[project] || signature !== clientSignatures[project]) {
@@ -309,23 +307,20 @@ const HERMES_WEB_ORDER_COLUMNS = [
 
 // HERMES_ARCHIVE stores the three aliased view fields with their original names.
 const HERMES_DIRECT_ORDER_COLUMNS = HERMES_WEB_ORDER_COLUMNS
-  .replace("currentThreadTotalBills", "currentthreadtotalbills")
-  .replace("balloonNotice", "balloonnotice")
-  .replace("sniperAuthorClass", "sniperauthorclass");
+  .replace(/order_time_display/g, "order_time_display");
 
 // Only fields used by TelegramDeliveryRoom; avoid returning all 330 view columns.
 const TELEGRAM_WEB_ORDER_COLUMNS = [
   // PIONEER and ANDROMEDA share the operational order number, but ANDROMEDA
   // does not expose the optional order_number_display column.
   "upsert_key", "source_table", "order_time_display", "order_number",
-  "chat_link_key", "page_id", "threadId", "recipient_id", "telegram_body",
   "telegram_product_display", "final_display_for_packer", "order_fibo_product", "for_packer_st_display", "manus_for_packer", "google_for_packer", "packer_tag_display", "packer_obj",
   "address_fibo_selected_clean", "address_display_packer", "full_address", "province", "zipcode", "phone", "extracted_phone",
   "cod_amount", "customer_name", "facebook_name", "page_name", "shipping_carrier", "sku",
   "delivery_state", "delivery_status", "telegram_status", "telegram_sent", "sent_at", "telegram_sent_at",
-  "telegram_message", "telegram_change_alert", "raw_text", "original"
+  "telegram_message_web", "telegram_change_alert_web", "telegram_message", "telegram_change_alert",
+  "raw_text", "original"
 ].join(",");
-
 
 function firstText(...values: unknown[]): string {
   return values.map(value => String(value ?? "").trim()).find(Boolean) ?? "";
@@ -396,101 +391,24 @@ export async function readBlackboxRoom(search = "") {
   return (data ?? []).filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query));
 }
 
-export async function readBbOrderEvidence(upsertKey: string) {
+export async function updateBbOrder(upsertKey: string | number, patch: Record<string, unknown>) {
   const api = getSupabase();
-  if (!api) {
-    fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  }
-
-  const { data, error } = await api
-    .from(defaultOrderView("BB"))
-    .select("upsert_key,chat_timeline,customer_change_diff_json,telegram_copy_text")
-    .eq("upsert_key", upsertKey)
-    .maybeSingle();
-
+  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
+  const { data, error } = await api.from(defaultOrderView("BB")).update(patch).eq("upsert_key", String(upsertKey)).select("upsert_key");
   if (error) fail(error);
-
-  const row: any = data ?? {};
-
-  return {
-    ...row,
-    normalized_chat_timeline: row.chat_timeline ?? null,
-    telegram_copy_text: row.telegram_copy_text ?? null,
-  };
-}
-
-export async function readBbOrderEvidenceBatch(upsertKeys: string[]) {
-  const keys = Array.from(
-    new Set(upsertKeys.map((key) => String(key ?? "").trim()).filter(Boolean))
-  );
-
-  if (!keys.length) return [];
-
-  const api = getSupabase();
-  if (!api) {
-    fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  }
-
-  const evidence: any[] = [];
-
-  for (let offset = 0; offset < keys.length; offset += 100) {
-    const { data, error } = await api
-      .from(defaultOrderView("BB"))
-      .select("upsert_key,chat_timeline,customer_change_diff_json,telegram_copy_text")
-      .in("upsert_key", keys.slice(offset, offset + 100));
-
-    if (error) fail(error);
-
-    evidence.push(
-      ...(data ?? []).map((row: any) => ({
-        ...row,
-        normalized_chat_timeline: row.chat_timeline ?? null,
-        telegram_copy_text: row.telegram_copy_text ?? null,
-      }))
-    );
-  }
-
-  return evidence;
-}
-export async function updateBbOrderByKey(
-  upsertKey: string,
-  patch: Record<string, unknown>,
-  sourceTable:
-    | "🗝️HERMES_ARCHIVE"
-    | "🌀SINGULARITY_xXx_EXCHANGE" = "🗝️HERMES_ARCHIVE",
-) {
-  const api = getSupabase();
-
-  if (!api) {
-    fail({
-      message:
-        "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key",
-    });
-  }
-
-  const { data, error } = await api
-    .from(sourceTable)
-    .update(patch)
-    .eq("upsert_key", upsertKey)
-    .select("upsert_key");
-
-  if (error) fail(error);
-
-  if (!data?.length) {
-    fail({
-      message: `ไม่พบออเดอร์ upsert_key=${upsertKey} หรือสิทธิ์ RLS ไม่อนุญาตให้อัปเดต`,
-    });
-  }
-
-  if (data.length > 1) {
-    fail({
-      message: `พบ upsert_key ซ้ำ ${data.length} แถว ต้องตรวจข้อมูลก่อนแก้ไข`,
-    });
-  }
-
+  if (!data?.length) fail({ message: `ไม่พบออเดอร์ upsert_key=${upsertKey} หรือสิทธิ์ RLS ไม่อนุญาตให้อัปเดต` });
+  if (data.length > 1) fail({ message: `พบออเดอร์ซ้ำ ${data.length} แถวด้วย upsert_key=${upsertKey}` });
   return data[0];
 }
-
+export async function updateBbOrderByKey(upsertKey: string, patch: Record<string, unknown>, sourceTable: "🗝️HERMES_ARCHIVE" | "🌀SINGULARITY_xXx_EXCHANGE" = "🗝️HERMES_ARCHIVE") {
+  const api = getSupabase();
+  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
+  const { data, error } = await api.from(sourceTable).update(patch).eq("upsert_key", upsertKey).select("upsert_key");
+  if (error) fail(error);
+  if (!data?.length) fail({ message: `ไม่พบออเดอร์ upsert_key=${upsertKey} หรือสิทธิ์ RLS ไม่อนุญาตให้อัปเดต` });
+  if (data.length > 1) fail({ message: `พบ upsert_key ซ้ำ ${data.length} แถว ต้องตรวจข้อมูลก่อนแก้ไข` });
+  return data[0];
+}
 
 async function withSentWriteTimeout<T>(request: PromiseLike<T>, timeoutMs = 15_000): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -574,13 +492,12 @@ export async function setInventoryAvailability(input: { productId: number; sku: 
 
 const GENESIS_HISTORY_COLUMNS = [
   "upsert_key", "order_time_display", "order_number", "order_number_display",
-  "upsert_key",
   "page_id", "page_name", "threadId", "customer_name", "facebook_name",
   "phone", "extracted_phone", "full_address", "final_address_for_bill",
   "address_display_packer", "addressclean", "province", "zipcode", "sku",
   "order_fibo_product", "for_packer_st_display", "manus_for_packer",
   "google_for_packer", "packer_tag_display", "packer_obj", "telegram_product_display",
-  "telegram_message", "balloonnotice", "original",
+  "telegram_message", "original",
   "cod_amount", "expected_cod", "shipping_carrier", "source_table", "telegram_status",
   "telegram_sent", "sent_at", "telegram_sent_at"
 ].join(",");
