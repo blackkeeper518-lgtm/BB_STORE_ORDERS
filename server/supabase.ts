@@ -24,10 +24,13 @@ function config(project: SupabaseProject = "main") {
       : lane === "tracking"
         ? process.env.TRACKING_SUPABASE_SERVICE_ROLE_KEY
         : process.env.ORDER_SUPABASE_SERVICE_ROLE_KEY;
-  // New lanes are additive. Until their Render variables exist, keep the
-  // existing Tracking connection working without a data or route migration.
-  const rawUrl = laneUrl?.trim() || (lane === "chat" || lane === "parcel" ? process.env.TRACKING_SUPABASE_URL?.trim() : undefined) || (lane === "chat" ? process.env.MAIN_ORDER_SUPABASE_URL?.trim() || process.env.ORDER_SUPABASE_URL?.trim() : undefined) || process.env.SUPABASE_URL?.trim();
-  const key = laneKey?.trim() || (lane === "chat" || lane === "parcel" ? process.env.TRACKING_SUPABASE_SERVICE_ROLE_KEY?.trim() : undefined) || (lane === "chat" ? process.env.MAIN_ORDER_SUPABASE_SERVICE_ROLE_KEY?.trim() || process.env.ORDER_SUPABASE_SERVICE_ROLE_KEY?.trim() : undefined) || process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  // Chat credentials belong to a separate Supabase account; never borrow another lane's URL or key.
+  const rawUrl = lane === "chat"
+    ? laneUrl?.trim()
+    : laneUrl?.trim() || (lane === "parcel" ? process.env.TRACKING_SUPABASE_URL?.trim() : undefined) || process.env.SUPABASE_URL?.trim();
+  const key = lane === "chat"
+    ? laneKey?.trim()
+    : laneKey?.trim() || (lane === "parcel" ? process.env.TRACKING_SUPABASE_SERVICE_ROLE_KEY?.trim() : undefined) || process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
   if (!rawUrl || !key) throw new Error(`Supabase ${project} secrets are not configured`);
   let parsed: URL;
   try { parsed = new URL(rawUrl); } catch { throw new Error("SUPABASE_URL is not a valid URL"); }

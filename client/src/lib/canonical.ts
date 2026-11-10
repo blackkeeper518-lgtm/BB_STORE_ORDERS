@@ -46,7 +46,7 @@ export function getSupabaseConfig(camp: Camp = getActiveCamp(), project: Supabas
       const value = JSON.parse(raw) as Partial<SupabaseConfig>;
       if (value.url && value.anonKey) return { url: value.url.replace(/\/$/, ""), anonKey: value.anonKey, orderTable: project === "main" ? defaultOrderView(camp) : undefined };
     }
-    if (project === "chat" || project === "parcel") {
+    if (project === "parcel") {
       const fallback = localStorage.getItem(TRACKING_CONFIG_KEY);
       if (fallback) {
         const value = JSON.parse(fallback) as Partial<SupabaseConfig>;
@@ -54,8 +54,8 @@ export function getSupabaseConfig(camp: Camp = getActiveCamp(), project: Supabas
       }
     }
   } catch { /* invalid local value; try deployment defaults */ }
-  const url = project === "tracking" ? DEPLOYMENT_TRACKING_URL : project === "chat" ? DEPLOYMENT_CHAT_URL || DEPLOYMENT_TRACKING_URL : project === "parcel" ? DEPLOYMENT_PARCEL_URL || DEPLOYMENT_TRACKING_URL : DEPLOYMENT_SUPABASE_URL;
-  const anonKey = project === "tracking" ? DEPLOYMENT_TRACKING_ANON_KEY : project === "chat" ? DEPLOYMENT_CHAT_ANON_KEY || DEPLOYMENT_TRACKING_ANON_KEY : project === "parcel" ? DEPLOYMENT_PARCEL_ANON_KEY || DEPLOYMENT_TRACKING_ANON_KEY : DEPLOYMENT_SUPABASE_ANON_KEY;
+  const url = project === "tracking" ? DEPLOYMENT_TRACKING_URL : project === "chat" ? DEPLOYMENT_CHAT_URL : project === "parcel" ? DEPLOYMENT_PARCEL_URL || DEPLOYMENT_TRACKING_URL : DEPLOYMENT_SUPABASE_URL;
+  const anonKey = project === "tracking" ? DEPLOYMENT_TRACKING_ANON_KEY : project === "chat" ? DEPLOYMENT_CHAT_ANON_KEY : project === "parcel" ? DEPLOYMENT_PARCEL_ANON_KEY || DEPLOYMENT_TRACKING_ANON_KEY : DEPLOYMENT_SUPABASE_ANON_KEY;
   return url && anonKey ? { url, anonKey, orderTable: project === "main" ? defaultOrderView(camp) : undefined } : null;
 }
 export function saveSupabaseConfig(config: SupabaseConfig, camp: Camp = getActiveCamp(), project: SupabaseProject = "main") {

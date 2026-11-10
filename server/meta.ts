@@ -5,48 +5,22 @@ export type MetaAttachment = { type: string; url?: string; payload?: Record<stri
 const CHAT_TOKEN_SUPABASE_URL = "https://zxmczmgmtbnammtljdls.supabase.co";
 
 async function pageToken(pageId: string) {
-  // page_tokens_vault is keyed uniquely by page_id. Keep this lookup aligned
-  // with its deployed schema: it has no portal_key column.
-  const lanes = [
-    { name: "CHAT", url: process.env.CHAT_SUPABASE_URL || CHAT_TOKEN_SUPABASE_URL, key: process.env.CHAT_SUPABASE_SERVICE_ROLE_KEY },
-    { name: "MAIN_ORDER", url: process.env.MAIN_ORDER_SUPABASE_URL || process.env.ORDER_SUPABASE_URL, key: process.env.MAIN_ORDER_SUPABASE_SERVICE_ROLE_KEY || process.env.ORDER_SUPABASE_SERVICE_ROLE_KEY },
-    { name: "TRACKING", url: process.env.TRACKING_SUPABASE_URL, key: process.env.TRACKING_SUPABASE_SERVICE_ROLE_KEY },
-    { name: "SUPABASE", url: process.env.SUPABASE_URL, key: process.env.SUPABASE_SERVICE_ROLE_KEY },
-  ].filter(candidate => candidate.url?.trim() && candidate.key?.trim());
-  const lookupErrors: string[] = [];
-  if (!process.env.CHAT_SUPABASE_SERVICE_ROLE_KEY?.trim()) lookupErrors.push("CHAT: CHAT_SUPABASE_SERVICE_ROLE_KEY is not configured");
-  for (const lane of lanes) {
-    const supabaseUrl = lane.url!.trim().replace(/\/$/, "");
-    const serviceRoleKey = lane.key!.trim();
-    const headers = { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` };
-    try {
-      const params = new URLSearchParams({ select: "page_id,page_name,access_token", page_id: `eq.${pageId}`, limit: "1" });
-      const response = await fetch(`${supabaseUrl}/rest/v1/page_tokens_vault?${params}`, { headers });
-      if (response.ok) {
-        const rows = await response.json() as Array<Record<string, unknown>>;
-        const row = rows[0];
-        if (row) {
-          const token = row.page_access_token ?? row.access_token ?? row.pageAccessToken ?? row.token;
-          if (typeof token === "string" && token.trim()) return token.trim();
-        }
-      } else if (response.status !== 404) {
-        lookupErrors.push(`${lane.name} HTTP ${response.status}: ${(await response.text()).slice(0, 240)}`);
-      }
-    } catch (error) {
-      lookupErrors.push(`${lane.name}: ${error instanceof Error ? error.message : String(error)}`);
-    }
+  const serviceRoleKey = process.env.CHAT_SUPABASE_SERVICE_ROLE_KEY?.trim();
+  if (!serviceRoleKey) throw new Error("Page token lookup failed: CHAT_SUPABASE_SERVICE_ROLE_KEY is not configured");
+  const supabaseUrl = (process.env.CHAT_SUPABASE_URL || CHAT_TOKEN_SUPABASE_URL).trim().replace(/\/$/, "");
+  const headers = { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` };
+  try {
+    // page_tokens_vault is keyed by page_id and belongs to the Chat project only.
+    const params = new URLSearchParams({ select: "page_id,page_name,access_token", page_id: `eq.${pageId}`, limit: "1" });
+    const response = await fetch(`${supabaseUrl}/rest/v1/page_tokens_vault?${params}`, { headers });
+    if (!response.ok) throw new Error(`HTTP ${response.status}: ${(await response.text()).slice(0, 240)}`);
+    const rows = await response.json() as Array<Record<string, unknown>>;
+    const row = rows[0];
+    const token = row?.page_access_token ?? row?.access_token ?? row?.pageAccessToken ?? row?.token;
+    return typeof token === "string" && token.trim() ? token.trim() : undefined;
+  } catch (error) {
+    throw new Error(`Page token lookup failed: CHAT: ${error instanceof Error ? error.message : String(error)}`);
   }
-  const configured = process.env.META_PAGES_JSON;
-  if (configured) {
-    try {
-      const pages = JSON.parse(configured) as Array<{ pageId: string; pageAccessToken: string }>;
-      const page = pages.find(item => item.pageId === pageId);
-      if (page?.pageAccessToken) return page.pageAccessToken;
-    } catch { /* Keep the single-page fallback below. */ }
-  }
-  if (pageId === process.env.META_PAGE_ID) return process.env.META_PAGE_ACCESS_TOKEN;
-  if (lookupErrors.length) throw new Error(`Page token lookup failed: ${lookupErrors.join("; ")}`);
-  return undefined;
 }
 
 export function verifyMetaSignature(rawBody: string, signature: string | undefined) {
