@@ -1,0 +1,220 @@
+diff --git a/server/meta.ts b/server/meta.ts
+index bb7a176..f0d1a1a 100644
+--- a/server/meta.ts
++++ b/server/meta.ts
+@@ -3,29 +3,34 @@ import { createHmac, timingSafeEqual } from "node:crypto";
+ export type MetaAttachment = { type: string; url?: string; payload?: Record<string, unknown> };
+ 
+ async function pageToken(pageId: string) {
+-  // The Chat lane is optional. Existing deployments continue using Tracking
+-  // until the new Chat variables are added on Render.
+-  // Select URL + service key as a pair. Do not combine Chat URL with Tracking key
+-  // when only one of the new Chat environment variables has been configured.
+-  const lane = [
+-    { url: process.env.CHAT_SUPABASE_URL, key: process.env.CHAT_SUPABASE_SERVICE_ROLE_KEY },
+-    { url: process.env.TRACKING_SUPABASE_URL, key: process.env.TRACKING_SUPABASE_SERVICE_ROLE_KEY },
+-    { url: process.env.SUPABASE_URL, key: process.env.SUPABASE_SERVICE_ROLE_KEY },
+-  ].find(candidate => candidate.url?.trim() && candidate.key?.trim());
+-  const supabaseUrl = lane?.url?.trim().replace(/\/$/, "");
+-  const serviceRoleKey = lane?.key?.trim();
+-  if (supabaseUrl && serviceRoleKey) {
+-    const params = new URLSearchParams({ select: "page_id,page_name,access_token", page_id: `eq.${pageId}`, limit: "1" });
+-    const response = await fetch(`${supabaseUrl}/rest/v1/page_tokens_vault?${params}`, { headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` } });
+-    if (response.ok) {
+-      const rows = await response.json() as Array<Record<string, unknown>>;
+-      const row = rows[0];
+-      if (row) {
+-        const token = row.page_access_token ?? row.access_token ?? row.pageAccessToken ?? row.token;
+-        if (typeof token === "string" && token.trim()) return token.trim();
++  // page_tokens_vault is keyed uniquely by page_id. Keep this lookup aligned
++  // with its deployed schema: it has no portal_key column.
++  const lanes = [
++    { name: "CHAT", url: process.env.CHAT_SUPABASE_URL, key: process.env.CHAT_SUPABASE_SERVICE_ROLE_KEY },
++    { name: "MAIN_ORDER", url: process.env.MAIN_ORDER_SUPABASE_URL || process.env.ORDER_SUPABASE_URL, key: process.env.MAIN_ORDER_SUPABASE_SERVICE_ROLE_KEY || process.env.ORDER_SUPABASE_SERVICE_ROLE_KEY },
++    { name: "TRACKING", url: process.env.TRACKING_SUPABASE_URL, key: process.env.TRACKING_SUPABASE_SERVICE_ROLE_KEY },
++    { name: "SUPABASE", url: process.env.SUPABASE_URL, key: process.env.SUPABASE_SERVICE_ROLE_KEY },
++  ].filter(candidate => candidate.url?.trim() && candidate.key?.trim());
++  let lastLookupError = "";
++  for (const lane of lanes) {
++    const supabaseUrl = lane.url!.trim().replace(/\/$/, "");
++    const serviceRoleKey = lane.key!.trim();
++    const headers = { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` };
++    try {
++      const params = new URLSearchParams({ select: "page_id,page_name,access_token", page_id: `eq.${pageId}`, limit: "1" });
++      const response = await fetch(`${supabaseUrl}/rest/v1/page_tokens_vault?${params}`, { headers });
++      if (response.ok) {
++        const rows = await response.json() as Array<Record<string, unknown>>;
++        const row = rows[0];
++        if (row) {
++          const token = row.page_access_token ?? row.access_token ?? row.pageAccessToken ?? row.token;
++          if (typeof token === "string" && token.trim()) return token.trim();
++        }
++      } else if (response.status !== 404) {
++        lastLookupError = `${lane.name} HTTP ${response.status}: ${(await response.text()).slice(0, 240)}`;
+       }
+-    } else if (response.status !== 404) {
+-      throw new Error(`Supabase page_tokens_vault returned HTTP ${response.status}`);
++    } catch (error) {
++      lastLookupError = `${lane.name}: ${error instanceof Error ? error.message : String(error)}`;
+     }
+   }
+   const configured = process.env.META_PAGES_JSON;
+@@ -37,6 +42,7 @@ async function pageToken(pageId: string) {
+     } catch { /* Keep the single-page fallback below. */ }
+   }
+   if (pageId === process.env.META_PAGE_ID) return process.env.META_PAGE_ACCESS_TOKEN;
++  if (lastLookupError) throw new Error(`Page token lookup failed: ${lastLookupError}`);
+   return undefined;
+ }
+ 
+@@ -48,7 +54,7 @@ export function verifyMetaSignature(rawBody: string, signature: string | undefin
+   return expected.length === received.length && timingSafeEqual(expected, received);
+ }
+ 
+-export async function sendMetaMessage(input: { pageId: string; recipientId: string; text?: string; imageUrl?: string; stickerId?: string }) {
++export async function sendMetaMessage(input: { pageId: string; portalKey?: string; chatLinkKey?: string; recipientId: string; text?: string; imageUrl?: string; stickerId?: string }) {
+   const accessToken = await pageToken(input.pageId);
+   if (!accessToken) throw new Error(`No Meta page token configured for page ${input.pageId}`);
+   const text = input.text?.trim() || "";
+diff --git a/server/routers.ts b/server/routers.ts
+index c968c80..e231d94 100644
+--- a/server/routers.ts
++++ b/server/routers.ts
+@@ -3,11 +3,19 @@ import { adminProcedure, publicProcedure, router } from "./_core/trpc";
+ import { COOKIE_NAME } from "../shared/const";
+ import { sendMetaMessage } from "./meta";
+ import { storagePut } from "./storage";
+-import { fetchParcelMappingQueue, purgeOldParcels, supabaseGet, supabasePost } from "./supabase";
++import { fetchParcelMappingQueue, purgeOldParcels, recordOutgoingChatMessage, supabaseGet, supabasePost } from "./supabase";
+ import * as db from "./db";
+ 
+ const ownerId = (ctx: { user: { id: number } | null }) => ctx.user?.id ?? 0;
+ const kind = z.enum(["code", "sql", "workflow", "document", "config", "other"]);
++async function persistOutgoingChatBestEffort(input: Parameters<typeof recordOutgoingChatMessage>[0]) {
++  try { await recordOutgoingChatMessage(input); }
++  catch (error) { console.error("[chat] outgoing write-back failed after Meta accepted message", error); }
++}
++async function persistLocalChatBestEffort(input: Parameters<typeof db.saveChatMessage>[0]) {
++  try { await db.saveChatMessage(input); }
++  catch (error) { console.error("[chat] local audit write skipped after Meta accepted message", error); }
++}
+ 
+ export const appRouter = router({
+   health: publicProcedure.query(() => ({ ok: true, service: "drakside-system", time: new Date().toISOString() })),
+@@ -18,9 +26,10 @@ export const appRouter = router({
+   }),
+ 
+   chat: router({
+-    sendReply: publicProcedure.input(z.object({ pageId: z.string(), threadId: z.string(), recipientId: z.string(), text: z.string().optional(), imageUrl: z.string().optional(), stickerId: z.string().optional() })).mutation(async ({ input, ctx }) => {
++    sendReply: publicProcedure.input(z.object({ pageId: z.string(), pageName: z.string().optional(), portalKey: z.string().optional(), chatLinkKey: z.string().optional(), threadId: z.string(), recipientId: z.string(), text: z.string().optional(), imageUrl: z.string().optional(), stickerId: z.string().optional() })).mutation(async ({ input, ctx }) => {
+       const result = await sendMetaMessage(input);
+-      await db.saveChatMessage({ pageId: input.pageId, threadId: input.threadId, senderId: input.recipientId, senderType: "admin", direction: "outbound", text: input.text, attachments: input.imageUrl ? [{ url: input.imageUrl }] : undefined, adminUserId: ctx.user?.id });
++      void persistOutgoingChatBestEffort({ portalKey: input.portalKey, chatLinkKey: input.chatLinkKey, pageId: input.pageId, pageName: input.pageName, threadId: input.threadId, recipientId: input.recipientId, messageId: result.message_id, text: input.text });
++      void persistLocalChatBestEffort({ pageId: input.pageId, threadId: input.threadId, senderId: input.pageId, senderType: "page", direction: "outbound", text: input.text, attachments: input.imageUrl ? [{ url: input.imageUrl }] : undefined, adminUserId: ctx.user?.id, providerMessageId: result.message_id });
+       return result;
+     }),
+     uploadImage: publicProcedure.input(z.object({ fileName: z.string(), contentType: z.string(), base64: z.string() })).mutation(async ({ input }) => {
+diff --git a/server/supabase.ts b/server/supabase.ts
+index 88aafbd..0aee5dd 100644
+--- a/server/supabase.ts
++++ b/server/supabase.ts
+@@ -26,8 +26,8 @@ function config(project: SupabaseProject = "main") {
+         : process.env.ORDER_SUPABASE_SERVICE_ROLE_KEY;
+   // New lanes are additive. Until their Render variables exist, keep the
+   // existing Tracking connection working without a data or route migration.
+-  const rawUrl = laneUrl?.trim() || (lane === "chat" || lane === "parcel" ? process.env.TRACKING_SUPABASE_URL?.trim() : undefined) || process.env.SUPABASE_URL?.trim();
+-  const key = laneKey?.trim() || (lane === "chat" || lane === "parcel" ? process.env.TRACKING_SUPABASE_SERVICE_ROLE_KEY?.trim() : undefined) || process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
++  const rawUrl = laneUrl?.trim() || (lane === "chat" || lane === "parcel" ? process.env.TRACKING_SUPABASE_URL?.trim() : undefined) || (lane === "chat" ? process.env.MAIN_ORDER_SUPABASE_URL?.trim() || process.env.ORDER_SUPABASE_URL?.trim() : undefined) || process.env.SUPABASE_URL?.trim();
++  const key = laneKey?.trim() || (lane === "chat" || lane === "parcel" ? process.env.TRACKING_SUPABASE_SERVICE_ROLE_KEY?.trim() : undefined) || (lane === "chat" ? process.env.MAIN_ORDER_SUPABASE_SERVICE_ROLE_KEY?.trim() || process.env.ORDER_SUPABASE_SERVICE_ROLE_KEY?.trim() : undefined) || process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+   if (!rawUrl || !key) throw new Error(`Supabase ${project} secrets are not configured`);
+   let parsed: URL;
+   try { parsed = new URL(rawUrl); } catch { throw new Error("SUPABASE_URL is not a valid URL"); }
+@@ -51,7 +51,20 @@ export async function supabaseGet<T>(path: string, project: SupabaseProject = "m
+   }
+   throw new Error(`Supabase connection failed after 3 attempts (${path}): ${lastError instanceof Error ? lastError.message : String(lastError)}. Target=${target}`);
+ }
+-export async function supabasePost<T>(path: string, body: unknown, project: SupabaseProject = "main"): Promise<T> { const { baseUrl, key } = config(project); const response = await fetch(`${baseUrl}/rest/v1/${path}`, { method: "POST", headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify(body) }); if (!response.ok) throw new Error(`Supabase returned HTTP ${response.status}: ${(await response.text()).slice(0, 300)}`); return response.json() as Promise<T>; }
++export async function supabasePost<T>(path: string, body: unknown, project: SupabaseProject = "main", prefer?: string): Promise<T> { const { baseUrl, key } = config(project); const headers: Record<string, string> = { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" }; if (prefer) headers.Prefer = prefer; const response = await fetch(`${baseUrl}/rest/v1/${path}`, { method: "POST", headers, body: JSON.stringify(body) }); if (!response.ok) throw new Error(`Supabase returned HTTP ${response.status}: ${(await response.text()).slice(0, 300)}`); return response.json() as Promise<T>; }
++export async function recordOutgoingChatMessage(input: { portalKey?: string; chatLinkKey?: string; pageId: string; pageName?: string; threadId: string; recipientId: string; messageId?: string; text?: string; occurredAt?: Date }) {
++  const occurredAt = input.occurredAt ?? new Date();
++  const iso = occurredAt.toISOString();
++  const messageId = input.messageId?.trim() || null;
++  const chatLinkKey = input.chatLinkKey?.trim() || `${input.pageId}_t_${input.threadId}`;
++  const payload = { chat_link_key: chatLinkKey, page_id: input.pageId, page_name: input.pageName?.trim() || null, portal_key: input.portalKey?.trim() || null, thread_id: input.threadId, recipient_id: input.recipientId, message_id: messageId, speaker: "page", is_sent: true, time: iso, occurred_at: iso, message_time_display: iso, message_text: input.text?.trim() || null, page_latest_message: input.text?.trim() || null, page_message_time_th: iso, sync_status: "SENT", dedupe_key: messageId ? `${chatLinkKey}:${messageId}` : `${chatLinkKey}:${iso}` };
++  const pageMessagePayload = { chat_link_key: chatLinkKey, page_id: input.pageId, page_name: input.pageName?.trim() || null, portal_key: input.portalKey?.trim() || null, thread_id: input.threadId, recipient_id: input.recipientId, sender_id: input.pageId, sender_name: input.pageName?.trim() || null, speaker_type: "page", speaker: "page", side: "right", is_sent: true, message_id: messageId, message_text: input.text?.trim() || null, time: iso, occurred_at: iso, dedupe_key: messageId ? `${chatLinkKey}:${messageId}` : `${chatLinkKey}:${iso}` };
++  // Always append each outgoing reply; no upsert/unique-key requirement.
++  try { await supabasePost<Record<string, unknown>[]>("chat_page_messages", pageMessagePayload, "chat", "return=representation"); }
++  catch (error) { console.error("[chat] canonical page-message write failed", error); }
++  const relation = encodeURIComponent("🧿BB_xXx_ORDERCONTROL");
++  return supabasePost<Record<string, unknown>[]>(relation, payload, "chat", "return=representation");
++}
+ export async function fetchParcelMappingQueue(input: { status: "all" | "sent"; limit: number }) {
+   // These are quoted PostgreSQL relation names; keep the space after the emoji.
+   // n8n owns the pipeline mutations. This room only reads the queue and history.
+diff --git a/client/src/lib/metaSender.test.ts b/client/src/lib/metaSender.test.ts
+new file mode 100644
+index 0000000..90bebb1
+--- /dev/null
++++ b/client/src/lib/metaSender.test.ts
+@@ -0,0 +1,61 @@
++import { afterEach, describe, expect, it, vi } from "vitest";
++import { sendMetaMessage } from "../../../server/meta";
++
++afterEach(() => {
++  vi.unstubAllGlobals();
++  vi.unstubAllEnvs();
++});
++
++describe("sendMetaMessage", () => {
++  it("looks up the page token by page_id and POSTs a response to Meta", async () => {
++    vi.stubEnv("CHAT_SUPABASE_URL", "https://chat-project.example");
++    vi.stubEnv("CHAT_SUPABASE_SERVICE_ROLE_KEY", "test-service-role-key");
++    for (const name of [
++      "MAIN_ORDER_SUPABASE_URL", "MAIN_ORDER_SUPABASE_SERVICE_ROLE_KEY",
++      "ORDER_SUPABASE_URL", "ORDER_SUPABASE_SERVICE_ROLE_KEY",
++      "TRACKING_SUPABASE_URL", "TRACKING_SUPABASE_SERVICE_ROLE_KEY",
++      "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "META_PAGES_JSON",
++      "META_PAGE_ID", "META_PAGE_ACCESS_TOKEN",
++    ]) vi.stubEnv(name, "");
++
++    const requests: Array<{ url: string; init?: RequestInit }> = [];
++    vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
++      const url = String(input);
++      requests.push({ url, init });
++      if (url.startsWith("https://chat-project.example/rest/v1/page_tokens_vault?")) {
++        return new Response(JSON.stringify([{ page_id: "page-123", page_name: "Test page", access_token: "test-page-token" }]), {
++          status: 200,
++          headers: { "content-type": "application/json" },
++        });
++      }
++      return new Response(JSON.stringify({ recipient_id: "customer-456", message_id: "mid.test-789" }), {
++        status: 200,
++        headers: { "content-type": "application/json" },
++      });
++    });
++
++    const result = await sendMetaMessage({
++      pageId: "page-123",
++      portalKey: "BB_05",
++      recipientId: "customer-456",
++      text: "ทดสอบเส้นทางส่ง",
++    });
++
++    expect(result.message_id).toBe("mid.test-789");
++    expect(requests).toHaveLength(2);
++
++    const tokenLookup = new URL(requests[0].url);
++    expect(tokenLookup.searchParams.get("select")).toBe("page_id,page_name,access_token");
++    expect(tokenLookup.searchParams.get("page_id")).toBe("eq.page-123");
++    expect(tokenLookup.searchParams.has("portal_key")).toBe(false);
++
++    const graphRequest = new URL(requests[1].url);
++    expect(graphRequest.pathname).toBe("/v26.0/page-123/messages");
++    expect(graphRequest.searchParams.get("access_token")).toBe("test-page-token");
++    expect(JSON.parse(String(requests[1].init?.body))).toEqual({
++      recipient: { id: "customer-456" },
++      messaging_type: "RESPONSE",
++      message: { text: "ทดสอบเส้นทางส่ง" },
++    });
++  });
++});
