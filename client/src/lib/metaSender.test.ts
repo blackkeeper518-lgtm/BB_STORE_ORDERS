@@ -84,4 +84,28 @@ describe("sendMetaMessage", () => {
     expect(result.message_id).toBe("mid.chat-default-123");
     expect(requests[0]).toContain("https://zxmczmgmtbnammtljdls.supabase.co/rest/v1/page_tokens_vault?");
   });
+
+  it("does not fall back to another Supabase account when Chat credentials are missing", async () => {
+    vi.stubEnv("CHAT_SUPABASE_URL", "https://zxmczmgmtbnammtljdls.supabase.co");
+    vi.stubEnv("CHAT_SUPABASE_SERVICE_ROLE_KEY", "");
+    for (const [name, value] of Object.entries({
+      MAIN_ORDER_SUPABASE_URL: "https://main-order.example",
+      MAIN_ORDER_SUPABASE_SERVICE_ROLE_KEY: "main-key",
+      ORDER_SUPABASE_URL: "https://order.example",
+      ORDER_SUPABASE_SERVICE_ROLE_KEY: "order-key",
+      TRACKING_SUPABASE_URL: "https://tracking.example",
+      TRACKING_SUPABASE_SERVICE_ROLE_KEY: "tracking-key",
+      SUPABASE_URL: "https://legacy.example",
+      SUPABASE_SERVICE_ROLE_KEY: "legacy-key",
+      META_PAGES_JSON: "",
+      META_PAGE_ID: "",
+      META_PAGE_ACCESS_TOKEN: "",
+    })) vi.stubEnv(name, value);
+
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(sendMetaMessage({ pageId: "page-123", recipientId: "customer-456", text: "ทดสอบ" }))
+      .rejects.toThrow("CHAT_SUPABASE_SERVICE_ROLE_KEY is not configured");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });

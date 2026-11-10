@@ -115,18 +115,7 @@ export default function ChatHub() {
     () => Array.from(new Map(threads.filter(thread => thread.pageId && thread.pageName && thread.pageName !== "ไม่ระบุเพจ").map(thread => [thread.pageId as string, { name: thread.pageName as string, active: Boolean((thread as any).codTodayActive) }] as [string, { name: string; active: boolean }])).entries()).map(([pageId, value]) => [pageId, value.name, value.active] as [string, string, boolean]).sort((a, b) => a[1].localeCompare(b[1], "th")),
     [threads],
   );
-  const pageOrdersLeaderboard = useMemo(() => {
-    const counts = new Map<string, { pageId: string; pageName: string; count: number }>();
-    threads.forEach(thread => {
-      if (!thread.pageId || !thread.pageName || thread.pageName === "ไม่ระบุเพจ") return;
-      const orderCount = Math.max(0, Math.trunc(Number(thread.orderCount) || 0));
-      if (!orderCount) return;
-      const current = counts.get(thread.pageId) ?? { pageId: thread.pageId, pageName: thread.pageName, count: 0 };
-      current.count += orderCount;
-      counts.set(thread.pageId, current);
-    });
-    return Array.from(counts.values()).filter(item => item.count > 0).sort((a, b) => b.count - a.count || a.pageName.localeCompare(b.pageName, "th"));
-  }, [threads]);
+
   const filteredThreads = useMemo(() => {
     const query = search.trim().toLowerCase();
     return threads.filter(thread => {
@@ -340,7 +329,6 @@ export default function ChatHub() {
 
   return <div className="chat-cosmos-shell cosmic-stage h-full min-h-0 overflow-hidden bg-[radial-gradient(ellipse_at_top_left,rgba(34,211,238,0.11),transparent_38%),radial-gradient(ellipse_at_bottom_right,rgba(168,85,247,0.10),transparent_40%),#070912] text-white"><div className="mx-auto flex h-full min-h-0 max-w-[1600px] flex-col gap-3 overflow-hidden p-2 sm:p-4 lg:p-6">
     <div className="flex shrink-0 items-center gap-2 rounded-xl border border-cyan-300/15 bg-[#0c1320]/80 px-3 py-2 text-xs text-cyan-100/70 shadow-[inset_0_0_16px_rgba(34,211,238,.04)] backdrop-blur-lg"><span className="inline-flex items-center gap-1.5 text-emerald-300"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />SIGNAL LIVE</span><span className="text-fuchsia-100/20">·</span><span>รอบล่าสุด: {threadsQuery.dataUpdatedAt ? new Date(threadsQuery.dataUpdatedAt).toLocaleString("th-TH", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "กำลังโหลด"}</span></div>
-    {pageOrdersLeaderboard.length ? <div className="cod-leaderboard-marquee page-order-leaderboard" aria-label="จำนวนออเดอร์ที่เชื่อมกับแต่ละเพจ"><div className="cod-leaderboard-track">{[...pageOrdersLeaderboard, ...pageOrdersLeaderboard].map((item, index) => <span className={`cod-leaderboard-item ${(index % pageOrdersLeaderboard.length) + 1 === 1 ? "cod-rank-winner" : ""} ${(index % pageOrdersLeaderboard.length) + 1 === pageOrdersLeaderboard.length ? "cod-rank-emergency" : ""}`} key={`${item.pageId}-${index}`}><b>╳╳ #{(index % pageOrdersLeaderboard.length) + 1}</b> {item.pageName} <strong>{item.count} ออเดอร์ที่เชื่อมแล้ว</strong> <b>╳╳</b></span>)}</div></div> : null}
     {threadsQuery.isError ? <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-400/20 bg-red-400/[0.06] px-4 py-3 text-xs text-red-200"><span>โหลดห้องแชทไม่สำเร็จ: {threadsQuery.error.message}</span><Button size="sm" variant="outline" onClick={() => threadsQuery.refetch()} className="border-red-300/20 bg-transparent text-red-100">ลองใหม่</Button></div> : null}
     {threads.find(thread => thread.orderCountError)?.orderCountError ? <div role="alert" className="rounded-2xl border border-cyan-400/25 bg-cyan-400/[0.06] px-4 py-3 text-xs leading-5 text-cyan-200">โหลดแชทได้ แต่การเชื่อมแถวออเดอร์มีปัญหา: {String(threads.find(thread => thread.orderCountError)?.orderCountError)}</div> : null}
     <header className="neon-sign relative shrink-0 overflow-hidden rounded-2xl border border-cyan-300/35 bg-gradient-to-r from-[#0c1421] via-[#151020] to-[#170d1d] px-4 py-3 shadow-[0_0_14px_rgba(34,211,238,.24),0_0_32px_rgba(168,85,247,.20),inset_0_0_20px_rgba(217,70,239,.10)] backdrop-blur-xl"><div className="hero-orbit pointer-events-none opacity-60" aria-hidden="true" /><div className="relative z-10 flex items-center justify-between gap-3"><div className="min-w-0"><p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-fuchsia-300">COSMIC · CHAT CONTROL</p><h1 className="mt-1 text-xl font-semibold tracking-tight text-white drop-shadow-[0_0_8px_rgba(244,114,182,.95)]">กล่องข้อความรวม</h1></div><div className="flex items-center gap-2"><span className="hidden text-[10px] text-fuchsia-100/35 sm:inline">เลือกห้องเพื่อเริ่มตอบ</span><Button variant="outline" size="sm" onClick={() => threadsQuery.refetch()} className="h-8 border-fuchsia-400/20 bg-fuchsia-400/5 text-[10px] text-fuchsia-100 hover:bg-fuchsia-400/10"><RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${threadsQuery.isFetching ? "animate-spin" : ""}`} />รีเฟรช</Button></div></div></header>

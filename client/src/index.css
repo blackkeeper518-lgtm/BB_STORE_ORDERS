@@ -796,7 +796,5 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .page-holo-label:hover { transform:translateY(-1px); filter:brightness(1.14); box-shadow:inset 3px 0 #ff8bdd,0 0 13px rgba(255,63,201,.42) !important; }
 .page-holo-label--live { animation:neon-sign-flicker 2.7s ease-in-out infinite; }
 .page-holo-label--live::before { box-shadow:0 0 7px #fff,0 0 17px rgba(255,67,202,.75),0 0 27px rgba(255,0,153,.5); }
-.page-order-leaderboard::before { content:"LINKED ORDERS // BY PAGE"; padding-right:12px; }
-.page-order-leaderboard .cod-leaderboard-track { padding-left:190px; }
 .chat-cosmos-composer--open > div:nth-child(2) { scrollbar-width:thin; scrollbar-color:rgba(244,114,182,.55) rgba(10,12,22,.35); }
 @media (prefers-reduced-motion:reduce) { .page-holo-label--live { animation:none; } }
