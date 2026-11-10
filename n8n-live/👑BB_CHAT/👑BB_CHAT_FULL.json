@@ -3,7 +3,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://vumjfghvmzrpsvnnkado.supabase.co/rest/v1/chat_page_messages?on_conflict=dedupe_key",
+        "url": "https://zxmczmgmtbnammtljdls.supabase.co/rest/v1/chat_page_messages?on_conflict=dedupe_key",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -41,7 +41,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://vumjfghvmzrpsvnnkado.supabase.co/rest/v1/chat_customer_messages?on_conflict=dedupe_key",
+        "url": "https://zxmczmgmtbnammtljdls.supabase.co/rest/v1/chat_customer_messages?on_conflict=dedupe_key",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
