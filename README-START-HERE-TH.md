@@ -28,8 +28,8 @@ ZIP นี้ **ไม่รวมการแก้ n8n Node 04 หรือไ
 
 ## ตั้งค่า server สำหรับแชท
 
-- ต้องมี `CHAT_SUPABASE_URL` และ `CHAT_SUPABASE_SERVICE_ROLE_KEY` ของโปรเจกต์ BB_CHAT ใน environment ฝั่ง server/Render
-- page token จะถูกหาและเรียกใช้ฝั่ง server จาก vault ตาม page/`portalKey`; ห้ามใส่ service-role key หรือ page access token ลงในไฟล์ client และอย่าส่ง key มาทางแชท
+- ต้องตั้ง `CHAT_SUPABASE_SERVICE_ROLE_KEY` ของโปรเจกต์ห้องแชทใน environment ฝั่ง server/Render; `CHAT_SUPABASE_URL` เป็นค่าทางเลือก เพราะตัวส่งมี URL โปรเจกต์ห้องแชทที่กำหนดไว้เป็นค่าเริ่มต้นแล้ว
+- page token จะถูกค้นใน `page_tokens_vault` ด้วย `page_id` และอ่านจาก `access_token`; ตารางนี้ไม่มี `portal_key` จึงไม่ควรใช้เป็นเงื่อนไข query ห้ามใส่ service-role key หรือ page access token ลงในไฟล์ client และอย่าส่ง key มาทางแชท
 - ต้องล็อกอินด้วยบัญชีที่ `role` เป็น `admin`; ถ้าเห็น 401/403 ให้ตรวจ session และ role ของบัญชีนั้นก่อน ไม่ใช่แก้กลับไปเปิด endpoint เป็น public
 
 ## ตรวจสอบที่ทำแล้ว

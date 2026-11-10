@@ -781,3 +781,22 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .cod-rank-emergency b { color:#ff577d; }
 @keyframes cod-winner-sparkle { 0%,100% { filter:brightness(1); transform:translateY(0); } 38% { filter:brightness(1.38); } 46% { filter:brightness(.96); } 52% { filter:brightness(1.22); } 68% { filter:brightness(1.08); } }
 @keyframes cod-ambulance { 0%,48% { color:#fff5fa; background:rgba(255,36,100,.32); box-shadow:0 0 7px rgba(255,36,100,.72); } 49%,100% { color:#fff; background:rgba(255,255,255,.28); box-shadow:0 0 8px rgba(255,255,255,.85); } }
+
+
+/* CHAT ROOM RECOVERY — bring back pink neon room/customer labels and visible page-order ticker. */
+.chat-cosmos-composer--open { height:min(320px,42vh); min-height:min(230px,42vh); max-height:42vh; }
+.chat-room-code-label { position:relative; display:inline-flex; align-items:center; border-color:rgba(255,156,225,.62) !important; background:rgba(121,15,81,.34) !important; color:#ffe7f7 !important; text-shadow:0 0 3px #fff,0 0 8px rgba(255,128,218,.9); box-shadow:0 0 7px rgba(255,60,190,.38),inset 0 0 8px rgba(255,78,195,.12); }
+.chat-customer-name-label { display:inline-flex; width:fit-content; max-width:100%; margin-top:.3rem; padding:.13rem .58rem; border:1px solid rgba(255,142,220,.58); border-radius:.62rem; background:linear-gradient(90deg,rgba(115,12,76,.4),rgba(42,14,46,.55)); color:#fff2fb; text-shadow:0 0 3px #fff,0 0 9px rgba(255,105,211,.8); box-shadow:0 0 8px rgba(255,45,180,.32),inset 0 0 9px rgba(255,90,204,.12); }
+.chat-customer-list-label { color:#fff0fa; text-shadow:0 0 4px rgba(255,255,255,.55),0 0 10px rgba(255,78,194,.62); }
+.chat-page-name-label { color:#ffc6eb; text-shadow:0 0 6px rgba(255,86,201,.72); }
+.page-holo-label { min-height:32px; border:1px solid rgba(255,129,215,.42) !important; border-radius:10px !important; background:linear-gradient(100deg,rgba(88,10,65,.78),rgba(31,13,46,.88)) !important; color:#fff0fa !important; box-shadow:inset 2px 0 #ff58cc,0 0 10px rgba(255,45,183,.22),0 0 18px rgba(255,45,183,.12) !important; }
+.page-holo-label::before { inset:-2px -3px; border:1px solid rgba(255,165,229,.56); border-radius:12px; box-shadow:0 0 6px rgba(255,209,243,.5),0 0 15px rgba(255,38,177,.45); opacity:.9; }
+.page-holo-label::after { opacity:.26; }
+.page-holo-label > * { text-shadow:0 0 3px #fff,0 0 8px rgba(255,128,219,.72); }
+.page-holo-label:hover { transform:translateY(-1px); filter:brightness(1.14); box-shadow:inset 3px 0 #ff8bdd,0 0 13px rgba(255,63,201,.42) !important; }
+.page-holo-label--live { animation:neon-sign-flicker 2.7s ease-in-out infinite; }
+.page-holo-label--live::before { box-shadow:0 0 7px #fff,0 0 17px rgba(255,67,202,.75),0 0 27px rgba(255,0,153,.5); }
+.page-order-leaderboard::before { content:"LINKED ORDERS // BY PAGE"; padding-right:12px; }
+.page-order-leaderboard .cod-leaderboard-track { padding-left:190px; }
+.chat-cosmos-composer--open > div:nth-child(2) { scrollbar-width:thin; scrollbar-color:rgba(244,114,182,.55) rgba(10,12,22,.35); }
+@media (prefers-reduced-motion:reduce) { .page-holo-label--live { animation:none; } }

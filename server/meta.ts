@@ -2,16 +2,19 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 
 export type MetaAttachment = { type: string; url?: string; payload?: Record<string, unknown> };
 
+const CHAT_TOKEN_SUPABASE_URL = "https://zxmczmgmtbnammtljdls.supabase.co";
+
 async function pageToken(pageId: string) {
   // page_tokens_vault is keyed uniquely by page_id. Keep this lookup aligned
   // with its deployed schema: it has no portal_key column.
   const lanes = [
-    { name: "CHAT", url: process.env.CHAT_SUPABASE_URL, key: process.env.CHAT_SUPABASE_SERVICE_ROLE_KEY },
+    { name: "CHAT", url: process.env.CHAT_SUPABASE_URL || CHAT_TOKEN_SUPABASE_URL, key: process.env.CHAT_SUPABASE_SERVICE_ROLE_KEY },
     { name: "MAIN_ORDER", url: process.env.MAIN_ORDER_SUPABASE_URL || process.env.ORDER_SUPABASE_URL, key: process.env.MAIN_ORDER_SUPABASE_SERVICE_ROLE_KEY || process.env.ORDER_SUPABASE_SERVICE_ROLE_KEY },
     { name: "TRACKING", url: process.env.TRACKING_SUPABASE_URL, key: process.env.TRACKING_SUPABASE_SERVICE_ROLE_KEY },
     { name: "SUPABASE", url: process.env.SUPABASE_URL, key: process.env.SUPABASE_SERVICE_ROLE_KEY },
   ].filter(candidate => candidate.url?.trim() && candidate.key?.trim());
-  let lastLookupError = "";
+  const lookupErrors: string[] = [];
+  if (!process.env.CHAT_SUPABASE_SERVICE_ROLE_KEY?.trim()) lookupErrors.push("CHAT: CHAT_SUPABASE_SERVICE_ROLE_KEY is not configured");
   for (const lane of lanes) {
     const supabaseUrl = lane.url!.trim().replace(/\/$/, "");
     const serviceRoleKey = lane.key!.trim();
@@ -27,10 +30,10 @@ async function pageToken(pageId: string) {
           if (typeof token === "string" && token.trim()) return token.trim();
         }
       } else if (response.status !== 404) {
-        lastLookupError = `${lane.name} HTTP ${response.status}: ${(await response.text()).slice(0, 240)}`;
+        lookupErrors.push(`${lane.name} HTTP ${response.status}: ${(await response.text()).slice(0, 240)}`);
       }
     } catch (error) {
-      lastLookupError = `${lane.name}: ${error instanceof Error ? error.message : String(error)}`;
+      lookupErrors.push(`${lane.name}: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
   const configured = process.env.META_PAGES_JSON;
@@ -42,7 +45,7 @@ async function pageToken(pageId: string) {
     } catch { /* Keep the single-page fallback below. */ }
   }
   if (pageId === process.env.META_PAGE_ID) return process.env.META_PAGE_ACCESS_TOKEN;
-  if (lastLookupError) throw new Error(`Page token lookup failed: ${lastLookupError}`);
+  if (lookupErrors.length) throw new Error(`Page token lookup failed: ${lookupErrors.join("; ")}`);
   return undefined;
 }
 
