@@ -58,4 +58,30 @@ describe("sendMetaMessage", () => {
       message: { text: "ทดสอบเส้นทางส่ง" },
     });
   });
+
+  it("uses the configured chat project URL by default when CHAT_SUPABASE_URL is empty", async () => {
+    vi.stubEnv("CHAT_SUPABASE_URL", "");
+    vi.stubEnv("CHAT_SUPABASE_SERVICE_ROLE_KEY", "test-chat-service-role-key");
+    for (const name of [
+      "MAIN_ORDER_SUPABASE_URL", "MAIN_ORDER_SUPABASE_SERVICE_ROLE_KEY",
+      "ORDER_SUPABASE_URL", "ORDER_SUPABASE_SERVICE_ROLE_KEY",
+      "TRACKING_SUPABASE_URL", "TRACKING_SUPABASE_SERVICE_ROLE_KEY",
+      "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "META_PAGES_JSON",
+      "META_PAGE_ID", "META_PAGE_ACCESS_TOKEN",
+    ]) vi.stubEnv(name, "");
+
+    const requests: string[] = [];
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL) => {
+      const url = String(input);
+      requests.push(url);
+      if (url.startsWith("https://zxmczmgmtbnammtljdls.supabase.co/rest/v1/page_tokens_vault?")) {
+        return new Response(JSON.stringify([{ page_id: "page-123", access_token: "test-chat-page-token" }]), { status: 200 });
+      }
+      return new Response(JSON.stringify({ recipient_id: "customer-456", message_id: "mid.chat-default-123" }), { status: 200 });
+    });
+
+    const result = await sendMetaMessage({ pageId: "page-123", recipientId: "customer-456", text: "ทดสอบ URL ห้องแชท" });
+    expect(result.message_id).toBe("mid.chat-default-123");
+    expect(requests[0]).toContain("https://zxmczmgmtbnammtljdls.supabase.co/rest/v1/page_tokens_vault?");
+  });
 });
