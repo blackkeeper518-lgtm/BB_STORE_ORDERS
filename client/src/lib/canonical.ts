@@ -326,6 +326,7 @@ const TELEGRAM_WEB_ORDER_COLUMNS = [
   "telegram_message", "telegram_change_alert", "raw_text", "original"
 ].join(",");
 
+
 function firstText(...values: unknown[]): string {
   return values.map(value => String(value ?? "").trim()).find(Boolean) ?? "";
 }
@@ -395,24 +396,101 @@ export async function readBlackboxRoom(search = "") {
   return (data ?? []).filter((row: any) => !query || JSON.stringify(row).toLowerCase().includes(query));
 }
 
-export async function updateBbOrder(upsertKey: string | number, patch: Record<string, unknown>) {
+export async function readBbOrderEvidence(upsertKey: string) {
   const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  const { data, error } = await api.from(defaultOrderView("BB")).update(patch).eq("upsert_key", String(upsertKey)).select("upsert_key");
+  if (!api) {
+    fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
+  }
+
+  const { data, error } = await api
+    .from(defaultOrderView("BB"))
+    .select("upsert_key,chat_timeline,customer_change_diff_json,telegram_copy_text")
+    .eq("upsert_key", upsertKey)
+    .maybeSingle();
+
   if (error) fail(error);
-  if (!data?.length) fail({ message: `ไม่พบออเดอร์ upsert_key=${upsertKey} หรือสิทธิ์ RLS ไม่อนุญาตให้อัปเดต` });
-  if (data.length > 1) fail({ message: `พบออเดอร์ซ้ำ ${data.length} แถวด้วย upsert_key=${upsertKey}` });
+
+  const row: any = data ?? {};
+
+  return {
+    ...row,
+    normalized_chat_timeline: row.chat_timeline ?? null,
+    telegram_copy_text: row.telegram_copy_text ?? null,
+  };
+}
+
+export async function readBbOrderEvidenceBatch(upsertKeys: string[]) {
+  const keys = Array.from(
+    new Set(upsertKeys.map((key) => String(key ?? "").trim()).filter(Boolean))
+  );
+
+  if (!keys.length) return [];
+
+  const api = getSupabase();
+  if (!api) {
+    fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
+  }
+
+  const evidence: any[] = [];
+
+  for (let offset = 0; offset < keys.length; offset += 100) {
+    const { data, error } = await api
+      .from(defaultOrderView("BB"))
+      .select("upsert_key,chat_timeline,customer_change_diff_json,telegram_copy_text")
+      .in("upsert_key", keys.slice(offset, offset + 100));
+
+    if (error) fail(error);
+
+    evidence.push(
+      ...(data ?? []).map((row: any) => ({
+        ...row,
+        normalized_chat_timeline: row.chat_timeline ?? null,
+        telegram_copy_text: row.telegram_copy_text ?? null,
+      }))
+    );
+  }
+
+  return evidence;
+}
+export async function updateBbOrderByKey(
+  upsertKey: string,
+  patch: Record<string, unknown>,
+  sourceTable:
+    | "🗝️HERMES_ARCHIVE"
+    | "🌀SINGULARITY_xXx_EXCHANGE" = "🗝️HERMES_ARCHIVE",
+) {
+  const api = getSupabase();
+
+  if (!api) {
+    fail({
+      message:
+        "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key",
+    });
+  }
+
+  const { data, error } = await api
+    .from(sourceTable)
+    .update(patch)
+    .eq("upsert_key", upsertKey)
+    .select("upsert_key");
+
+  if (error) fail(error);
+
+  if (!data?.length) {
+    fail({
+      message: `ไม่พบออเดอร์ upsert_key=${upsertKey} หรือสิทธิ์ RLS ไม่อนุญาตให้อัปเดต`,
+    });
+  }
+
+  if (data.length > 1) {
+    fail({
+      message: `พบ upsert_key ซ้ำ ${data.length} แถว ต้องตรวจข้อมูลก่อนแก้ไข`,
+    });
+  }
+
   return data[0];
 }
-export async function updateBbOrderByKey(upsertKey: string, patch: Record<string, unknown>, sourceTable: "🗝️HERMES_ARCHIVE" | "🌀SINGULARITY_xXx_EXCHANGE" = "🗝️HERMES_ARCHIVE") {
-  const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  const { data, error } = await api.from(sourceTable).update(patch).eq("upsert_key", upsertKey).select("upsert_key");
-  if (error) fail(error);
-  if (!data?.length) fail({ message: `ไม่พบออเดอร์ upsert_key=${upsertKey} หรือสิทธิ์ RLS ไม่อนุญาตให้อัปเดต` });
-  if (data.length > 1) fail({ message: `พบ upsert_key ซ้ำ ${data.length} แถว ต้องตรวจข้อมูลก่อนแก้ไข` });
-  return data[0];
-}
+
 
 async function withSentWriteTimeout<T>(request: PromiseLike<T>, timeoutMs = 15_000): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -496,12 +574,13 @@ export async function setInventoryAvailability(input: { productId: number; sku: 
 
 const GENESIS_HISTORY_COLUMNS = [
   "upsert_key", "order_time_display", "order_number", "order_number_display",
+  "upsert_key",
   "page_id", "page_name", "threadId", "customer_name", "facebook_name",
   "phone", "extracted_phone", "full_address", "final_address_for_bill",
   "address_display_packer", "addressclean", "province", "zipcode", "sku",
   "order_fibo_product", "for_packer_st_display", "manus_for_packer",
   "google_for_packer", "packer_tag_display", "packer_obj", "telegram_product_display",
-  "telegram_message", "original",
+  "telegram_message", "balloonnotice", "original",
   "cod_amount", "expected_cod", "shipping_carrier", "source_table", "telegram_status",
   "telegram_sent", "sent_at", "telegram_sent_at"
 ].join(",");
@@ -623,22 +702,9 @@ async function readChatRows() {
   ];
   return rows.sort((a, b) => new Date(a._occurred || a.occurred_at || a.synced_at || 0).getTime() - new Date(b._occurred || b.occurred_at || b.synced_at || 0).getTime());
 }
-function isLikelyCodOrder(textValue: string) {
-  const value = textValue.replace(/\s+/g, " ").trim();
-  if (!value || /(?:cod|เก็บเงินปลายทาง).{0,18}(?:ไหม|มั้ย|หรือเปล่า)|(?:รับ|มีบริการ).{0,18}cod/i.test(value)) return false;
-  const hasAmount = /(?:\bcod\b|ยอด\s*(?:รวม\s*)?(?:cod|เก็บเงินปลายทาง)|ยอดเก็บเงินปลายทาง)\s*[:：=()]?\s*[0-9๐-๙]{2,6}/i.test(value);
-  if (!hasAmount) return false;
-  const hasPhone = /(?:เบอร์|โทร(?:ศัพท์)?|📱)[^0-9๐-๙]{0,16}(?:0[0-9๐-๙]{9})/i.test(value) || /(?:^|[^0-9๐-๙])0[0-9๐-๙]{9}(?:$|[^0-9๐-๙])/i.test(value);
-  const hasAddress = /(?:ที่อยู่|ต\.|ตำบล|อ\.|อำเภอ|จ\.|จังหวัด|รหัสไปรษณีย์)/i.test(value);
-  const hasProduct = /(?:รายการสินค้า|สินค้า|คอต|x\s*[0-9๐-๙]+)/i.test(value);
-  const hasOrderSignature = /#[A-Z0-9_]*(?:ORDER|ORDERS)(?:✅)?/i.test(value) || /ปิดยอดสำเร็จ|สรุปรายการสั่งซื้อ|เลขที่ออเดอร์|เลขพัสดุจัดส่ง|ยอดเก็บเงินปลายทาง/i.test(value);
-  return hasOrderSignature || (hasPhone && (hasAddress || hasProduct));
-}
-
 export async function readChatThreads() {
   const rows = await readChatRows();
   const map = new Map<string, any>();
-  const todayBangkok = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok" }).format(new Date());
   for (const row of rows) {
     const pageId = String(row.page_id ?? row.pageId ?? "").trim();
     const threadId = String(row._thread ?? row.threadId ?? row.conversation_id ?? "").trim();
@@ -648,7 +714,6 @@ export async function readChatThreads() {
       customerId: row.customer_id || row.recipient_id || row.customerId || row.sender_id, pageName: row.page_name || "ไม่ระบุเพจ",
       customerName: row.customer_name || row._name || "ลูกค้า", latestAt: row._occurred || row.occurred_at || row.synced_at,
       preview: row._text || (row._hasAttachment ? "[ไฟล์แนบ]" : ""), unread: false, messageCount: 0, chatTimeline: [],
-      allTexts: [], todayTexts: [], codSignalCount: 0, todayCodSignalCount: 0, codTodayActive: false,
     };
     current.latestAt = row._occurred || row.occurred_at || row.synced_at || current.latestAt;
     current.preview = row._text || (row._hasAttachment ? "[ไฟล์แนบ]" : current.preview);
@@ -656,10 +721,6 @@ export async function readChatThreads() {
     current.portalKey ||= row.portal_key || row.portalKey || null;
     current.chatLinkKey ||= row.chat_link_key || row.chatLinkKey || null;
     current.customerName = current.customerName === "ลูกค้า" ? row.customer_name || row._name || current.customerName : current.customerName;
-    const rowText = String(row._text ?? "");
-    current.allTexts.push(rowText);
-    const occurred = new Date(String(row._occurred || row.occurred_at || row.synced_at || ""));
-    if (!Number.isNaN(occurred.getTime()) && new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok" }).format(occurred) === todayBangkok) current.todayTexts.push(rowText);
     current.messageCount += 1;
     current.chatTimeline.push(`${row._speaker === "page" ? "[เพจ]" : "[ลูกค้า]"} ${row._text || (row._hasAttachment ? "[ไฟล์แนบ]" : "")}`);
     // Tracking fields are supplied directly on either room-side table; keep the newest non-empty value.
@@ -668,13 +729,6 @@ export async function readChatThreads() {
     }
 
     map.set(key, current);
-  }
-  for (const thread of map.values()) {
-    thread.codSignalCount = isLikelyCodOrder(thread.allTexts.join("\n")) ? 1 : 0;
-    thread.todayCodSignalCount = isLikelyCodOrder(thread.todayTexts.join("\n")) ? 1 : 0;
-    thread.codTodayActive = thread.todayCodSignalCount > 0;
-    delete thread.allTexts;
-    delete thread.todayTexts;
   }
   return Array.from(map.values()).sort((a, b) => new Date(b.latestAt || 0).getTime() - new Date(a.latestAt || 0).getTime());
 }
@@ -716,7 +770,7 @@ export async function saveCloseJobCaseFields(input: { caseId: string; branch: st
 export async function readParcelMappingQueue(status: "all" | "sent" = "all", limit = 300) {
   const api = getSupabase("parcel");
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Tracking & Messenger: ไปที่ /secret-gallery แล้วบันทึก URL กับ Anon/Publishable Key" });
-  const safeLimit = Math.max(1, Math.min(limit, 500));
+  const safeLimit = Math.max(1, Math.min(limit, 5000));
   const activeData = status === "sent" ? { data: [], error: null } : (await api.from("🦅ROGUE_xXx_SHIPPINGz").select("*").limit(safeLimit));
   if ("error" in activeData && activeData.error) fail(activeData.error);
   const sent = status === "all" || status === "sent" ? await api.from("📓DEAD_xXx_NOTE").select("*").limit(safeLimit) : { data: [], error: null };
