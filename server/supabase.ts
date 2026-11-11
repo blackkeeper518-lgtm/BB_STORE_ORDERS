@@ -113,9 +113,6 @@ const CHAT_CONNECTION_CHECKS = [
   { name: CHAT_CUSTOMER_TABLE, columns: "id,page_id,thread_id,message_text,phone" },
   { name: CHAT_PAGE_TABLE, columns: "id,page_id,thread_id,message_text" },
   { name: CHAT_MATRIX_VIEW, columns: "id,source_side,page_id,thread_id,message_text" },
-  { name: "🌓VAGABOND_xXx_DISMISS", columns: "id" },
-  { name: "🏴‍☠️SIRIUS_xXx_CRASH", columns: "case_id" },
-  { name: CHAT_PAGE_TOKEN_TABLE, columns: "page_id,access_token" },
 ] as const;
 export async function checkChatConnection(credentials?: ChatSupabaseCredentials) {
   await Promise.all(CHAT_CONNECTION_CHECKS.map(({ name, columns }) => {

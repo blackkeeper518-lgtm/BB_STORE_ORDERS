@@ -10,9 +10,9 @@
 4. `message_text` คือแหล่งเดียวของข้อความรายข้อความที่ใช้ทำ bubble/preview; ห้ามอ่าน `message_raw` หรือใช้ฟิลด์สรุปข้อความล่าสุดแทน.
 5. `customer_latest_message` และ `page_latest_message` เป็นข้อมูลสรุปล่าสุดคนละฝั่ง ต้องเก็บ/แสดงแยกกัน ห้ามรวมเป็น field เดียวหรือใช้แทน `message_text`.
 6. ใช้ `occurred_at` เพื่อเรียงเวลาและตัดช่วงข้อมูล; เวลาอ่านง่ายของแชทใช้ `time_th` หรือ `message_time_display` ตามที่มี และเวลา summary ของลูกค้า/เพจใช้คอลัมน์เวลาแยกของตน.
-7. อ่านผ่าน protected server tRPC ด้วย Chat Supabase service-role เท่านั้น; URL/key ที่กรอกใน ROOM 02 เก็บใน localStorage ของ browser เครื่องนี้และส่งผ่าน HTTPS เฉพาะ Chat procedures ให้ server เป็นผู้เรียก Supabase.
+7. อ่านผ่าน protected server tRPC ด้วย Chat Supabase service-role เท่านั้น; URL/key ที่กรอกใน ROOM 02 เก็บใน localStorage ของ browser เครื่องนี้และส่งผ่าน HTTPS เฉพาะ Chat procedures ให้ server เป็นผู้เรียก Supabase. Connection check ตรวจเพียงตาราง Cust, ตาราง Pg และ Matrix view; วิวเคส/ตารางบันทึกเคสไม่ใช่เงื่อนไขของการอ่านแชท.
 8. ถ้า browser นี้ไม่มี Chat URL/key ครบ ห้ามเรียก Chat route หรือ Supabase; แสดงทางไปตั้งค่า ROOM 02 แทน ห้าม fallback ไป server env, Main, Tracking หรือ Parcel.
-9. Meta page token อ่านจาก `🌈MILKY_WAY_xXx_TOKEN _PAGE` โดยกรอง `page_id` และเลือก `access_token` เท่านั้น; token vault ใช้ Chat credentials ชุดเดียวกัน ห้าม fallback ไปโปรเจกต์/ตาราง/คอลัมน์อื่น.
+9. Meta page token อ่านจาก `🌈MILKY_WAY_xXx_TOKEN _PAGE` เฉพาะตอนส่ง โดยกรอง `page_id` และเลือก `access_token` เท่านั้น; token vault ใช้ Chat credentials ชุดเดียวกัน ห้าม fallback ไปโปรเจกต์/ตาราง/คอลัมน์อื่น และไม่บล็อกการโหลดห้อง/อ่านข้อความ.
 10. ปิด Supabase Realtime สำหรับ ChatHub; คง polling เดิม 15 วินาที (รายชื่อห้อง) และ 5 วินาที (ข้อความของห้องที่เลือก).
 11. แผงข้อมูลจากตาราง Chat เป็น read-only; ห้ามเปลี่ยนการคำนวณ COD, การเชื่อม Order DNA, workflow/n8n, หรือขั้นตอนส่งข้อความโดยอาศัยการเปลี่ยนแปลงส่วนอ่านนี้.
 

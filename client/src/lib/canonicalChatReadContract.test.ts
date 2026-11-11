@@ -4,7 +4,6 @@ import {
   CHAT_MATRIX_READ_COLUMNS,
   CHAT_MATRIX_VIEW,
   CHAT_PAGE_TABLE,
-  CHAT_PAGE_TOKEN_TABLE,
   checkChatConnection,
   fetchChatMessageRows,
   fetchChatThreadRows,
@@ -73,7 +72,7 @@ describe("ChatHub read contract v2", () => {
     expect(url.searchParams.get("thread_id")).toBe("eq.thread-1");
   });
 
-  it("checks all six renamed Chat objects without returning any token value", async () => {
+  it("checks only the two Chat source tables and Matrix view", async () => {
     vi.stubEnv("CHAT_SUPABASE_URL", "https://zxmczmgmtbnammtljdls.supabase.co");
     vi.stubEnv("CHAT_SUPABASE_SERVICE_ROLE_KEY", "test-chat-service-role-key");
     const requests: Array<{ url: string; init?: RequestInit }> = [];
@@ -83,12 +82,11 @@ describe("ChatHub read contract v2", () => {
     });
 
     const result = await checkChatConnection();
-    expect(result.checked).toHaveLength(6);
-    expect(requests).toHaveLength(6);
+    expect(result.checked).toEqual([CHAT_CUSTOMER_TABLE, CHAT_PAGE_TABLE, CHAT_MATRIX_VIEW]);
+    expect(requests).toHaveLength(3);
     expect(requests.some(({ url }) => url.includes(encodeURIComponent(CHAT_MATRIX_VIEW)))).toBe(true);
-    expect(requests.some(({ url }) => url.includes(encodeURIComponent(CHAT_PAGE_TOKEN_TABLE)) && url.includes("select=page_id%2Caccess_token"))).toBe(true);
+    expect(requests.some(({ url }) => /VAGABOND|SIRIUS|MILKY_WAY/.test(decodeURIComponent(url)))).toBe(false);
     expect(requests.every(({ init }) => (init?.headers as Record<string, string>).Authorization === "Bearer test-chat-service-role-key")).toBe(true);
-    expect(JSON.stringify(result)).not.toContain("access_token");
   });
 
   it("locks explicit Matrix-view fields, preserves message_text, and excludes message_raw", () => {
