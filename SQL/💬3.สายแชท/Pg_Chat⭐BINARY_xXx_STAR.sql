@@ -59,8 +59,5 @@ create table public."Pg_Chat⭐BINARY_xXx_STAR" (
   shipping_carrier text null
 ) TABLESPACE pg_default;
 
-create unique INDEX IF not exists ux_pg_chat_message_id on public."Pg_Chat⭐BINARY_xXx_STAR" using btree (message_id) TABLESPACE pg_default
-where
-  (NULLIF(btrim(message_id), ''::text) is not null);
-
+-- Pg writer ใช้ dedupe_key เป็นคีย์ upsert; ไม่สร้าง unique message_id ซ้อนอีกชั้น
 create index IF not exists ix_pg_chat_phone on public."Pg_Chat⭐BINARY_xXx_STAR" using btree (phone) TABLESPACE pg_default;

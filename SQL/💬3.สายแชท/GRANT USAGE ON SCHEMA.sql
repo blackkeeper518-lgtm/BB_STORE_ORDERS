@@ -82,6 +82,4 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_cust_chat_message_id
 ON public."Cust_Chat⭐BINARY_xXx_STAR" (message_id)
 WHERE NULLIF(btrim(message_id), '') IS NOT NULL;
 
-CREATE UNIQUE INDEX IF NOT EXISTS ux_pg_chat_message_id
-ON public."Pg_Chat⭐BINARY_xXx_STAR" (message_id)
-WHERE NULLIF(btrim(message_id), '') IS NOT NULL;
+-- Pg Chat writer ใช้ ux_binary_pg_dedupe_key; ไม่สร้าง unique message_id ซ้ำซ้อนเพื่อไม่บล็อกแถวจาก upstream
