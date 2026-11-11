@@ -3,7 +3,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://zxmczmgmtbnammtljdls.supabase.co/rest/v1/chat_page_messages?on_conflict=dedupe_key",
+        "url": "https://zxmczmgmtbnammtljdls.supabase.co/rest/v1/Pg_Chat%E2%AD%90BINARY_xXx_STAR?on_conflict=dedupe_key",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -27,7 +27,7 @@
         "options": {}
       },
       "id": "d3763a43-7e80-4acf-81ba-b824ee049db8",
-      "name": "chat_page_messages1",
+      "name": "Pg_Chat⭐BINARY_xXx_STAR",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
       "position": [
@@ -41,7 +41,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://zxmczmgmtbnammtljdls.supabase.co/rest/v1/chat_customer_messages?on_conflict=dedupe_key",
+        "url": "https://zxmczmgmtbnammtljdls.supabase.co/rest/v1/Cust_Chat%E2%AD%90BINARY_xXx_STAR?on_conflict=dedupe_key",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -65,7 +65,7 @@
         "options": {}
       },
       "id": "48c3daa8-3738-459d-b6ca-9a7f3ee65e1d",
-      "name": "HTTP CUSTOMER left1",
+      "name": "Cust_Chat⭐BINARY_xXx_STAR",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
       "position": [
@@ -854,7 +854,7 @@
       "main": [
         [
           {
-            "node": "HTTP CUSTOMER left1",
+            "node": "Cust_Chat⭐BINARY_xXx_STAR",
             "type": "main",
             "index": 0
           },
@@ -866,7 +866,7 @@
         ],
         [
           {
-            "node": "chat_page_messages1",
+            "node": "Pg_Chat⭐BINARY_xXx_STAR",
             "type": "main",
             "index": 0
           },

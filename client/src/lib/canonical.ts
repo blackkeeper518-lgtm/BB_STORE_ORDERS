@@ -76,18 +76,6 @@ export function getSupabase(project: SupabaseProject = "main") {
   }
   return clients[project] ?? null;
 }
-export function subscribeToChatMessages(onChange: () => void) {
-  const api = getSupabase("chat");
-  if (!api) return () => undefined;
-  const channel = api
-    .channel(`chat-live-${getActiveCamp().toLowerCase()}`)
-    .on("postgres_changes", { event: "*", schema: "public", table: "chat_customer_messages" }, onChange)
-    .on("postgres_changes", { event: "*", schema: "public", table: "chat_page_messages" }, onChange)
-    .subscribe();
-  return () => { void api.removeChannel(channel); };
-}
-const CHAT_HISTORY_DAYS = 2;
-function chatHistoryCutoff() { return new Date(Date.now() - CHAT_HISTORY_DAYS * 24 * 60 * 60 * 1000).toISOString(); }
 export const supabase = { from: (table: string) => { const api = getSupabase(); if (!api) throw new Error("ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key"); return api.from(table); } } as any;
 function fail(error: any): never { throw new Error(error?.message || "Supabase connection failed"); }
 function num(v: any) { const n = Number(v); return v == null || v === "" || !Number.isFinite(n) ? null : n; }
@@ -105,16 +93,9 @@ function chatAttachmentPayload(row: any) {
     }
     if (typeof value === "object") values.push(value);
   };
-  add(row?.attachments_json);
-  add(row?.attachments);
   add(row?.attachments_raw);
   add(row?.attachment_urls);
   add(row?.attachment_url);
-  add(row?.image_urls);
-  add(row?.image_url);
-  add(row?.media_url);
-  add(row?.file_url);
-  add(row?.message_attachments);
   add(row?.sticker_url);
   return JSON.stringify(values);
 }
@@ -600,44 +581,64 @@ export async function readDailyParcels(date: string, search = "") {
   });
   return { parcels, total: parcels.length, sourceTable: "parcels", fetchedAt: new Date().toISOString() };
 }
-async function readChatRows() {
-  const api = getSupabase("chat");
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Tracking & Messenger: ไปที่ /secret-gallery แล้วกรอก URL และ Anon Key" });
-  // Read the newest window first. Ascending + limit would permanently return
-  // the oldest rows once a chat table grows beyond the limit.
-  const cutoff = chatHistoryCutoff();
-  const [customerResult, pageResult] = await Promise.all([
-    api.from("chat_customer_messages").select("*").gte("occurred_at", cutoff).order("occurred_at", { ascending: false }).limit(10000),
-    api.from("chat_page_messages").select("*").gte("occurred_at", cutoff).order("occurred_at", { ascending: false }).limit(10000),
-  ]);
-  if (customerResult.error) fail(customerResult.error);
-  const customers = customerResult.data ?? [];
-  const pages = pageResult.error ? [] : (pageResult.data ?? []);
-  const rows = [
-    ...customers.map((r: any) => ({ ...r, _speaker: r.speaker_type || r.speaker || "customer", _side: r.side || "left", _name: r.customer_name || r.sender_name, _text: asText(r.message_text ?? r.message_raw), _thread: r.thread_id || r.conversation_key || r.conversation_id, _occurred: r.occurred_at || r.time || r.created_at, _hasAttachment: hasChatAttachment(r) })),
-    ...pages.map((r: any) => ({ ...r, _speaker: r.speaker_type || r.speaker || "page", _side: r.side || "right", _name: r.page_sender_name || r.sender_name, _text: asText(r.message_text ?? r.message_raw), _thread: r.thread_id || r.conversation_key || r.conversation_id, _occurred: r.occurred_at || r.time || r.created_at, _hasAttachment: hasChatAttachment(r) })),
-  ];
-  return rows.sort((a, b) => new Date(a._occurred || a.occurred_at || a.synced_at || 0).getTime() - new Date(b._occurred || b.occurred_at || b.synced_at || 0).getTime());
+function normalizeChatReadRows(sourceRows: any[]) {
+  return sourceRows.map(row => {
+    const isPage = row._source_table === "Pg_Chat⭐BINARY_xXx_STAR";
+    const speaker = row.speaker || (isPage ? "page" : "customer");
+    const isPageSpeaker = speaker === "page";
+    return {
+      ...row,
+      // เชื่อค่า speaker ที่ผู้ใช้กำหนด; ใช้ต้นทางตารางสำรองเมื่อไม่มีค่าเท่านั้น
+      _speaker: speaker,
+      _side: isPageSpeaker ? "right" : "left",
+      _name: isPageSpeaker ? row.page_name : row.customer_name || row.facebook_name || row.recipient_name,
+      // message_text คือเนื้อหาของข้อความแต่ละรายการ; ฟิลด์ latest_* เก็บแยกต่างหาก
+      _text: asText(row.message_text),
+      _thread: row.thread_id,
+      _occurred: row.occurred_at || row.time,
+      _hasAttachment: hasChatAttachment(row),
+    };
+  }).sort((a, b) => new Date(a._occurred || 0).getTime() - new Date(b._occurred || 0).getTime());
 }
-export async function readChatThreads() {
-  const rows = await readChatRows();
+export function mapChatRowsToThreads(sourceRows: any[]) {
+  const rows = normalizeChatReadRows(sourceRows);
   const map = new Map<string, any>();
   for (const row of rows) {
-    const pageId = String(row.page_id ?? row.pageId ?? "").trim();
-    const threadId = String(row._thread ?? row.threadId ?? row.conversation_id ?? "").trim();
+    const pageId = String(row.page_id ?? "").trim();
+    const threadId = String(row._thread ?? "").trim();
     const key = `${pageId}:${threadId}`;
     const current = map.get(key) ?? {
-      key, pageId, threadId, portalKey: row.portal_key || row.portalKey || null, chatLinkKey: row.chat_link_key || row.chatLinkKey || null,
-      customerId: row.customer_id || row.recipient_id || row.customerId || row.sender_id, pageName: row.page_name || "ไม่ระบุเพจ",
-      customerName: row.customer_name || row._name || "ลูกค้า", latestAt: row._occurred || row.occurred_at || row.synced_at,
+      key, pageId, threadId, portalKey: row.portal_key || null, chatLinkKey: row.chat_link_key || null,
+      customerId: row.customer_id || row.recipient_id || null, customerPhone: row.phone || null, pageName: row.page_name || "ไม่ระบุเพจ",
+      customerName: row.customer_name || row.facebook_name || row.recipient_name || row._name || "ลูกค้า", latestAt: row._occurred || row.occurred_at || null,
       preview: row._text || (row._hasAttachment ? "[ไฟล์แนบ]" : ""), unread: false, messageCount: 0, chatTimeline: [],
+      customerLatestMessage: row.customer_latest_message || null, customerMessageTimeTh: row.customer_message_time_th || null,
+      pageLatestMessage: row.page_latest_message || null, pageMessageTimeTh: row.page_message_time_th || null,
+      pagerMessageTimeTh: row.pager_message_time_th || null,
+      upsert_key: row.upsert_key || null, order_number: row.order_number || null,
+      order_number_display: row.order_number_display || null, order_time: row.order_time || null,
+      order_time_display: row.order_time_display || null, cod_amount: row.cod_amount ?? null,
+      facebook_name: row.facebook_name || null, manus_for_packer: row.manus_for_packer || null,
+      parcel_status_emoji: row.parcel_status_emoji || null,
     };
-    current.latestAt = row._occurred || row.occurred_at || row.synced_at || current.latestAt;
+    current.latestAt = row._occurred || row.occurred_at || current.latestAt;
     current.preview = row._text || (row._hasAttachment ? "[ไฟล์แนบ]" : current.preview);
-    current.customerId ||= row.customer_id || row.recipient_id || row.customerId || row.sender_id;
-    current.portalKey ||= row.portal_key || row.portalKey || null;
-    current.chatLinkKey ||= row.chat_link_key || row.chatLinkKey || null;
-    current.customerName = current.customerName === "ลูกค้า" ? row.customer_name || row._name || current.customerName : current.customerName;
+    current.customerId ||= row.customer_id || row.recipient_id || null;
+    current.customerPhone ||= row.phone || null;
+    current.portalKey ||= row.portal_key || null;
+    current.chatLinkKey ||= row.chat_link_key || null;
+    current.customerName = row.customer_name || row.facebook_name || row.recipient_name || (current.customerName === "ลูกค้า" ? row._name : current.customerName) || current.customerName;
+    for (const [source, target] of [
+      ["customer_latest_message", "customerLatestMessage"], ["customer_message_time_th", "customerMessageTimeTh"],
+      ["page_latest_message", "pageLatestMessage"], ["page_message_time_th", "pageMessageTimeTh"],
+      ["pager_message_time_th", "pagerMessageTimeTh"], ["upsert_key", "upsert_key"], ["order_number", "order_number"],
+      ["order_number_display", "order_number_display"], ["order_time", "order_time"], ["order_time_display", "order_time_display"],
+      ["cod_amount", "cod_amount"], ["facebook_name", "facebook_name"], ["manus_for_packer", "manus_for_packer"],
+      ["parcel_status_emoji", "parcel_status_emoji"], ["phone", "phone"],
+    ]) {
+      const value = row[source];
+      if (value != null && String(value).trim()) current[target] = value;
+    }
     current.messageCount += 1;
     current.chatTimeline.push(`${row._speaker === "page" ? "[เพจ]" : "[ลูกค้า]"} ${row._text || (row._hasAttachment ? "[ไฟล์แนบ]" : "")}`);
     // Tracking fields are supplied directly on either room-side table; keep the newest non-empty value.
@@ -647,9 +648,36 @@ export async function readChatThreads() {
 
     map.set(key, current);
   }
-  return Array.from(map.values()).sort((a, b) => new Date(b.latestAt || 0).getTime() - new Date(a.latestAt || 0).getTime());
+  return Array.from(map.values()).map(thread => ({
+    ...thread,
+    customerPhone: thread.phone || thread.customerPhone || null,
+    latestOrderNumber: thread.order_number_display || thread.order_number || "",
+    searchText: [thread.customerName, thread.customerPhone, thread.customerId, thread.chatLinkKey, thread.upsert_key, thread.order_number, thread.order_number_display, thread.preview].filter(Boolean).join(" "),
+  })).sort((a, b) => new Date(b.latestAt || 0).getTime() - new Date(a.latestAt || 0).getTime());
 }
-export async function readChatMessages(pageId: string, threadId: string) { const rows = await readChatRows(); return rows.filter(row => String(row.page_id) === String(pageId) && String(row._thread) === String(threadId)).map((row: any) => ({ id: row.id, text: row._text || (row._hasAttachment ? "ส่งรูปภาพ" : ""), message_text: row._text, direction: row._speaker === "page" ? "outbound" : "inbound", senderType: row._speaker, senderName: row._name, side: row._side, occurredAt: row._occurred || row.occurred_at || row.synced_at, attachmentsJson: chatAttachmentPayload(row), imageUrls: row.image_urls || [] })); }
+export function mapChatRowsToMessages(sourceRows: any[]) {
+  return normalizeChatReadRows(sourceRows).map((row: any) => ({
+    id: row.id,
+    text: row._text || (row._hasAttachment ? "ส่งรูปภาพ" : ""),
+    message_text: row._text,
+    direction: row._speaker === "page" ? "outbound" : "inbound",
+    senderType: row._speaker,
+    senderName: row._name,
+    side: row._side,
+    occurredAt: row._occurred,
+    messageId: row.message_id,
+    dedupeKey: row.dedupe_key,
+    isSent: row.is_sent,
+    messageTimeDisplay: row.message_time_display,
+    timeTh: row.time_th,
+    customerLatestMessage: row.customer_latest_message,
+    customerMessageTimeTh: row.customer_message_time_th,
+    pageLatestMessage: row.page_latest_message,
+    pageMessageTimeTh: row.page_message_time_th,
+    attachmentsJson: chatAttachmentPayload(row),
+    imageUrls: Array.isArray(row.attachment_urls) ? row.attachment_urls : row.attachment_url ? [row.attachment_url] : [],
+  }));
+}
 export type CloseJobCase = { id: string; page_id: string; page_name: string; conversation_key: string; customer_id: string; customer_name: string; speaker_type: string; occurred_at: string; message_text: string; case_type: string; area: string; branch: string; carrier_employee: string; tracking_number: string; order_number: string };
 export async function readCloseJobCases(limit = 10000): Promise<CloseJobCase[]> {
   const api = getSupabase("tracking");

@@ -6,12 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import OrderEditWorkbench from "@/components/OrderEditWorkbench";
-import { getActiveCamp, orderTimeSortKey, readCanonicalOrders, readChatThreads, readParcelByTrackingNumber, readParcelMappingQueue, readTelegramDeliveryOrders } from "@/lib/canonical";
+import { getActiveCamp, mapChatRowsToThreads, orderTimeSortKey, readCanonicalOrders, readParcelByTrackingNumber, readParcelMappingQueue, readTelegramDeliveryOrders } from "@/lib/canonical";
 import { getOrderWarnings } from "@/lib/orderWarnings";
 import { useQuery } from "@tanstack/react-query";
 import { CalendarDays, Check, CheckCircle2, Clock3, Database, Download, ExternalLink, MessageCircle, Pencil, RefreshCw, Search, Send, ShoppingCart, WalletCards, XCircle } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
+import { trpc } from "@/lib/trpc";
 
 type CanonicalOrderRow = Record<string, any> & {
   upsert_key: string;
@@ -187,11 +188,10 @@ export default function OrderControl() {
     enabled: searchPanelOpen && Boolean(trackingInput.pure),
     staleTime: 15_000,
   });
-  const chatThreadsQuery = useQuery({
-    queryKey: ["order-control-chat-search", getActiveCamp()],
-    queryFn: () => readChatThreads(),
+  const chatThreadsQuery = trpc.chat.threads.useQuery(undefined, {
     enabled: searchPanelOpen && trackingSearchReady,
     staleTime: 60_000,
+    select: mapChatRowsToThreads,
   });
   const telegramQueueQuery = useQuery({
     queryKey: ["order-control-telegram-queue", getActiveCamp(), search.trim()],

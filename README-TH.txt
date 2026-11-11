@@ -22,7 +22,7 @@ ZIP นี้รวมไฟล์ที่แก้ใน repo BB_STORE_ORDERS:
 
 เรื่องแชท
 ผมเทียบ `client/src/pages/ChatHub.tsx`, `server/routers.ts` (sendReply) และ `server/meta.ts` (Meta sender) ระหว่าง `/home/ubuntu/draksidemarketing-system` กับ BB_STORE_ORDERS แล้ว ทั้งสามไฟล์เหมือนกัน จึงไม่มี source code ส่วนต่างให้คัดลอก และ ZIP นี้ไม่ทับไฟล์แชท
-ถ้า Render ของ BB_STORE_ORDERS ยังตอบไม่ได้ แต่ repo สำรองตอบได้ จุดที่ควรเทียบคือการมี/ไม่มี environment keys ฝั่ง server เช่น `CHAT_SUPABASE_URL`, `CHAT_SUPABASE_SERVICE_ROLE_KEY`, `META_PAGES_JSON` หรือ `META_PAGE_ID`/`META_PAGE_ACCESS_TOKEN` และแถว `page_tokens_vault` ในโปรเจกต์ที่ตั้งค่าไว้ ค่าจริงเป็นความลับ อย่าใส่ service-role key ใน `VITE_` หรือส่งค่า key มาในแชท
+เว็บไซต์ Chat ต้องมี `CHAT_SUPABASE_URL` และ `CHAT_SUPABASE_SERVICE_ROLE_KEY` ในฝั่ง server; page token อ่านจาก `🌈MILKY_WAY_xXx_TOKEN _PAGE` ด้วย `page_id` และคอลัมน์ `access_token` เท่านั้น ไม่มี fallback ไป Main/Tracking, ตารางอื่น หรือชื่อคอลัมน์อื่น อย่าใส่ service-role key หรือ page token ใน `VITE_` หรือส่งค่า key มาในแชท
 
 ตรวจแล้ว
 - `pnpm build` ผ่าน

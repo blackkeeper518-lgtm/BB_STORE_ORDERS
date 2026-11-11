@@ -2,52 +2,20 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 
 export type MetaAttachment = { type: string; url?: string; payload?: Record<string, unknown> };
 
-async function pageToken(pageId: string, portalKey?: string) {
-  const lanes = [
-    { name: "CHAT", url: process.env.CHAT_SUPABASE_URL, key: process.env.CHAT_SUPABASE_SERVICE_ROLE_KEY },
-    { name: "MAIN_ORDER", url: process.env.MAIN_ORDER_SUPABASE_URL || process.env.ORDER_SUPABASE_URL, key: process.env.MAIN_ORDER_SUPABASE_SERVICE_ROLE_KEY || process.env.ORDER_SUPABASE_SERVICE_ROLE_KEY },
-    { name: "TRACKING", url: process.env.TRACKING_SUPABASE_URL, key: process.env.TRACKING_SUPABASE_SERVICE_ROLE_KEY },
-    { name: "SUPABASE", url: process.env.SUPABASE_URL, key: process.env.SUPABASE_SERVICE_ROLE_KEY },
-  ].filter(candidate => candidate.url?.trim() && candidate.key?.trim());
+const CHAT_PAGE_TOKEN_TABLE = "🌈MILKY_WAY_xXx_TOKEN _PAGE";
 
-  for (const lane of lanes) {
-    const supabaseUrl = lane.url!.trim().replace(/\/$/, "");
-    const serviceRoleKey = lane.key!.trim();
-    const headers = { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` };
-    const lookups: Array<{ params: URLSearchParams; scoped: boolean }> = [];
-    if (portalKey?.trim()) {
-      const params = new URLSearchParams({ select: "page_id,page_name,access_token", page_id: `eq.${pageId}`, portal_key: `eq.${portalKey.trim()}`, limit: "1" });
-      lookups.push({ params, scoped: true });
-    }
-    lookups.push({ params: new URLSearchParams({ select: "page_id,page_name,access_token", page_id: `eq.${pageId}`, limit: "1" }), scoped: false });
-
-    for (const lookup of lookups) {
-      const response = await fetch(`${supabaseUrl}/rest/v1/page_tokens_vault?${lookup.params}`, { headers });
-      if (response.ok) {
-        const rows = await response.json() as Array<Record<string, unknown>>;
-        const row = rows[0];
-        if (row) {
-          const token = row.page_access_token ?? row.access_token ?? row.pageAccessToken ?? row.token;
-          if (typeof token === "string" && token.trim()) return token.trim();
-        }
-        continue;
-      }
-      // A deployment whose vault predates portal_key can still use the legacy page_id lookup.
-      if (lookup.scoped && response.status === 400) continue;
-      if (response.status === 404) break;
-      throw new Error(`Supabase ${lane.name} page_tokens_vault returned HTTP ${response.status}`);
-    }
-  }
-  const configured = process.env.META_PAGES_JSON;
-  if (configured) {
-    try {
-      const pages = JSON.parse(configured) as Array<{ pageId: string; pageAccessToken: string; portalKey?: string }>;
-      const page = pages.find(item => item.pageId === pageId && (!portalKey || item.portalKey === portalKey)) || pages.find(item => item.pageId === pageId);
-      if (page?.pageAccessToken) return page.pageAccessToken;
-    } catch { /* Keep the single-page fallback below. */ }
-  }
-  if (pageId === process.env.META_PAGE_ID) return process.env.META_PAGE_ACCESS_TOKEN;
-  return undefined;
+async function pageToken(pageId: string) {
+  const configuredUrl = process.env.CHAT_SUPABASE_URL?.trim();
+  if (!configuredUrl) throw new Error("Page token lookup failed: CHAT_SUPABASE_URL is not configured");
+  const serviceRoleKey = process.env.CHAT_SUPABASE_SERVICE_ROLE_KEY?.trim();
+  if (!serviceRoleKey) throw new Error("Page token lookup failed: CHAT_SUPABASE_SERVICE_ROLE_KEY is not configured");
+  const params = new URLSearchParams({ select: "page_id,page_name,access_token", page_id: `eq.${pageId}`, limit: "1" });
+  const headers = { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` };
+  const response = await fetch(`${configuredUrl.replace(/\/$/, "")}/rest/v1/${encodeURIComponent(CHAT_PAGE_TOKEN_TABLE)}?${params}`, { headers });
+  if (!response.ok) throw new Error(`Supabase Chat token lookup returned HTTP ${response.status}`);
+  const rows = await response.json() as Array<Record<string, unknown>>;
+  const token = rows[0]?.access_token;
+  return typeof token === "string" && token.trim() ? token.trim() : undefined;
 }
 
 export function verifyMetaSignature(rawBody: string, signature: string | undefined) {
@@ -59,7 +27,7 @@ export function verifyMetaSignature(rawBody: string, signature: string | undefin
 }
 
 export async function sendMetaMessage(input: { pageId: string; pageName?: string; portalKey?: string; chatLinkKey?: string; recipientId: string; text?: string; imageUrl?: string; stickerId?: string }) {
-  const accessToken = await pageToken(input.pageId, input.portalKey);
+  const accessToken = await pageToken(input.pageId);
   if (!accessToken) throw new Error(`No Meta page token configured for page ${input.pageId}`);
   const text = input.text?.trim() || "";
   const imageUrl = input.imageUrl?.trim() || "";

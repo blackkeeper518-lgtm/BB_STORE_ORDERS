@@ -272,15 +272,39 @@ export default function SystemManual() {
           </div>
           <div className="mt-6 grid gap-4 md:grid-cols-2">
             <StageCard
+              icon="🌠"
+              title="🌠BINARY_xXx_MATRIX"
+              detail="วิวรวม Cust/Pg chat ด้วย UNION ALL; ChatHub อ่านจากวิวนี้เพียงจุดเดียว โดย message_text เป็นเนื้อหารายข้อความและ source_side แยกผู้ส่ง"
+              type="view"
+            />
+            <StageCard
               icon="💬"
-              title="chat_customer_messages"
-              detail="ตารางสำหรับจัดเก็บข้อความขาเข้าจากลูกค้า พร้อม message_id, thread_id, customer_id, เนื้อหา และเวลาที่เกิดเหตุการณ์"
+              title="Cust_Chat⭐BINARY_xXx_STAR"
+              detail="ตารางต้นทางข้อความขาเข้าจากลูกค้า; message_text เป็นเนื้อหาหลัก, thread_id/chat_link_key เชื่อมห้อง และ phone ใช้ค้นหา ไม่ใช่คีย์กันซ้ำ"
               type="table"
             />
             <StageCard
               icon="📣"
-              title="chat_page_messages"
-              detail="ตารางสำหรับจัดเก็บข้อความขาออกจากเพจหรือระบบ โดยแยกจากข้อความลูกค้าเพื่อรักษาลำดับเหตุการณ์และป้องกันข้อมูลซ้ำ"
+              title="Pg_Chat⭐BINARY_xXx_STAR"
+              detail="ตารางต้นทางข้อความขาออกจากเพจ แยกจากข้อความลูกค้า; message_text เป็นเนื้อหาหลัก และ message_id ใช้ระบุข้อความ"
+              type="table"
+            />
+            <StageCard
+              icon="🌓"
+              title="🌓VAGABOND_xXx_DISMISS"
+              detail="วิวสรุปข้อความเคสปิดงาน/ยกเลิก พร้อมข้อมูลพื้นที่และผู้ขนส่งที่พบจากแถวข้อความ"
+              type="view"
+            />
+            <StageCard
+              icon="🏴‍☠️"
+              title="🏴‍☠️SIRIUS_xXx_CRASH"
+              detail="ตารางเก็บบันทึกหรือสถานะที่ดูแลต่อสำหรับเคส โดย case_id ใช้เชื่อมกับเคสจากวิว"
+              type="table"
+            />
+            <StageCard
+              icon="🌈"
+              title="🌈MILKY_WAY_xXx_TOKEN _PAGE"
+              detail="คลัง Meta Page Token keyed ด้วย page_id; อ่านเฉพาะฝั่ง server ด้วย CHAT service-role และไม่เปิด token ให้ browser"
               type="table"
             />
           </div>
@@ -486,11 +510,11 @@ export default function SystemManual() {
               <div className="flex items-center gap-3">
                 <KeyRound className="h-5 w-5 text-fuchsia-300" />
                 <p className="font-mono text-sm font-semibold text-white">
-                  page_tokens_vault
+                  🌈MILKY_WAY_xXx_TOKEN _PAGE
                 </p>
               </div>
               <p className="mt-2 text-xs leading-5 text-slate-300/65">
-                จัดเก็บโทเคนของแต่ละเพจ เพื่อให้ระบบเลือกสิทธิ์และเส้นทางการส่งกลับได้ถูกต้อง
+                จัดเก็บ Meta Page Token ตาม page_id สำหรับ server ใช้ส่งข้อความกลับ ห้ามอ่านหรือเก็บ token ใน browser
               </p>
             </div>
             <ArrowRight className="mx-auto hidden h-6 w-6 text-fuchsia-300/60 lg:block" />
