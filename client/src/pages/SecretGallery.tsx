@@ -546,7 +546,7 @@ export default function SecretGallery() {
               <p className="text-xs leading-5 text-cyan-100/65">Chat ใช้ตาราง <span className="font-mono text-cyan-200">Cust_Chat⭐BINARY_xXx_STAR</span> และ <span className="font-mono text-cyan-200">Pg_Chat⭐BINARY_xXx_STAR</span> · Meta Page Token อยู่ใน <span className="font-mono text-cyan-200">🌈MILKY_WAY_xXx_TOKEN _PAGE</span> และอ่านเฉพาะฝั่ง server</p>
             </CardHeader>
             <CardContent className="grid gap-3">
-              <p className="text-xs leading-5 text-cyan-100/70">ChatHub อ่านผ่าน protected server route จากวิว 🌠BINARY_xXx_MATRIX เพียงจุดเดียว · ค่า Chat ที่กรอกด้านล่างเก็บใน browser นี้ และส่งให้ server เฉพาะคำขอ Chat</p>
+              <p className="text-xs leading-5 text-cyan-100/70">ChatHub อ่านจาก 🌠BINARY_xXx_MATRIX ที่รวมตารางลูกค้าและเพจ; ตรวจเฉพาะสองตารางแชทกับวิวนี้ · ค่า Chat เก็บใน browser นี้และส่งให้ server เฉพาะคำขอ Chat</p>
               <div className="grid gap-3 md:grid-cols-2">
                 <label className="grid gap-1 text-[11px] text-cyan-100/70">CHAT SUPABASE URL<Input value={chatUrl} onChange={event => setChatUrl(event.target.value)} placeholder="https://zxmczmgmtbnammtljdls.supabase.co" className="border-cyan-300/25 bg-black/35 text-white placeholder:text-cyan-100/30" /></label>
                 <label className="grid gap-1 text-[11px] text-cyan-100/70">CHAT SERVICE-ROLE KEY<Input type="password" autoComplete="new-password" value={chatServiceRoleKey} onChange={event => setChatServiceRoleKey(event.target.value)} placeholder="วาง service-role key ของโปรเจกต์ Chat" className="border-cyan-300/25 bg-black/35 font-mono text-white placeholder:text-cyan-100/30" /></label>
