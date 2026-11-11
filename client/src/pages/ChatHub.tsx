@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useIsMobile } from "@/hooks/useMobile";
 import { mapChatRowsToMessages, mapChatRowsToThreads } from "@/lib/canonical";
 import { readBrowserChatConfig } from "@/lib/chat-config";
+import { isMessengerResponseWindowExpired } from "@/lib/chat-window";
 import { trpc } from "@/lib/trpc";
 import { Check, CheckCircle2, ChevronDown, CircleUserRound, Clipboard, ImagePlus, LoaderCircle, MessageCircle, RefreshCw, Search, Send, Sparkles, Users, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -313,6 +314,11 @@ export default function ChatHub() {
     const imageUrl = replyImageUrl.trim();
     if (sendReply.isPending || !selectedPageId || !selectedThreadId || (!text && !imageUrl)) return;
     if (!selectedCustomerId) { setDeliveryStatus("failed"); setReplyNotice("ห้องนี้ยังไม่มี Customer PSID จึงยังส่งข้อความไม่ได้"); return; }
+    if (isMessengerResponseWindowExpired(messagesQuery.data ?? [])) {
+      setDeliveryStatus("failed");
+      setReplyNotice("ลูกค้าทักล่าสุดเกิน 24 ชั่วโมงแล้ว ระบบยังไม่ส่งข้อความ");
+      return;
+    }
     const optimisticId = `optimistic-${Date.now()}`;
     optimisticMessageIdRef.current = optimisticId;
     setOptimisticMessages(current => [...current, { id: optimisticId, text: text || "ส่งรูปภาพ", message_text: text, direction: "outbound", senderType: "page", side: "right", occurredAt: new Date().toISOString(), attachmentsJson: imageUrl ? JSON.stringify([{ url: imageUrl }]) : "[]" }]);

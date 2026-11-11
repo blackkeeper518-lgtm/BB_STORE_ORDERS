@@ -142,4 +142,19 @@ describe("sendMetaMessage", () => {
       .rejects.toThrow("CHAT_SUPABASE_SERVICE_ROLE_KEY is not configured");
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  it("reports an outside-window Meta code 10 as a reply-window error, not a thread conflict", async () => {
+    vi.stubEnv("CHAT_SUPABASE_URL", "https://chat-project.supabase.co");
+    vi.stubEnv("CHAT_SUPABASE_SERVICE_ROLE_KEY", "test-chat-service-role-key");
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.startsWith(`https://chat-project.supabase.co/rest/v1/${tokenTablePath}?`)) {
+        return new Response(JSON.stringify([{ page_id: "page-123", access_token: "test-page-token" }]), { status: 200 });
+      }
+      return new Response(JSON.stringify({ error: { code: 10, message: "(#10) This message was sent outside the allowed time" } }), { status: 400 });
+    });
+
+    await expect(sendMetaMessage({ pageId: "page-123", recipientId: "customer-456", text: "ทดสอบ" }))
+      .rejects.toThrow("META_REPLY_WINDOW_EXPIRED: (#10) This message was sent outside the allowed time");
+  });
 });
