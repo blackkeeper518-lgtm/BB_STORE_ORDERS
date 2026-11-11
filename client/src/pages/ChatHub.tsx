@@ -41,8 +41,6 @@ function imageUrls(value: string | null | undefined) {
 function stripSpeakerPrefix(value: string) { return value.replace(/^\s*\[(?:เพจ|ลูกค้า)\]\s*/i, "").trim(); }
 function isPageTimelineLine(line: string) { return /\[\s*เพจ\s*[:：]/i.test(line); }
 function isCustomerTimelineLine(line: string) { return /\[\s*ลูกค้า\s*[:：]/i.test(line); }
-function isThreadControlConflict(message: string) { return /META_THREAD_CONTROL_CONFLICT|another app|currently controlling|ควบคุมเธรด|แอพอื่นกำลังควบคุม/i.test(message); }
-function isTransientMetaInternal(message: string) { return /META_TRANSIENT_INTERNAL|2018012|code=-1/i.test(message); }
 
 
 const CHAT_SOUND_KEY = "nightops-chat-sound-v1";

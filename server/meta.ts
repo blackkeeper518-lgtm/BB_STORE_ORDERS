@@ -71,9 +71,6 @@ export async function sendMetaMessage(input: { pageId: string; portalKey?: strin
   }
   if (!response.ok) {
     const message = result.error?.message || `Meta Send API returned HTTP ${response.status}`;
-    if (result.error?.code === -1 && result.error?.error_subcode === 2018012) {
-      throw new Error(`META_TRANSIENT_INTERNAL: ${message} (code=-1, subcode=2018012${result.error?.fbtrace_id ? `, trace=${result.error.fbtrace_id}` : ""})`);
-    }
     const diagnostics = [result.error?.code != null ? `code=${result.error.code}` : "", result.error?.error_subcode != null ? `subcode=${result.error.error_subcode}` : "", result.error?.fbtrace_id ? `trace=${result.error.fbtrace_id}` : ""].filter(Boolean).join(", ");
     throw new Error(`META_SEND_FAILED: ${message}${diagnostics ? ` (${diagnostics})` : ""}`);
   }
