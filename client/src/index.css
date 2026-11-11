@@ -190,6 +190,14 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .telegram-alert-room .signal-fuchsia { color: #ff526e; }
 .telegram-alert-room .trace-row:hover { background: linear-gradient(90deg, rgba(255,82,110,.11), rgba(255,201,94,.035)); box-shadow: inset 3px 0 #ffca62, 0 0 18px rgba(255,82,110,.08); }
 .telegram-alert-room .telegram-bill, .telegram-alert-room details { border-color: rgba(255,201,94,.28) !important; background: rgba(255,178,64,.06) !important; }
+.telegram-alert-room { background: radial-gradient(circle at 12% 0%, rgba(255,191,91,.06), transparent 28rem), #0b0712; }
+.telegram-alert-room > header { border-radius: 1.25rem !important; padding: 1.15rem 1.35rem !important; box-shadow: 0 0 22px rgba(255,79,109,.07) !important; }
+.telegram-alert-room > header .hero-scanline { opacity: .18; }
+.telegram-alert-room > header h1 { font-size: clamp(1.65rem, 3vw, 2.55rem); }
+.telegram-alert-room > section { display: block !important; }
+.telegram-alert-room > section > div:first-child { border-radius: 1.25rem; border-color: rgba(255,201,94,.16) !important; background: rgba(14,9,22,.86) !important; box-shadow: 0 0 24px rgba(255,79,109,.045) !important; }
+.telegram-alert-room > section > aside { display: none !important; }
+.telegram-alert-room > section > div:first-child > div:first-child { padding: 1rem 1.15rem !important; }
 .blackbox-receive-room { --room-a: #ff4d83; --room-b: #8e5cff; --room-c: #61ffb4; }
 .blackbox-receive-room > header {
   border-color: rgba(255,77,131,.52) !important;
