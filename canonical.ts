@@ -379,7 +379,7 @@ export async function readTelegramDeliveryOrders(search = "", room: "queue" | "t
 export async function readBbAlertRoom(search = "") {
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  const { data, error } = await api.from("🔸 PARADOX_xXx_EXCHANGE").select("*").order("order_time_display", { ascending: false }).limit(2000);
+  const { data, error } = await api.from("🔸PARADOX_xXx_EXCHANGE").select("*").order("order_time_display", { ascending: false }).limit(2000);
   if (error) fail(error);
   const query = search.trim().toLowerCase();
   return (data ?? [])
