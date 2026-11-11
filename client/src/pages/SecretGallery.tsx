@@ -43,6 +43,7 @@ import {
   saveSupabaseConfig,
 } from "@/lib/canonical";
 import { trpc } from "@/lib/trpc";
+import { clearBrowserChatConfig, readBrowserChatConfig, saveBrowserChatConfig } from "@/lib/chat-config";
 
 type CodeLanguage = "sql" | "java" | "md";
 type VaultDoc = {
@@ -100,6 +101,9 @@ export default function SecretGallery() {
   const [connectionBusy, setConnectionBusy] = useState(false);
   const [chatMessage, setChatMessage] = useState("");
   const [chatBusy, setChatBusy] = useState(false);
+  const savedBrowserChatConfig = readBrowserChatConfig();
+  const [chatUrl, setChatUrl] = useState(savedBrowserChatConfig?.url || "");
+  const [chatServiceRoleKey, setChatServiceRoleKey] = useState(savedBrowserChatConfig?.serviceRoleKey || "");
   const chatConnectionQuery = trpc.chat.connection.useQuery(undefined, { enabled: false, retry: false });
   const parcelConnection = getSupabaseConfig(camp, "parcel");
   const [parcelUrl, setParcelUrl] = useState(parcelConnection?.url || "");
@@ -248,18 +252,25 @@ export default function SecretGallery() {
       setBusy(false);
     }
   };
-  const checkServerChatConnection = async () => {
+  const saveAndCheckChatConnection = async () => {
     setChatBusy(true);
     setChatMessage("");
     try {
+      saveBrowserChatConfig({ url: chatUrl, serviceRoleKey: chatServiceRoleKey });
       const result = await chatConnectionQuery.refetch();
       if (result.error) throw result.error;
-      setChatMessage(`เชื่อมต่อแล้ว · ตรวจ ${result.data?.checked.length ?? 0} object บน server`);
+      setChatMessage(`เชื่อมต่อแล้ว · ตรวจ ${result.data?.checked.length ?? 0} object จาก browser นี้`);
     } catch (e) {
       setChatMessage(e instanceof Error ? e.message : String(e));
     } finally {
       setChatBusy(false);
     }
+  };
+  const clearChatBrowserConnection = () => {
+    clearBrowserChatConfig();
+    setChatUrl("");
+    setChatServiceRoleKey("");
+    setChatMessage("ล้าง Chat config ของ browser นี้แล้ว · ระบบจะไม่เรียกฐานข้อมูลแชท");
   };
   const clearLaneConnection = (setUrl: (value: string) => void, setKey: (value: string) => void, setMessage: (value: string) => void) => {
     clearSupabaseConfig(camp, "parcel");
@@ -535,12 +546,17 @@ export default function SecretGallery() {
               <p className="text-xs leading-5 text-cyan-100/65">Chat ใช้ตาราง <span className="font-mono text-cyan-200">Cust_Chat⭐BINARY_xXx_STAR</span> และ <span className="font-mono text-cyan-200">Pg_Chat⭐BINARY_xXx_STAR</span> · Meta Page Token อยู่ใน <span className="font-mono text-cyan-200">🌈MILKY_WAY_xXx_TOKEN _PAGE</span> และอ่านเฉพาะฝั่ง server</p>
             </CardHeader>
             <CardContent className="grid gap-3">
-              <p className="text-xs leading-5 text-cyan-100/70">ChatHub อ่านผ่าน protected server route จากวิว 🌠BINARY_xXx_MATRIX เพียงจุดเดียว; ตรวจวิวนี้, ตารางต้นทางสองตาราง, วิวเคสเสี่ยง, ตารางบันทึกเคส และ token vault ด้วย Chat service-role โดยไม่เก็บ key ไว้ใน browser</p>
+              <p className="text-xs leading-5 text-cyan-100/70">ChatHub อ่านผ่าน protected server route จากวิว 🌠BINARY_xXx_MATRIX เพียงจุดเดียว · ค่า Chat ที่กรอกด้านล่างเก็บใน browser นี้ และส่งให้ server เฉพาะคำขอ Chat</p>
+              <div className="grid gap-3 md:grid-cols-2">
+                <label className="grid gap-1 text-[11px] text-cyan-100/70">CHAT SUPABASE URL<Input value={chatUrl} onChange={event => setChatUrl(event.target.value)} placeholder="https://zxmczmgmtbnammtljdls.supabase.co" className="border-cyan-300/25 bg-black/35 text-white placeholder:text-cyan-100/30" /></label>
+                <label className="grid gap-1 text-[11px] text-cyan-100/70">CHAT SERVICE-ROLE KEY<Input type="password" autoComplete="new-password" value={chatServiceRoleKey} onChange={event => setChatServiceRoleKey(event.target.value)} placeholder="วาง service-role key ของโปรเจกต์ Chat" className="border-cyan-300/25 bg-black/35 font-mono text-white placeholder:text-cyan-100/30" /></label>
+              </div>
               <div className="flex flex-wrap items-center gap-2">
-                <Button type="button" onClick={() => void checkServerChatConnection()} disabled={chatBusy} className="bg-gradient-to-r from-cyan-400 via-blue-500 to-violet-600 text-[#06101e] shadow-[0_0_22px_rgba(34,211,238,.3)] hover:brightness-110">{chatBusy ? "กำลังตรวจ…" : "ตรวจ Chat connection"}</Button>
+                <Button type="button" onClick={() => void saveAndCheckChatConnection()} disabled={chatBusy} className="bg-gradient-to-r from-cyan-400 via-blue-500 to-violet-600 text-[#06101e] shadow-[0_0_22px_rgba(34,211,238,.3)] hover:brightness-110">{chatBusy ? "กำลังตรวจ…" : "บันทึกและตรวจ Chat"}</Button>
+                <Button type="button" variant="outline" onClick={clearChatBrowserConnection} className="border-cyan-300/25 bg-black/20 text-cyan-100 hover:bg-cyan-300/10">ล้างค่า</Button>
                 <span className="text-xs text-cyan-100/70">{chatMessage}</span>
               </div>
-              <p className="text-[10px] leading-4 text-cyan-100/45">ฝั่ง server ต้องมี CHAT_SUPABASE_URL และ CHAT_SUPABASE_SERVICE_ROLE_KEY · ไม่มี fallback ไป Tracking หรือ table/token column อื่น</p>
+              <p className="text-[10px] leading-4 text-cyan-100/45">เก็บเฉพาะ browser นี้ · ถ้าไม่กรอก ระบบจะไม่เรียกฐานข้อมูลแชท · ไม่ fallback ไป Main/Tracking หรือ table/token column อื่น</p>
             </CardContent>
           </Card>
           <Card className="group project-room-card relative overflow-hidden rounded-3xl border-fuchsia-300/35 bg-[radial-gradient(ellipse_at_top_right,rgba(244,114,182,.2),transparent_42%),linear-gradient(135deg,rgba(35,12,48,.98),rgba(15,9,35,.96))] shadow-[0_0_34px_rgba(217,70,239,.16)] transition duration-300 hover:-translate-y-1 hover:border-fuchsia-200/70 hover:shadow-[0_0_50px_rgba(217,70,239,.3)]">

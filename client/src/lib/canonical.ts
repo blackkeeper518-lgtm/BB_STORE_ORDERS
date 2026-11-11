@@ -14,28 +14,24 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 const CONFIG_KEY = "bb-supabase-config";
 const TRACKING_CONFIG_KEY = "bb-tracking-supabase-config";
-const CHAT_CONFIG_KEY = "bb-chat-supabase-config";
 const PARCEL_CONFIG_KEY = "bb-parcel-supabase-config";
 export type Camp = "BB";
-export type SupabaseProject = "main" | "tracking" | "chat" | "parcel";
+export type SupabaseProject = "main" | "tracking" | "parcel";
 const DEPLOYMENT_CAMP: Camp = "BB";
 export type SupabaseConfig = { url: string; anonKey: string; orderTable?: string };
-// Browser connections use public Anon/Publishable keys only; never store service-role keys here.
+// Browser client ใช้เฉพาะ Anon/Publishable key; Chat ต้องผ่าน protected server route เท่านั้น
 const DEPLOYMENT_SUPABASE_URL = String(import.meta.env.VITE_SUPABASE_URL ?? "").trim().replace(/\/$/, "");
 const DEPLOYMENT_SUPABASE_ANON_KEY = String(import.meta.env.VITE_SUPABASE_ANON_KEY ?? "").trim();
 const DEPLOYMENT_TRACKING_URL = String(import.meta.env.VITE_TRACKING_SUPABASE_URL ?? "").trim().replace(/\/$/, "");
 const DEPLOYMENT_TRACKING_ANON_KEY = String(import.meta.env.VITE_TRACKING_SUPABASE_ANON_KEY ?? "").trim();
-const DEPLOYMENT_CHAT_URL = String(import.meta.env.VITE_CHAT_SUPABASE_URL ?? "").trim().replace(/\/$/, "");
-const DEPLOYMENT_CHAT_ANON_KEY = String(import.meta.env.VITE_CHAT_SUPABASE_ANON_KEY ?? "").trim();
 const DEPLOYMENT_PARCEL_URL = String(import.meta.env.VITE_PARCEL_SUPABASE_URL ?? "").trim().replace(/\/$/, "");
 const DEPLOYMENT_PARCEL_ANON_KEY = String(import.meta.env.VITE_PARCEL_SUPABASE_ANON_KEY ?? "").trim();
 const clients: Partial<Record<SupabaseProject, SupabaseClient>> = {};
 const clientSignatures: Partial<Record<SupabaseProject, string>> = {};
 export function getActiveCamp(): Camp { return DEPLOYMENT_CAMP; }
-export function setActiveCamp(_camp: Camp) { for (const project of ["main", "tracking", "chat", "parcel"] as const) { delete clients[project]; delete clientSignatures[project]; } }
+export function setActiveCamp(_camp: Camp) { for (const project of ["main", "tracking", "parcel"] as const) { delete clients[project]; delete clientSignatures[project]; } }
 function profileKey(_camp: Camp, project: SupabaseProject) {
   if (project === "tracking") return TRACKING_CONFIG_KEY;
-  if (project === "chat") return CHAT_CONFIG_KEY;
   if (project === "parcel") return PARCEL_CONFIG_KEY;
   return CONFIG_KEY;
 }
@@ -54,8 +50,8 @@ export function getSupabaseConfig(camp: Camp = getActiveCamp(), project: Supabas
       }
     }
   } catch { /* invalid local value; try deployment defaults */ }
-  const url = project === "tracking" ? DEPLOYMENT_TRACKING_URL : project === "chat" ? DEPLOYMENT_CHAT_URL : project === "parcel" ? DEPLOYMENT_PARCEL_URL || DEPLOYMENT_TRACKING_URL : DEPLOYMENT_SUPABASE_URL;
-  const anonKey = project === "tracking" ? DEPLOYMENT_TRACKING_ANON_KEY : project === "chat" ? DEPLOYMENT_CHAT_ANON_KEY : project === "parcel" ? DEPLOYMENT_PARCEL_ANON_KEY || DEPLOYMENT_TRACKING_ANON_KEY : DEPLOYMENT_SUPABASE_ANON_KEY;
+  const url = project === "tracking" ? DEPLOYMENT_TRACKING_URL : project === "parcel" ? DEPLOYMENT_PARCEL_URL || DEPLOYMENT_TRACKING_URL : DEPLOYMENT_SUPABASE_URL;
+  const anonKey = project === "tracking" ? DEPLOYMENT_TRACKING_ANON_KEY : project === "parcel" ? DEPLOYMENT_PARCEL_ANON_KEY || DEPLOYMENT_TRACKING_ANON_KEY : DEPLOYMENT_SUPABASE_ANON_KEY;
   return url && anonKey ? { url, anonKey, orderTable: project === "main" ? defaultOrderView(camp) : undefined } : null;
 }
 export function saveSupabaseConfig(config: SupabaseConfig, camp: Camp = getActiveCamp(), project: SupabaseProject = "main") {

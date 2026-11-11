@@ -36,6 +36,26 @@ describe("ChatHub read contract v2", () => {
     expect((requests[0].init?.headers as Record<string, string>).Authorization).toBe("Bearer test-chat-service-role-key");
   });
 
+  it("uses browser-selected Chat credentials for the protected Matrix read", async () => {
+    vi.stubEnv("CHAT_SUPABASE_URL", "https://server-chat.supabase.co");
+    vi.stubEnv("CHAT_SUPABASE_SERVICE_ROLE_KEY", "server-chat-key");
+    const requests: Array<{ url: string; init?: RequestInit }> = [];
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+      requests.push({ url: String(input), init });
+      return new Response("[]", { status: 200, headers: { "content-type": "application/json" } });
+    });
+
+    await fetchChatThreadRows({
+      url: "https://browser-chat.supabase.co",
+      serviceRoleKey: "browser-chat-key",
+    });
+
+    expect(requests).toHaveLength(1);
+    expect(requests[0].url).toContain("https://browser-chat.supabase.co/rest/v1/");
+    expect((requests[0].init?.headers as Record<string, string>).Authorization)
+      .toBe("Bearer browser-chat-key");
+  });
+
   it("filters selected-room messages in that same single view request", async () => {
     vi.stubEnv("CHAT_SUPABASE_URL", "https://zxmczmgmtbnammtljdls.supabase.co");
     vi.stubEnv("CHAT_SUPABASE_SERVICE_ROLE_KEY", "test-chat-service-role-key");

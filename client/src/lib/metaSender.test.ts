@@ -10,7 +10,7 @@ afterEach(() => {
 
 describe("sendMetaMessage", () => {
   it("looks up the page token by page_id and POSTs a response to Meta", async () => {
-    vi.stubEnv("CHAT_SUPABASE_URL", "https://chat-project.example");
+    vi.stubEnv("CHAT_SUPABASE_URL", "https://chat-project.supabase.co");
     vi.stubEnv("CHAT_SUPABASE_SERVICE_ROLE_KEY", "test-service-role-key");
     for (const name of [
       "MAIN_ORDER_SUPABASE_URL", "MAIN_ORDER_SUPABASE_SERVICE_ROLE_KEY",
@@ -24,7 +24,7 @@ describe("sendMetaMessage", () => {
     vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       requests.push({ url, init });
-      if (url.startsWith(`https://chat-project.example/rest/v1/${tokenTablePath}?`)) {
+      if (url.startsWith(`https://chat-project.supabase.co/rest/v1/${tokenTablePath}?`)) {
         return new Response(JSON.stringify([{ page_id: "page-123", page_name: "Test page", access_token: "test-page-token" }]), {
           status: 200,
           headers: { "content-type": "application/json" },
@@ -62,6 +62,30 @@ describe("sendMetaMessage", () => {
     });
   });
 
+  it("uses the browser Chat credentials for token lookup when supplied", async () => {
+    vi.stubEnv("CHAT_SUPABASE_URL", "https://server-chat.supabase.co");
+    vi.stubEnv("CHAT_SUPABASE_SERVICE_ROLE_KEY", "server-chat-key");
+    const requests: Array<{ url: string; init?: RequestInit }> = [];
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      requests.push({ url, init });
+      if (url.startsWith(`https://browser-chat.supabase.co/rest/v1/${tokenTablePath}?`)) {
+        return new Response(JSON.stringify([{ page_id: "page-123", access_token: "browser-page-token" }]), { status: 200 });
+      }
+      return new Response(JSON.stringify({ recipient_id: "customer-456", message_id: "mid.browser-123" }), { status: 200 });
+    });
+
+    await sendMetaMessage({ pageId: "page-123", recipientId: "customer-456", text: "ทดสอบ browser config" }, {
+      url: "https://browser-chat.supabase.co",
+      serviceRoleKey: "browser-chat-key",
+    });
+
+    expect(requests[0].url).toContain("https://browser-chat.supabase.co/rest/v1/");
+    expect((requests[0].init?.headers as Record<string, string>).Authorization)
+      .toBe("Bearer browser-chat-key");
+    expect(new URL(requests[1].url).searchParams.get("access_token")).toBe("browser-page-token");
+  });
+
   it("does not fall back to a default or another project when CHAT_SUPABASE_URL is empty", async () => {
     vi.stubEnv("CHAT_SUPABASE_URL", "");
     vi.stubEnv("CHAT_SUPABASE_SERVICE_ROLE_KEY", "test-chat-service-role-key");
@@ -81,7 +105,7 @@ describe("sendMetaMessage", () => {
   });
 
   it("does not use alternate token column names when access_token is empty", async () => {
-    vi.stubEnv("CHAT_SUPABASE_URL", "https://chat-project.example");
+    vi.stubEnv("CHAT_SUPABASE_URL", "https://chat-project.supabase.co");
     vi.stubEnv("CHAT_SUPABASE_SERVICE_ROLE_KEY", "test-chat-service-role-key");
     const requests: string[] = [];
     vi.stubGlobal("fetch", async (input: RequestInfo | URL) => {

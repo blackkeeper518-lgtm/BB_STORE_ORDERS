@@ -7,7 +7,12 @@ export type TrpcContext = {
   req: CreateExpressContextOptions["req"];
   res: CreateExpressContextOptions["res"];
   user: User | null;
+  chatSupabaseCredentials?: { url: string; serviceRoleKey: string };
 };
+
+function headerValue(value: string | string[] | undefined) {
+  return (Array.isArray(value) ? value[0] : value)?.trim() ?? "";
+}
 
 export async function createContext(
   opts: CreateExpressContextOptions
@@ -21,9 +26,15 @@ export async function createContext(
     user = null;
   }
 
+  const chatUrl = headerValue(opts.req.headers["x-chat-supabase-url"]);
+  const chatServiceRoleKey = headerValue(opts.req.headers["x-chat-supabase-service-role-key"]);
+
   return {
     req: opts.req,
     res: opts.res,
     user: user ?? (PRESENTATION_MODE ? (PRESENTATION_USER as User) : null),
+    chatSupabaseCredentials: chatUrl || chatServiceRoleKey
+      ? { url: chatUrl, serviceRoleKey: chatServiceRoleKey }
+      : undefined,
   };
 }

@@ -8,8 +8,21 @@ export type StockProduct = LiveProductMapping & { id: number; thName: string | n
 export type StockWarning = { kind: "duplicate_sku" | "missing_sku"; sku: string | null; label: string | null; count?: number };
 
 type SupabaseProject = "main" | "tracking" | "chat" | "parcel";
-function config(project: SupabaseProject = "main") {
+export type ChatSupabaseCredentials = { url: string; serviceRoleKey: string };
+
+function config(project: SupabaseProject = "main", browserChatCredentials?: ChatSupabaseCredentials) {
   const lane = project === "chat" ? "chat" : project === "parcel" ? "parcel" : project;
+  if (lane === "chat" && browserChatCredentials) {
+    const url = browserChatCredentials.url.trim().replace(/\/$/, "");
+    const key = browserChatCredentials.serviceRoleKey.trim();
+    if (!url || !key) throw new Error("กรอก Chat Supabase URL และ service-role key ให้ครบใน ROOM 02");
+    let parsed: URL;
+    try { parsed = new URL(url); } catch { throw new Error("Chat Supabase URL ไม่ถูกต้อง"); }
+    if (parsed.protocol !== "https:" || !/^[a-z0-9-]+\.supabase\.co$/i.test(parsed.hostname) || parsed.pathname !== "/" || parsed.username || parsed.password || parsed.port || parsed.search || parsed.hash) {
+      throw new Error("Chat URL ต้องเป็น https://<project>.supabase.co เท่านั้น");
+    }
+    return { baseUrl: parsed.toString().replace(/\/$/, ""), key };
+  }
   const laneUrl = lane === "chat"
     ? process.env.CHAT_SUPABASE_URL
     : lane === "parcel"
@@ -37,8 +50,11 @@ function config(project: SupabaseProject = "main") {
   if (parsed.protocol !== "https:" || !parsed.hostname.endsWith(".supabase.co")) throw new Error(`Invalid Supabase hostname: ${parsed.hostname}`);
   return { baseUrl: parsed.toString().replace(/\/$/, ""), key };
 }
-export async function supabaseGet<T>(path: string, project: SupabaseProject = "main"): Promise<T> {
-  const { baseUrl, key } = config(project);
+export function getChatSupabaseConfig(credentials?: ChatSupabaseCredentials) {
+  return config("chat", credentials);
+}
+export async function supabaseGet<T>(path: string, project: SupabaseProject = "main", browserChatCredentials?: ChatSupabaseCredentials): Promise<T> {
+  const { baseUrl, key } = config(project, browserChatCredentials);
   const target = `${baseUrl}/rest/v1/${path.replace(/^\/+/, "")}`;
   let lastError: unknown = null;
   for (let attempt = 1; attempt <= 3; attempt += 1) {
@@ -54,7 +70,7 @@ export async function supabaseGet<T>(path: string, project: SupabaseProject = "m
   }
   throw new Error(`Supabase connection failed after 3 attempts (${path}): ${lastError instanceof Error ? lastError.message : String(lastError)}. Target=${target}`);
 }
-// CHAT HUB READ CONTRACT — locked v2; see CHAT_HUB_READ_CONTRACT.md. Read one normalized view, never select(*).
+// สัญญาอ่าน ChatHub ล็อก v3 ตาม CHAT_HUB_READ_CONTRACT.md; อ่าน Matrix view เดียวและระบุคอลัมน์ชัดเจน
 const CHAT_READ_WINDOW_MS = 2 * 24 * 60 * 60 * 1000;
 type ChatReadFilter = { pageId?: string; threadId?: string };
 export const CHAT_CUSTOMER_TABLE = "Cust_Chat⭐BINARY_xXx_STAR";
@@ -83,15 +99,15 @@ function chatReadPath(filter: ChatReadFilter = {}) {
   if (filter.threadId) query.set("thread_id", `eq.${filter.threadId}`);
   return `${encodeURIComponent(CHAT_MATRIX_VIEW)}?${query.toString()}`;
 }
-async function fetchChatRows(filter: ChatReadFilter = {}) {
-  const rows = await supabaseGet<Array<Record<string, unknown>>>(chatReadPath(filter), "chat");
+async function fetchChatRows(filter: ChatReadFilter = {}, credentials?: ChatSupabaseCredentials) {
+  const rows = await supabaseGet<Array<Record<string, unknown>>>(chatReadPath(filter), "chat", credentials);
   return rows.map(row => ({ ...row, _source_table: row.source_side === "page" ? CHAT_PAGE_TABLE : CHAT_CUSTOMER_TABLE }));
 }
-export async function fetchChatThreadRows() {
-  return fetchChatRows();
+export async function fetchChatThreadRows(credentials?: ChatSupabaseCredentials) {
+  return fetchChatRows({}, credentials);
 }
-export async function fetchChatMessageRows(input: { pageId: string; threadId: string }) {
-  return fetchChatRows({ pageId: input.pageId, threadId: input.threadId });
+export async function fetchChatMessageRows(input: { pageId: string; threadId: string }, credentials?: ChatSupabaseCredentials) {
+  return fetchChatRows({ pageId: input.pageId, threadId: input.threadId }, credentials);
 }
 const CHAT_CONNECTION_CHECKS = [
   { name: CHAT_CUSTOMER_TABLE, columns: "id,page_id,thread_id,message_text,phone" },
@@ -101,27 +117,27 @@ const CHAT_CONNECTION_CHECKS = [
   { name: "🏴‍☠️SIRIUS_xXx_CRASH", columns: "case_id" },
   { name: CHAT_PAGE_TOKEN_TABLE, columns: "page_id,access_token" },
 ] as const;
-export async function checkChatConnection() {
+export async function checkChatConnection(credentials?: ChatSupabaseCredentials) {
   await Promise.all(CHAT_CONNECTION_CHECKS.map(({ name, columns }) => {
     const query = new URLSearchParams({ select: columns, limit: "0" });
-    return supabaseGet<Array<Record<string, unknown>>>(`${encodeURIComponent(name)}?${query.toString()}`, "chat");
+    return supabaseGet<Array<Record<string, unknown>>>(`${encodeURIComponent(name)}?${query.toString()}`, "chat", credentials);
   }));
-  // Only object names leave the server; no page-token or chat-row value is returned.
+  // ส่งกลับเฉพาะชื่อ object; ห้ามส่ง page token หรือข้อมูลแชทออกจาก server
   return { checked: CHAT_CONNECTION_CHECKS.map(({ name }) => name) };
 }
-export async function supabasePost<T>(path: string, body: unknown, project: SupabaseProject = "main", prefer?: string): Promise<T> { const { baseUrl, key } = config(project); const headers: Record<string, string> = { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" }; if (prefer) headers.Prefer = prefer; const response = await fetch(`${baseUrl}/rest/v1/${path}`, { method: "POST", headers, body: JSON.stringify(body) }); if (!response.ok) throw new Error(`Supabase returned HTTP ${response.status}: ${(await response.text()).slice(0, 300)}`); return response.json() as Promise<T>; }
-export async function recordOutgoingChatMessage(input: { portalKey?: string; chatLinkKey?: string; pageId: string; pageName?: string; threadId: string; recipientId: string; messageId?: string; text?: string; occurredAt?: Date }) {
+export async function supabasePost<T>(path: string, body: unknown, project: SupabaseProject = "main", prefer?: string, browserChatCredentials?: ChatSupabaseCredentials): Promise<T> { const { baseUrl, key } = config(project, browserChatCredentials); const headers: Record<string, string> = { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" }; if (prefer) headers.Prefer = prefer; const response = await fetch(`${baseUrl}/rest/v1/${path}`, { method: "POST", headers, body: JSON.stringify(body) }); if (!response.ok) throw new Error(`Supabase returned HTTP ${response.status}: ${(await response.text()).slice(0, 300)}`); return response.json() as Promise<T>; }
+export async function recordOutgoingChatMessage(input: { portalKey?: string; chatLinkKey?: string; pageId: string; pageName?: string; threadId: string; recipientId: string; messageId?: string; text?: string; occurredAt?: Date }, credentials?: ChatSupabaseCredentials) {
   const occurredAt = input.occurredAt ?? new Date();
   const iso = occurredAt.toISOString();
   const messageId = input.messageId?.trim() || null;
   const chatLinkKey = input.chatLinkKey?.trim() || `${input.pageId}_t_${input.threadId}`;
   const payload = { chat_link_key: chatLinkKey, page_id: input.pageId, page_name: input.pageName?.trim() || null, portal_key: input.portalKey?.trim() || null, thread_id: input.threadId, recipient_id: input.recipientId, message_id: messageId, speaker: "page", is_sent: true, time: iso, occurred_at: iso, message_time_display: iso, message_text: input.text?.trim() || null, page_latest_message: input.text?.trim() || null, page_message_time_th: iso, sync_status: "SENT", dedupe_key: messageId ? `${chatLinkKey}:${messageId}` : `${chatLinkKey}:${iso}` };
   const pageMessagePayload = { chat_link_key: chatLinkKey, page_id: input.pageId, page_name: input.pageName?.trim() || null, portal_key: input.portalKey?.trim() || null, thread_id: input.threadId, recipient_id: input.recipientId, sender_id: input.pageId, sender_name: input.pageName?.trim() || null, speaker_type: "page", speaker: "page", side: "right", is_sent: true, message_id: messageId, message_text: input.text?.trim() || null, time: iso, occurred_at: iso, dedupe_key: messageId ? `${chatLinkKey}:${messageId}` : `${chatLinkKey}:${iso}` };
-  // Always append each outgoing reply; no upsert/unique-key requirement.
-  try { await supabasePost<Record<string, unknown>[]>(encodeURIComponent(CHAT_PAGE_TABLE), pageMessagePayload, "chat", "return=representation"); }
+  // เพิ่มแถวใหม่ต่อทุกข้อความตอบกลับ; ไม่ใช้ upsert หรือบังคับ unique key
+  try { await supabasePost<Record<string, unknown>[]>(encodeURIComponent(CHAT_PAGE_TABLE), pageMessagePayload, "chat", "return=representation", credentials); }
   catch (error) { console.error("[chat] canonical page-message write failed", error); }
   const relation = encodeURIComponent("🧿BB_xXx_ORDERCONTROL");
-  return supabasePost<Record<string, unknown>[]>(relation, payload, "chat", "return=representation");
+  return supabasePost<Record<string, unknown>[]>(relation, payload, "chat", "return=representation", credentials);
 }
 export async function fetchParcelMappingQueue(input: { status: "all" | "sent"; limit: number }) {
   // These are quoted PostgreSQL relation names; keep the space after the emoji.

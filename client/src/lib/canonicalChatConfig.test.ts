@@ -15,35 +15,17 @@ function stubStorage(values: Record<string, string>) {
   });
 }
 
-describe("Chat Supabase lane configuration", () => {
-  it("does not fall back to the Tracking project when Chat config is missing", () => {
-    stubStorage({
-      "bb-tracking-supabase-config": JSON.stringify({
-        url: "https://tracking-only.example",
-        anonKey: "tracking-anon-key",
-      }),
-    });
-
-    const config = getSupabaseConfig(undefined, "chat");
-    expect(config?.url).not.toBe("https://tracking-only.example");
-    expect(config?.anonKey).not.toBe("tracking-anon-key");
-  });
-
-  it("uses the dedicated Chat config when both Chat and Tracking are configured", () => {
+describe("Chat browser isolation", () => {
+  it("ignores legacy Chat anon config in the browser database helper", () => {
     stubStorage({
       "bb-chat-supabase-config": JSON.stringify({
-        url: "https://chat-project.example",
-        anonKey: "chat-anon-key",
-      }),
-      "bb-tracking-supabase-config": JSON.stringify({
-        url: "https://tracking-project.example",
-        anonKey: "tracking-anon-key",
+        url: "https://old-chat-project.example",
+        anonKey: "old-chat-anon-key",
       }),
     });
 
-    expect(getSupabaseConfig(undefined, "chat")).toMatchObject({
-      url: "https://chat-project.example",
-      anonKey: "chat-anon-key",
-    });
+    expect(getSupabaseConfig(undefined, "main")).toBeNull();
+    expect(getSupabaseConfig(undefined, "tracking")).toBeNull();
+    expect(getSupabaseConfig(undefined, "parcel")).toBeNull();
   });
 });

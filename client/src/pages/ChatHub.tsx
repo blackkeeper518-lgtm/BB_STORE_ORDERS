@@ -5,9 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useIsMobile } from "@/hooks/useMobile";
 import { mapChatRowsToMessages, mapChatRowsToThreads } from "@/lib/canonical";
+import { readBrowserChatConfig } from "@/lib/chat-config";
 import { trpc } from "@/lib/trpc";
 import { Check, CheckCircle2, ChevronDown, CircleUserRound, Clipboard, ImagePlus, LoaderCircle, MessageCircle, RefreshCw, Search, Send, Sparkles, Users, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useLocation } from "wouter";
 
 function timeLabel(value: string | null | undefined) {
   if (!value) return "—";
@@ -108,7 +110,10 @@ function ChatRoomDataCard({ thread }: { thread: Record<string, any> }) {
 }
 
 export default function ChatHub() {
+  const [, setLocation] = useLocation();
   const isMobile = useIsMobile();
+  const [browserChatConfig, setBrowserChatConfig] = useState(() => readBrowserChatConfig());
+  const hasBrowserChatConfig = Boolean(browserChatConfig?.url && browserChatConfig.serviceRoleKey);
   const [search, setSearch] = useState("");
   const [selectedKey, setSelectedKey] = useState<string | null>(() => typeof window === "undefined" ? null : localStorage.getItem(CHAT_SELECTED_ROOM_KEY));
   const [composerOpen, setComposerOpen] = useState(true);
@@ -140,9 +145,14 @@ export default function ChatHub() {
   const [showNewMessages, setShowNewMessages] = useState(false);
   const nearBottomRef = useRef(true);
   const lastSelectedKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    const refreshConfig = () => setBrowserChatConfig(readBrowserChatConfig());
+    window.addEventListener("storage", refreshConfig);
+    return () => window.removeEventListener("storage", refreshConfig);
+  }, []);
   useEffect(() => { localStorage.setItem(CHAT_PAGE_FILTER_KEY, JSON.stringify(selectedPages)); }, [selectedPages]);
   useEffect(() => { if (selectedKey) localStorage.setItem(CHAT_SELECTED_ROOM_KEY, selectedKey); }, [selectedKey]);
-  const threadsQuery = trpc.chat.threads.useQuery(undefined, { refetchInterval: 15_000, select: mapChatRowsToThreads });
+  const threadsQuery = trpc.chat.threads.useQuery(undefined, { enabled: hasBrowserChatConfig, refetchInterval: hasBrowserChatConfig ? 15_000 : false, select: mapChatRowsToThreads });
   const threads = threadsQuery.data ?? [];
   const availablePages = useMemo<Array<[string, string, boolean]>>(
     () => Array.from(new Map(threads.filter(thread => thread.pageId && thread.pageName && thread.pageName !== "ไม่ระบุเพจ").map(thread => [thread.pageId as string, { name: thread.pageName as string, active: Boolean((thread as any).codTodayActive) }] as [string, { name: string; active: boolean }])).entries()).map(([pageId, value]) => [pageId, value.name, value.active] as [string, string, boolean]).sort((a, b) => a[1].localeCompare(b[1], "th")),
@@ -163,7 +173,7 @@ export default function ChatHub() {
   const selectedThreadId = selected?.threadId ?? "";
   const selectedCustomerId = selected?.customerId ?? "";
   const [handoffTracking, setHandoffTracking] = useState<Record<string, any> | null>(null);
-  const messagesQuery = trpc.chat.messages.useQuery({ pageId: selectedPageId, threadId: selectedThreadId }, { enabled: Boolean(selectedPageId && selectedThreadId), refetchInterval: 5_000, select: mapChatRowsToMessages });
+  const messagesQuery = trpc.chat.messages.useQuery({ pageId: selectedPageId, threadId: selectedThreadId }, { enabled: hasBrowserChatConfig && Boolean(selectedPageId && selectedThreadId), refetchInterval: hasBrowserChatConfig ? 5_000 : false, select: mapChatRowsToMessages });
   useEffect(() => {
     setOptimisticMessages([]);
     optimisticMessageIdRef.current = null;
@@ -355,6 +365,7 @@ export default function ChatHub() {
 
   return <div className="chat-cosmos-shell cosmic-stage h-full min-h-0 overflow-hidden bg-[radial-gradient(ellipse_at_top_left,rgba(34,211,238,0.11),transparent_38%),radial-gradient(ellipse_at_bottom_right,rgba(168,85,247,0.10),transparent_40%),#070912] text-white"><div className="mx-auto flex h-full min-h-0 max-w-[1600px] flex-col gap-3 overflow-hidden p-2 sm:p-4 lg:p-6">
     <div className="flex shrink-0 items-center gap-2 rounded-xl border border-cyan-300/15 bg-[#0c1320]/80 px-3 py-2 text-xs text-cyan-100/70 shadow-[inset_0_0_16px_rgba(34,211,238,.04)] backdrop-blur-lg"><span className="inline-flex items-center gap-1.5 text-emerald-300"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />SIGNAL LIVE</span><span className="text-fuchsia-100/20">·</span><span>รอบล่าสุด: {threadsQuery.dataUpdatedAt ? new Date(threadsQuery.dataUpdatedAt).toLocaleString("th-TH", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "กำลังโหลด"}</span></div>
+    {!hasBrowserChatConfig ? <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-300/25 bg-amber-300/[0.06] px-4 py-3 text-xs text-amber-100"><span>ยังไม่ได้ตั้งค่า Chat ใน browser นี้ · ระบบจะยังไม่เรียกฐานข้อมูลแชท</span><Button size="sm" variant="outline" onClick={() => setLocation("/secret-gallery")} className="border-amber-200/25 bg-transparent text-amber-100">ตั้งค่า ROOM 02</Button></div> : null}
     {threadsQuery.isError ? <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-400/20 bg-red-400/[0.06] px-4 py-3 text-xs text-red-200"><span>โหลดห้องแชทไม่สำเร็จ: {threadsQuery.error.message}</span><Button size="sm" variant="outline" onClick={() => threadsQuery.refetch()} className="border-red-300/20 bg-transparent text-red-100">ลองใหม่</Button></div> : null}
     {threads.find(thread => thread.orderCountError)?.orderCountError ? <div role="alert" className="rounded-2xl border border-cyan-400/25 bg-cyan-400/[0.06] px-4 py-3 text-xs leading-5 text-cyan-200">โหลดแชทได้ แต่การเชื่อมแถวออเดอร์มีปัญหา: {String(threads.find(thread => thread.orderCountError)?.orderCountError)}</div> : null}
     <header className="neon-sign relative shrink-0 overflow-hidden rounded-2xl border border-cyan-300/35 bg-gradient-to-r from-[#0c1421] via-[#151020] to-[#170d1d] px-4 py-3 shadow-[0_0_14px_rgba(34,211,238,.24),0_0_32px_rgba(168,85,247,.20),inset_0_0_20px_rgba(217,70,239,.10)] backdrop-blur-xl"><div className="hero-orbit pointer-events-none opacity-60" aria-hidden="true" /><div className="relative z-10 flex items-center justify-between gap-3"><div className="min-w-0"><p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-fuchsia-300">COSMIC · CHAT CONTROL</p><h1 className="mt-1 text-xl font-semibold tracking-tight text-white drop-shadow-[0_0_8px_rgba(244,114,182,.95)]">กล่องข้อความรวม</h1></div><div className="flex items-center gap-2"><span className="hidden text-[10px] text-fuchsia-100/35 sm:inline">เลือกห้องเพื่อเริ่มตอบ</span><Button variant="outline" size="sm" onClick={() => threadsQuery.refetch()} className="h-8 border-fuchsia-400/20 bg-fuchsia-400/5 text-[10px] text-fuchsia-100 hover:bg-fuchsia-400/10"><RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${threadsQuery.isFetching ? "animate-spin" : ""}`} />รีเฟรช</Button></div></div></header>

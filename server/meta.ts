@@ -1,15 +1,26 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { getChatSupabaseConfig, type ChatSupabaseCredentials } from "./supabase";
 
 export type MetaAttachment = { type: string; url?: string; payload?: Record<string, unknown> };
 
 const CHAT_PAGE_TOKEN_TABLE = "🌈MILKY_WAY_xXx_TOKEN _PAGE";
 
-async function pageToken(pageId: string) {
-  const configuredUrl = process.env.CHAT_SUPABASE_URL?.trim();
-  if (!configuredUrl) throw new Error("Page token lookup failed: CHAT_SUPABASE_URL is not configured");
-  const serviceRoleKey = process.env.CHAT_SUPABASE_SERVICE_ROLE_KEY?.trim();
-  if (!serviceRoleKey) throw new Error("Page token lookup failed: CHAT_SUPABASE_SERVICE_ROLE_KEY is not configured");
-  const supabaseUrl = configuredUrl.replace(/\/$/, "");
+async function pageToken(pageId: string, credentials?: ChatSupabaseCredentials) {
+  let supabaseUrl: string;
+  let serviceRoleKey: string;
+  if (credentials) {
+    const resolved = getChatSupabaseConfig(credentials);
+    supabaseUrl = resolved.baseUrl;
+    serviceRoleKey = resolved.key;
+  } else {
+    const configuredUrl = process.env.CHAT_SUPABASE_URL?.trim();
+    if (!configuredUrl) throw new Error("Page token lookup failed: CHAT_SUPABASE_URL is not configured");
+    serviceRoleKey = process.env.CHAT_SUPABASE_SERVICE_ROLE_KEY?.trim() || "";
+    if (!serviceRoleKey) throw new Error("Page token lookup failed: CHAT_SUPABASE_SERVICE_ROLE_KEY is not configured");
+    const resolved = getChatSupabaseConfig({ url: configuredUrl, serviceRoleKey });
+    supabaseUrl = resolved.baseUrl;
+    serviceRoleKey = resolved.key;
+  }
   const headers = { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` };
   try {
     // The Chat page-token vault is keyed by page_id and belongs to the Chat project only.
@@ -33,8 +44,8 @@ export function verifyMetaSignature(rawBody: string, signature: string | undefin
   return expected.length === received.length && timingSafeEqual(expected, received);
 }
 
-export async function sendMetaMessage(input: { pageId: string; portalKey?: string; chatLinkKey?: string; recipientId: string; text?: string; imageUrl?: string; stickerId?: string }) {
-  const accessToken = await pageToken(input.pageId);
+export async function sendMetaMessage(input: { pageId: string; portalKey?: string; chatLinkKey?: string; recipientId: string; text?: string; imageUrl?: string; stickerId?: string }, credentials?: ChatSupabaseCredentials) {
+  const accessToken = await pageToken(input.pageId, credentials);
   if (!accessToken) throw new Error(`No Meta page token configured for page ${input.pageId}`);
   const text = input.text?.trim() || "";
   const imageUrl = input.imageUrl?.trim() || "";

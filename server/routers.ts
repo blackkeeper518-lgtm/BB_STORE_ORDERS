@@ -8,8 +8,18 @@ import * as db from "./db";
 
 const ownerId = (ctx: { user: { id: number } | null }) => ctx.user?.id ?? 0;
 const kind = z.enum(["code", "sql", "workflow", "document", "config", "other"]);
-async function persistOutgoingChatBestEffort(input: Parameters<typeof recordOutgoingChatMessage>[0]) {
-  try { await recordOutgoingChatMessage(input); }
+function requireBrowserChatConfig(ctx: { chatSupabaseCredentials?: { url: string; serviceRoleKey: string } }) {
+  const credentials = ctx.chatSupabaseCredentials;
+  if (!credentials?.url || !credentials.serviceRoleKey) {
+    throw new Error("กรอก Chat Supabase URL และ service-role key ใน ROOM 02 ก่อนใช้งานแชท");
+  }
+  return credentials;
+}
+async function persistOutgoingChatBestEffort(
+  input: Parameters<typeof recordOutgoingChatMessage>[0],
+  credentials?: Parameters<typeof recordOutgoingChatMessage>[1],
+) {
+  try { await recordOutgoingChatMessage(input, credentials); }
   catch (error) { console.error("[chat] outgoing write-back failed after Meta accepted message", error); }
 }
 async function persistLocalChatBestEffort(input: Parameters<typeof db.saveChatMessage>[0]) {
@@ -26,12 +36,13 @@ export const appRouter = router({
   }),
 
   chat: router({
-    connection: protectedProcedure.query(() => checkChatConnection()),
-    threads: protectedProcedure.query(() => fetchChatThreadRows()),
-    messages: protectedProcedure.input(z.object({ pageId: z.string().min(1), threadId: z.string().min(1) })).query(({ input }) => fetchChatMessageRows(input)),
+    connection: protectedProcedure.query(({ ctx }) => checkChatConnection(requireBrowserChatConfig(ctx))),
+    threads: protectedProcedure.query(({ ctx }) => fetchChatThreadRows(requireBrowserChatConfig(ctx))),
+    messages: protectedProcedure.input(z.object({ pageId: z.string().min(1), threadId: z.string().min(1) })).query(({ input, ctx }) => fetchChatMessageRows(input, requireBrowserChatConfig(ctx))),
     sendReply: publicProcedure.input(z.object({ pageId: z.string(), pageName: z.string().optional(), portalKey: z.string().optional(), chatLinkKey: z.string().optional(), threadId: z.string(), recipientId: z.string(), text: z.string().optional(), imageUrl: z.string().optional(), stickerId: z.string().optional() })).mutation(async ({ input, ctx }) => {
-      const result = await sendMetaMessage(input);
-      void persistOutgoingChatBestEffort({ portalKey: input.portalKey, chatLinkKey: input.chatLinkKey, pageId: input.pageId, pageName: input.pageName, threadId: input.threadId, recipientId: input.recipientId, messageId: result.message_id, text: input.text });
+      const credentials = requireBrowserChatConfig(ctx);
+      const result = await sendMetaMessage(input, credentials);
+      void persistOutgoingChatBestEffort({ portalKey: input.portalKey, chatLinkKey: input.chatLinkKey, pageId: input.pageId, pageName: input.pageName, threadId: input.threadId, recipientId: input.recipientId, messageId: result.message_id, text: input.text }, credentials);
       void persistLocalChatBestEffort({ pageId: input.pageId, threadId: input.threadId, senderId: input.pageId, senderType: "page", direction: "outbound", text: input.text, attachments: input.imageUrl ? [{ url: input.imageUrl }] : undefined, adminUserId: ctx.user?.id, providerMessageId: result.message_id });
       return result;
     }),
@@ -51,7 +62,7 @@ export const appRouter = router({
       recipientId: z.string().min(1),
       text: z.string().trim().min(1).max(2000),
     })).mutation(async ({ input, ctx }) => {
-      const result = await sendMetaMessage(input);
+      const result = await sendMetaMessage(input, requireBrowserChatConfig(ctx));
       await db.saveChatMessage({
         pageId: input.pageId,
         threadId: input.threadId,
