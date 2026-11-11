@@ -71,12 +71,6 @@ export async function sendMetaMessage(input: { pageId: string; portalKey?: strin
   }
   if (!response.ok) {
     const message = result.error?.message || `Meta Send API returned HTTP ${response.status}`;
-    if (/outside the allowed time|outside.*window|นอกช่วงเวลาที่อนุญาต|เกิน.*24\s*ชั่วโมง/i.test(message)) {
-      throw new Error(`META_REPLY_WINDOW_EXPIRED: ${message}`);
-    }
-    if (/another app|currently controlling|thread control|ควบคุมเธรด|แอพอื่นกำลังควบคุม/i.test(message)) {
-      throw new Error(`META_THREAD_CONTROL_CONFLICT: ${message}`);
-    }
     if (result.error?.code === -1 && result.error?.error_subcode === 2018012) {
       throw new Error(`META_TRANSIENT_INTERNAL: ${message} (code=-1, subcode=2018012${result.error?.fbtrace_id ? `, trace=${result.error.fbtrace_id}` : ""})`);
     }

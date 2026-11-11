@@ -143,7 +143,7 @@ describe("sendMetaMessage", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("reports an outside-window Meta code 10 as a reply-window error, not a thread conflict", async () => {
+  it("passes the Meta code 10 message through without reclassifying it", async () => {
     vi.stubEnv("CHAT_SUPABASE_URL", "https://chat-project.supabase.co");
     vi.stubEnv("CHAT_SUPABASE_SERVICE_ROLE_KEY", "test-chat-service-role-key");
     vi.stubGlobal("fetch", async (input: RequestInfo | URL) => {
@@ -155,6 +155,6 @@ describe("sendMetaMessage", () => {
     });
 
     await expect(sendMetaMessage({ pageId: "page-123", recipientId: "customer-456", text: "ทดสอบ" }))
-      .rejects.toThrow("META_REPLY_WINDOW_EXPIRED: (#10) This message was sent outside the allowed time");
+      .rejects.toThrow("META_SEND_FAILED: (#10) This message was sent outside the allowed time (code=10)");
   });
 });
