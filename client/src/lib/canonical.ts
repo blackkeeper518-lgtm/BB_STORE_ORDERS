@@ -676,37 +676,44 @@ export function mapChatRowsToMessages(sourceRows: any[]) {
 }
 export type CloseJobCase = { id: string; page_id: string; page_name: string; conversation_key: string; customer_id: string; customer_name: string; speaker_type: string; occurred_at: string; message_text: string; case_type: string; area: string; branch: string; carrier_employee: string; tracking_number: string; order_number: string };
 export async function readCloseJobCases(limit = 10000): Promise<CloseJobCase[]> {
-  const api = getSupabase("tracking");
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Tracking & Messenger: ไปที่ /secret-gallery แล้วบันทึก URL กับ Anon/Publishable Key" });
-  const [casesResult, notesResult] = await Promise.all([
-    api.from("vw_bb_close_job_cases").select("*").order("occurred_at", { ascending: false }).limit(Math.max(1, Math.min(limit, 10000))),
-    api.from("bb_delivery_case_notes").select("case_id,branch,carrier_employee,area"),
-  ]);
-  if (casesResult.error) fail(casesResult.error);
-  if (notesResult.error) fail(notesResult.error);
-  const notes = new Map((notesResult.data ?? []).map((note: any) => [String(note.case_id), note]));
-  return (casesResult.data ?? []).map((row: any) => {
-    const note = notes.get(String(row.id));
-    return {
-      ...row,
-      branch: note ? String(note.branch ?? "") : String(row.branch ?? ""),
-      carrier_employee: note ? String(note.carrier_employee ?? "") : String(row.carrier_employee ?? ""),
-      area: note ? String(note.area ?? "") : String(row.area ?? ""),
-    } as CloseJobCase;
-  });
+  const api = getSupabase();
+  if (!api) return [];
+  const { data, error } = await api.from("Cust_Chat⭐BINARY_xXx_STAR")
+    .select("id,page_id,page_name,conversation_id,thread_id,customer_id,customer_name,message_id,speaker,is_sent,time,created_at,occurred_at,message_text,tracking_number,order_number,order_number_display,order_time_display,phone,facebook_name,shipping_carrier")
+    .order("occurred_at", { ascending: false })
+    .limit(Math.max(1, Math.min(limit, 10000)));
+  if (error) fail(error);
+  const classify = (value: unknown) => {
+    const message = String(value ?? "").replace(/\s+/gu, "");
+    if (message.includes("ปิดงาน")) return "ปิดงาน";
+    if (message.includes("ยกเลิก") || message.includes("ไม่เอาแล้ว")) return "ยกเลิก / ไม่เอาแล้ว";
+    if (/สั่ง.{0,16}แล้วไม่รับ/u.test(message)) return "สั่งแล้วไม่รับ";
+    return "";
+  };
+  return (data ?? []).filter((row: any) => {
+    const speaker = String(row.speaker ?? "").toLowerCase();
+    return speaker !== "page" && speaker !== "admin" && speaker !== "business" && classify(row.message_text);
+  }).map((row: any) => ({
+    id: String(row.id ?? row.message_id ?? row.order_number ?? ""),
+    page_id: String(row.page_id ?? ""),
+    page_name: String(row.page_name ?? ""),
+    conversation_key: String(row.conversation_id ?? row.thread_id ?? ""),
+    customer_id: String(row.customer_id ?? ""),
+    customer_name: String(row.customer_name ?? row.facebook_name ?? ""),
+    speaker_type: "customer",
+    occurred_at: String(row.occurred_at ?? row.time ?? row.created_at ?? ""),
+    message_text: String(row.message_text ?? ""),
+    case_type: classify(row.message_text),
+    area: "",
+    branch: "",
+    carrier_employee: "",
+    tracking_number: String(row.tracking_number ?? ""),
+    order_number: String(row.order_number_display ?? row.order_number ?? ""),
+  }));
 }
 export async function saveCloseJobCaseFields(input: { caseId: string; branch: string; carrierEmployee: string; area: string }) {
-  const api = getSupabase("tracking");
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Tracking & Messenger: ไปที่ /secret-gallery แล้วบันทึก URL กับ Anon/Publishable Key" });
-  const { error } = await api.from("bb_delivery_case_notes").upsert({
-    case_id: input.caseId,
-    branch: input.branch.trim(),
-    carrier_employee: input.carrierEmployee.trim(),
-    area: input.area.trim(),
-    updated_at: new Date().toISOString(),
-  }, { onConflict: "case_id" });
-  if (error) fail(error);
-  return { ok: true };
+  void input;
+  return { ok: false, readOnly: true };
 }
 export async function readParcelMappingQueue(status: "all" | "sent" = "all", limit = 300) {
   const api = getSupabase("parcel");

@@ -1,9 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { readCloseJobCases, saveCloseJobCaseFields, type CloseJobCase } from "@/lib/canonical";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Clock3, MessageCircle, RefreshCw, Save, Search, Sparkles, Truck } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { readCloseJobCases, type CloseJobCase } from "@/lib/canonical";
+import { useQuery } from "@tanstack/react-query";
+import { AlertTriangle, Clock3, MessageCircle, RefreshCw, Search, Sparkles, Truck } from "lucide-react";
+import { useMemo, useState } from "react";
 import { useLocation } from "wouter";
 
 type CaseFilter = "all" | "close" | "cancel" | "refusal";
@@ -28,26 +28,11 @@ function caseTone(value: string) {
   return "border-amber-200/50 bg-amber-300/15 text-amber-50 shadow-[0_0_14px_rgba(251,191,36,.16)]";
 }
 
-function CaseFields({ item, onSave, saving }: { item: CloseJobCase; onSave: (value: { caseId: string; branch: string; carrierEmployee: string; area: string }) => void; saving: boolean }) {
-  const [branch, setBranch] = useState(item.branch ?? "");
-  const [carrierEmployee, setCarrierEmployee] = useState(item.carrier_employee ?? "");
-  const [area, setArea] = useState(item.area ?? "");
-  useEffect(() => { setBranch(item.branch ?? ""); setCarrierEmployee(item.carrier_employee ?? ""); setArea(item.area ?? ""); }, [item.id, item.branch, item.carrier_employee, item.area]);
-  return <form className="mt-3 grid gap-2 rounded-xl border border-cyan-200/20 bg-cyan-300/[.055] p-3 sm:grid-cols-3" onSubmit={event => { event.preventDefault(); onSave({ caseId: item.id, branch, carrierEmployee, area }); }}>
-    <label className="grid gap-1 text-[10px] text-cyan-50/70">สาขา<Input value={branch} onChange={event => setBranch(event.target.value)} placeholder="ชื่อสาขา" className="h-8 border-cyan-200/25 bg-[#080f20]/70 text-xs text-white" /></label>
-    <label className="grid gap-1 text-[10px] text-cyan-50/70">พนักงานขนส่ง<Input value={carrierEmployee} onChange={event => setCarrierEmployee(event.target.value)} placeholder="ชื่อพนักงาน/รหัส" className="h-8 border-cyan-200/25 bg-[#080f20]/70 text-xs text-white" /></label>
-    <label className="grid gap-1 text-[10px] text-cyan-50/70">พื้นที่<Input value={area} onChange={event => setArea(event.target.value)} placeholder="เขต / อำเภอ / จังหวัด" className="h-8 border-cyan-200/25 bg-[#080f20]/70 text-xs text-white" /></label>
-    <div className="sm:col-span-3 sm:flex sm:justify-end"><Button type="submit" size="sm" disabled={saving} className="h-8 bg-gradient-to-r from-cyan-300 to-blue-300 font-semibold text-[#07101e] shadow-[0_0_16px_rgba(34,211,238,.26)] hover:brightness-110"><Save className="mr-1.5 h-3.5 w-3.5" />{saving ? "กำลังบันทึก…" : "บันทึกข้อมูลเคส"}</Button></div>
-  </form>;
-}
-
 export default function CloseJobHistory() {
   const [search, setSearch] = useState("");
   const [caseFilter, setCaseFilter] = useState<CaseFilter>("all");
   const [, setLocation] = useLocation();
-  const queryClient = useQueryClient();
   const casesQuery = useQuery({ queryKey: ["bb-close-job-history"], queryFn: () => readCloseJobCases(), refetchInterval: 60_000 });
-  const saveFields = useMutation({ mutationFn: saveCloseJobCaseFields, onSuccess: () => queryClient.invalidateQueries({ queryKey: ["bb-close-job-history"] }) });
   const cases = casesQuery.data ?? [];
   const counts = useMemo(() => ({
     close: cases.filter(item => caseKind(item.case_type) === "close").length,
@@ -94,7 +79,7 @@ export default function CloseJobHistory() {
         <div className="rounded-xl border border-fuchsia-200/30 bg-fuchsia-300/[.10] px-3 py-2"><p className="text-[10px] text-fuchsia-50/80">ยกเลิก / ไม่เอาแล้ว</p><p className="mt-0.5 text-xl font-black text-fuchsia-100">{counts.cancel}</p></div>
         <div className="rounded-xl border border-amber-200/30 bg-amber-300/[.10] px-3 py-2"><p className="text-[10px] text-amber-50/80">สั่งแล้วไม่รับ</p><p className="mt-0.5 text-xl font-black text-amber-100">{counts.refusal}</p></div>
       </div>
-      <p className="relative mt-3 text-[10px] text-white/55">อัปเดตอัตโนมัติทุก 1 นาที · แสดงรายการให้ตรวจสอบ ไม่ฟันธงว่าใครผิด</p>
+      <p className="relative mt-3 text-[10px] text-white/55">อ่านตรงจากโต๊ะแชทลูกค้า · อัปเดตอัตโนมัติทุก 1 นาที · ไม่มีการเขียนข้อมูลกลับ</p>
     </header>
 
     <section className="relative shrink-0 rounded-2xl border border-white/15 bg-[#0a1021]/90 p-3 shadow-[0_0_24px_rgba(34,211,238,.07)]">
@@ -112,7 +97,7 @@ export default function CloseJobHistory() {
 
     <section className="relative min-h-0 flex-1 overflow-y-auto rounded-2xl border border-cyan-200/20 bg-[linear-gradient(145deg,rgba(8,15,31,.96),rgba(16,9,28,.95))] p-3 shadow-[inset_0_0_24px_rgba(59,130,246,.04)]">
       {casesQuery.isLoading ? <div className="flex items-center justify-center gap-2 p-12 text-sm text-cyan-50/70"><RefreshCw className="h-4 w-4 animate-spin" />กำลังค้นประวัติ…</div> : null}
-      {casesQuery.isError ? <div className="mx-auto max-w-2xl rounded-2xl border border-amber-200/35 bg-amber-300/[.10] p-5 text-sm leading-6 text-amber-50 shadow-[0_0_24px_rgba(251,191,36,.08)]"><p className="flex items-center gap-2 font-semibold"><AlertTriangle className="h-4 w-4" />ยังเปิดคลังประวัติไม่ได้</p><p className="mt-2 text-xs text-amber-50/75">ใส่ Tracking project ใน Secret Gallery แล้วติดตั้ง SQL นี้ในโปรเจกต์ Tracking ก่อนรีเฟรช</p><p className="mt-2 break-all rounded-lg bg-black/25 p-2 font-mono text-[10px]">sql/bb-close-job-history.sql</p><p className="mt-2 text-[10px] text-amber-50/55">{casesQuery.error.message}</p></div> : null}
+      {casesQuery.isError ? <div className="mx-auto max-w-2xl rounded-2xl border border-amber-200/35 bg-amber-300/[.10] p-5 text-sm leading-6 text-amber-50 shadow-[0_0_24px_rgba(251,191,36,.08)]"><p className="flex items-center gap-2 font-semibold"><AlertTriangle className="h-4 w-4" />อ่านโต๊ะแชทไม่ได้</p><p className="mt-2 text-xs text-amber-50/75">ห้องนี้อ่านโต๊ะแชทลูกค้าโดยตรง ไม่ใช้ Tracking, view หรือโต๊ะ notes เพิ่ม</p><p className="mt-2 text-[10px] text-amber-50/55">{casesQuery.error.message}</p></div> : null}
       {!casesQuery.isLoading && !casesQuery.isError && filtered.length === 0 ? <div className="p-12 text-center text-sm text-cyan-50/60"><AlertTriangle className="mx-auto mb-3 h-7 w-7 text-fuchsia-200/70" />{cases.length ? "ไม่พบรายการที่ตรงตัวกรอง" : "ยังไม่พบข้อความที่เข้าหมวดที่ตั้งไว้"}</div> : null}
       <div className="space-y-3">
         {filtered.map(item => <article key={item.id} className="group rounded-2xl border border-cyan-100/20 bg-[radial-gradient(ellipse_at_top_right,rgba(217,70,239,.08),transparent_42%),linear-gradient(130deg,rgba(34,211,238,.055),rgba(15,23,42,.62),rgba(147,51,234,.045))] p-4 shadow-[0_0_18px_rgba(34,211,238,.055)] transition hover:border-cyan-100/40 hover:shadow-[0_0_24px_rgba(34,211,238,.12)]">
@@ -138,8 +123,6 @@ export default function CloseJobHistory() {
               <MessageCircle className="mr-1.5 h-3.5 w-3.5" />เปิดแชทต้นทาง
             </Button>
           </div>
-          <CaseFields item={item} onSave={value => saveFields.mutate(value)} saving={saveFields.isPending} />
-          {saveFields.isError ? <p className="mt-2 text-[10px] text-rose-200">บันทึกไม่สำเร็จ: {saveFields.error.message}</p> : null}
         </article>)}
       </div>
     </section>
