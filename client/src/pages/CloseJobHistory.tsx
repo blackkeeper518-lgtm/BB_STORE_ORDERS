@@ -73,7 +73,7 @@ export default function CloseJobHistory() {
     setLocation(`/chats?page_id=${encodeURIComponent(pageId)}&thread_id=${encodeURIComponent(threadId)}`);
   };
 
-  return <div className="relative mx-auto flex h-full min-h-0 max-w-7xl flex-col gap-4 text-white">
+  return <div className="close-job-room relative mx-auto flex h-full min-h-0 max-w-7xl flex-col gap-4 text-white">
     <div aria-hidden="true" className="pointer-events-none absolute -inset-x-12 -top-12 h-72 bg-[radial-gradient(ellipse_at_15%_15%,rgba(34,211,238,.20),transparent_44%),radial-gradient(ellipse_at_85%_22%,rgba(217,70,239,.18),transparent_42%),radial-gradient(ellipse_at_50%_100%,rgba(59,130,246,.12),transparent_50%)] blur-2xl" />
     <header className="relative shrink-0 overflow-hidden rounded-3xl border border-cyan-200/40 bg-[radial-gradient(ellipse_at_top_right,rgba(217,70,239,.20),transparent_35%),radial-gradient(ellipse_at_bottom_left,rgba(34,211,238,.17),transparent_45%),linear-gradient(125deg,rgba(8,17,42,.98),rgba(20,10,38,.97))] p-5 shadow-[0_0_32px_rgba(34,211,238,.15),0_0_64px_rgba(217,70,239,.10)] sm:p-6">
       <div className="absolute right-8 top-8 h-1.5 w-1.5 animate-pulse rounded-full bg-white shadow-[0_0_12px_4px_rgba(255,255,255,.7)]" />
@@ -82,7 +82,7 @@ export default function CloseJobHistory() {
         <div>
           <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.24em] text-cyan-100"><Sparkles className="h-4 w-4 text-fuchsia-200" /> BB STORE · ORBITAL CASE ARCHIVE</p>
           <h1 className="mt-2 bg-gradient-to-r from-cyan-100 via-white to-fuchsia-200 bg-clip-text text-2xl font-black tracking-tight text-transparent sm:text-3xl">ประวัติปิดงาน · ยกเลิก · ลูกค้าไม่รับ</h1>
-          <p className="mt-2 max-w-3xl text-xs leading-5 text-cyan-50/75">เจอคำว่า “ปิดงาน”, “ยกเลิก”, “ไม่เอาแล้ว” หรือ “สั่งแล้วไม่รับ” ในแชทเมื่อไร เก็บไว้ให้เปิดดูย้อนหลังได้</p>
+          <p className="mt-2 max-w-3xl text-xs leading-5 text-cyan-50/75">คลังหลักฐานจากห้องปิดงานและรายการที่ไม่ควรส่งซ้ำ · เปิดดูเพื่อไล่ตรวจย้อนหลังโดยไม่ตัดสินแทนทีม</p>
         </div>
         <Button type="button" variant="outline" onClick={() => void casesQuery.refetch()} className="border-cyan-100/40 bg-cyan-200/10 text-cyan-50 shadow-[0_0_16px_rgba(34,211,238,.16)] hover:bg-cyan-200/20">
           <RefreshCw className={`mr-2 h-4 w-4 ${casesQuery.isFetching ? "animate-spin" : ""}`} />รีเฟรช

@@ -137,6 +137,77 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 @media (prefers-reduced-motion:reduce) { .radar-sweep,.radar-blip,.neon-arrow svg,.live-dot { animation:none; } }
 @media (prefers-reduced-motion:reduce) { .cosmic-stage::before,.hero-planet,.signal-ticker span { animation:none; } }
 
+/* ROOM IDENTITIES · three operational rooms, one cosmic system */
+.close-job-room,
+.telegram-alert-room,
+.blackbox-receive-room {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.close-job-room::before,
+.telegram-alert-room::before,
+.blackbox-receive-room::before {
+  content: "";
+  position: fixed;
+  z-index: -2;
+  inset: 0;
+  pointer-events: none;
+  opacity: .36;
+  background-image: radial-gradient(circle, rgba(255,255,255,.82) 0 1px, transparent 1.5px), radial-gradient(circle, rgba(94,234,212,.62) 0 1px, transparent 1.5px);
+  background-position: 16px 24px, 89px 112px;
+  background-size: 149px 163px, 223px 197px;
+}
+.close-job-room::after,
+.telegram-alert-room::after,
+.blackbox-receive-room::after {
+  content: "";
+  position: fixed;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(125deg, transparent 0 44%, rgba(255,255,255,.035) 49%, transparent 54%);
+}
+.close-job-room { --room-a: #64e8ff; --room-b: #d77bff; --room-c: #ff63c8; }
+.close-job-room > header {
+  border-color: rgba(100,232,255,.52) !important;
+  background: radial-gradient(circle at 87% 12%, rgba(215,123,255,.24), transparent 28%), radial-gradient(circle at 8% 90%, rgba(100,232,255,.16), transparent 34%), linear-gradient(120deg, rgba(9,20,45,.98), rgba(25,10,44,.96) 58%, rgba(36,9,45,.96)) !important;
+  box-shadow: 0 0 0 1px rgba(100,232,255,.08), 0 0 35px rgba(100,232,255,.16), 0 0 70px rgba(215,123,255,.10) !important;
+}
+.close-job-room section { backdrop-filter: blur(10px); }
+.close-job-room article { border-color: rgba(100,232,255,.22) !important; box-shadow: inset 0 0 24px rgba(100,232,255,.035), 0 0 18px rgba(215,123,255,.06) !important; }
+.close-job-room article:hover { border-color: rgba(100,232,255,.62) !important; box-shadow: 0 0 26px rgba(100,232,255,.14), inset 0 0 24px rgba(215,123,255,.07) !important; transform: translateY(-2px); }
+.telegram-alert-room { --room-a: #ffcf66; --room-b: #ff5cbb; --room-c: #ff4f6d; }
+.telegram-alert-room > header {
+  border-color: rgba(255,105,126,.55) !important;
+  background: radial-gradient(circle at 85% 8%, rgba(255,207,102,.22), transparent 27%), radial-gradient(circle at 8% 95%, rgba(255,79,109,.16), transparent 34%), linear-gradient(120deg, rgba(38,10,30,.98), rgba(28,8,28,.97) 58%, rgba(54,13,24,.96)) !important;
+  box-shadow: 0 0 0 1px rgba(255,105,126,.08), 0 0 38px rgba(255,79,109,.18), 0 0 70px rgba(255,207,102,.08) !important;
+}
+.telegram-alert-room .signal-metric { filter: saturate(1.18); }
+.telegram-alert-room .signal-pink { color: #ff6e9c; }
+.telegram-alert-room .signal-violet { color: #ff83d4; }
+.telegram-alert-room .signal-cyan { color: #ffd166; }
+.telegram-alert-room .signal-fuchsia { color: #ff526e; }
+.telegram-alert-room .trace-row:hover { background: linear-gradient(90deg, rgba(255,82,110,.11), rgba(255,201,94,.035)); box-shadow: inset 3px 0 #ffca62, 0 0 18px rgba(255,82,110,.08); }
+.telegram-alert-room .telegram-bill, .telegram-alert-room details { border-color: rgba(255,201,94,.28) !important; background: rgba(255,178,64,.06) !important; }
+.blackbox-receive-room { --room-a: #ff4d83; --room-b: #8e5cff; --room-c: #61ffb4; }
+.blackbox-receive-room > header {
+  border-color: rgba(255,77,131,.52) !important;
+  background: radial-gradient(circle at 86% 10%, rgba(255,77,131,.20), transparent 28%), radial-gradient(circle at 10% 96%, rgba(97,255,180,.09), transparent 34%), linear-gradient(120deg, rgba(16,5,20,.99), rgba(20,7,36,.98) 57%, rgba(8,17,24,.98)) !important;
+  box-shadow: 0 0 0 1px rgba(255,77,131,.08), 0 0 42px rgba(255,77,131,.14), 0 0 70px rgba(142,92,255,.10) !important;
+}
+.blackbox-receive-room .signal-metric { background: linear-gradient(145deg, rgba(20,6,30,.98), rgba(7,9,19,.98)); }
+.blackbox-receive-room .trace-row:hover { background: linear-gradient(90deg, rgba(255,77,131,.11), rgba(97,255,180,.035)); box-shadow: inset 3px 0 #ff4d83, 0 0 18px rgba(255,77,131,.08); }
+.blackbox-receive-room .blackbox-console { border-color: rgba(97,255,180,.25); box-shadow: 0 0 40px rgba(97,255,180,.08), inset 0 0 30px rgba(97,255,180,.025); }
+@media (prefers-reduced-motion: no-preference) {
+  .close-job-room > header, .telegram-alert-room > header, .blackbox-receive-room > header { animation: room-breathe 7s ease-in-out infinite; }
+}
+@keyframes room-breathe { 0%,100% { filter: saturate(1); } 50% { filter: saturate(1.12) brightness(1.03); } }
+@media (max-width: 767px) {
+  .close-job-room, .telegram-alert-room, .blackbox-receive-room { overflow: visible; }
+  .close-job-room > header, .telegram-alert-room > header, .blackbox-receive-room > header { border-radius: 1.35rem !important; padding: 1.1rem !important; }
+}
+
 
 /* BLACKBOX ORDER CONTROL — neon status board */
 @keyframes blackbox-border-scan { 0% { transform:translateX(-120%); opacity:0; } 12%,72% { opacity:.95; } 100% { transform:translateX(520%); opacity:0; } }

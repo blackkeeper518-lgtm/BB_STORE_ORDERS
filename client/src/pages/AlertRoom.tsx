@@ -43,14 +43,14 @@ export default function AlertRoom() {
   const people = useMemo(() => new Set(rows.map((r: any) => r.person_key).filter(Boolean)).size, [rows]);
   const hotRows = rows.filter((r: any) => r.is_bot_summary || Number(r.duplicate_signature_count) > 1).slice(0, 5);
 
-  return <div className="blackbox-room min-h-full space-y-5 p-2 text-white sm:p-4 lg:p-6">
+  return <div className="telegram-alert-room blackbox-room min-h-full space-y-5 p-2 text-white sm:p-4 lg:p-6">
     <header className="blackbox-hero relative overflow-hidden rounded-[2rem] border border-fuchsia-300/25 bg-[#13091d]/90 p-5 shadow-[0_0_70px_rgba(215,45,220,.12)] sm:p-7">
       <div className="hero-scanline" />
       <div className="relative z-10 flex flex-wrap items-start justify-between gap-5">
         <div>
-          <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.32em] text-fuchsia-300"><ShieldAlert className="h-4 w-4" /> CHANGE HISTORY <span className="text-cyan-300/80">/ ORDER TRACE</span></div>
-          <h1 className="mt-3 font-mono text-3xl font-semibold tracking-tight text-white sm:text-5xl">ประวัติเปลี่ยนของ</h1>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-fuchsia-100/60">ดึงจาก 🔸 PARADOX_xXx_EXCHANGE · เรียงรอยสินค้าเดิม → ใหม่ เพื่อไล่ตรวจการเปลี่ยนของ</p>
+          <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.32em] text-fuchsia-300"><ShieldAlert className="h-4 w-4" /> TELEGRAM PRIORITY FEED <span className="text-cyan-300/80">/ BILL TRACE</span></div>
+          <h1 className="mt-3 font-mono text-3xl font-semibold tracking-tight text-white sm:text-5xl">ห้องบิลสำคัญก่อนส่ง</h1>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-fuchsia-100/60">อ่านข้อความบิลและรอยเปลี่ยนที่โหนด Telegram ส่งลงห้องสำคัญ · เปิดเทียบหลักฐานเดิม → ล่าสุดในจุดเดียว</p>
         </div>
         <div className="flex items-center gap-2"><div className="live-chip"><span className="live-dot" />LIVE · 30s</div><Button variant="outline" onClick={() => query.refetch()} className="border-fuchsia-300/35 bg-fuchsia-500/10 text-fuchsia-100 hover:bg-fuchsia-500/20"><RefreshCw className={query.isFetching ? "mr-2 h-4 w-4 animate-spin" : "mr-2 h-4 w-4"} />สแกนใหม่</Button></div>
       </div>

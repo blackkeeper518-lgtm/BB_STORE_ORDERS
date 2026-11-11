@@ -42,7 +42,7 @@ export default function BlackboxRoom() {
   const people = useMemo(() => new Set(rows.map((r: any) => r.person_key).filter(Boolean)).size, [rows]);
   const hotRows = rows.filter((r: any) => r.is_bot_summary || Number(r.duplicate_signature_count) > 1).slice(0, 5);
 
-  return <div className="blackbox-room min-h-full space-y-5 p-2 text-white sm:p-4 lg:p-6">
+  return <div className="blackbox-receive-room blackbox-room min-h-full space-y-5 p-2 text-white sm:p-4 lg:p-6">
     <header className="blackbox-hero relative overflow-hidden rounded-[2rem] border border-fuchsia-300/25 bg-[#13091d]/90 p-5 shadow-[0_0_70px_rgba(215,45,220,.12)] sm:p-7">
       <div className="hero-scanline" />
       <div className="relative z-10 flex flex-wrap items-start justify-between gap-5">
