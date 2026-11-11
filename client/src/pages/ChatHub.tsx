@@ -43,7 +43,7 @@ function isPageTimelineLine(line: string) { return /\[\s*เพจ\s*[:：]/i.te
 function isCustomerTimelineLine(line: string) { return /\[\s*ลูกค้า\s*[:：]/i.test(line); }
 function isThreadControlConflict(message: string) { return /META_THREAD_CONTROL_CONFLICT|another app|currently controlling|ควบคุมเธรด|แอพอื่นกำลังควบคุม/i.test(message); }
 function isTransientMetaInternal(message: string) { return /META_TRANSIENT_INTERNAL|2018012|code=-1/i.test(message); }
-function hasCodOrder(thread: Record<string, any>) { return Number(thread.cod_amount ?? thread.codAmount ?? thread.expected_cod ?? 0) > 0 || Number(thread.codSignalCount ?? 0) > 0; }
+function hasCodOrder(thread: Record<string, any>) { return Number(thread.cod_amount ?? 0) > 0; }
 
 
 const CHAT_SOUND_KEY = "nightops-chat-sound-v1";
