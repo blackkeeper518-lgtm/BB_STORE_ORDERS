@@ -42,6 +42,7 @@ import {
   getSupabaseConfig,
   saveSupabaseConfig,
 } from "@/lib/canonical";
+import { trpc } from "@/lib/trpc";
 
 type CodeLanguage = "sql" | "java" | "md";
 type VaultDoc = {
@@ -97,11 +98,9 @@ export default function SecretGallery() {
   const [orderTable, setOrderTable] = useState("🗝️HERMES_ARCHIVE");
   const [connectionMessage, setConnectionMessage] = useState("");
   const [connectionBusy, setConnectionBusy] = useState(false);
-  const chatConnection = getSupabaseConfig(camp, "chat");
-  const [chatUrl, setChatUrl] = useState(chatConnection?.url || "");
-  const [chatKey, setChatKey] = useState(chatConnection?.anonKey || "");
-  const [chatMessage, setChatMessage] = useState(chatConnection ? "ตั้งค่าไว้ในเครื่องนี้แล้ว" : "");
+  const [chatMessage, setChatMessage] = useState("");
   const [chatBusy, setChatBusy] = useState(false);
+  const chatConnectionQuery = trpc.chat.connection.useQuery(undefined, { enabled: false, retry: false });
   const parcelConnection = getSupabaseConfig(camp, "parcel");
   const [parcelUrl, setParcelUrl] = useState(parcelConnection?.url || "");
   const [parcelKey, setParcelKey] = useState(parcelConnection?.anonKey || "");
@@ -225,19 +224,19 @@ export default function SecretGallery() {
       setConnectionBusy(false);
     }
   };
-  const saveLaneConnection = async (lane: "chat" | "parcel", urlValue: string, keyValue: string, setBusy: (value: boolean) => void, setMessage: (value: string) => void) => {
+  const saveLaneConnection = async (urlValue: string, keyValue: string, setBusy: (value: boolean) => void, setMessage: (value: string) => void) => {
     setBusy(true);
     setMessage("");
     try {
       const url = urlValue.trim().replace(/\/$/, "");
       const anonKey = keyValue.trim();
-      const label = lane === "chat" ? "Chat" : "Parcel";
-      const relations = lane === "chat" ? ["chat_customer_messages", "chat_page_messages"] : ["parcels", "🦅ROGUE_xXx_SHIPPINGz", "📓DEAD_xXx_NOTE"];
+      const label = "Parcel";
+      const relations = ["parcels", "🦅ROGUE_xXx_SHIPPINGz", "📓DEAD_xXx_NOTE"];
       if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url)) throw new Error(`URL โปรเจกต์ ${label} ไม่ถูกต้อง`);
       if (!anonKey) throw new Error(`กรุณาใส่ Anon/Publishable Key ของ ${label}`);
       if (/service_role|secret/i.test(anonKey)) throw new Error("ห้ามใส่ service-role หรือ secret key ในหน้าเว็บ");
-      saveSupabaseConfig({ url, anonKey }, camp, lane);
-      const api = getSupabase(lane);
+      saveSupabaseConfig({ url, anonKey }, camp, "parcel");
+      const api = getSupabase("parcel");
       if (!api) throw new Error(`สร้าง ${label} Supabase client ไม่สำเร็จ`);
       const results = await Promise.all(relations.map(async relation => ({ relation, error: (await api.from(relation).select("*", { count: "exact", head: true })).error })));
       const failed = results.find(result => result.error);
@@ -249,11 +248,24 @@ export default function SecretGallery() {
       setBusy(false);
     }
   };
-  const clearLaneConnection = (lane: "chat" | "parcel", setUrl: (value: string) => void, setKey: (value: string) => void, setMessage: (value: string) => void) => {
-    clearSupabaseConfig(camp, lane);
+  const checkServerChatConnection = async () => {
+    setChatBusy(true);
+    setChatMessage("");
+    try {
+      const result = await chatConnectionQuery.refetch();
+      if (result.error) throw result.error;
+      setChatMessage(`เชื่อมต่อแล้ว · ตรวจ ${result.data?.checked.length ?? 0} object บน server`);
+    } catch (e) {
+      setChatMessage(e instanceof Error ? e.message : String(e));
+    } finally {
+      setChatBusy(false);
+    }
+  };
+  const clearLaneConnection = (setUrl: (value: string) => void, setKey: (value: string) => void, setMessage: (value: string) => void) => {
+    clearSupabaseConfig(camp, "parcel");
     setUrl("");
     setKey("");
-    setMessage(`ล้าง connection ${lane === "chat" ? "Chat" : "Parcel"} แล้ว · จะ fallback ไป Tracking เดิม`);
+    setMessage("ล้าง connection Parcel แล้ว · จะ fallback ไป Tracking เดิม");
   };
   const login = () => {
     if (password === ROOM_PASSWORD) {
@@ -520,17 +532,15 @@ export default function SecretGallery() {
             <div className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full border border-cyan-200/20 shadow-[0_0_45px_rgba(34,211,238,.35)]" />
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-sm text-cyan-100"><MessageCircle className="h-5 w-5 text-cyan-300" />ROOM 02 · CHAT CORE · MESSENGER</CardTitle>
-              <p className="text-xs leading-5 text-cyan-100/65">แชทและ Page Token อ่านจาก <span className="font-mono text-cyan-200">page_tokens_vault</span> · ไม่ใช่ช่อง Page Token</p>
+              <p className="text-xs leading-5 text-cyan-100/65">Chat ใช้ตาราง <span className="font-mono text-cyan-200">Cust_Chat⭐BINARY_xXx_STAR</span> และ <span className="font-mono text-cyan-200">Pg_Chat⭐BINARY_xXx_STAR</span> · Meta Page Token อยู่ใน <span className="font-mono text-cyan-200">🌈MILKY_WAY_xXx_TOKEN _PAGE</span> และอ่านเฉพาะฝั่ง server</p>
             </CardHeader>
-            <CardContent className="grid gap-3 md:grid-cols-2">
-              <label className="grid gap-1 text-[11px] text-cyan-100/70">CHAT SUPABASE URL<Input value={chatUrl} onChange={event => setChatUrl(event.target.value)} placeholder="https://chat-project.supabase.co" className="border-cyan-300/25 bg-black/35 text-white placeholder:text-cyan-100/30" /></label>
-              <label className="grid gap-1 text-[11px] text-cyan-100/70">CHAT ANON / PUBLISHABLE KEY<Input type="password" value={chatKey} onChange={event => setChatKey(event.target.value)} placeholder="sb_publishable_… หรือ anon key" className="border-cyan-300/25 bg-black/35 font-mono text-white placeholder:text-cyan-100/30" /></label>
-              <div className="flex flex-wrap items-center gap-2 md:col-span-2">
-                <Button type="button" onClick={() => void saveLaneConnection("chat", chatUrl, chatKey, setChatBusy, setChatMessage)} disabled={chatBusy} className="bg-gradient-to-r from-cyan-400 via-blue-500 to-violet-600 text-[#06101e] shadow-[0_0_22px_rgba(34,211,238,.3)] hover:brightness-110">{chatBusy ? "กำลังตรวจ…" : "บันทึก Chat"}</Button>
-                <Button type="button" variant="outline" onClick={() => clearLaneConnection("chat", setChatUrl, setChatKey, setChatMessage)} className="border-cyan-300/25 bg-black/20 text-cyan-100 hover:bg-cyan-300/10">ล้าง</Button>
+            <CardContent className="grid gap-3">
+              <p className="text-xs leading-5 text-cyan-100/70">ChatHub อ่านผ่าน protected server route จากวิว 🌠BINARY_xXx_MATRIX เพียงจุดเดียว; ตรวจวิวนี้, ตารางต้นทางสองตาราง, วิวเคสเสี่ยง, ตารางบันทึกเคส และ token vault ด้วย Chat service-role โดยไม่เก็บ key ไว้ใน browser</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button type="button" onClick={() => void checkServerChatConnection()} disabled={chatBusy} className="bg-gradient-to-r from-cyan-400 via-blue-500 to-violet-600 text-[#06101e] shadow-[0_0_22px_rgba(34,211,238,.3)] hover:brightness-110">{chatBusy ? "กำลังตรวจ…" : "ตรวจ Chat connection"}</Button>
                 <span className="text-xs text-cyan-100/70">{chatMessage}</span>
               </div>
-              <p className="text-[10px] leading-4 text-cyan-100/45 md:col-span-2">ใส่เฉพาะ Anon/Publishable Key · ห้ามใส่ service-role, secret key หรือ Page Token · ถ้าไม่กรอกจะใช้ Tracking เดิม</p>
+              <p className="text-[10px] leading-4 text-cyan-100/45">ฝั่ง server ต้องมี CHAT_SUPABASE_URL และ CHAT_SUPABASE_SERVICE_ROLE_KEY · ไม่มี fallback ไป Tracking หรือ table/token column อื่น</p>
             </CardContent>
           </Card>
           <Card className="group project-room-card relative overflow-hidden rounded-3xl border-fuchsia-300/35 bg-[radial-gradient(ellipse_at_top_right,rgba(244,114,182,.2),transparent_42%),linear-gradient(135deg,rgba(35,12,48,.98),rgba(15,9,35,.96))] shadow-[0_0_34px_rgba(217,70,239,.16)] transition duration-300 hover:-translate-y-1 hover:border-fuchsia-200/70 hover:shadow-[0_0_50px_rgba(217,70,239,.3)]">
@@ -543,8 +553,8 @@ export default function SecretGallery() {
               <label className="grid gap-1 text-[11px] text-fuchsia-100/70">PARCEL SUPABASE URL<Input value={parcelUrl} onChange={event => setParcelUrl(event.target.value)} placeholder="https://parcel-project.supabase.co" className="border-fuchsia-300/25 bg-black/35 text-white placeholder:text-fuchsia-100/30" /></label>
               <label className="grid gap-1 text-[11px] text-fuchsia-100/70">PARCEL ANON / PUBLISHABLE KEY<Input type="password" value={parcelKey} onChange={event => setParcelKey(event.target.value)} placeholder="sb_publishable_… หรือ anon key" className="border-fuchsia-300/25 bg-black/35 font-mono text-white placeholder:text-fuchsia-100/30" /></label>
               <div className="flex flex-wrap items-center gap-2 md:col-span-2">
-                <Button type="button" onClick={() => void saveLaneConnection("parcel", parcelUrl, parcelKey, setParcelBusy, setParcelMessage)} disabled={parcelBusy} className="bg-gradient-to-r from-fuchsia-500 via-violet-600 to-indigo-600 text-white shadow-[0_0_22px_rgba(217,70,239,.3)] hover:brightness-110">{parcelBusy ? "กำลังตรวจ…" : "บันทึก Parcel"}</Button>
-                <Button type="button" variant="outline" onClick={() => clearLaneConnection("parcel", setParcelUrl, setParcelKey, setParcelMessage)} className="border-fuchsia-300/25 bg-black/20 text-fuchsia-100 hover:bg-fuchsia-300/10">ล้าง</Button>
+                <Button type="button" onClick={() => void saveLaneConnection(parcelUrl, parcelKey, setParcelBusy, setParcelMessage)} disabled={parcelBusy} className="bg-gradient-to-r from-fuchsia-500 via-violet-600 to-indigo-600 text-white shadow-[0_0_22px_rgba(217,70,239,.3)] hover:brightness-110">{parcelBusy ? "กำลังตรวจ…" : "บันทึก Parcel"}</Button>
+                <Button type="button" variant="outline" onClick={() => clearLaneConnection(setParcelUrl, setParcelKey, setParcelMessage)} className="border-fuchsia-300/25 bg-black/20 text-fuchsia-100 hover:bg-fuchsia-300/10">ล้าง</Button>
                 <span className="text-xs text-fuchsia-100/70">{parcelMessage}</span>
               </div>
               <p className="text-[10px] leading-4 text-fuchsia-100/45 md:col-span-2">ใส่เฉพาะ Anon/Publishable Key · ห้ามใส่ service-role หรือ secret key · ถ้าไม่กรอกจะใช้ Tracking เดิม</p>

@@ -12,7 +12,7 @@ SELECT
     ), 
     ''
   )::numeric AS cod_amount
-FROM chat_page_messages
+FROM public."Pg_Chat⭐BINARY_xXx_STAR"
 WHERE message_text LIKE '%COD%';
 
 -- ปลดล็อกสิทธิ์ให้ n8n อ่านข้อมูลได้

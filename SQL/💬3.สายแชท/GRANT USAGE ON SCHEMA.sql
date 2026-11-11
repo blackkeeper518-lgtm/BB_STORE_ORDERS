@@ -85,8 +85,3 @@ WHERE NULLIF(btrim(message_id), '') IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS ux_pg_chat_message_id
 ON public."Pg_Chat⭐BINARY_xXx_STAR" (message_id)
 WHERE NULLIF(btrim(message_id), '') IS NOT NULL;
-
-
-
-
-

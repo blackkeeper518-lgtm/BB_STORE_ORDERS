@@ -2,21 +2,23 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 
 export type MetaAttachment = { type: string; url?: string; payload?: Record<string, unknown> };
 
-const CHAT_TOKEN_SUPABASE_URL = "https://zxmczmgmtbnammtljdls.supabase.co";
+const CHAT_PAGE_TOKEN_TABLE = "🌈MILKY_WAY_xXx_TOKEN _PAGE";
 
 async function pageToken(pageId: string) {
+  const configuredUrl = process.env.CHAT_SUPABASE_URL?.trim();
+  if (!configuredUrl) throw new Error("Page token lookup failed: CHAT_SUPABASE_URL is not configured");
   const serviceRoleKey = process.env.CHAT_SUPABASE_SERVICE_ROLE_KEY?.trim();
   if (!serviceRoleKey) throw new Error("Page token lookup failed: CHAT_SUPABASE_SERVICE_ROLE_KEY is not configured");
-  const supabaseUrl = (process.env.CHAT_SUPABASE_URL || CHAT_TOKEN_SUPABASE_URL).trim().replace(/\/$/, "");
+  const supabaseUrl = configuredUrl.replace(/\/$/, "");
   const headers = { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` };
   try {
-    // page_tokens_vault is keyed by page_id and belongs to the Chat project only.
+    // The Chat page-token vault is keyed by page_id and belongs to the Chat project only.
     const params = new URLSearchParams({ select: "page_id,page_name,access_token", page_id: `eq.${pageId}`, limit: "1" });
-    const response = await fetch(`${supabaseUrl}/rest/v1/page_tokens_vault?${params}`, { headers });
+    const response = await fetch(`${supabaseUrl}/rest/v1/${encodeURIComponent(CHAT_PAGE_TOKEN_TABLE)}?${params}`, { headers });
     if (!response.ok) throw new Error(`HTTP ${response.status}: ${(await response.text()).slice(0, 240)}`);
     const rows = await response.json() as Array<Record<string, unknown>>;
     const row = rows[0];
-    const token = row?.page_access_token ?? row?.access_token ?? row?.pageAccessToken ?? row?.token;
+    const token = row?.access_token;
     return typeof token === "string" && token.trim() ? token.trim() : undefined;
   } catch (error) {
     throw new Error(`Page token lookup failed: CHAT: ${error instanceof Error ? error.message : String(error)}`);

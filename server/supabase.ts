@@ -54,6 +54,61 @@ export async function supabaseGet<T>(path: string, project: SupabaseProject = "m
   }
   throw new Error(`Supabase connection failed after 3 attempts (${path}): ${lastError instanceof Error ? lastError.message : String(lastError)}. Target=${target}`);
 }
+// CHAT HUB READ CONTRACT — locked v2; see CHAT_HUB_READ_CONTRACT.md. Read one normalized view, never select(*).
+const CHAT_READ_WINDOW_MS = 2 * 24 * 60 * 60 * 1000;
+type ChatReadFilter = { pageId?: string; threadId?: string };
+export const CHAT_CUSTOMER_TABLE = "Cust_Chat⭐BINARY_xXx_STAR";
+export const CHAT_PAGE_TABLE = "Pg_Chat⭐BINARY_xXx_STAR";
+export const CHAT_MATRIX_VIEW = "🌠BINARY_xXx_MATRIX";
+export const CHAT_PAGE_TOKEN_TABLE = "🌈MILKY_WAY_xXx_TOKEN _PAGE";
+export const CHAT_MATRIX_READ_COLUMNS = [
+  "source_side", "id", "chat_link_key", "page_id", "page_name", "portal_key", "assigned_agent", "assigned_hashtag",
+  "conversation_id", "thread_id", "customer_id", "customer_name", "recipient_id", "recipient_name", "message_id",
+  "speaker", "is_sent", "time", "time_th", "message_time_display", "created_at", "has_attachment", "attachment_type",
+  "attachment_url", "attachment_urls", "attachments_raw", "sticker_url", "shares_link", "chat_age_hours",
+  "is_within_24h", "can_send_standard", "is_24h_window_valid", "messaging_tag_required", "dedupe_key", "sync_status",
+  "customer_chat_age_hours", "send_facebook_route", "occurred_at", "message_text", "drakside_tracking_message",
+  "tracking_number", "parcel_status_emoji", "facebook_tracking_message", "upsert_key", "order_number",
+  "order_number_display", "order_time_display", "customer_latest_message", "customer_message_time_th",
+  "page_latest_message", "page_message_time_th", "order_time", "cod_amount", "phone", "pager_message_time_th",
+  "manus_for_packer", "facebook_name", "shipping_carrier",
+] as const;
+function chatReadPath(filter: ChatReadFilter = {}) {
+  const query = new URLSearchParams();
+  query.set("select", CHAT_MATRIX_READ_COLUMNS.join(","));
+  query.set("occurred_at", `gte.${new Date(Date.now() - CHAT_READ_WINDOW_MS).toISOString()}`);
+  query.set("order", "occurred_at.desc");
+  query.set("limit", "10000");
+  if (filter.pageId) query.set("page_id", `eq.${filter.pageId}`);
+  if (filter.threadId) query.set("thread_id", `eq.${filter.threadId}`);
+  return `${encodeURIComponent(CHAT_MATRIX_VIEW)}?${query.toString()}`;
+}
+async function fetchChatRows(filter: ChatReadFilter = {}) {
+  const rows = await supabaseGet<Array<Record<string, unknown>>>(chatReadPath(filter), "chat");
+  return rows.map(row => ({ ...row, _source_table: row.source_side === "page" ? CHAT_PAGE_TABLE : CHAT_CUSTOMER_TABLE }));
+}
+export async function fetchChatThreadRows() {
+  return fetchChatRows();
+}
+export async function fetchChatMessageRows(input: { pageId: string; threadId: string }) {
+  return fetchChatRows({ pageId: input.pageId, threadId: input.threadId });
+}
+const CHAT_CONNECTION_CHECKS = [
+  { name: CHAT_CUSTOMER_TABLE, columns: "id,page_id,thread_id,message_text,phone" },
+  { name: CHAT_PAGE_TABLE, columns: "id,page_id,thread_id,message_text" },
+  { name: CHAT_MATRIX_VIEW, columns: "id,source_side,page_id,thread_id,message_text" },
+  { name: "🌓VAGABOND_xXx_DISMISS", columns: "id" },
+  { name: "🏴‍☠️SIRIUS_xXx_CRASH", columns: "case_id" },
+  { name: CHAT_PAGE_TOKEN_TABLE, columns: "page_id,access_token" },
+] as const;
+export async function checkChatConnection() {
+  await Promise.all(CHAT_CONNECTION_CHECKS.map(({ name, columns }) => {
+    const query = new URLSearchParams({ select: columns, limit: "0" });
+    return supabaseGet<Array<Record<string, unknown>>>(`${encodeURIComponent(name)}?${query.toString()}`, "chat");
+  }));
+  // Only object names leave the server; no page-token or chat-row value is returned.
+  return { checked: CHAT_CONNECTION_CHECKS.map(({ name }) => name) };
+}
 export async function supabasePost<T>(path: string, body: unknown, project: SupabaseProject = "main", prefer?: string): Promise<T> { const { baseUrl, key } = config(project); const headers: Record<string, string> = { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" }; if (prefer) headers.Prefer = prefer; const response = await fetch(`${baseUrl}/rest/v1/${path}`, { method: "POST", headers, body: JSON.stringify(body) }); if (!response.ok) throw new Error(`Supabase returned HTTP ${response.status}: ${(await response.text()).slice(0, 300)}`); return response.json() as Promise<T>; }
 export async function recordOutgoingChatMessage(input: { portalKey?: string; chatLinkKey?: string; pageId: string; pageName?: string; threadId: string; recipientId: string; messageId?: string; text?: string; occurredAt?: Date }) {
   const occurredAt = input.occurredAt ?? new Date();
@@ -63,7 +118,7 @@ export async function recordOutgoingChatMessage(input: { portalKey?: string; cha
   const payload = { chat_link_key: chatLinkKey, page_id: input.pageId, page_name: input.pageName?.trim() || null, portal_key: input.portalKey?.trim() || null, thread_id: input.threadId, recipient_id: input.recipientId, message_id: messageId, speaker: "page", is_sent: true, time: iso, occurred_at: iso, message_time_display: iso, message_text: input.text?.trim() || null, page_latest_message: input.text?.trim() || null, page_message_time_th: iso, sync_status: "SENT", dedupe_key: messageId ? `${chatLinkKey}:${messageId}` : `${chatLinkKey}:${iso}` };
   const pageMessagePayload = { chat_link_key: chatLinkKey, page_id: input.pageId, page_name: input.pageName?.trim() || null, portal_key: input.portalKey?.trim() || null, thread_id: input.threadId, recipient_id: input.recipientId, sender_id: input.pageId, sender_name: input.pageName?.trim() || null, speaker_type: "page", speaker: "page", side: "right", is_sent: true, message_id: messageId, message_text: input.text?.trim() || null, time: iso, occurred_at: iso, dedupe_key: messageId ? `${chatLinkKey}:${messageId}` : `${chatLinkKey}:${iso}` };
   // Always append each outgoing reply; no upsert/unique-key requirement.
-  try { await supabasePost<Record<string, unknown>[]>("chat_page_messages", pageMessagePayload, "chat", "return=representation"); }
+  try { await supabasePost<Record<string, unknown>[]>(encodeURIComponent(CHAT_PAGE_TABLE), pageMessagePayload, "chat", "return=representation"); }
   catch (error) { console.error("[chat] canonical page-message write failed", error); }
   const relation = encodeURIComponent("🧿BB_xXx_ORDERCONTROL");
   return supabasePost<Record<string, unknown>[]>(relation, payload, "chat", "return=representation");

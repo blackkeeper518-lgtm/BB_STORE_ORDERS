@@ -1,17 +1,17 @@
 # Patch แก้เส้นทางส่งแชท Meta
 
-Patch นี้จัดทำจาก working copy ของ `BB_STORE_ORDERS` ที่ฐาน commit `548782c0c3a8380f28163d2eba8054ef20083b1f` โดยแก้เฉพาะโค้ดฝั่ง server ที่เกี่ยวกับการส่งข้อความ/บันทึกข้อความขาออก และเพิ่ม regression test ของ token lookup
+**เอกสาร/patch นี้เป็นฉบับเก่าและห้ามนำไป apply กับโค้ดปัจจุบัน.** มันอ้างอิง token vault และพฤติกรรม fallback รุ่นก่อน; โค้ดปัจจุบันใช้ `🌈MILKY_WAY_xXx_TOKEN _PAGE` ใน Chat project เท่านั้น
 
 ## สิ่งที่แก้
 
-- ค้น Page Access Token จาก `page_tokens_vault` ด้วย `page_id` และคอลัมน์ที่มีใน SQL schema (`page_id`, `page_name`, `access_token`) โดยไม่อ้าง `portal_key` ซึ่งไม่มีใน DDL ที่ repo ระบุ
-- เพิ่ม fallback lane สำหรับ Chat, Main Order, Tracking และ Supabase โดยลองต่อเมื่อ lane ก่อนหน้าไม่มีแถว/ใช้ไม่ได้
+- ค้น Page Access Token จาก `🌈MILKY_WAY_xXx_TOKEN _PAGE` ด้วย `page_id` และใช้เฉพาะคอลัมน์ `access_token`
+- ต้องกำหนด `CHAT_SUPABASE_URL` และ `CHAT_SUPABASE_SERVICE_ROLE_KEY`; ไม่มี fallback ไป URL, lane, table, column หรือ environment value อื่น
 - หลัง Meta ตอบรับการส่งแล้ว การบันทึกข้อความลง canonical chat/local audit เป็น best-effort ไม่ทำให้หน้าเว็บแจ้งว่าส่งไม่สำเร็จเพียงเพราะ log เขียนไม่ได้
 - เพิ่ม mock test ตรวจ query token และ request `POST /{page_id}/messages` โดยไม่ยิงข้อความจริง
 
 ## วิธีใช้ใน PowerShell
 
-เปิด PowerShell ในโฟลเดอร์ repository แล้วรัน:
+คำสั่งต่อไปนี้เป็นตัวอย่างเดิมสำหรับ patch รุ่นเก่าเท่านั้น ห้ามรันกับ branch ปัจจุบัน:
 
 ```powershell
 git apply .\BB_STORE_ORDERS-chat-send-reliability.patch

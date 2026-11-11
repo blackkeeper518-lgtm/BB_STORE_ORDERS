@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { sendMetaMessage } from "../../../server/meta";
 
+const tokenTablePath = encodeURIComponent("🌈MILKY_WAY_xXx_TOKEN _PAGE");
+
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
@@ -22,7 +24,7 @@ describe("sendMetaMessage", () => {
     vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       requests.push({ url, init });
-      if (url.startsWith("https://chat-project.example/rest/v1/page_tokens_vault?")) {
+      if (url.startsWith(`https://chat-project.example/rest/v1/${tokenTablePath}?`)) {
         return new Response(JSON.stringify([{ page_id: "page-123", page_name: "Test page", access_token: "test-page-token" }]), {
           status: 200,
           headers: { "content-type": "application/json" },
@@ -45,6 +47,7 @@ describe("sendMetaMessage", () => {
     expect(requests).toHaveLength(2);
 
     const tokenLookup = new URL(requests[0].url);
+    expect(tokenLookup.pathname).toBe(`/rest/v1/${tokenTablePath}`);
     expect(tokenLookup.searchParams.get("select")).toBe("page_id,page_name,access_token");
     expect(tokenLookup.searchParams.get("page_id")).toBe("eq.page-123");
     expect(tokenLookup.searchParams.has("portal_key")).toBe(false);
@@ -59,7 +62,7 @@ describe("sendMetaMessage", () => {
     });
   });
 
-  it("uses the configured chat project URL by default when CHAT_SUPABASE_URL is empty", async () => {
+  it("does not fall back to a default or another project when CHAT_SUPABASE_URL is empty", async () => {
     vi.stubEnv("CHAT_SUPABASE_URL", "");
     vi.stubEnv("CHAT_SUPABASE_SERVICE_ROLE_KEY", "test-chat-service-role-key");
     for (const name of [
@@ -70,19 +73,26 @@ describe("sendMetaMessage", () => {
       "META_PAGE_ID", "META_PAGE_ACCESS_TOKEN",
     ]) vi.stubEnv(name, "");
 
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(sendMetaMessage({ pageId: "page-123", recipientId: "customer-456", text: "ทดสอบ URL ห้องแชท" }))
+      .rejects.toThrow("CHAT_SUPABASE_URL is not configured");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("does not use alternate token column names when access_token is empty", async () => {
+    vi.stubEnv("CHAT_SUPABASE_URL", "https://chat-project.example");
+    vi.stubEnv("CHAT_SUPABASE_SERVICE_ROLE_KEY", "test-chat-service-role-key");
     const requests: string[] = [];
     vi.stubGlobal("fetch", async (input: RequestInfo | URL) => {
-      const url = String(input);
-      requests.push(url);
-      if (url.startsWith("https://zxmczmgmtbnammtljdls.supabase.co/rest/v1/page_tokens_vault?")) {
-        return new Response(JSON.stringify([{ page_id: "page-123", access_token: "test-chat-page-token" }]), { status: 200 });
-      }
-      return new Response(JSON.stringify({ recipient_id: "customer-456", message_id: "mid.chat-default-123" }), { status: 200 });
+      requests.push(String(input));
+      return new Response(JSON.stringify([{ page_access_token: "legacy-token", pageAccessToken: "legacy-token", token: "legacy-token" }]), { status: 200 });
     });
 
-    const result = await sendMetaMessage({ pageId: "page-123", recipientId: "customer-456", text: "ทดสอบ URL ห้องแชท" });
-    expect(result.message_id).toBe("mid.chat-default-123");
-    expect(requests[0]).toContain("https://zxmczmgmtbnammtljdls.supabase.co/rest/v1/page_tokens_vault?");
+    await expect(sendMetaMessage({ pageId: "page-123", recipientId: "customer-456", text: "ทดสอบ" }))
+      .rejects.toThrow("No Meta page token configured for page page-123");
+    expect(requests).toHaveLength(1);
+    expect(requests[0]).toContain(`/rest/v1/${tokenTablePath}?`);
   });
 
   it("does not fall back to another Supabase account when Chat credentials are missing", async () => {

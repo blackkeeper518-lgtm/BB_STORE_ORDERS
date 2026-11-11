@@ -26,14 +26,14 @@ function matchItem(raw: string, aliases: Map<string, AnyRow>, masters: AnyRow[])
 export async function createCanonicalFromChat(input: { pageId: string; threadId: string; pageName?: string; customerName?: string }): Promise<ChatCanonicalResult> {
   const api = getSupabase(); if (!api) throw new Error("ยังไม่ได้เชื่อม Supabase");
   const [{ data: customers, error: ce }, { data: pages, error: pe }, { data: aliasRows, error: ae }, { data: masters, error: me }] = await Promise.all([
-    api.from("chat_customer_messages").select("*").eq("page_id", input.pageId).eq("conversation_key", input.threadId).order("occurred_at", { ascending: true }),
-    api.from("chat_page_messages").select("*").eq("page_id", input.pageId).eq("conversation_key", input.threadId).order("occurred_at", { ascending: true }),
+    api.from("Cust_Chat⭐BINARY_xXx_STAR").select("*").eq("page_id", input.pageId).eq("thread_id", input.threadId).order("occurred_at", { ascending: true }),
+    api.from("Pg_Chat⭐BINARY_xXx_STAR").select("*").eq("page_id", input.pageId).eq("thread_id", input.threadId).order("occurred_at", { ascending: true }),
     api.from("product_map_master").select("*"),
     api.from("🛒product_master").select("*")
   ]);
   if (ce) throw ce; if (pe) throw pe; if (ae) throw ae; if (me) throw me;
   const rows: AnyRow[] = ([...(customers ?? []).map((r: AnyRow) => ({ ...r, actor: "customer" })), ...(pages ?? []).map((r: AnyRow) => ({ ...r, actor: "page" }))] as AnyRow[]).sort((a, b) => new Date(a.occurred_at ?? a.created_at ?? 0).getTime() - new Date(b.occurred_at ?? b.created_at ?? 0).getTime());
-  const fullText = rows.map(r => text(r.message_text ?? r.text)).filter(Boolean).join("\n");
+  const fullText = rows.map(r => text(r.message_text)).filter(Boolean).join("\n");
   const latest = rows.at(-1); const cod = parseCod(fullText); const phone = parsePhone(fullText); const zip = parseZip(fullText); const name = input.customerName || rows.find(r => r.customer_name)?.customer_name || parseName(fullText) || "ไม่ระบุชื่อ"; const address = parseAddress(fullText, zip); const aliases = makeAliasMap(aliasRows ?? []); const masterList = masters ?? [];
   const rawSegments = extractSegments(fullText); const fallback = rawSegments.length ? rawSegments : (fullText.match(/(?:รายการสินค้า|สินค้า)\s*[:：]?\s*([^\n]+)/i)?.[1] ? [RegExp.$1] : []); const segments = fallback.length ? fallback : [];
   const items = segments.map((raw, index) => { const qty = quantityOf(raw); const found = matchItem(raw, aliases, masterList); const p = found.master; return { line_no: index + 1, raw_product_text: raw, raw_item_text: raw, raw_product_text_norm: norm(cleanProduct(raw)), sku: text(p?.sku), product_id: p?.id ?? null, product_name: text(p?.product_name ?? p?.th_name ?? p?.label_display), th_name: text(p?.th_name ?? p?.product_name), label_display: text(p?.label_display ?? p?.display_for_packer ?? p?.name_standard), display_for_packer: text(p?.display_for_packer ?? p?.label_display ?? p?.product_name ?? raw), quantity: qty, extracted_qty: qty, unit_price: number(p?.unit_price ?? p?.price), expected_cod: p && number(p.unit_price ?? p.price) != null ? qty * Number(p.unit_price ?? p.price) : null, mapping_status: p ? "MATCHED" : "REVIEW", match_status: p ? "MATCHED" : "REVIEW", match_confidence: found.confidence, match_method: found.method, candidate_skus: p?.sku ? [{ sku: p.sku, confidence: found.confidence, method: found.method }] : [], source_payload_item: { raw_text: raw, alias_source: p?.sku ? "product_map_master/product_master" : "UNMATCHED" } }; });

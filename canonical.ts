@@ -56,7 +56,7 @@ export function getSupabaseConfig(camp: Camp = getActiveCamp(), project: Supabas
       }
     }
   } catch { /* invalid local value; try deployment defaults */ }
-  const url = String(urlOverride ?? "").trim().replace(/\/$/, "") || (project === "tracking" ? DEPLOYMENT_TRACKING_URL : project === "chat" ? DEPLOYMENT_CHAT_URL || DEPLOYMENT_TRACKING_URL : project === "parcel" ? DEPLOYMENT_PARCEL_URL || DEPLOYMENT_TRACKING_URL : DEPLOYMENT_SUPABASE_URL);
+  const url = String(urlOverride ?? "").trim().replace(/\/$/, "") || (project === "tracking" ? DEPLOYMENT_TRACKING_URL : project === "chat" ? DEPLOYMENT_CHAT_URL : project === "parcel" ? DEPLOYMENT_PARCEL_URL || DEPLOYMENT_TRACKING_URL : DEPLOYMENT_SUPABASE_URL);
   const anonKey = project === "tracking" ? DEPLOYMENT_TRACKING_ANON_KEY : project === "chat" ? DEPLOYMENT_CHAT_ANON_KEY || DEPLOYMENT_TRACKING_ANON_KEY : project === "parcel" ? DEPLOYMENT_PARCEL_ANON_KEY || DEPLOYMENT_TRACKING_ANON_KEY : DEPLOYMENT_SUPABASE_ANON_KEY;
   return url && anonKey ? { url, anonKey, orderTable: project === "main" ? defaultOrderView(camp) : undefined } : null;
 }
@@ -83,8 +83,8 @@ export function subscribeToChatMessages(onChange: () => void) {
   if (!api) return () => undefined;
   const channel = api
     .channel(`chat-live-${getActiveCamp().toLowerCase()}`)
-    .on("postgres_changes", { event: "*", schema: "public", table: "chat_customer_messages" }, onChange)
-    .on("postgres_changes", { event: "*", schema: "public", table: "chat_page_messages" }, onChange)
+    .on("postgres_changes", { event: "*", schema: "public", table: "Cust_Chat⭐BINARY_xXx_STAR" }, onChange)
+    .on("postgres_changes", { event: "*", schema: "public", table: "Pg_Chat⭐BINARY_xXx_STAR" }, onChange)
     .subscribe();
   return () => { void api.removeChannel(channel); };
 }
@@ -612,15 +612,15 @@ async function readChatRows() {
   // the oldest rows once a chat table grows beyond the limit.
   const cutoff = chatHistoryCutoff();
   const [customerResult, pageResult] = await Promise.all([
-    api.from("chat_customer_messages").select("*").gte("occurred_at", cutoff).order("occurred_at", { ascending: false }).limit(10000),
-    api.from("chat_page_messages").select("*").gte("occurred_at", cutoff).order("occurred_at", { ascending: false }).limit(10000),
+    api.from("Cust_Chat⭐BINARY_xXx_STAR").select("*").gte("occurred_at", cutoff).order("occurred_at", { ascending: false }).limit(10000),
+    api.from("Pg_Chat⭐BINARY_xXx_STAR").select("*").gte("occurred_at", cutoff).order("occurred_at", { ascending: false }).limit(10000),
   ]);
   if (customerResult.error) fail(customerResult.error);
   const customers = customerResult.data ?? [];
   const pages = pageResult.error ? [] : (pageResult.data ?? []);
   const rows = [
-    ...customers.map((r: any) => ({ ...r, _speaker: r.speaker_type || r.speaker || "customer", _side: r.side || "left", _name: r.customer_name || r.sender_name, _text: asText(r.message_text ?? r.message_raw), _thread: r.thread_id || r.conversation_key || r.conversation_id, _occurred: r.occurred_at || r.time || r.created_at, _hasAttachment: hasChatAttachment(r) })),
-    ...pages.map((r: any) => ({ ...r, _speaker: r.speaker_type || r.speaker || "page", _side: r.side || "right", _name: r.page_sender_name || r.sender_name, _text: asText(r.message_text ?? r.message_raw), _thread: r.thread_id || r.conversation_key || r.conversation_id, _occurred: r.occurred_at || r.time || r.created_at, _hasAttachment: hasChatAttachment(r) })),
+    ...customers.map((r: any) => ({ ...r, _speaker: r.speaker_type || r.speaker || "customer", _side: r.side || "left", _name: r.customer_name || r.sender_name, _text: asText(r.message_text), _thread: r.thread_id || r.conversation_key || r.conversation_id, _occurred: r.occurred_at || r.time || r.created_at, _hasAttachment: hasChatAttachment(r) })),
+    ...pages.map((r: any) => ({ ...r, _speaker: r.speaker_type || r.speaker || "page", _side: r.side || "right", _name: r.page_sender_name || r.sender_name, _text: asText(r.message_text), _thread: r.thread_id || r.conversation_key || r.conversation_id, _occurred: r.occurred_at || r.time || r.created_at, _hasAttachment: hasChatAttachment(r) })),
   ];
   return rows.sort((a, b) => new Date(a._occurred || a.occurred_at || a.synced_at || 0).getTime() - new Date(b._occurred || b.occurred_at || b.synced_at || 0).getTime());
 }
