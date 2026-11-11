@@ -1,0 +1,145 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "useCustomSchema": true,
+        "operation": "update",
+        "tableId": "chat_customer_messages",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "chat_link_key",
+              "condition": "eq",
+              "keyValue": "={{ $json.chat_link_key }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "upsert_key",
+              "fieldValue": "={{ $json.upsert_key }}"
+            },
+            {
+              "fieldId": "chat_link_key",
+              "fieldValue": "={{ $json.chat_link_key }}"
+            },
+            {
+              "fieldId": "page_id",
+              "fieldValue": "={{ $json.page_id }}"
+            },
+            {
+              "fieldId": "thread_id",
+              "fieldValue": "={{ $json.thread_id || $json.threadId || null }}"
+            },
+            {
+              "fieldId": "order_number",
+              "fieldValue": "={{ $json.order_number }}"
+            },
+            {
+              "fieldId": "order_time",
+              "fieldValue": "={{ $json.order_time }}"
+            },
+            {
+              "fieldId": "order_time_display",
+              "fieldValue": "={{ $json.order_time_display }}"
+            },
+            {
+              "fieldId": "cod_amount",
+              "fieldValue": "={{ $json.cod_amount == null ? null : String($json.cod_amount) }}"
+            },
+            {
+              "fieldId": "page_name",
+              "fieldValue": "={{ $json.page_name }}"
+            },
+            {
+              "fieldId": "customer_name",
+              "fieldValue": "={{ $json.customer_name }}"
+            },
+            {
+              "fieldId": "phone",
+              "fieldValue": "={{ $json.phone || $json.extracted_phone || null }}"
+            },
+            {
+              "fieldId": "recipient_id",
+              "fieldValue": "={{ $json.recipient_id }}"
+            },
+            {
+              "fieldId": "pager_message_time_th",
+              "fieldValue": "={{ $json.pager_message_time_th }}"
+            },
+            {
+              "fieldId": "page_latest_message",
+              "fieldValue": "={{ $json.page_latest_message }}"
+            },
+            {
+              "fieldId": "customer_message_time_th",
+              "fieldValue": "={{ $json.customer_message_time_th }}"
+            },
+            {
+              "fieldId": "customer_latest_message",
+              "fieldValue": "={{ $json.customer_latest_message }}"
+            },
+            {
+              "fieldId": "message_id",
+              "fieldValue": "={{ $json.message_id }}"
+            },
+            {
+              "fieldId": "manus_for_packer",
+              "fieldValue": "={{ $json.manus_for_packer }}"
+            },
+            {
+              "fieldId": "facebook_name",
+              "fieldValue": "={{ $json.facebook_name }}"
+            },
+            {
+              "fieldId": "shipping_carrier",
+              "fieldValue": "={{ $json.shipping_carrier }}"
+            },
+            {
+              "fieldId": "tracking_number",
+              "fieldValue": "={{ $json.tracking_number || $json.admin_tracking_number || null }}"
+            },
+            {
+              "fieldId": "facebook_tracking_message",
+              "fieldValue": "={{ $json.facebook_tracking_message }}"
+            },
+            {
+              "fieldId": "drakside_tracking_message",
+              "fieldValue": "={{ $json.drakside_tracking_message }}"
+            },
+            {
+              "fieldId": "delivery_status",
+              "fieldValue": "={{ $json.delivery_status }}"
+            },
+            {
+              "fieldId": "sent_at",
+              "fieldValue": "={{ $now.toISO() }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        912,
+        3216
+      ],
+      "id": "9c7e7f57-1cf3-4d00-8f8c-c8f28d8276ab",
+      "name": "🧧FB_TRACKING_TODAY4",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "nbhMJ5GaTKajhUId",
+          "name": "🧮BB_CHAT"
+        }
+      },
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {},
+  "pinData": {},
+  "meta": {
+    "instanceId": "f4fcccb61c84d5d75854e90735e6c1d4dc7f96a459bba4b39bf25fd07d0f4e26"
+  }
+}
