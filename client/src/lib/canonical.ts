@@ -612,6 +612,7 @@ export function mapChatRowsToThreads(sourceRows: any[]) {
       pageLatestMessage: row.page_latest_message || null, pageMessageTimeTh: row.page_message_time_th || null,
       pagerMessageTimeTh: row.pager_message_time_th || null,
       upsert_key: row.upsert_key || null, order_number: row.order_number || null,
+      is_sent: row.is_sent === true || row.is_sent === "true",
       order_number_display: row.order_number_display || null, order_time: row.order_time || null,
       order_time_display: row.order_time_display || null, cod_amount: row.cod_amount ?? null,
       facebook_name: row.facebook_name || null, manus_for_packer: row.manus_for_packer || null,
@@ -624,6 +625,7 @@ export function mapChatRowsToThreads(sourceRows: any[]) {
     current.portalKey ||= row.portal_key || null;
     current.chatLinkKey ||= row.chat_link_key || null;
     current.customerName = row.customer_name || row.facebook_name || row.recipient_name || (current.customerName === "ลูกค้า" ? row._name : current.customerName) || current.customerName;
+    current.is_sent ||= row.is_sent === true || row.is_sent === "true";
     for (const [source, target] of [
       ["customer_latest_message", "customerLatestMessage"], ["customer_message_time_th", "customerMessageTimeTh"],
       ["page_latest_message", "pageLatestMessage"], ["page_message_time_th", "pageMessageTimeTh"],
