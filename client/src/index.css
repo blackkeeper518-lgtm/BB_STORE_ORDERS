@@ -821,14 +821,29 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .room-list-card:hover { border-color:rgba(255,91,210,.42); box-shadow:inset 3px 0 #ff58cc,0 0 18px rgba(184,66,255,.14); transform:translateX(2px); }
 .room-list-card--signal { border-color:rgba(255,74,204,.48); box-shadow:inset 3px 0 #ff4fc8,0 0 16px rgba(255,35,181,.16),0 0 28px rgba(120,54,255,.08); }
 .room-list-card--signal::after { opacity:.9; background:linear-gradient(90deg,transparent,#ff74d7,#fff1fc,#ff42bf,transparent); box-shadow:0 0 8px #ff54ca; }
-.room-list-card--order-signal { border-color:rgba(89,227,0,.72); box-shadow:inset 4px 0 #59e300,0 0 12px rgba(89,227,0,.24),0 0 26px rgba(76,217,0,.12); }
-.room-list-card--order-signal::after { opacity:.95; background:linear-gradient(90deg,transparent,#59e300,#d8ffb8,#4cd900,transparent); box-shadow:0 0 9px #59e300; }
-.cod-room-sign--order { border-color:#baff8f !important; background:rgba(89,227,0,.28) !important; color:#edffd9 !important; text-shadow:0 0 3px #fff,0 0 8px #aaff70; box-shadow:0 0 4px #fff,0 0 10px #8cff4a,0 0 22px rgba(89,227,0,.72) !important; }
-.order-signal-tools { position:relative; isolation:isolate; border-color:rgba(255,81,207,.28) !important; background:linear-gradient(160deg,rgba(24,8,39,.96),rgba(8,18,31,.96) 58%,rgba(30,7,32,.92)) !important; box-shadow:inset 1px 0 rgba(255,92,207,.45),inset 0 0 28px rgba(113,44,178,.12),-12px 0 30px rgba(81,36,133,.12) !important; }
-.order-signal-tools::before { content:""; position:absolute; z-index:0; top:0; bottom:0; left:0; width:2px; background:linear-gradient(#57efff,#ff57cf,#a66bff,#57efff); box-shadow:0 0 10px #ff57cf; animation:tools-spine 3.4s linear infinite; }
-.order-signal-tools::after { content:""; position:absolute; z-index:0; inset:0; pointer-events:none; background:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.018) 1px,transparent 1px); background-size:100% 18px,18px 100%; mask-image:linear-gradient(90deg,rgba(0,0,0,.65),transparent 92%); }
-.order-signal-tools > * { position:relative; z-index:1; }
-@keyframes tools-spine { 0%,100% { filter:brightness(.75); } 45% { filter:brightness(1.5); } 55% { filter:brightness(.9); } }
+/* F03 Dual Spectrum from แบบขอบการ์ดปุ่ม.css: one static cyan-purple-magenta frame for the tools panel. */
+.chat-tools-panel { border:1px solid transparent !important; background:linear-gradient(rgba(8,13,29,.97),rgba(8,13,29,.97)) padding-box,linear-gradient(120deg,#00E5FF,#A500FF,#FF00D9) border-box !important; box-shadow:0 10px 28px rgba(0,0,0,.3),0 0 14px rgba(0,229,255,.08),0 0 14px rgba(255,0,217,.05) !important; }
+.chat-tool-action { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:31px; border:1px solid rgba(0,229,255,.22) !important; border-radius:10px !important; background:rgba(16,35,58,.52) !important; color:#E8F7FF !important; font-size:10px !important; font-weight:600; line-height:1; transition:background .18s,border-color .18s,box-shadow .18s,color .18s; }
+.chat-tool-action:hover:not(:disabled) { border-color:rgba(0,229,255,.62) !important; background:rgba(0,229,255,.08) !important; box-shadow:0 0 12px rgba(0,229,255,.14); color:#fff !important; }
+.chat-tool-action--primary { border-color:rgba(0,229,255,.42) !important; background:rgba(0,140,255,.14) !important; }
+.chat-tool-action--active { border-color:rgba(255,56,232,.58) !important; background:rgba(255,0,217,.14) !important; box-shadow:inset 0 0 10px rgba(255,0,217,.08),0 0 10px rgba(255,0,217,.12); color:#fff !important; }
+.chat-tool-action--filter { min-height:30px; padding:0 10px !important; }
+.chat-tool-action--icon { width:32px; height:32px; min-height:32px; padding:0 !important; }
+.chat-tool-action:disabled { cursor:not-allowed; opacity:.38 !important; }
+.chat-tool-action:focus-visible,.chat-tool-copy-row:focus-visible { outline:2px solid #FF38E8; outline-offset:2px; }
+.chat-tools-section-title { color:#91A9C2; font-size:9px; font-weight:700; letter-spacing:.12em; }
+.chat-tools-section-tag { border:1px solid rgba(255,56,232,.2); border-radius:999px; background:rgba(255,0,217,.06); padding:2px 7px; color:#dda9d8; font-size:8px; }
+.chat-tools-item { border:1px solid rgba(0,229,255,.14); border-radius:12px; background:rgba(16,35,58,.28); padding:10px; }
+.chat-tools-empty { border:1px dashed rgba(0,229,255,.16); border-radius:10px; padding:10px; color:rgba(145,169,194,.65); font-size:10px; text-align:center; }
+.chat-tool-copy-row { display:flex; width:100%; min-width:0; align-items:center; gap:8px; border:1px solid rgba(0,229,255,.14); border-radius:10px; background:rgba(16,35,58,.28); padding:7px 9px; text-align:left; transition:background .18s,border-color .18s; }
+.chat-tool-copy-row:hover:not(:disabled) { border-color:rgba(0,229,255,.5); background:rgba(0,229,255,.06); }
+.chat-tool-copy-row:disabled { cursor:not-allowed; opacity:.45; }
+.chat-tool-copy-row--copied { border-color:rgba(140,255,0,.42); background:rgba(140,255,0,.07); }
+.chat-tool-copy-row__label { display:block; color:#91A9C2; font-size:9px; }
+.chat-tool-copy-row__value { display:block; max-width:205px; overflow:hidden; margin-top:2px; color:#E8F7FF; font:600 11px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace; text-overflow:ellipsis; white-space:nowrap; }
+.chat-tool-copy-row__action { flex-shrink:0; color:#91A9C2; font-size:9px; font-weight:600; }
+.chat-tool-copy-row__action.is-copied { color:#8CFF00; }
+@media (prefers-reduced-motion:reduce) { .chat-tool-action,.chat-tool-copy-row { transition:none; } }
 /* keep the page picker useful, but make it a quiet selector rather than the hero */
 .page-holo-label { min-height:30px; padding-inline:9px !important; border-radius:9px !important; background:rgba(28,15,45,.82) !important; box-shadow:inset 2px 0 rgba(255,77,202,.38),0 0 0 rgba(255,20,170,0) !important; }
 .page-holo-label::before { inset:0; border:1px solid rgba(255,124,221,.28); border-radius:9px; box-shadow:none; opacity:.7; }
@@ -868,7 +883,9 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 /* CHAT ROOM RECOVERY — bring back pink neon room/customer labels and visible page-order ticker. */
 .chat-cosmos-composer--open { height:min(320px,42vh); min-height:min(230px,42vh); max-height:42vh; }
 .chat-room-code-label { position:relative; display:inline-flex; align-items:center; border-color:rgba(255,156,225,.62) !important; background:rgba(121,15,81,.34) !important; color:#ffe7f7 !important; text-shadow:0 0 3px #fff,0 0 8px rgba(255,128,218,.9); box-shadow:0 0 7px rgba(255,60,190,.38),inset 0 0 8px rgba(255,78,195,.12); }
-.time-slot-room-sign { border-color:#ffd46a !important; background:rgba(139,83,0,.38) !important; color:#fff5d7 !important; text-shadow:0 0 3px #fff,0 0 9px rgba(255,207,93,.95); box-shadow:0 0 6px rgba(255,210,89,.9),0 0 18px rgba(255,171,39,.72),inset 0 0 8px rgba(255,205,89,.22) !important; }
+.time-slot-room-sign { border-color:rgba(140,255,0,.72) !important; background:rgba(72,110,0,.22) !important; color:#DFFFBE !important; text-shadow:0 0 3px #fff,0 0 8px rgba(140,255,0,.7); box-shadow:0 0 5px rgba(140,255,0,.45),0 0 12px rgba(140,255,0,.22),inset 0 0 7px rgba(140,255,0,.12) !important; }
+.chat-room-code-label.cod-room-sign--order { border-color:#8CFF00 !important; background:rgba(140,255,0,.22) !important; color:#E8FFD0 !important; text-shadow:0 0 3px #fff,0 0 9px rgba(140,255,0,.98); box-shadow:0 0 4px rgba(255,255,255,.72),0 0 11px rgba(140,255,0,.96),0 0 22px rgba(140,255,0,.62),inset 0 0 8px rgba(140,255,0,.25) !important; animation:cod-lime-badge-pulse 2.2s ease-in-out infinite; }
+@keyframes cod-lime-badge-pulse { 0%,100% { filter:brightness(1); } 50% { filter:brightness(1.18); } }
 .chat-customer-name-label { display:inline-flex; width:fit-content; max-width:100%; margin-top:.3rem; padding:.13rem .58rem; border:1px solid rgba(255,142,220,.58); border-radius:.62rem; background:linear-gradient(90deg,rgba(115,12,76,.4),rgba(42,14,46,.55)); color:#fff2fb; text-shadow:0 0 3px #fff,0 0 9px rgba(255,105,211,.8); box-shadow:0 0 8px rgba(255,45,180,.32),inset 0 0 9px rgba(255,90,204,.12); }
 .chat-customer-list-label { color:#fff0fa; text-shadow:0 0 4px rgba(255,255,255,.55),0 0 10px rgba(255,78,194,.62); }
 .chat-page-name-label { color:#ffc6eb; text-shadow:0 0 6px rgba(255,86,201,.72); }
