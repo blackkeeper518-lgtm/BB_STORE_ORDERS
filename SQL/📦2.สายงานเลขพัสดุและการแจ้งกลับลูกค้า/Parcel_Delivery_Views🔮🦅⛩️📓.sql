@@ -135,7 +135,9 @@ select
   pcl.id as parcel_row_id,
   pcl.pickup_date,
   pcl.delivery_status,
+  pcl.delivery_status as parcel_delivery_status,
   pcl.sent_at,
+  pcl.sent_at as parcel_sent_at,
   ord.page_name,
   ord.portal_key,
   ord.facebook_name,
@@ -203,6 +205,17 @@ where
       'COMPLETED'::text
     ]
   )
+  and upper(btrim(COALESCE(pcl.delivery_status, ''::text))) <> all (
+    ARRAY[
+      'SENT'::text,
+      'DELIVERED'::text,
+      '🔥SENT'::text,
+      '⚡SENT'::text,
+      'SENT_TO_TELEGRAM'::text,
+      'SUCCESS'::text,
+      'COMPLETED'::text
+    ]
+  )
   and not (
     COALESCE(ord.page_latest_message, ''::text) ~~* '%แจ้งเลขพัสดุจัดส่ง%'::text
     or COALESCE(ord.page_latest_message, ''::text) ~~* '%เลขพัสดุจะเริ่มเช็คสถานะ%'::text
@@ -232,7 +245,9 @@ select
   pcl.id as parcel_row_id,
   pcl.pickup_date,
   pcl.delivery_status,
+  pcl.delivery_status as parcel_delivery_status,
   pcl.sent_at,
+  pcl.sent_at as parcel_sent_at,
   ord.page_name,
   ord.portal_key,
   ord.facebook_name,
@@ -306,6 +321,17 @@ where
       'COMPLETED'::text
     ]
   )
+  and upper(btrim(COALESCE(pcl.delivery_status, ''::text))) <> all (
+    ARRAY[
+      'SENT'::text,
+      'DELIVERED'::text,
+      '🔥SENT'::text,
+      '⚡SENT'::text,
+      'SENT_TO_TELEGRAM'::text,
+      'SUCCESS'::text,
+      'COMPLETED'::text
+    ]
+  )
   and not (
     COALESCE(ord.page_latest_message, ''::text) ~~* '%แจ้งเลขพัสดุจัดส่ง%'::text
     or COALESCE(ord.page_latest_message, ''::text) ~~* '%เลขพัสดุจะเริ่มเช็คสถานะ%'::text
@@ -335,7 +361,9 @@ select
   pcl.id as parcel_row_id,
   pcl.pickup_date,
   pcl.delivery_status,
+  pcl.delivery_status as parcel_delivery_status,
   pcl.sent_at,
+  pcl.sent_at as parcel_sent_at,
   ord.page_name,
   ord.portal_key,
   ord.facebook_name,
@@ -399,6 +427,17 @@ where
       )
   )
   and upper(btrim(COALESCE(ord.parcel_status_emoji, ''::text))) <> all (
+    ARRAY[
+      'SENT'::text,
+      'DELIVERED'::text,
+      '🔥SENT'::text,
+      '⚡SENT'::text,
+      'SENT_TO_TELEGRAM'::text,
+      'SUCCESS'::text,
+      'COMPLETED'::text
+    ]
+  )
+  and upper(btrim(COALESCE(pcl.delivery_status, ''::text))) <> all (
     ARRAY[
       'SENT'::text,
       'DELIVERED'::text,
@@ -537,7 +576,9 @@ select
   parcel.cod_amount as parcel_cod_amount,
   parcel.address as parcel_address,
   parcel.delivery_status,
+  parcel.delivery_status as parcel_delivery_status,
   parcel.sent_at,
+  parcel.sent_at as parcel_sent_at,
   ord.upsert_key,
   ord.page_id,
   ord."threadId",
