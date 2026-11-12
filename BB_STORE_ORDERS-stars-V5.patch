@@ -1,798 +1,171 @@
-From 0c4ba540da3e9eb301308a403c4597bc099d8f8d Mon Sep 17 00:00:00 2001
-From: Manus <dev-agent@manus.ai>
-Date: Sat, 7 Nov 2026 13:21:36 +0000
-Subject: [PATCH] =?UTF-8?q?=E2=AD=90=E2=AD=90=E2=AD=90V5?=
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
-
----
- client/src/index.css               |  31 +-
- client/src/pages/ScriptAtelier.tsx | 674 +++++++++++++++++++++++++----
- 2 files changed, 607 insertions(+), 98 deletions(-)
-
 diff --git a/client/src/index.css b/client/src/index.css
-index 903824d..02db57c 100644
+index 263bc05..c260f9e 100644
 --- a/client/src/index.css
 +++ b/client/src/index.css
-@@ -184,17 +184,21 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
- .script-select,.script-field select { border:1px solid rgba(190,116,255,.2); border-radius:.7rem; padding:.62rem .75rem; background:#160b24; color:#f5dfff; }
- .script-card-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),1fr)); gap:1rem; }
- .script-card { position:relative; overflow:hidden; border:1px solid rgba(198,120,255,.18); border-radius:1.35rem; background:linear-gradient(145deg,rgba(25,10,40,.95),rgba(12,8,24,.94)); box-shadow:0 0 0 1px rgba(255,88,211,.02),0 16px 45px rgba(0,0,0,.25); transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease; }
--.script-card:hover { transform:translateY(-5px); border-color:rgba(255,109,220,.48); box-shadow:0 0 24px rgba(239,78,220,.2),0 18px 55px rgba(0,0,0,.4); }
--.script-card-cover { position:relative; display:grid; min-height:170px; place-items:center; overflow:hidden; background:radial-gradient(circle at 50% 20%,rgba(255,86,210,.22),transparent 38%),linear-gradient(135deg,#1a0a2c,#0c1225); }
--.script-card-cover img { width:100%; height:100%; min-height:170px; object-fit:cover; opacity:.88; }
-+.script-card:hover { transform:translateY(-4px); border-color:rgba(255,109,220,.48); box-shadow:0 0 24px rgba(239,78,220,.2),0 18px 55px rgba(0,0,0,.4); }
-+.script-card-cover { position:relative; display:grid; min-height:190px; place-items:center; overflow:hidden; background:radial-gradient(circle at 50% 20%,rgba(255,86,210,.22),transparent 38%),linear-gradient(135deg,#1a0a2c,#0c1225); }
-+.script-card-cover-action { position:relative; display:grid; width:100%; min-height:190px; place-items:center; overflow:hidden; border:0; padding:0; background:transparent; color:inherit; }
-+.script-card-cover-action img { display:block; width:100%; height:190px; object-fit:cover; opacity:.9; transition:transform .25s ease,opacity .25s ease; }
-+.script-card-cover-action:hover img { transform:scale(1.035); opacity:1; }
-+.script-cover-hint { position:absolute; bottom:.7rem; left:.7rem; display:inline-flex; align-items:center; gap:.35rem; border:1px solid rgba(255,150,232,.28); border-radius:999px; padding:.35rem .55rem; background:rgba(8,4,16,.72); color:#ffe4f7; font-size:.68rem; backdrop-filter:blur(8px); }
- .script-card-orbit { display:grid; width:94px; height:94px; place-items:center; border:1px solid rgba(255,117,224,.6); border-radius:50%; color:#ff9ce8; box-shadow:0 0 18px #f552c9,0 0 60px rgba(175,77,255,.5),inset 0 0 24px rgba(255,78,209,.25); animation:atelier-orbit 7s linear infinite; }
- @keyframes atelier-orbit { to { transform:rotate(360deg); } }
--.script-status { position:absolute; right:.75rem; top:.75rem; border:1px solid currentColor; border-radius:999px; padding:.28rem .55rem; background:rgba(8,4,16,.74); font:600 9px/1 'IBM Plex Mono',monospace; letter-spacing:.12em; }
-+.script-status { position:absolute; right:.75rem; top:.75rem; border:1px solid currentColor; border-radius:999px; padding:.28rem .55rem; background:rgba(8,4,16,.74); font:600 9px/1 'IBM Plex Mono',monospace; letter-spacing:.12em; pointer-events:none; }
- .script-status-draft { color:#ffc867; }.script-status-active { color:#72ffc4; }.script-status-archived { color:#b99ecb; }
-+.script-card-open { display:block; width:100%; border:0; padding:1rem 1rem .6rem; background:transparent; text-align:left; }
-+.script-card-open:focus-visible,.script-card-cover-action:focus-visible,.script-card-copy:focus-visible,.script-editor-image:focus-visible { outline:2px solid #ff8bdd; outline-offset:-3px; }
-+.script-card-copy { display:inline-flex; align-items:center; gap:.35rem; border:0; border-radius:999px; padding:.3rem .55rem; background:rgba(255,91,211,.07); color:#f7c4ea; }
-+.script-card-copy:hover { background:rgba(255,91,211,.17); color:#fff; }
- .script-empty { display:flex; min-height:280px; flex-direction:column; align-items:center; justify-content:center; gap:1rem; border:1px dashed rgba(206,119,255,.26); border-radius:1.5rem; color:rgba(249,224,255,.58); }
--.script-drawer-backdrop { position:fixed; z-index:70; inset:0; border:0; background:rgba(3,1,8,.62); backdrop-filter:blur(4px); }
--.script-drawer { position:fixed; z-index:71; top:0; right:0; display:flex; width:min(650px,100vw); height:100dvh; flex-direction:column; border-left:1px solid rgba(255,105,220,.3); background:linear-gradient(160deg,rgba(26,8,43,.98),rgba(8,7,20,.99) 65%); box-shadow:-18px 0 60px rgba(0,0,0,.5),-4px 0 28px rgba(218,75,235,.12); animation:atelier-drawer-in .24s ease-out; }
--@keyframes atelier-drawer-in { from { transform:translateX(100%); opacity:.4; } to { transform:translateX(0); opacity:1; } }
- .script-icon-button { display:grid; width:2.1rem; height:2.1rem; place-items:center; border:1px solid rgba(255,126,222,.25); border-radius:.7rem; color:#ffd2f2; background:rgba(255,83,205,.08); }
- .script-icon-button:hover { background:rgba(255,83,205,.2); }
- .script-field { display:flex; flex-direction:column; gap:.45rem; color:#eeb5e5; font-size:.72rem; font-weight:600; letter-spacing:.06em; }
-@@ -202,22 +206,15 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
- .script-field input:focus,.script-field textarea:focus,.script-field select:focus { border-color:rgba(255,105,220,.7); box-shadow:0 0 0 3px rgba(255,88,211,.1); }
- .script-field textarea { min-height:88px; resize:vertical; line-height:1.65; }
- .script-editor { min-height:340px !important; white-space:pre-wrap; }
--.script-reader { white-space:pre-wrap; overflow-wrap:anywhere; border-left:2px solid rgba(255,89,211,.55); padding:1rem 0 1rem 1rem; color:#fff2fb; font-size:.98rem; line-height:1.85; text-shadow:0 0 10px rgba(255,87,211,.08); }
--@media (max-width:640px) { .script-drawer { width:100vw; } .script-atelier-hero h1 { font-size:2rem; } .script-search { min-width:100%; } }
--.script-sku-suggestions { position:absolute; z-index:10; top:calc(100% + .35rem); left:0; right:0; max-height:260px; overflow:auto; border:1px solid rgba(255,105,220,.35); border-radius:.8rem; background:#160b24; box-shadow:0 16px 35px rgba(0,0,0,.45),0 0 20px rgba(226,68,216,.14); }
--.script-sku-option { display:flex; width:100%; align-items:center; gap:.65rem; padding:.65rem .75rem; text-align:left; color:#fff; }
--.script-sku-option:hover { background:rgba(255,82,211,.14); }
--.script-sku-option b { display:block; color:#ffe2f7; font:600 .78rem/1.2 'IBM Plex Mono',monospace; }
--.script-sku-option small { display:block; margin-top:.2rem; color:rgba(255,223,249,.58); font-size:.72rem; }
--.script-sku-emoji { display:grid; width:1.8rem; height:1.8rem; flex:none; place-items:center; border-radius:.55rem; background:rgba(255,93,215,.1); }
--.script-sku-empty { padding:.8rem; color:rgba(255,223,249,.55); font-size:.76rem; }
--.script-field-hint { color:rgba(255,213,245,.42); font-size:.68rem; font-weight:400; letter-spacing:0; line-height:1.5; }
-+.script-editor-dialog { box-shadow:0 0 60px rgba(201,60,230,.2),0 24px 90px rgba(0,0,0,.6); }
-+.script-editor-image { display:block; width:100%; border:0; padding:0; background:transparent; }
- .script-dropzone { display:flex; min-height:92px; align-items:center; gap:.75rem; border:1px dashed rgba(89,224,255,.35); border-radius:1rem; padding:.9rem; background:rgba(38,200,255,.035); color:#a9f4ff; transition:border-color .2s,background .2s,box-shadow .2s; }
- .script-dropzone > div { min-width:0; flex:1; }
- .script-dropzone b,.script-dropzone small { display:block; }
- .script-dropzone b { font-size:.78rem; }
- .script-dropzone small { margin-top:.25rem; color:rgba(190,246,255,.5); font-size:.68rem; font-weight:400; }
- .script-dropzone.is-dragging { border-color:#ff8bdc; background:rgba(255,83,211,.12); box-shadow:0 0 24px rgba(255,83,211,.2); color:#ffd1f2; }
-+@media (max-width:640px) { .script-atelier-hero h1 { font-size:2rem; } .script-search { min-width:100%; } .script-dropzone { flex-wrap:wrap; } }
+@@ -821,14 +821,29 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
+ .room-list-card:hover { border-color:rgba(255,91,210,.42); box-shadow:inset 3px 0 #ff58cc,0 0 18px rgba(184,66,255,.14); transform:translateX(2px); }
+ .room-list-card--signal { border-color:rgba(255,74,204,.48); box-shadow:inset 3px 0 #ff4fc8,0 0 16px rgba(255,35,181,.16),0 0 28px rgba(120,54,255,.08); }
+ .room-list-card--signal::after { opacity:.9; background:linear-gradient(90deg,transparent,#ff74d7,#fff1fc,#ff42bf,transparent); box-shadow:0 0 8px #ff54ca; }
+-.room-list-card--order-signal { border-color:rgba(89,227,0,.72); box-shadow:inset 4px 0 #59e300,0 0 12px rgba(89,227,0,.24),0 0 26px rgba(76,217,0,.12); }
+-.room-list-card--order-signal::after { opacity:.95; background:linear-gradient(90deg,transparent,#59e300,#d8ffb8,#4cd900,transparent); box-shadow:0 0 9px #59e300; }
+-.cod-room-sign--order { border-color:#baff8f !important; background:rgba(89,227,0,.28) !important; color:#edffd9 !important; text-shadow:0 0 3px #fff,0 0 8px #aaff70; box-shadow:0 0 4px #fff,0 0 10px #8cff4a,0 0 22px rgba(89,227,0,.72) !important; }
+-.order-signal-tools { position:relative; isolation:isolate; border-color:rgba(255,81,207,.28) !important; background:linear-gradient(160deg,rgba(24,8,39,.96),rgba(8,18,31,.96) 58%,rgba(30,7,32,.92)) !important; box-shadow:inset 1px 0 rgba(255,92,207,.45),inset 0 0 28px rgba(113,44,178,.12),-12px 0 30px rgba(81,36,133,.12) !important; }
+-.order-signal-tools::before { content:""; position:absolute; z-index:0; top:0; bottom:0; left:0; width:2px; background:linear-gradient(#57efff,#ff57cf,#a66bff,#57efff); box-shadow:0 0 10px #ff57cf; animation:tools-spine 3.4s linear infinite; }
+-.order-signal-tools::after { content:""; position:absolute; z-index:0; inset:0; pointer-events:none; background:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.018) 1px,transparent 1px); background-size:100% 18px,18px 100%; mask-image:linear-gradient(90deg,rgba(0,0,0,.65),transparent 92%); }
+-.order-signal-tools > * { position:relative; z-index:1; }
+-@keyframes tools-spine { 0%,100% { filter:brightness(.75); } 45% { filter:brightness(1.5); } 55% { filter:brightness(.9); } }
++/* F03 Dual Spectrum from แบบขอบการ์ดปุ่ม.css: one static cyan-purple-magenta frame for the tools panel. */
++.chat-tools-panel { border:1px solid transparent !important; background:linear-gradient(rgba(8,13,29,.97),rgba(8,13,29,.97)) padding-box,linear-gradient(120deg,#00E5FF,#A500FF,#FF00D9) border-box !important; box-shadow:0 10px 28px rgba(0,0,0,.3),0 0 14px rgba(0,229,255,.08),0 0 14px rgba(255,0,217,.05) !important; }
++.chat-tool-action { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:31px; border:1px solid rgba(0,229,255,.22) !important; border-radius:10px !important; background:rgba(16,35,58,.52) !important; color:#E8F7FF !important; font-size:10px !important; font-weight:600; line-height:1; transition:background .18s,border-color .18s,box-shadow .18s,color .18s; }
++.chat-tool-action:hover:not(:disabled) { border-color:rgba(0,229,255,.62) !important; background:rgba(0,229,255,.08) !important; box-shadow:0 0 12px rgba(0,229,255,.14); color:#fff !important; }
++.chat-tool-action--primary { border-color:rgba(0,229,255,.42) !important; background:rgba(0,140,255,.14) !important; }
++.chat-tool-action--active { border-color:rgba(255,56,232,.58) !important; background:rgba(255,0,217,.14) !important; box-shadow:inset 0 0 10px rgba(255,0,217,.08),0 0 10px rgba(255,0,217,.12); color:#fff !important; }
++.chat-tool-action--filter { min-height:30px; padding:0 10px !important; }
++.chat-tool-action--icon { width:32px; height:32px; min-height:32px; padding:0 !important; }
++.chat-tool-action:disabled { cursor:not-allowed; opacity:.38 !important; }
++.chat-tool-action:focus-visible,.chat-tool-copy-row:focus-visible { outline:2px solid #FF38E8; outline-offset:2px; }
++.chat-tools-section-title { color:#91A9C2; font-size:9px; font-weight:700; letter-spacing:.12em; }
++.chat-tools-section-tag { border:1px solid rgba(255,56,232,.2); border-radius:999px; background:rgba(255,0,217,.06); padding:2px 7px; color:#dda9d8; font-size:8px; }
++.chat-tools-item { border:1px solid rgba(0,229,255,.14); border-radius:12px; background:rgba(16,35,58,.28); padding:10px; }
++.chat-tools-empty { border:1px dashed rgba(0,229,255,.16); border-radius:10px; padding:10px; color:rgba(145,169,194,.65); font-size:10px; text-align:center; }
++.chat-tool-copy-row { display:flex; width:100%; min-width:0; align-items:center; gap:8px; border:1px solid rgba(0,229,255,.14); border-radius:10px; background:rgba(16,35,58,.28); padding:7px 9px; text-align:left; transition:background .18s,border-color .18s; }
++.chat-tool-copy-row:hover:not(:disabled) { border-color:rgba(0,229,255,.5); background:rgba(0,229,255,.06); }
++.chat-tool-copy-row:disabled { cursor:not-allowed; opacity:.45; }
++.chat-tool-copy-row--copied { border-color:rgba(140,255,0,.42); background:rgba(140,255,0,.07); }
++.chat-tool-copy-row__label { display:block; color:#91A9C2; font-size:9px; }
++.chat-tool-copy-row__value { display:block; max-width:205px; overflow:hidden; margin-top:2px; color:#E8F7FF; font:600 11px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace; text-overflow:ellipsis; white-space:nowrap; }
++.chat-tool-copy-row__action { flex-shrink:0; color:#91A9C2; font-size:9px; font-weight:600; }
++.chat-tool-copy-row__action.is-copied { color:#8CFF00; }
++@media (prefers-reduced-motion:reduce) { .chat-tool-action,.chat-tool-copy-row { transition:none; } }
+ /* keep the page picker useful, but make it a quiet selector rather than the hero */
+ .page-holo-label { min-height:30px; padding-inline:9px !important; border-radius:9px !important; background:rgba(28,15,45,.82) !important; box-shadow:inset 2px 0 rgba(255,77,202,.38),0 0 0 rgba(255,20,170,0) !important; }
+ .page-holo-label::before { inset:0; border:1px solid rgba(255,124,221,.28); border-radius:9px; box-shadow:none; opacity:.7; }
+@@ -868,7 +883,9 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
+ /* CHAT ROOM RECOVERY — bring back pink neon room/customer labels and visible page-order ticker. */
+ .chat-cosmos-composer--open { height:min(320px,42vh); min-height:min(230px,42vh); max-height:42vh; }
+ .chat-room-code-label { position:relative; display:inline-flex; align-items:center; border-color:rgba(255,156,225,.62) !important; background:rgba(121,15,81,.34) !important; color:#ffe7f7 !important; text-shadow:0 0 3px #fff,0 0 8px rgba(255,128,218,.9); box-shadow:0 0 7px rgba(255,60,190,.38),inset 0 0 8px rgba(255,78,195,.12); }
+-.time-slot-room-sign { border-color:#ffd46a !important; background:rgba(139,83,0,.38) !important; color:#fff5d7 !important; text-shadow:0 0 3px #fff,0 0 9px rgba(255,207,93,.95); box-shadow:0 0 6px rgba(255,210,89,.9),0 0 18px rgba(255,171,39,.72),inset 0 0 8px rgba(255,205,89,.22) !important; }
++.time-slot-room-sign { border-color:rgba(140,255,0,.72) !important; background:rgba(72,110,0,.22) !important; color:#DFFFBE !important; text-shadow:0 0 3px #fff,0 0 8px rgba(140,255,0,.7); box-shadow:0 0 5px rgba(140,255,0,.45),0 0 12px rgba(140,255,0,.22),inset 0 0 7px rgba(140,255,0,.12) !important; }
++.chat-room-code-label.cod-room-sign--order { border-color:#8CFF00 !important; background:rgba(140,255,0,.22) !important; color:#E8FFD0 !important; text-shadow:0 0 3px #fff,0 0 9px rgba(140,255,0,.98); box-shadow:0 0 4px rgba(255,255,255,.72),0 0 11px rgba(140,255,0,.96),0 0 22px rgba(140,255,0,.62),inset 0 0 8px rgba(140,255,0,.25) !important; animation:cod-lime-badge-pulse 2.2s ease-in-out infinite; }
++@keyframes cod-lime-badge-pulse { 0%,100% { filter:brightness(1); } 50% { filter:brightness(1.18); } }
+ .chat-customer-name-label { display:inline-flex; width:fit-content; max-width:100%; margin-top:.3rem; padding:.13rem .58rem; border:1px solid rgba(255,142,220,.58); border-radius:.62rem; background:linear-gradient(90deg,rgba(115,12,76,.4),rgba(42,14,46,.55)); color:#fff2fb; text-shadow:0 0 3px #fff,0 0 9px rgba(255,105,211,.8); box-shadow:0 0 8px rgba(255,45,180,.32),inset 0 0 9px rgba(255,90,204,.12); }
+ .chat-customer-list-label { color:#fff0fa; text-shadow:0 0 4px rgba(255,255,255,.55),0 0 10px rgba(255,78,194,.62); }
+ .chat-page-name-label { color:#ffc6eb; text-shadow:0 0 6px rgba(255,86,201,.72); }
+diff --git a/client/src/pages/ChatHub.tsx b/client/src/pages/ChatHub.tsx
+index da6e1aa..81b767f 100644
+--- a/client/src/pages/ChatHub.tsx
++++ b/client/src/pages/ChatHub.tsx
+@@ -86,30 +86,14 @@ const quickReplies = [
+   "ขอบคุณค่ะ เดี๋ยวแอดมินรีบเช็กให้ค่ะ",
+ ];
  
- 
- /* DARKSIDE COSMIC SUITE · shared visual language for Orders + System Manual */
-diff --git a/client/src/pages/ScriptAtelier.tsx b/client/src/pages/ScriptAtelier.tsx
-index 88bc8e9..85d704a 100644
---- a/client/src/pages/ScriptAtelier.tsx
-+++ b/client/src/pages/ScriptAtelier.tsx
-@@ -1,12 +1,46 @@
- import { useEffect, useMemo, useRef, useState } from "react";
--import { Copy, FilePlus2, ImagePlus, Loader2, PanelRight, Plus, Save, Search, Sparkles, Trash2, X } from "lucide-react";
-+import type { ChangeEvent, DragEvent } from "react";
-+import {
-+  Copy,
-+  Download,
-+  ExternalLink,
-+  FilePlus2,
-+  ImagePlus,
-+  Loader2,
-+  PanelRight,
-+  Plus,
-+  Save,
-+  Search,
-+  Sparkles,
-+  Trash2,
-+  X,
-+} from "lucide-react";
- import { Button } from "@/components/ui/button";
--import { getSupabase, readStockProducts, type StockProduct } from "@/lib/canonical";
-+import {
-+  Dialog,
-+  DialogContent,
-+  DialogDescription,
-+  DialogHeader,
-+  DialogTitle,
-+} from "@/components/ui/dialog";
-+import {
-+  Sheet,
-+  SheetContent,
-+  SheetDescription,
-+  SheetHeader,
-+  SheetTitle,
-+} from "@/components/ui/sheet";
-+import { getSupabase } from "@/lib/canonical";
-+
-+type ScriptBlock = {
-+  type: "image";
-+  url: string;
-+  path?: string;
-+  caption?: string;
-+};
- 
--type ScriptBlock = { type: "image"; url: string; path?: string; caption?: string };
- type ScriptCard = {
-   id: string;
--  sku: string;
-   title: string;
-   subtitle: string;
-   script_text: string;
-@@ -19,112 +53,590 @@ type ScriptCard = {
-   created_at: string;
- };
- 
--const emptyDraft = (sku = ""): ScriptCard => ({ id: "", sku, title: "", subtitle: "", script_text: "", ai_context: "", ai_instruction: "", blocks_json: [], status: "DRAFT", version: 1, updated_at: "", created_at: "" });
--function errorText(error: unknown) { return error instanceof Error ? error.message : String((error as any)?.message ?? error ?? "เกิดข้อผิดพลาด"); }
--function stockFor(card: ScriptCard, stock: StockProduct[]) { return stock.find(item => item.sku.toLowerCase() === card.sku.toLowerCase()); }
--function copyText(text: string) { void navigator.clipboard?.writeText(text); }
-+type ImageSelection = {
-+  title: string;
-+  images: ScriptBlock[];
-+  index: number;
-+};
-+
-+const SCRIPT_TABLE = "sales_script_cards";
-+const IMAGE_BUCKET = "sales-script-images";
-+const SCRIPT_COLUMNS = "id,title,subtitle,script_text,ai_context,ai_instruction,blocks_json,status,version,updated_at,created_at";
-+
-+const emptyDraft = (): ScriptCard => ({
-+  id: "",
-+  title: "",
-+  subtitle: "",
-+  script_text: "",
-+  ai_context: "",
-+  ai_instruction: "",
-+  blocks_json: [],
-+  status: "DRAFT",
-+  version: 1,
-+  updated_at: "",
-+  created_at: "",
-+});
-+
-+function errorText(error: unknown) {
-+  const message = String((error as any)?.message ?? error ?? "เกิดข้อผิดพลาด");
-+  if (/PGRST205|42P01|sales_script_cards.*(schema cache|does not exist|not found)|(schema cache|does not exist|not found).*sales_script_cards/i.test(message)) {
-+    return "ไม่พบตาราง sales_script_cards ใน Supabase โปรเจกต์ Tracking ตรวจว่าได้รัน sql/20261106_script_atelier.sql ในโปรเจกต์เดียวกับที่ตั้งค่าไว้แล้ว";
-+  }
-+  if (/bucket.*sales-script-images|sales-script-images.*(not found|does not exist)/i.test(message)) {
-+    return "ไม่พบคลังภาพ sales-script-images ใน Supabase Tracking ตรวจ migration ของ Script Atelier";
-+  }
-+  return message;
-+}
-+
-+async function copyText(text: string) {
-+  try {
-+    await navigator.clipboard.writeText(text);
-+    return true;
-+  } catch {
-+    return false;
-+  }
-+}
-+
-+function normalizeBlocks(value: unknown): ScriptBlock[] {
-+  if (!Array.isArray(value)) return [];
-+  return value.filter((block): block is ScriptBlock => Boolean(
-+    block && typeof block === "object" && (block as ScriptBlock).type === "image" && typeof (block as ScriptBlock).url === "string",
-+  ));
-+}
- 
- export default function ScriptAtelier() {
-   const [cards, setCards] = useState<ScriptCard[]>([]);
--  const [stock, setStock] = useState<StockProduct[]>([]);
--  const [selected, setSelected] = useState<ScriptCard | null>(null);
-   const [draft, setDraft] = useState<ScriptCard>(emptyDraft());
--  const [editing, setEditing] = useState(false);
-+  const [editorOpen, setEditorOpen] = useState(false);
-+  const [imageSelection, setImageSelection] = useState<ImageSelection | null>(null);
-   const [search, setSearch] = useState("");
-   const [filter, setFilter] = useState("ALL");
--  const [skuQuery, setSkuQuery] = useState("");
--  const [skuOpen, setSkuOpen] = useState(false);
-   const [draggingImage, setDraggingImage] = useState(false);
-   const [loading, setLoading] = useState(true);
-   const [saving, setSaving] = useState(false);
-   const [message, setMessage] = useState("");
-   const [error, setError] = useState("");
-   const fileRef = useRef<HTMLInputElement>(null);
--  const api = getSupabase();
-+  const [uncommittedImagePaths, setUncommittedImagePaths] = useState<string[]>([]);
-+  const [pendingDeletePaths, setPendingDeletePaths] = useState<string[]>([]);
-+  const api = getSupabase("tracking");
- 
-   const load = async () => {
--    if (!api) { setError("ยังไม่ได้เชื่อม Supabase ของโปรเจกต์ส่งเลข ไปที่ /secret-gallery/connect ก่อน"); setLoading(false); return; }
--    setLoading(true); setError("");
-+    if (!api) {
-+      setError("ยังไม่ได้ตั้งค่า Supabase โปรเจกต์ Tracking ไปที่ /secret-gallery/connect แล้วเชื่อมโปรเจกต์ Tracking ก่อน");
-+      setLoading(false);
-+      return;
-+    }
-+
-+    setLoading(true);
-+    setError("");
-     try {
--      const [scriptResult, stockRows] = await Promise.all([
--        api.from("sales_script_cards").select("*").order("updated_at", { ascending: false }),
--        readStockProducts(),
--      ]);
--      if (scriptResult.error) throw scriptResult.error;
--      setCards((scriptResult.data ?? []).map((row: any) => ({ ...row, blocks_json: Array.isArray(row.blocks_json) ? row.blocks_json : [] })));
--      setStock(stockRows);
--    } catch (e) { setError(errorText(e)); }
--    finally { setLoading(false); }
-+      const result = await api.from(SCRIPT_TABLE).select(SCRIPT_COLUMNS).order("updated_at", { ascending: false });
-+      if (result.error) throw result.error;
-+      setCards((result.data ?? []).map((row: any) => ({
-+        ...row,
-+        blocks_json: normalizeBlocks(row.blocks_json),
-+      })) as ScriptCard[]);
-+    } catch (loadError) {
-+      setError(errorText(loadError));
-+    } finally {
-+      setLoading(false);
-+    }
-   };
--  useEffect(() => { void load(); }, []);
- 
--  const skuMatches = useMemo(() => {
--    const query = skuQuery.trim().toLowerCase();
--    if (!query) return [];
--    return stock.filter(item => `${item.sku} ${item.thName} ${item.label}`.toLowerCase().includes(query)).slice(0, 10);
--  }, [skuQuery, stock]);
-+  useEffect(() => {
-+    void load();
-+  }, []);
-+
-+  const visible = useMemo(() => {
-+    const term = search.trim().toLowerCase();
-+    return cards.filter((card) => {
-+      const imageText = card.blocks_json.map((block) => block.caption ?? "").join(" ");
-+      const haystack = `${card.title} ${card.subtitle} ${card.script_text} ${card.ai_context} ${card.ai_instruction} ${imageText}`.toLowerCase();
-+      return (!term || haystack.includes(term)) && (filter === "ALL" || card.status === filter);
-+    });
-+  }, [cards, filter, search]);
- 
--  const visible = useMemo(() => cards.filter(card => {
--    const product = stockFor(card, stock);
--    const haystack = `${card.sku} ${card.title} ${card.subtitle} ${card.script_text} ${product?.thName ?? ""}`.toLowerCase();
--    return (!search.trim() || haystack.includes(search.toLowerCase().trim())) && (filter === "ALL" || card.status === filter);
--  }), [cards, filter, search, stock]);
-+  const totalImages = useMemo(
-+    () => cards.reduce((total, card) => total + card.blocks_json.length, 0),
-+    [cards],
-+  );
-+
-+  const cleanupStorageFiles = async (paths: string[]) => {
-+    const uniquePaths = [...new Set(paths.filter(Boolean))];
-+    if (!api || !uniquePaths.length) return true;
-+    const result = await api.storage.from(IMAGE_BUCKET).remove(uniquePaths);
-+    if (result.error) {
-+      setError(errorText(result.error));
-+      return false;
-+    }
-+    return true;
-+  };
- 
--  const openCard = (card: ScriptCard) => { setSelected(card); setDraft({ ...card, blocks_json: [...card.blocks_json] }); setEditing(false); setMessage(""); };
--  const createCard = () => { const next = emptyDraft(); setSelected(next); setDraft(next); setSkuQuery(""); setSkuOpen(false); setEditing(true); setMessage(""); };
--  const closePanel = () => { if (!saving) { setSelected(null); setEditing(false); } };
--  useEffect(() => { const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") closePanel(); }; window.addEventListener("keydown", onKey); return () => window.removeEventListener("keydown", onKey); });
-+  const openEditor = (card?: ScriptCard) => {
-+    const next = card
-+      ? { ...card, blocks_json: [...card.blocks_json] }
-+      : emptyDraft();
-+    setDraft(next);
-+    setUncommittedImagePaths([]);
-+    setPendingDeletePaths([]);
-+    setImageSelection(null);
-+    setMessage("");
-+    setError("");
-+    setEditorOpen(true);
-+  };
-+
-+  const closeEditor = () => {
-+    if (saving) return;
-+    const orphanedPaths = uncommittedImagePaths;
-+    setUncommittedImagePaths([]);
-+    setPendingDeletePaths([]);
-+    setDraft(emptyDraft());
-+    setImageSelection(null);
-+    setEditorOpen(false);
-+    if (orphanedPaths.length) {
-+      void cleanupStorageFiles(orphanedPaths).then((removed) => {
-+        if (!removed) setMessage("ปิดร่างแล้ว แต่ลบไฟล์ภาพที่ยังไม่ได้บันทึกไม่สำเร็จ");
-+      });
-+    }
-+  };
- 
-   const save = async () => {
--    if (!api || !draft.sku.trim() || !draft.title.trim() || !draft.script_text.trim()) { setError("ต้องมี SKU ชื่อสคริปต์ และเนื้อหาสคริปต์ก่อนบันทึก"); return; }
--    setSaving(true); setError("");
-+    if (!api) {
-+      setError("ยังไม่ได้ตั้งค่า Supabase โปรเจกต์ Tracking");
-+      return;
-+    }
-+    if (!draft.title.trim() || !draft.script_text.trim()) {
-+      setError("ใส่ชื่อและเนื้อหาสคริปต์ก่อนบันทึก");
-+      return;
-+    }
-+
-+    setSaving(true);
-+    setError("");
-+    setMessage("");
-     try {
--      const payload = { sku: draft.sku.trim(), title: draft.title.trim(), subtitle: draft.subtitle, script_text: draft.script_text, ai_context: draft.ai_context, ai_instruction: draft.ai_instruction, blocks_json: draft.blocks_json, status: draft.status || "DRAFT", version: draft.version || 1, updated_at: new Date().toISOString() };
--      const result = draft.id ? await api.from("sales_script_cards").update(payload).eq("id", draft.id).select("*").single() : await api.from("sales_script_cards").insert(payload).select("*").single();
-+      const payload = {
-+        title: draft.title.trim(),
-+        subtitle: draft.subtitle.trim(),
-+        script_text: draft.script_text,
-+        ai_context: draft.ai_context,
-+        ai_instruction: draft.ai_instruction,
-+        blocks_json: draft.blocks_json,
-+        status: draft.status || "DRAFT",
-+        version: draft.version || 1,
-+        updated_at: new Date().toISOString(),
-+      };
-+      // The existing table has a required legacy `sku` column. Keep it blank for new records;
-+      // it is not shown, searched, or linked to the stock/product tables in this room.
-+      const result = draft.id
-+        ? await api.from(SCRIPT_TABLE).update(payload).eq("id", draft.id).select(SCRIPT_COLUMNS).single()
-+        : await api.from(SCRIPT_TABLE).insert({ sku: "", ...payload }).select(SCRIPT_COLUMNS).single();
-+
-       if (result.error) throw result.error;
--      const saved = { ...result.data, blocks_json: Array.isArray(result.data.blocks_json) ? result.data.blocks_json : [] } as ScriptCard;
--      setCards(current => draft.id ? current.map(card => card.id === saved.id ? saved : card) : [saved, ...current]);
--      setSelected(saved); setDraft(saved); setEditing(false); setMessage("บันทึกแล้ว");
--    } catch (e) { setError(errorText(e)); }
--    finally { setSaving(false); }
-+      const saved = {
-+        ...result.data,
-+        blocks_json: normalizeBlocks(result.data.blocks_json),
-+      } as ScriptCard;
-+      const savedPaths = new Set(saved.blocks_json.map((block) => block.path).filter((path): path is string => Boolean(path)));
-+      const cleanupPaths = [
-+        ...pendingDeletePaths,
-+        ...uncommittedImagePaths.filter((path) => !savedPaths.has(path)),
-+      ];
-+      setCards((current) => draft.id
-+        ? current.map((card) => card.id === saved.id ? saved : card)
-+        : [saved, ...current]);
-+      setDraft(saved);
-+      setUncommittedImagePaths([]);
-+      setPendingDeletePaths([]);
-+      const cleaned = await cleanupStorageFiles(cleanupPaths);
-+      setMessage(cleaned ? "บันทึกแล้ว" : "บันทึกแล้ว แต่ไฟล์ภาพที่เอาออกบางส่วนยังอยู่ในคลัง");
-+    } catch (saveError) {
-+      setError(errorText(saveError));
-+    } finally {
-+      setSaving(false);
-+    }
-   };
-+
-   const remove = async () => {
--    if (!api || !draft.id || !window.confirm("ลบ Script Card นี้หรือไม่?")) return;
--    setSaving(true); try { const result = await api.from("sales_script_cards").delete().eq("id", draft.id); if (result.error) throw result.error; setCards(current => current.filter(card => card.id !== draft.id)); closePanel(); } catch (e) { setError(errorText(e)); } finally { setSaving(false); }
--  };
--  const uploadImage = async (file: File) => {
--    if (!api || !file) return;
--    setSaving(true); setError("");
-+    if (!api || !draft.id || !window.confirm("ลบสคริปต์รายการนี้หรือไม่?")) return;
-+    setSaving(true);
-+    setError("");
-     try {
--      const safe = file.name.toLowerCase().replace(/[^a-z0-9._-]+/g, "-");
--      const path = `${draft.sku || "draft"}/${crypto.randomUUID()}-${safe}`;
--      const result = await api.storage.from("sales-script-images").upload(path, file, { upsert: false, contentType: file.type });
-+      const result = await api.from(SCRIPT_TABLE).delete().eq("id", draft.id);
-       if (result.error) throw result.error;
--      const publicUrl = api.storage.from("sales-script-images").getPublicUrl(path).data.publicUrl;
--      setDraft(current => ({ ...current, blocks_json: [...current.blocks_json, { type: "image", url: publicUrl, path, caption: file.name }] }));
--      setMessage("เพิ่มภาพในฉบับร่างแล้ว กดบันทึกเพื่อเก็บถาวร");
--    } catch (e) { setError(errorText(e)); } finally { setSaving(false); if (fileRef.current) fileRef.current.value = ""; }
-+      const imagePaths = [
-+        ...draft.blocks_json.map((block) => block.path ?? ""),
-+        ...pendingDeletePaths,
-+        ...uncommittedImagePaths,
-+      ];
-+      setCards((current) => current.filter((card) => card.id !== draft.id));
-+      setEditorOpen(false);
-+      setDraft(emptyDraft());
-+      setUncommittedImagePaths([]);
-+      setPendingDeletePaths([]);
-+      const cleaned = await cleanupStorageFiles(imagePaths);
-+      setMessage(cleaned ? "ลบสคริปต์และภาพประกอบแล้ว" : "ลบสคริปต์แล้ว แต่ไฟล์ภาพบางส่วนยังอยู่ในคลัง");
-+    } catch (deleteError) {
-+      setError(errorText(deleteError));
-+    } finally {
-+      setSaving(false);
-+    }
-   };
--  const handleImageDrop = (event: React.DragEvent<HTMLDivElement>) => {
-+
-+  const uploadImages = async (files: File[]) => {
-+    if (!api || !files.length) return;
-+    setSaving(true);
-+    setError("");
-+    setMessage("");
-+    try {
-+      for (const file of files) {
-+        if (!file.type.startsWith("image/")) continue;
-+        const safeName = file.name.toLowerCase().replace(/[^a-z0-9._-]+/g, "-");
-+        const path = `script-art/${draft.id || "draft"}/${crypto.randomUUID()}-${safeName}`;
-+        const upload = await api.storage.from(IMAGE_BUCKET).upload(path, file, {
-+          upsert: false,
-+          contentType: file.type,
-+        });
-+        if (upload.error) throw upload.error;
-+        const url = api.storage.from(IMAGE_BUCKET).getPublicUrl(path).data.publicUrl;
-+        setUncommittedImagePaths((current) => [...current, path]);
-+        setDraft((current) => ({
-+          ...current,
-+          blocks_json: [...current.blocks_json, { type: "image", url, path, caption: file.name }],
-+        }));
-+      }
-+      setMessage("เพิ่มภาพแล้ว กดบันทึกการ์ดเพื่อเก็บรายการภาพไว้กับสคริปต์");
-+    } catch (uploadError) {
-+      setError(errorText(uploadError));
-+    } finally {
-+      setSaving(false);
-+      if (fileRef.current) fileRef.current.value = "";
-+    }
-+  };
-+
-+  const handleImageDrop = (event: DragEvent<HTMLDivElement>) => {
-     event.preventDefault();
-     setDraggingImage(false);
--    const files = Array.from(event.dataTransfer.files).filter(file => file.type.startsWith("image/"));
--    if (files.length) void Promise.all(files.map(uploadImage));
-+    const files = Array.from(event.dataTransfer.files).filter((file) => file.type.startsWith("image/"));
-+    void uploadImages(files);
-+  };
-+
-+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-+    const files = Array.from(event.target.files ?? []);
-+    void uploadImages(files);
-   };
--  const product = selected ? stockFor(draft, stock) : undefined;
--  const aiPayload = selected ? `ข้อมูลสินค้าจากโต๊ะสต๊อกเดิม:\nSKU: ${product?.sku ?? draft.sku}\nชื่อ: ${product?.thName ?? ""}\nราคา: ${product?.price ?? ""}\nสถานะ: ${product?.stockStatus ?? ""}\n\nสคริปต์ต้นฉบับ:\n${draft.script_text}\n\nบริบทสำหรับ AI:\n${draft.ai_context}\n\nกติกาการตอบ:\n${draft.ai_instruction}` : "";
--
--  return <div className="script-atelier min-h-full rounded-[2rem] p-4 text-white sm:p-6">
--    <header className="script-atelier-hero mb-5 overflow-hidden rounded-[2rem] border p-5 sm:p-7"><div className="relative z-10 flex flex-wrap items-end justify-between gap-5"><div><p className="script-kicker"><Sparkles className="h-3.5 w-3.5" /> BB SCRIPT ATELIER</p><h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-5xl">คลังงานเขียนที่ขายด้วยความรู้สึก</h1><p className="mt-3 max-w-2xl text-sm leading-6 text-fuchsia-100/65">เก็บสคริปต์ยาวแบบต้นฉบับ ผูกกับ SKU จากโต๊ะสต๊อกเดิม ใส่ภาพได้ และเปิดอ่านในแผงขวาแบบ Notion</p></div><Button onClick={createCard} className="script-primary"><Plus className="h-4 w-4" />สร้าง Script Card</Button></div></header>
--    <div className="mb-5 flex flex-wrap items-center gap-2 rounded-2xl border border-fuchsia-300/15 bg-[#12091c]/80 p-3"><label className="script-search"><Search className="h-4 w-4" /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="ค้นหา SKU ชื่อ หรือข้อความในสคริปต์..." /></label><select className="script-select" value={filter} onChange={event => setFilter(event.target.value)}><option value="ALL">ทุกสถานะ</option><option value="DRAFT">DRAFT</option><option value="ACTIVE">ACTIVE</option><option value="ARCHIVED">ARCHIVED</option></select><span className="ml-auto text-xs text-fuchsia-100/45">{visible.length} การ์ด · สต๊อกอ้างอิง {stock.length} รายการ</span></div>
--    {error && <div className="mb-4 rounded-xl border border-rose-300/30 bg-rose-500/10 p-3 text-sm text-rose-100">{error}</div>}
--    {loading ? <div className="script-empty"><Loader2 className="h-6 w-6 animate-spin" />กำลังเปิดคลัง Script...</div> : visible.length ? <div className="script-card-grid">{visible.map(card => { const item = stockFor(card, stock); const cover = card.blocks_json.find(block => block.type === "image"); return <button type="button" key={card.id} onClick={() => openCard(card)} className="script-card text-left"><div className="script-card-cover">{cover ? <img src={cover.url} alt={cover.caption || card.title} /> : <div className="script-card-orbit"><Sparkles /></div>}<span className={`script-status script-status-${card.status.toLowerCase()}`}>{card.status}</span></div><div className="p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-xs font-semibold tracking-[.12em] text-fuchsia-200/55">{item?.emoji || "✦"} {card.sku}</p><h2 className="mt-2 text-xl font-semibold text-white">{card.title}</h2><p className="mt-1 text-sm text-fuchsia-100/60">{card.subtitle || item?.thName || "ยังไม่มีคำโปรย"}</p></div><span className="rounded-full border border-fuchsia-300/15 px-2 py-1 text-[10px] text-fuchsia-100/55">v{card.version}</span></div><p className="mt-4 line-clamp-5 whitespace-pre-wrap text-sm leading-6 text-slate-200/75">{card.script_text}</p><div className="mt-4 flex items-center justify-between text-[11px] text-fuchsia-100/40"><span>{card.blocks_json.length} ภาพประกอบ</span><span className="inline-flex items-center gap-1"><PanelRight className="h-3.5 w-3.5" />เปิดแผงอ่าน</span></div></div></button>; })}</div> : <div className="script-empty"><FilePlus2 className="h-8 w-8 text-fuchsia-300" /><p>ยังไม่มี Script Card</p><Button onClick={createCard} variant="outline" className="border-fuchsia-300/25 text-fuchsia-100">สร้างใบแรก</Button></div>}
--    {selected && <><button type="button" aria-label="ปิดแผงรายละเอียด" onClick={closePanel} className="script-drawer-backdrop" /><aside className="script-drawer"><div className="flex items-center justify-between border-b border-fuchsia-300/15 p-4"><div><p className="script-kicker">SCRIPT DETAIL</p><p className="mt-1 text-xs text-fuchsia-100/45">{draft.sku || "ยังไม่เลือก SKU"}</p></div><button type="button" onClick={closePanel} className="script-icon-button" aria-label="ปิด"><X className="h-5 w-5" /></button></div><div className="flex-1 overflow-y-auto p-5">{editing ? <div className="space-y-4"><label className="script-field">SKU อ้างอิง · พิมพ์ 1–2 ตัวอักษรแล้วเลือก
--<div className="relative">
--<input value={draft.sku} onChange={event => { const value = event.target.value; setDraft({ ...draft, sku: value }); setSkuQuery(value); setSkuOpen(true); }} onFocus={() => { setSkuQuery(draft.sku); setSkuOpen(true); }} onBlur={() => window.setTimeout(() => setSkuOpen(false), 150)} placeholder="เช่น SI หรือ VESS" autoComplete="off" />
--{skuOpen && skuQuery.trim() && <div className="script-sku-suggestions">{skuMatches.length ? skuMatches.map(item => <button type="button" key={item.sku} onMouseDown={event => event.preventDefault()} onClick={() => { setDraft(current => ({ ...current, sku: item.sku })); setSkuQuery(item.sku); setSkuOpen(false); }} className="script-sku-option"><span className="script-sku-emoji">{item.emoji || "✦"}</span><span><b>{item.sku}</b><small>{item.thName || item.label}</small></span></button>) : <div className="script-sku-empty">ไม่พบ SKU นี้ในโต๊ะสินค้าเดิม</div>}</div>}
--</div>
--<small className="script-field-hint">เลือกเพื่อผูกข้อมูลอ้างอิงเท่านั้น ไม่เช็ก IN_STOCK / OUT_OF_STOCK และไม่กันการเขียนสคริปต์</small>
--</label><label className="script-field">ชื่อสคริปต์<input value={draft.title} onChange={event => setDraft({ ...draft, title: event.target.value })} placeholder="เช่น เปิดซองเดียว..." /></label><label className="script-field">คำโปรย<input value={draft.subtitle} onChange={event => setDraft({ ...draft, subtitle: event.target.value })} placeholder="ประโยคสั้นบนการ์ด" /></label><label className="script-field">สถานะ<select value={draft.status} onChange={event => setDraft({ ...draft, status: event.target.value })}><option>DRAFT</option><option>ACTIVE</option><option>ARCHIVED</option></select></label><label className="script-field">สคริปต์ต้นฉบับ<textarea className="script-editor" value={draft.script_text} onChange={event => setDraft({ ...draft, script_text: event.target.value })} placeholder="วางสคริปต์ยาวของจาร์ยตรงนี้..." /></label><label className="script-field">บริบทสำหรับ AI<textarea value={draft.ai_context} onChange={event => setDraft({ ...draft, ai_context: event.target.value })} placeholder="โทน ความรู้สึก กลุ่มลูกค้า และสิ่งที่ AI ควรเข้าใจ" /></label><label className="script-field">กติกาการตอบของ AI<textarea value={draft.ai_instruction} onChange={event => setDraft({ ...draft, ai_instruction: event.target.value })} placeholder="วิธีใช้สคริปต์ ห้ามพูดอะไร และวิธีจบแชท" /></label><div><input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={event => { const files = Array.from(event.target.files ?? []); if (files.length) void Promise.all(files.map(uploadImage)); }} /><div className={`script-dropzone ${draggingImage ? "is-dragging" : ""}`} onDragEnter={event => { event.preventDefault(); setDraggingImage(true); }} onDragOver={event => event.preventDefault()} onDragLeave={event => { if (event.currentTarget === event.target) setDraggingImage(false); }} onDrop={handleImageDrop}><ImagePlus className="h-5 w-5" /><div><b>โยนภาพลงตรงนี้ได้เลย</b><small>ลากรูปมาวาง หรือกดเลือกหลายภาพจากเครื่อง</small></div><Button type="button" variant="outline" onClick={() => fileRef.current?.click()} className="border-cyan-300/25 text-cyan-100"><ImagePlus className="h-4 w-4" />เลือกภาพ</Button></div><div className="mt-3 grid grid-cols-2 gap-2">{draft.blocks_json.map((block, index) => <div key={`${block.url}-${index}`} className="relative overflow-hidden rounded-xl border border-fuchsia-300/15"><img src={block.url} alt={block.caption || "ภาพประกอบ"} className="aspect-square w-full object-cover" /><button type="button" onClick={() => setDraft(current => ({ ...current, blocks_json: current.blocks_json.filter((_, i) => i !== index) }))} className="absolute right-1 top-1 rounded-full bg-black/70 p-1 text-white"><X className="h-3 w-3" /></button></div>)}</div></div></div> : <div><div className="mb-5"><p className="script-kicker">{draft.status} · VERSION {draft.version}</p><h2 className="mt-2 text-3xl font-semibold text-white">{draft.title || "ยังไม่มีชื่อสคริปต์"}</h2><p className="mt-2 text-sm text-fuchsia-100/55">{draft.subtitle}</p></div><div className="script-reader">{draft.script_text || "ยังไม่มีเนื้อหาสคริปต์"}</div>{draft.blocks_json.map((block, index) => <figure key={`${block.url}-${index}`} className="my-5 overflow-hidden rounded-2xl border border-fuchsia-300/15 bg-black/20"><img src={block.url} alt={block.caption || "ภาพประกอบ"} className="w-full object-contain" /><figcaption className="p-2 text-center text-xs text-fuchsia-100/45">{block.caption}</figcaption></figure>)}<div className="mt-6 rounded-2xl border border-cyan-300/15 bg-cyan-400/[.04] p-4"><p className="script-kicker text-cyan-200">ข้อมูลสำหรับ AI</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-cyan-50/70">{draft.ai_context || "ยังไม่มีบริบท AI"}</p><p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-cyan-50/70">{draft.ai_instruction || "ยังไม่มีกติกา AI"}</p></div></div>}</div><div className="border-t border-fuchsia-300/15 p-4"><div className="flex flex-wrap gap-2">{editing ? <><Button onClick={() => void save()} disabled={saving} className="script-primary"><Save className="h-4 w-4" />{saving ? "กำลังบันทึก" : "บันทึกการ์ด"}</Button><Button variant="outline" onClick={() => { setEditing(false); if (draft.id) setDraft(cards.find(card => card.id === draft.id) || draft); }} className="border-fuchsia-300/20 text-fuchsia-100">ยกเลิก</Button></> : <><Button onClick={() => setEditing(true)} className="script-primary">แก้ไขสคริปต์</Button><Button variant="outline" onClick={() => copyText(draft.script_text)} className="border-fuchsia-300/20 text-fuchsia-100"><Copy className="h-4 w-4" />คัดลอกสคริปต์</Button><Button variant="outline" onClick={() => copyText(aiPayload)} className="border-cyan-300/20 text-cyan-100"><Sparkles className="h-4 w-4" />คัดลอกให้ AI</Button></>}{draft.id && <Button variant="ghost" onClick={() => void remove()} className="ml-auto text-rose-300 hover:bg-rose-500/10"><Trash2 className="h-4 w-4" /></Button>}</div>{message && <p className="mt-2 text-xs text-emerald-300">{message}</p>}</div></aside></>}
+-function TrackingNumberCard({ rows }: { rows: Array<Record<string, any>> }) {
+-  const trackingNumbers = rows.map(row => String(row.tracking_number ?? "").trim()).filter(Boolean);
+-  const hasTracking = trackingNumbers.length > 0;
+-  return <div className={`rounded-xl border p-3 transition ${hasTracking ? "border-emerald-300/70 bg-emerald-400/[0.10] shadow-[0_0_14px_rgba(52,211,153,.35),inset_0_0_18px_rgba(52,211,153,.08)]" : "border-cyan-300/10 bg-cyan-300/[0.04]"}`}>
+-    <div className="flex items-center justify-between gap-2">
+-      <p className={`text-[10px] font-semibold uppercase tracking-[0.16em] ${hasTracking ? "text-emerald-200" : "text-cyan-100/55"}`}>เลขพัสดุ</p>
+-      <span className={`h-2.5 w-2.5 rounded-full ${hasTracking ? "bg-emerald-200 shadow-[0_0_14px_rgba(110,231,183,.95)]" : "bg-cyan-100/20"}`} aria-label={hasTracking ? "มีเลขพัสดุแล้ว" : "ยังไม่มีเลขพัสดุ"} />
+-    </div>
+-    <div className={`mt-2 rounded-lg px-3 py-2 font-mono text-sm font-bold ${hasTracking ? "border border-emerald-200/35 bg-emerald-950/35 text-emerald-100 shadow-[0_0_12px_rgba(52,211,153,.22)]" : "bg-black/20 text-cyan-100/35"}`}>
+-      {hasTracking ? trackingNumbers.join(" · ") : "—"}
+-    </div>
+-    <p className={`mt-2 text-[9px] ${hasTracking ? "text-emerald-200/70" : "text-cyan-100/35"}`}>{hasTracking ? "มีเลขแล้ว · กล่องค้างตามข้อมูลห้องนี้" : "รอข้อมูลเลขพัสดุจากตาราง"}</p>
 -  </div>;
-+
-+  const openImageDrawer = (title: string, images: ScriptBlock[], index = 0) => {
-+    if (!images.length) return;
-+    setMessage("");
-+    setImageSelection({ title, images, index: Math.min(Math.max(index, 0), images.length - 1) });
-+  };
-+
-+  const currentImage = imageSelection?.images[imageSelection.index];
-+
-+  const downloadCurrentImage = async () => {
-+    if (!currentImage) return;
-+    if (!api || !currentImage.path) {
-+      window.open(currentImage.url, "_blank", "noopener,noreferrer");
-+      return;
-+    }
-+    try {
-+      const result = await api.storage.from(IMAGE_BUCKET).download(currentImage.path);
-+      if (result.error || !result.data) throw result.error || new Error("ดาวน์โหลดภาพไม่สำเร็จ");
-+      const objectUrl = URL.createObjectURL(result.data);
-+      const anchor = document.createElement("a");
-+      anchor.href = objectUrl;
-+      anchor.download = currentImage.caption?.trim() || "script-image";
-+      document.body.appendChild(anchor);
-+      anchor.click();
-+      anchor.remove();
-+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
-+    } catch (downloadError) {
-+      setError(errorText(downloadError));
-+    }
-+  };
-+
-+  const copyScript = async () => {
-+    if (await copyText(draft.script_text)) setMessage("คัดลอกสคริปต์แล้ว");
-+    else setError("คัดลอกไม่ได้ โปรดตรวจสิทธิ์ Clipboard ของเบราว์เซอร์");
-+  };
-+
-+  const copyImageLink = async () => {
-+    if (!currentImage) return;
-+    if (await copyText(currentImage.url)) setMessage("คัดลอกลิงก์ภาพแล้ว");
-+    else setError("คัดลอกลิงก์ไม่ได้ โปรดตรวจสิทธิ์ Clipboard ของเบราว์เซอร์");
-+  };
-+
-+  const copyAiPayload = async () => {
-+    const payload = `สคริปต์ต้นฉบับ:\n${draft.script_text}\n\nบริบทสำหรับ AI:\n${draft.ai_context}\n\nกติกาการตอบ:\n${draft.ai_instruction}`;
-+    if (await copyText(payload)) setMessage("คัดลอกข้อความสำหรับ AI แล้ว");
-+    else setError("คัดลอกไม่ได้ โปรดตรวจสิทธิ์ Clipboard ของเบราว์เซอร์");
-+  };
-+
-+  return (
-+    <div className="script-atelier min-h-full rounded-[2rem] p-4 text-white sm:p-6">
-+      <header className="script-atelier-hero mb-5 overflow-hidden rounded-[2rem] border p-5 sm:p-7">
-+        <div className="relative z-10 flex flex-wrap items-end justify-between gap-5">
-+          <div>
-+            <p className="script-kicker"><Sparkles className="h-3.5 w-3.5" /> BB SCRIPT ATELIER</p>
-+            <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-5xl">คลังสคริปต์และภาพสำหรับแชต</h1>
-+            <p className="mt-3 max-w-2xl text-sm leading-6 text-fuchsia-100/65">
-+              เก็บงานเขียนกับภาพการตลาดไว้หยิบใช้ตอบแชต แยกจากออเดอร์และโต๊ะสินค้า
-+            </p>
-+          </div>
-+          <Button onClick={() => openEditor()} className="script-primary">
-+            <Plus className="h-4 w-4" /> สร้างสคริปต์
-+          </Button>
-+        </div>
-+      </header>
-+
-+      <div className="mb-5 flex flex-wrap items-center gap-2 rounded-2xl border border-fuchsia-300/15 bg-[#12091c]/80 p-3">
-+        <label className="script-search">
-+          <Search className="h-4 w-4" />
-+          <input
-+            value={search}
-+            onChange={(event) => setSearch(event.target.value)}
-+            placeholder="ค้นหาชื่อ สคริปต์ หรือคำอธิบายภาพ..."
-+          />
-+        </label>
-+        <select className="script-select" value={filter} onChange={(event) => setFilter(event.target.value)}>
-+          <option value="ALL">ทุกสถานะ</option>
-+          <option value="DRAFT">DRAFT</option>
-+          <option value="ACTIVE">ACTIVE</option>
-+          <option value="ARCHIVED">ARCHIVED</option>
-+        </select>
-+        <span className="ml-auto text-xs text-fuchsia-100/45">
-+          {visible.length} สคริปต์ · {totalImages} ภาพ
-+        </span>
-+      </div>
-+
-+      {message && !editorOpen && !imageSelection && <div role="status" className="mb-4 rounded-xl border border-emerald-300/20 bg-emerald-400/[.06] p-3 text-sm text-emerald-200">{message}</div>}
-+      {error && <div className="mb-4 rounded-xl border border-rose-300/30 bg-rose-500/10 p-3 text-sm text-rose-100">{error}</div>}
-+
-+      {loading ? (
-+        <div className="script-empty"><Loader2 className="h-6 w-6 animate-spin" />กำลังเปิดคลังสคริปต์และภาพ...</div>
-+      ) : visible.length ? (
-+        <div className="script-card-grid">
-+          {visible.map((card) => {
-+            const coverIndex = card.blocks_json.findIndex((block) => block.type === "image");
-+            const cover = coverIndex >= 0 ? card.blocks_json[coverIndex] : null;
-+            return (
-+              <article key={card.id} className="script-card">
-+                <div className="script-card-cover">
-+                  {cover ? (
-+                    <button
-+                      type="button"
-+                      className="script-card-cover-action"
-+                      aria-label={`เปิดภาพของ ${card.title}`}
-+                      onClick={() => openImageDrawer(card.title, card.blocks_json, coverIndex)}
-+                    >
-+                      <img src={cover.url} alt={cover.caption || card.title} />
-+                      <span className="script-cover-hint"><PanelRight className="h-3.5 w-3.5" /> เปิดภาพ</span>
-+                    </button>
-+                  ) : (
-+                    <button type="button" className="script-card-cover-action" onClick={() => openEditor(card)} aria-label={`เพิ่มภาพให้ ${card.title}`}>
-+                      <span className="script-card-orbit"><Sparkles /></span>
-+                      <span className="script-cover-hint"><ImagePlus className="h-3.5 w-3.5" /> เพิ่มภาพ</span>
-+                    </button>
-+                  )}
-+                  <span className={`script-status script-status-${card.status.toLowerCase()}`}>{card.status}</span>
-+                </div>
-+                <button type="button" className="script-card-open" onClick={() => openEditor(card)}>
-+                  <div className="flex items-start justify-between gap-3">
-+                    <div className="min-w-0 text-left">
-+                      <h2 className="text-xl font-semibold text-white">{card.title || "ไม่มีชื่อสคริปต์"}</h2>
-+                      <p className="mt-1 text-sm text-fuchsia-100/60">{card.subtitle || "ยังไม่มีคำโปรย"}</p>
-+                    </div>
-+                    <span className="shrink-0 rounded-full border border-fuchsia-300/15 px-2 py-1 text-[10px] text-fuchsia-100/55">v{card.version}</span>
-+                  </div>
-+                  <p className="mt-4 line-clamp-5 whitespace-pre-wrap text-left text-sm leading-6 text-slate-200/75">
-+                    {card.script_text || "ยังไม่มีเนื้อหาสคริปต์"}
-+                  </p>
-+                </button>
-+                <div className="flex items-center justify-between gap-2 px-4 pb-4 text-[11px] text-fuchsia-100/45">
-+                  <span>{card.blocks_json.length} ภาพ</span>
-+                  <button type="button" className="script-card-copy" onClick={async () => {
-+                    if (await copyText(card.script_text)) setMessage(`คัดลอก “${card.title}” แล้ว`);
-+                    else setError("คัดลอกไม่ได้ โปรดตรวจสิทธิ์ Clipboard ของเบราว์เซอร์");
-+                  }}>
-+                    <Copy className="h-3.5 w-3.5" /> คัดลอกสคริปต์
-+                  </button>
-+                </div>
-+              </article>
-+            );
-+          })}
-+        </div>
-+      ) : (
-+        <div className="script-empty">
-+          <FilePlus2 className="h-8 w-8 text-fuchsia-300" />
-+          <p>{search.trim() ? "ไม่พบรายการที่ค้นหา" : "ยังไม่มีสคริปต์หรือภาพในคลัง"}</p>
-+          <Button onClick={() => openEditor()} variant="outline" className="border-fuchsia-300/25 text-fuchsia-100">สร้างรายการแรก</Button>
-+        </div>
-+      )}
-+
-+      <Dialog open={editorOpen} onOpenChange={(open) => { if (!open) closeEditor(); }}>
-+        <DialogContent
-+          showCloseButton={false}
-+          className="script-editor-dialog max-h-[92dvh] w-[min(980px,calc(100vw-1.5rem))] max-w-none gap-0 overflow-hidden border-fuchsia-300/20 bg-[#100819] p-0 text-white shadow-[0_0_60px_rgba(201,60,230,.2)]"
-+        >
-+          <div className="flex items-start justify-between gap-4 border-b border-fuchsia-300/15 px-5 py-4 sm:px-7">
-+            <DialogHeader className="text-left">
-+              <p className="script-kicker">SCRIPT · EDITOR</p>
-+              <DialogTitle className="mt-1 text-xl text-white sm:text-2xl">
-+                {draft.id ? "แก้ไขสคริปต์" : "สร้างสคริปต์ใหม่"}
-+              </DialogTitle>
-+              <DialogDescription className="text-fuchsia-100/50">
-+                เก็บข้อความและภาพไว้ในคลังเดียวกัน แล้วคัดลอกไปใช้ตอบแชตได้
-+              </DialogDescription>
-+            </DialogHeader>
-+            <button type="button" className="script-icon-button shrink-0" onClick={closeEditor} aria-label="ปิดหน้าต่างแก้ไข">
-+              <X className="h-5 w-5" />
-+            </button>
-+          </div>
-+
-+          <div className="max-h-[calc(92dvh-150px)] overflow-y-auto px-5 py-5 sm:px-7">
-+            <div className="grid gap-4 sm:grid-cols-2">
-+              <label className="script-field sm:col-span-2">
-+                ชื่อสคริปต์
-+                <input value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} placeholder="ตั้งชื่อให้ค้นหาเจอง่าย" autoFocus />
-+              </label>
-+              <label className="script-field">
-+                คำโปรยสั้น
-+                <input value={draft.subtitle} onChange={(event) => setDraft({ ...draft, subtitle: event.target.value })} placeholder="ข้อความสั้นบนการ์ด (ไม่บังคับ)" />
-+              </label>
-+              <label className="script-field">
-+                สถานะ
-+                <select value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value })}>
-+                  <option value="DRAFT">DRAFT</option>
-+                  <option value="ACTIVE">ACTIVE</option>
-+                  <option value="ARCHIVED">ARCHIVED</option>
-+                </select>
-+              </label>
-+              <label className="script-field sm:col-span-2">
-+                สคริปต์ต้นฉบับ
-+                <textarea className="script-editor" value={draft.script_text} onChange={(event) => setDraft({ ...draft, script_text: event.target.value })} placeholder="วางข้อความที่ใช้ตอบแชตตรงนี้..." />
-+              </label>
-+              <label className="script-field">
-+                บริบทสำหรับ AI (ไม่บังคับ)
-+                <textarea value={draft.ai_context} onChange={(event) => setDraft({ ...draft, ai_context: event.target.value })} placeholder="บันทึกบริบทที่ต้องการให้ AI เข้าใจ" />
-+              </label>
-+              <label className="script-field">
-+                กติกาการตอบ (ไม่บังคับ)
-+                <textarea value={draft.ai_instruction} onChange={(event) => setDraft({ ...draft, ai_instruction: event.target.value })} placeholder="บันทึกวิธีใช้หรือข้อควรระวัง" />
-+              </label>
-+            </div>
-+
-+            <section className="mt-5">
-+              <div className="mb-2 flex items-center justify-between gap-3">
-+                <div>
-+                  <p className="script-kicker">IMAGE LIBRARY</p>
-+                  <p className="mt-1 text-xs text-fuchsia-100/45">รูปจะถูกเก็บในคลังภาพของ Script Atelier</p>
-+                </div>
-+                <span className="text-xs text-fuchsia-100/45">{draft.blocks_json.length} ภาพ</span>
-+              </div>
-+              <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={handleFileChange} />
-+              <div
-+                className={`script-dropzone ${draggingImage ? "is-dragging" : ""}`}
-+                onDragEnter={(event) => { event.preventDefault(); setDraggingImage(true); }}
-+                onDragOver={(event) => event.preventDefault()}
-+                onDragLeave={(event) => { if (event.currentTarget === event.target) setDraggingImage(false); }}
-+                onDrop={handleImageDrop}
-+              >
-+                <ImagePlus className="h-5 w-5 shrink-0" />
-+                <div><b>เพิ่มภาพประกอบ</b><small>ลากรูปมาวาง หรือเลือกหลายภาพจากเครื่อง</small></div>
-+                <Button type="button" variant="outline" disabled={saving} onClick={() => fileRef.current?.click()} className="border-cyan-300/25 text-cyan-100">
-+                  <ImagePlus className="h-4 w-4" /> เลือกภาพ
-+                </Button>
-+              </div>
-+              {draft.blocks_json.length > 0 && (
-+                <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-+                  {draft.blocks_json.map((block, index) => (
-+                    <div key={`${block.path ?? block.url}-${index}`} className="relative overflow-hidden rounded-xl border border-fuchsia-300/15 bg-black/25">
-+                      <button type="button" className="script-editor-image" onClick={() => openImageDrawer(draft.title, draft.blocks_json, index)} aria-label={`ดูภาพ ${block.caption || index + 1}`}>
-+                        <img src={block.url} alt={block.caption || "ภาพในคลัง"} className="aspect-square w-full object-cover" />
-+                      </button>
-+                      <p className="truncate px-2 py-1.5 text-[10px] text-fuchsia-100/60">{block.caption || `ภาพ ${index + 1}`}</p>
-+                      <button
-+                        type="button"
-+                        onClick={() => {
-+                          if (block.path && !uncommittedImagePaths.includes(block.path)) {
-+                            setPendingDeletePaths((current) => [...current, block.path!]);
-+                          }
-+                          setDraft((current) => ({ ...current, blocks_json: current.blocks_json.filter((_, imageIndex) => imageIndex !== index) }));
-+                        }}
-+                        className="absolute right-1 top-1 rounded-full bg-black/75 p-1.5 text-white hover:bg-rose-600"
-+                        aria-label={`นำภาพ ${block.caption || index + 1} ออกจากรายการ`}
-+                      ><X className="h-3 w-3" /></button>
-+                    </div>
-+                  ))}
-+                </div>
-+              )}
-+            </section>
-+          </div>
-+
-+          <div className="flex flex-wrap items-center gap-2 border-t border-fuchsia-300/15 px-5 py-4 sm:px-7">
-+            <Button onClick={() => void save()} disabled={saving} className="script-primary">
-+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-+              {saving ? "กำลังบันทึก" : "บันทึกสคริปต์"}
-+            </Button>
-+            <Button onClick={() => void copyScript()} disabled={!draft.script_text} variant="outline" className="border-fuchsia-300/20 text-fuchsia-100">
-+              <Copy className="h-4 w-4" /> คัดลอกสคริปต์
-+            </Button>
-+            <Button onClick={() => void copyAiPayload()} disabled={!draft.script_text} variant="outline" className="border-cyan-300/20 text-cyan-100">
-+              <Sparkles className="h-4 w-4" /> คัดลอกให้ AI
-+            </Button>
-+            {draft.id && <Button onClick={() => void remove()} disabled={saving} variant="ghost" className="ml-auto text-rose-300 hover:bg-rose-500/10"><Trash2 className="h-4 w-4" /> ลบ</Button>}
-+            {message && <p className="w-full text-xs text-emerald-300">{message}</p>}
-+            {error && <p className="w-full text-xs text-rose-200">{error}</p>}
-+          </div>
-+        </DialogContent>
-+      </Dialog>
-+
-+      <Sheet open={Boolean(imageSelection)} onOpenChange={(open) => { if (!open) setImageSelection(null); }}>
-+        <SheetContent side="right" className="w-[min(680px,100vw)] gap-0 border-fuchsia-300/20 bg-[#0c0713] p-0 text-white sm:max-w-[680px]">
-+          {imageSelection && currentImage && (
-+            <>
-+              <SheetHeader className="border-b border-fuchsia-300/15 pr-14 text-left">
-+                <p className="script-kicker">IMAGE · CHAT LIBRARY</p>
-+                <SheetTitle className="text-white">{imageSelection.title || "ภาพในคลัง"}</SheetTitle>
-+                <SheetDescription className="text-fuchsia-100/50">
-+                  {imageSelection.index + 1} / {imageSelection.images.length} · {currentImage.caption || "ภาพประกอบ"}
-+                </SheetDescription>
-+              </SheetHeader>
-+              <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 sm:p-6">
-+                <div className="flex min-h-[45vh] items-center justify-center overflow-hidden rounded-2xl border border-fuchsia-300/15 bg-black/35 p-2">
-+                  <img src={currentImage.url} alt={currentImage.caption || imageSelection.title} className="max-h-[68vh] max-w-full object-contain" />
-+                </div>
-+                <div className="flex items-center justify-between gap-3">
-+                  <Button
-+                    type="button"
-+                    variant="outline"
-+                    disabled={imageSelection.index <= 0}
-+                    onClick={() => setImageSelection((current) => current ? { ...current, index: current.index - 1 } : current)}
-+                    className="border-fuchsia-300/20 text-fuchsia-100"
-+                  >ก่อนหน้า</Button>
-+                  <span className="text-xs text-fuchsia-100/45">{currentImage.caption || "ภาพประกอบ"}</span>
-+                  <Button
-+                    type="button"
-+                    variant="outline"
-+                    disabled={imageSelection.index >= imageSelection.images.length - 1}
-+                    onClick={() => setImageSelection((current) => current ? { ...current, index: current.index + 1 } : current)}
-+                    className="border-fuchsia-300/20 text-fuchsia-100"
-+                  >ถัดไป</Button>
-+                </div>
-+                {message && <p role="status" className="rounded-lg border border-emerald-300/20 bg-emerald-400/[.06] p-3 text-xs text-emerald-200">{message}</p>}
-+                <div className="flex flex-wrap gap-2 border-t border-fuchsia-300/10 pt-4">
-+                  <Button type="button" onClick={() => void downloadCurrentImage()} className="script-primary"><Download className="h-4 w-4" /> ดาวน์โหลดภาพ</Button>
-+                  <Button type="button" onClick={() => void copyImageLink()} variant="outline" className="border-cyan-300/20 text-cyan-100"><Copy className="h-4 w-4" /> คัดลอกลิงก์ภาพ</Button>
-+                  <a href={currentImage.url} target="_blank" rel="noreferrer" className="inline-flex h-9 items-center gap-2 rounded-md border border-fuchsia-300/20 px-3 text-sm text-fuchsia-100 hover:bg-fuchsia-400/10">
-+                    <ExternalLink className="h-4 w-4" /> เปิดภาพต้นฉบับ
-+                  </a>
-+                </div>
-+              </div>
-+            </>
-+          )}
-+        </SheetContent>
-+      </Sheet>
-+    </div>
-+  );
+-}
+-
+ function CopyValueCard({ label, value, copied, onCopy }: { label: string; value: unknown; copied: boolean; onCopy: () => void }) {
+   const text = String(value ?? "").trim();
+   const hasValue = Boolean(text);
+-  return <button type="button" onClick={onCopy} disabled={!hasValue} className={`min-w-0 rounded-xl border p-2.5 text-left transition ${copied ? "border-emerald-200/80 bg-emerald-400/[0.14] shadow-[0_0_18px_rgba(52,211,153,.48)]" : hasValue ? "border-cyan-300/15 bg-black/20 hover:border-cyan-200/55 hover:bg-cyan-300/[0.08]" : "border-cyan-300/10 bg-black/10 opacity-55"}`}>
+-    <div className="flex items-center justify-between gap-2"><span className="truncate text-[9px] uppercase tracking-[0.12em] text-cyan-100/55">{label}</span><span className={`shrink-0 text-[9px] font-semibold ${copied ? "text-emerald-200" : "text-cyan-100/35"}`}>{copied ? "คัดลอกแล้ว ✓" : hasValue ? "จิ้มก๊อป" : "—"}</span></div>
+-    <p className={`mt-1 truncate font-mono text-xs font-semibold ${copied ? "text-emerald-100" : hasValue ? "text-cyan-50" : "text-cyan-100/25"}`} title={hasValue ? text : "ไม่มีข้อมูล"}>{hasValue ? text : "ไม่มีข้อมูล"}</p>
++  return <button type="button" onClick={onCopy} disabled={!hasValue} title={hasValue ? `คัดลอก${label}: ${text}` : "ไม่มีข้อมูล"} className={`chat-tool-copy-row ${copied ? "chat-tool-copy-row--copied" : ""}`}>
++    <span className="min-w-0 flex-1"><span className="chat-tool-copy-row__label">{label}</span><span className="chat-tool-copy-row__value">{hasValue ? text : "—"}</span></span>
++    <span className={`chat-tool-copy-row__action ${copied ? "is-copied" : ""}`}>{copied ? "คัดลอกแล้ว ✓" : "คัดลอก"}</span>
+   </button>;
  }
--- 
-2.43.0
-
+-
+ export default function ChatHub() {
+   const [, setLocation] = useLocation();
+   const isMobile = useIsMobile();
+@@ -119,7 +103,6 @@ export default function ChatHub() {
+   const [selectedKey, setSelectedKey] = useState<string | null>(() => typeof window === "undefined" ? null : localStorage.getItem(CHAT_SELECTED_ROOM_KEY));
+   const [composerOpen, setComposerOpen] = useState(true);
+   const [toolsOpen, setToolsOpen] = useState(() => typeof window === "undefined" || window.innerWidth >= 1440);
+-  const [toolsWidth, setToolsWidth] = useState(320);
+   const [mobileOpen, setMobileOpen] = useState(false);
+   const [pageFilterOpen, setPageFilterOpen] = useState(false);
+   const [selectedPages, setSelectedPages] = useState<string[]>(() => {
+@@ -266,6 +249,7 @@ export default function ChatHub() {
+       { key: "packer", label: "ข้อมูลแพ็ก", value: room?.manus_for_packer },
+     ];
+   }, [selected, handoffTracking]);
++  const availableToolValues = toolValues.filter(item => String(item.value ?? "").trim());
+   const chatEvidenceQuery = trpc.orders.chatEvidence.useQuery({ pageId: selectedPageId, threadId: selectedThreadId }, { enabled: Boolean(selectedPageId && selectedThreadId && orderDetailOpen), refetchInterval: 60_000 });
+   const totalMessages = useMemo(() => threads.reduce((total, thread) => total + thread.messageCount, 0), [threads]);
+   const uploadImage = trpc.chat.uploadImage.useMutation({ onSuccess: result => setReplyImageUrl(`${window.location.origin}${result.url}`) });
+@@ -399,7 +383,7 @@ export default function ChatHub() {
+       {visibleStoredMessages.length === 0 ? <>{visibleTimeline.length ? visibleTimeline.map((line: string, index: number) => <div key={`${line}-${index}`} className={`chat-message-bubble min-w-0 shrink-0 break-words [overflow-wrap:anywhere] rounded-2xl px-4 py-3 text-sm leading-6 shadow-lg ${isPageTimelineLine(line) ? "ml-auto rounded-br-md border border-fuchsia-300/25 bg-gradient-to-br from-violet-900/80 to-fuchsia-950/65 text-fuchsia-50 shadow-[0_0_20px_rgba(217,70,239,.10)]" : "rounded-bl-md border border-emerald-300/25 bg-gradient-to-br from-emerald-950/85 to-green-950/55 text-emerald-50/95 shadow-[0_0_18px_rgba(16,185,129,.12)]"}`}><p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{stripSpeakerPrefix(line)}</p></div>) : <div className="rounded-2xl border border-fuchsia-500/10 bg-black/20 p-4 text-sm leading-6 text-fuchsia-100/60"><p>{selected.preview}</p></div>}<p className="text-[11px] text-fuchsia-100/30">แชทจากตารางกลาง · n8n API รอบถัดไปจะอัปเดตเข้าห้องนี้อัตโนมัติ</p></> : null}
+       {visibleStoredMessages.map(message => { const isRight = ("side" in message && message.side === "right") || message.direction === "outbound" || message.senderType === "page"; const senderName = isRight ? (selected.pageName || "เพจ") : (selected.customerName || "ลูกค้า"); return <div key={message.id} className={`flex w-full shrink-0 ${isRight ? "justify-end" : "justify-start"}`}><div className={`chat-message-bubble min-w-0 shrink-0 break-words [overflow-wrap:anywhere] rounded-2xl px-4 py-3 text-sm leading-6 shadow-lg ${isRight ? "rounded-br-md border border-fuchsia-300/25 bg-gradient-to-br from-violet-900/80 to-fuchsia-950/65 text-fuchsia-50 shadow-[0_0_20px_rgba(217,70,239,.10)]" : "rounded-bl-md border border-emerald-300/25 bg-gradient-to-br from-emerald-950/85 to-green-950/55 text-emerald-50/95 shadow-[0_0_18px_rgba(16,185,129,.12)]"}`}><p className="mb-1 text-[10px] font-semibold uppercase tracking-wide opacity-60">{senderName}</p><p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{displayMessageText(message)}</p>{imageUrls(message.attachmentsJson).map(url => <button key={url} type="button" onClick={() => setLightboxUrl(url)} className="mt-2 block cursor-zoom-in text-left"><img src={url} alt="ไฟล์แนบจากแชท คลิกเพื่อขยาย" className="max-h-56 rounded-xl object-cover transition hover:brightness-110" /></button>)}<p className="mt-1 text-[10px] opacity-50">{senderName} · {messageTimeLabel(message)}</p></div></div>; })}
+     </div>
+-    <div className={`chat-cosmos-composer mt-auto flex shrink-0 flex-col overflow-hidden border-t border-cyan-300/20 bg-gradient-to-b from-[#111326] to-[#090c14] p-3 shadow-[0_-8px_28px_rgba(34,211,238,.05)] sm:p-4 transition-[height] duration-300 ${composerOpen ? "chat-cosmos-composer--open" : "h-12 min-h-12"}`}><div className="mb-2 flex shrink-0 items-center justify-between border-b border-fuchsia-500/10 pb-2"><span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-fuchsia-100/45">กล่องตอบแชท</span>{replyNotice ? <span className={`max-w-[65%] truncate text-[10px] ${deliveryStatus === "sent" ? "text-emerald-300" : deliveryStatus === "failed" ? "text-rose-300" : "text-cyan-200"}`}>{replyNotice}</span> : null}<button type="button" onClick={() => setComposerOpen(value => !value)} className="flex h-7 w-7 items-center justify-center rounded-lg border border-fuchsia-400/20 bg-fuchsia-400/[0.06] text-fuchsia-200 transition hover:bg-fuchsia-400/15" title={composerOpen ? "หุบกล่องตอบแชท" : "เปิดกล่องตอบแชท"} aria-label={composerOpen ? "หุบกล่องตอบแชท" : "เปิดกล่องตอบแชท"}><ChevronDown className={`h-4 w-4 transition-transform ${composerOpen ? "rotate-0" : "rotate-180"}`} /></button></div><div className={`min-h-0 flex-1 overflow-y-auto overscroll-contain ${composerOpen ? "" : "pointer-events-none opacity-0"}`}><div className="mb-3 flex shrink-0 flex-wrap items-center gap-1.5"><span className="mr-1 text-[10px] uppercase tracking-wider text-fuchsia-100/35">ดูข้อความ</span>{([ ["all", "ทั้งหมด"], ["customer", "ลูกค้า"], ["page", "เพจ"] ] as const).map(([value, label]) => <button key={value} onClick={() => setMessageFilter(value)} className={`rounded-lg px-2.5 py-1 text-[10px] transition ${messageFilter === value ? "bg-fuchsia-500/20 text-fuchsia-200 ring-1 ring-fuchsia-400/30" : "text-fuchsia-100/45 hover:bg-fuchsia-500/10 hover:text-fuchsia-100"}`}>{label}</button>)}</div>{summary ? <div className="mb-3 hidden shrink-0 rounded-2xl border border-fuchsia-400/20 bg-fuchsia-500/[0.06] p-3"><div className="flex items-center justify-between gap-3"><p className="text-xs font-semibold text-fuchsia-200">พรีวิวใบสรุป · {summary.orderNumber}</p><button onClick={() => setSummary(null)} className="text-[10px] text-fuchsia-100/40 hover:text-white">ล้าง</button></div><p className="mt-1 text-[11px] text-fuchsia-100/45">ตรวจข้อความด้านล่างให้ถูกต้องก่อนกดส่งให้ลูกค้า</p><Button variant="outline" size="sm" onClick={copySummary} className="mt-2 h-7 border-fuchsia-400/20 bg-transparent text-[10px] text-fuchsia-200">{copied ? <Check className="mr-1 h-3 w-3" /> : <Clipboard className="mr-1 h-3 w-3" />}{copied ? "คัดลอกแล้ว" : "คัดลอกข้อความสรุป"}</Button></div> : null}{composer}</div></div>
++    <div className={`chat-cosmos-composer mt-auto flex shrink-0 flex-col overflow-hidden border-t border-cyan-300/20 bg-gradient-to-b from-[#111326] to-[#090c14] p-3 shadow-[0_-8px_28px_rgba(34,211,238,.05)] sm:p-4 transition-[height] duration-300 ${composerOpen ? "chat-cosmos-composer--open" : "h-12 min-h-12"}`}><div className="mb-2 flex shrink-0 items-center justify-between border-b border-fuchsia-500/10 pb-2"><span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-fuchsia-100/45">กล่องตอบแชท</span>{replyNotice ? <span className={`max-w-[65%] truncate text-[10px] ${deliveryStatus === "sent" ? "text-emerald-300" : deliveryStatus === "failed" ? "text-rose-300" : "text-cyan-200"}`}>{replyNotice}</span> : null}<button type="button" onClick={() => setComposerOpen(value => !value)} className="flex h-7 w-7 items-center justify-center rounded-lg border border-fuchsia-400/20 bg-fuchsia-400/[0.06] text-fuchsia-200 transition hover:bg-fuchsia-400/15" title={composerOpen ? "หุบกล่องตอบแชท" : "เปิดกล่องตอบแชท"} aria-label={composerOpen ? "หุบกล่องตอบแชท" : "เปิดกล่องตอบแชท"}><ChevronDown className={`h-4 w-4 transition-transform ${composerOpen ? "rotate-0" : "rotate-180"}`} /></button></div><div className={`min-h-0 flex-1 overflow-y-auto overscroll-contain ${composerOpen ? "" : "pointer-events-none opacity-0"}`}><div className="mb-3 flex shrink-0 flex-wrap items-center gap-1.5"><span className="mr-1 text-[10px] uppercase tracking-wider text-fuchsia-100/35">ดูข้อความ</span>{([ ["all", "ทั้งหมด"], ["customer", "ลูกค้า"], ["page", "เพจ"] ] as const).map(([value, label]) => <button key={value} onClick={() => setMessageFilter(value)} className={`chat-tool-action chat-tool-action--filter h-7 px-2.5 ${messageFilter === value ? "chat-tool-action--active" : ""}`}>{label}</button>)}</div>{summary ? <div className="mb-3 hidden shrink-0 rounded-2xl border border-fuchsia-400/20 bg-fuchsia-500/[0.06] p-3"><div className="flex items-center justify-between gap-3"><p className="text-xs font-semibold text-fuchsia-200">พรีวิวใบสรุป · {summary.orderNumber}</p><button onClick={() => setSummary(null)} className="text-[10px] text-fuchsia-100/40 hover:text-white">ล้าง</button></div><p className="mt-1 text-[11px] text-fuchsia-100/45">ตรวจข้อความด้านล่างให้ถูกต้องก่อนกดส่งให้ลูกค้า</p><Button variant="outline" size="sm" onClick={copySummary} className="mt-2 h-7 border-fuchsia-400/20 bg-transparent text-[10px] text-fuchsia-200">{copied ? <Check className="mr-1 h-3 w-3" /> : <Clipboard className="mr-1 h-3 w-3" />}{copied ? "คัดลอกแล้ว" : "คัดลอกข้อความสรุป"}</Button></div> : null}{composer}</div></div>
+   </div> : <div className="flex min-h-[560px] items-center justify-center text-sm text-fuchsia-100/35">เลือกห้องแชทเพื่อเริ่มดูข้อความ</div>;
+ 
+   return <div className="chat-cosmos-shell cosmic-stage h-full min-h-0 overflow-hidden bg-[radial-gradient(ellipse_at_top_left,rgba(34,211,238,0.11),transparent_38%),radial-gradient(ellipse_at_bottom_right,rgba(168,85,247,0.10),transparent_40%),#070912] text-white"><div className="mx-auto flex h-full min-h-0 max-w-[1600px] flex-col gap-3 overflow-hidden p-2 sm:p-4 lg:p-6">
+@@ -407,13 +391,49 @@ export default function ChatHub() {
+     {!hasBrowserChatConfig ? <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-300/25 bg-amber-300/[0.06] px-4 py-3 text-xs text-amber-100"><span>ยังไม่ได้ตั้งค่า Chat ใน browser นี้ · ระบบจะยังไม่เรียกฐานข้อมูลแชท</span><Button size="sm" variant="outline" onClick={() => setLocation("/secret-gallery")} className="border-amber-200/25 bg-transparent text-amber-100">ตั้งค่า ROOM 02</Button></div> : null}
+     {threadsQuery.isError ? <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-400/20 bg-red-400/[0.06] px-4 py-3 text-xs text-red-200"><span>โหลดห้องแชทไม่สำเร็จ: {threadsQuery.error.message}</span><Button size="sm" variant="outline" onClick={() => threadsQuery.refetch()} className="border-red-300/20 bg-transparent text-red-100">ลองใหม่</Button></div> : null}
+     {threads.find(thread => thread.orderCountError)?.orderCountError ? <div role="alert" className="rounded-2xl border border-cyan-400/25 bg-cyan-400/[0.06] px-4 py-3 text-xs leading-5 text-cyan-200">โหลดแชทได้ แต่การเชื่อมแถวออเดอร์มีปัญหา: {String(threads.find(thread => thread.orderCountError)?.orderCountError)}</div> : null}
+-    <header className="neon-sign relative shrink-0 overflow-hidden rounded-2xl border border-cyan-300/35 bg-gradient-to-r from-[#0c1421] via-[#151020] to-[#170d1d] px-4 py-3 shadow-[0_0_14px_rgba(34,211,238,.24),0_0_32px_rgba(168,85,247,.20),inset_0_0_20px_rgba(217,70,239,.10)] backdrop-blur-xl"><div className="hero-orbit pointer-events-none opacity-60" aria-hidden="true" /><div className="relative z-10 flex items-center justify-between gap-3"><div className="min-w-0"><p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-fuchsia-300">COSMIC · CHAT CONTROL</p><h1 className="mt-1 text-xl font-semibold tracking-tight text-white drop-shadow-[0_0_8px_rgba(244,114,182,.95)]">กล่องข้อความรวม</h1></div><div className="flex items-center gap-2"><span className="hidden text-[10px] text-fuchsia-100/35 sm:inline">เลือกห้องเพื่อเริ่มตอบ</span><Button variant="outline" size="sm" onClick={() => threadsQuery.refetch()} className="h-8 border-fuchsia-400/20 bg-fuchsia-400/5 text-[10px] text-fuchsia-100 hover:bg-fuchsia-400/10"><RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${threadsQuery.isFetching ? "animate-spin" : ""}`} />รีเฟรช</Button></div></div></header>
+-    <div className="relative flex min-h-0 flex-1 flex-nowrap gap-3 overflow-x-auto overscroll-x-contain pb-1 [-webkit-overflow-scrolling:touch] xl:gap-4 xl:overflow-hidden"><Card className="flex w-[min(290px,84vw)] min-h-0 shrink-0 flex-col overflow-hidden rounded-3xl border-cyan-300/20 bg-[#0b111c]/95 shadow-[0_8px_32px_rgba(34,211,238,.08),0_0_24px_rgba(168,85,247,.06)] backdrop-blur-xl"><CardHeader className="border-b border-fuchsia-500/10 pb-3"><div className="flex items-center justify-between"><CardTitle className="text-base">ห้องแชท <span className="ml-1 text-xs font-normal text-fuchsia-100/35">{filteredThreads.length}</span></CardTitle><button onClick={() => setPageFilterOpen(value => !value)} className={`flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-[11px] ${selectedPages.length ? "bg-fuchsia-500/15 text-fuchsia-200" : "text-fuchsia-100/45 hover:bg-fuchsia-500/10 hover:text-fuchsia-100"}`}><span className="h-2 w-2 rounded-sm border border-current" />เพจ{selectedPages.length ? ` · ${selectedPages.length}` : ""}<ChevronDown className="h-3 w-3" /></button></div>
++    <header className="neon-sign relative shrink-0 overflow-hidden rounded-2xl border border-cyan-300/35 bg-gradient-to-r from-[#0c1421] via-[#151020] to-[#170d1d] px-4 py-3 shadow-[0_0_14px_rgba(34,211,238,.24),0_0_32px_rgba(168,85,247,.20),inset_0_0_20px_rgba(217,70,239,.10)] backdrop-blur-xl"><div className="hero-orbit pointer-events-none opacity-60" aria-hidden="true" /><div className="relative z-10 flex items-center justify-between gap-3"><div className="min-w-0"><p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-fuchsia-300">COSMIC · CHAT CONTROL</p><h1 className="mt-1 text-xl font-semibold tracking-tight text-white drop-shadow-[0_0_8px_rgba(244,114,182,.95)]">กล่องข้อความรวม</h1></div><div className="flex items-center gap-2"><span className="hidden text-[10px] text-fuchsia-100/35 sm:inline">เลือกห้องเพื่อเริ่มตอบ</span><Button variant="outline" size="sm" onClick={() => threadsQuery.refetch()} className="chat-tool-action h-8 px-3"><RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${threadsQuery.isFetching ? "animate-spin" : ""}`} />รีเฟรช</Button></div></div></header>
++    <div className="relative flex min-h-0 flex-1 flex-nowrap gap-3 overflow-x-auto overscroll-x-contain pb-1 [-webkit-overflow-scrolling:touch] xl:gap-4 xl:overflow-hidden"><Card className="flex w-[min(290px,84vw)] min-h-0 shrink-0 flex-col overflow-hidden rounded-3xl border-cyan-300/20 bg-[#0b111c]/95 shadow-[0_8px_32px_rgba(34,211,238,.08),0_0_24px_rgba(168,85,247,.06)] backdrop-blur-xl"><CardHeader className="border-b border-fuchsia-500/10 pb-3"><div className="flex items-center justify-between"><CardTitle className="text-base">ห้องแชท <span className="ml-1 text-xs font-normal text-fuchsia-100/35">{filteredThreads.length}</span></CardTitle><button onClick={() => setPageFilterOpen(value => !value)} className={`chat-tool-action chat-tool-action--filter ${selectedPages.length ? "chat-tool-action--active" : ""}`}><span className="h-2 w-2 rounded-sm border border-current" />เพจ{selectedPages.length ? ` · ${selectedPages.length}` : ""}<ChevronDown className="h-3 w-3" /></button></div>
+       <div className="relative mt-3"><Search className="absolute left-3 top-2.5 h-4 w-4 text-fuchsia-100/30" /><Input value={search} onChange={event => setSearch(event.target.value)} placeholder="ค้นหาชื่อลูกค้าหรือข้อความ…" className="rounded-xl border-fuchsia-500/15 bg-black/20 pl-9 text-white placeholder:text-fuchsia-100/25 focus-visible:ring-fuchsia-400" />{pageFilterOpen ? <div className="absolute right-0 top-12 z-20 w-64 rounded-2xl border border-fuchsia-400/20 bg-[#181020] p-3 shadow-2xl shadow-black/50"><div className="mb-2 flex items-center justify-between"><p className="text-[10px] font-semibold uppercase tracking-wider text-fuchsia-300">เลือกเพจ</p><button onClick={() => setSelectedPages([])} className="text-[10px] text-fuchsia-100/40 hover:text-white">ล้าง</button></div>{availablePages.map(([pageId, pageName, codToday]) => { const active = selectedPages.includes(pageId); return <button key={pageId} type="button" onClick={() => setSelectedPages(current => active ? current.filter(item => item !== pageId) : [...current, pageId])} className={`page-holo-label group flex w-full items-center gap-2 rounded-xl border px-2.5 py-2 text-left text-xs transition ${codToday ? "page-holo-label--live" : ""} ${active ? "border-cyan-300/55 bg-cyan-300/15 text-cyan-50 shadow-[0_0_16px_rgba(34,211,238,.20)]" : "border-fuchsia-300/10 bg-black/15 text-fuchsia-50/70 hover:border-fuchsia-300/35 hover:bg-fuchsia-500/10"}`}><span className={`relative flex h-2.5 w-2.5 shrink-0 rounded-full ${codToday ? "bg-fuchsia-100 shadow-[0_0_12px_rgba(255,255,255,.95)]" : active ? "bg-cyan-300 shadow-[0_0_10px_rgba(34,211,238,.9)]" : "bg-fuchsia-200/25"}`} /><span className="min-w-0 flex-1 truncate">{pageName}</span><span className="font-mono text-[9px] text-fuchsia-100/35">BB.{pageId.slice(-4)}</span>{codToday ? <span className="cod-neon-sign" aria-label="COD วันนี้">COD</span> : null}</button>; })}{!availablePages.length ? <p className="p-2 text-xs text-fuchsia-100/35">ยังไม่มีรายชื่อเพจ</p> : null}</div> : null}</div>
+-      <div className="mt-3 flex flex-wrap gap-1.5">{([ ["all", "ทั้งหมด"], ["unread", "ยังไม่อ่าน"], ["ordered", "มี COD"] ] as const).map(([value, label]) => <button key={value} type="button" onClick={() => setStatusFilter(value)} className={`rounded-lg px-2.5 py-1.5 text-xs transition ${statusFilter === value ? "bg-cyan-400/15 text-cyan-200 ring-1 ring-cyan-300/25" : "text-fuchsia-100/45 hover:bg-fuchsia-500/10 hover:text-fuchsia-100"}`}>{label}</button>)}</div></CardHeader><CardContent className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 [-webkit-overflow-scrolling:touch]">{threadsQuery.isLoading ? <div className="flex items-center justify-center gap-2 p-12 text-sm text-fuchsia-100/40"><RefreshCw className="h-4 w-4 animate-spin" />กำลังโหลดห้อง…</div> : filteredThreads.length === 0 ? <div className="p-12 text-center text-sm text-fuchsia-100/40"><MessageCircle className="mx-auto mb-3 h-8 w-8 text-fuchsia-100/15" />ยังไม่มีห้องตามตัวกรอง</div> : filteredThreads.map((thread, index) => <button key={thread.key} onClick={() => { setSelectedKey(thread.key); if (isMobile) setMobileOpen(true); }} className={`room-list-card ${thread.codTodayActive ? "room-list-card--signal" : ""} ${hasCodOrder(thread) ? "room-list-card--order-signal" : ""} relative mb-1 flex w-full items-start gap-3 rounded-2xl p-3.5 text-left transition ${selected?.key === thread.key ? "bg-gradient-to-r from-cyan-400/[0.12] via-violet-500/[0.08] to-fuchsia-500/[0.10] ring-1 ring-cyan-300/35 shadow-[0_0_20px_rgba(34,211,238,.09)]" : "hover:bg-cyan-300/[0.06] hover:ring-1 hover:ring-cyan-300/15"}`}><span className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${index % 2 ? "bg-fuchsia-500/20 text-fuchsia-200" : "bg-fuchsia-500/20 text-fuchsia-200"}`}>{(thread.customerName || "ลูกค้า").slice(0, 1)}</span><span className="min-w-0 flex-1"><span className="flex items-center justify-between gap-2"><span className="chat-customer-list-label truncate text-sm font-semibold">{thread.customerName || "ลูกค้าใหม่"}</span><span className="shrink-0 text-xs text-cyan-100/55">{timeLabel(thread.latestAt)}</span></span><span className="mt-1 flex items-center gap-1.5 truncate text-xs text-fuchsia-100/75"><span className={`chat-room-code-label ${hasCodOrder(thread) ? "cod-room-sign--order" : thread.codTodayActive ? "cod-room-sign" : ""} shrink-0 rounded border px-1.5 py-0.5 font-mono text-[9px] ${thread.codTodayActive ? "border-fuchsia-200/80 bg-fuchsia-400/20 text-fuchsia-50 shadow-[0_0_14px_rgba(255,70,205,.8)]" : "border-fuchsia-300/25 bg-fuchsia-400/[0.08] text-fuchsia-100"} ${hasTimeSlotLabel(thread) ? "time-slot-room-sign" : ""}`} title={thread.timeSlotLabel || undefined}>BB.{thread.pageId ? thread.pageId.slice(-4) : "ROOM"}{hasCodOrder(thread) || thread.codTodayActive ? " ⚡" : ""}{hasTimeSlotLabel(thread) ? " 🔥" : ""}</span>{thread.parcel_status_emoji ? <span title="สถานะพัสดุ" className="rounded bg-orange-400/15 px-1 text-orange-200 shadow-[0_0_10px_rgba(251,146,60,.28)]">{thread.parcel_status_emoji}</span> : null}{thread.unread ? <span className="rounded bg-cyan-400/15 px-1 text-cyan-200">ใหม่</span> : null}{thread.codSignalCount > 0 ? <span title="นับข้อความที่มีคำว่า COD เท่านั้น" className="rounded bg-emerald-400/15 px-1 text-emerald-200">COD {thread.codSignalCount}</span> : null}{thread.orderCount > 0 ? <span title="แถวออเดอร์ที่ผูกกับห้องได้" className="rounded bg-cyan-400/15 px-1 text-cyan-200">ORD {thread.orderCount}</span> : null}{confirmedKeys.has(`${thread.pageId}:${thread.threadId}`) ? <span className="rounded bg-fuchsia-400/15 px-1 text-cyan-200">ยืนยันแล้ว</span> : null}<span className="truncate">{thread.pageName}</span></span><span className="mt-1 block truncate text-xs text-fuchsia-100/45">{thread.preview}</span></span></button>)}</CardContent></Card>
++      <div className="mt-3 flex flex-wrap gap-1.5">{([ ["all", "ทั้งหมด"], ["unread", "ยังไม่อ่าน"], ["ordered", "มี COD"] ] as const).map(([value, label]) => <button key={value} type="button" onClick={() => setStatusFilter(value)} className={`chat-tool-action chat-tool-action--filter ${statusFilter === value ? "chat-tool-action--active" : ""}`}>{label}</button>)}</div></CardHeader><CardContent className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 [-webkit-overflow-scrolling:touch]">{threadsQuery.isLoading ? <div className="flex items-center justify-center gap-2 p-12 text-sm text-fuchsia-100/40"><RefreshCw className="h-4 w-4 animate-spin" />กำลังโหลดห้อง…</div> : filteredThreads.length === 0 ? <div className="p-12 text-center text-sm text-fuchsia-100/40"><MessageCircle className="mx-auto mb-3 h-8 w-8 text-fuchsia-100/15" />ยังไม่มีห้องตามตัวกรอง</div> : filteredThreads.map((thread, index) => <button key={thread.key} onClick={() => { setSelectedKey(thread.key); if (isMobile) setMobileOpen(true); }} className={`room-list-card ${thread.codTodayActive ? "room-list-card--signal" : ""} relative mb-1 flex w-full items-start gap-3 rounded-2xl p-3.5 text-left transition ${selected?.key === thread.key ? "bg-gradient-to-r from-fuchsia-400/[0.13] via-violet-500/[0.08] to-pink-500/[0.10] ring-1 ring-fuchsia-300/45 shadow-[0_0_20px_rgba(255,0,217,.16)]" : "hover:bg-cyan-300/[0.06] hover:ring-1 hover:ring-cyan-300/15"}`}><span className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${index % 2 ? "bg-fuchsia-500/20 text-fuchsia-200" : "bg-fuchsia-500/20 text-fuchsia-200"}`}>{(thread.customerName || "ลูกค้า").slice(0, 1)}</span><span className="min-w-0 flex-1"><span className="flex items-center justify-between gap-2"><span className="chat-customer-list-label truncate text-sm font-semibold">{thread.customerName || "ลูกค้าใหม่"}</span><span className="shrink-0 text-xs text-cyan-100/55">{timeLabel(thread.latestAt)}</span></span><span className="mt-1 flex items-center gap-1.5 truncate text-xs text-fuchsia-100/75"><span className={`chat-room-code-label ${hasCodOrder(thread) ? "cod-room-sign--order" : thread.codTodayActive ? "cod-room-sign" : ""} shrink-0 rounded border px-1.5 py-0.5 font-mono text-[9px] ${thread.codTodayActive ? "border-fuchsia-200/80 bg-fuchsia-400/20 text-fuchsia-50 shadow-[0_0_14px_rgba(255,70,205,.8)]" : "border-fuchsia-300/25 bg-fuchsia-400/[0.08] text-fuchsia-100"} ${hasTimeSlotLabel(thread) ? "time-slot-room-sign" : ""}`} title={thread.timeSlotLabel || undefined}>BB.{thread.pageId ? thread.pageId.slice(-4) : "ROOM"}{hasCodOrder(thread) || thread.codTodayActive ? " ⚡" : ""}{hasTimeSlotLabel(thread) ? " 🔥" : ""}</span>{thread.parcel_status_emoji ? <span title="สถานะพัสดุ" className="rounded bg-lime-400/15 px-1 text-lime-200 shadow-[0_0_10px_rgba(140,255,0,.22)]">{thread.parcel_status_emoji}</span> : null}{thread.unread ? <span className="rounded bg-cyan-400/15 px-1 text-cyan-200">ใหม่</span> : null}{thread.codSignalCount > 0 ? <span title="นับข้อความที่มีคำว่า COD เท่านั้น" className="rounded bg-emerald-400/15 px-1 text-emerald-200">COD {thread.codSignalCount}</span> : null}{thread.orderCount > 0 ? <span title="แถวออเดอร์ที่ผูกกับห้องได้" className="rounded bg-cyan-400/15 px-1 text-cyan-200">ORD {thread.orderCount}</span> : null}{confirmedKeys.has(`${thread.pageId}:${thread.threadId}`) ? <span className="rounded bg-fuchsia-400/15 px-1 text-cyan-200">ยืนยันแล้ว</span> : null}<span className="truncate">{thread.pageName}</span></span><span className="mt-1 block truncate text-xs text-fuchsia-100/45">{thread.preview}</span></span></button>)}</CardContent></Card>
+       <Card className="hidden h-full min-h-0 min-w-[min(560px,85vw)] flex-1 overflow-hidden rounded-3xl border-violet-300/20 bg-[#0b101b]/95 shadow-[0_8px_36px_rgba(168,85,247,.10)] backdrop-blur-xl md:block">{conversation}</Card>
+-      {!toolsOpen ? <button type="button" onClick={() => setToolsOpen(true)} aria-label="เปิดแผงเครื่องมือ" className="absolute right-2 top-2 z-30 rounded-xl border border-cyan-300/30 bg-[#0b1520]/95 px-3 py-2 text-xs font-semibold text-cyan-100 shadow-[0_0_16px_rgba(34,211,238,.18)] transition hover:border-fuchsia-300/50 hover:text-white">เปิดเครื่องมือ</button> : null}
+-      <Card className={`chat-cosmos-tools order-signal-tools relative flex min-h-0 shrink-0 flex-col overflow-hidden rounded-3xl border-cyan-300/20 bg-gradient-to-b from-[#0d1721] to-[#0b0d17] shadow-[0_8px_36px_rgba(34,211,238,.11)] backdrop-blur-xl transition-[width] duration-300 ${toolsOpen ? "" : "pointer-events-none"}`} style={{ width: toolsOpen ? `${toolsWidth}px` : "0px" }}><CardHeader className="shrink-0 border-b border-cyan-300/10 pb-3"><div className="flex items-center justify-between gap-2"><div><CardTitle className="text-sm text-cyan-100">เครื่องมือห้องนี้</CardTitle><p className="mt-1 text-[10px] text-cyan-100/40">สำรอง · เสียบข้อความเข้ากล่องแชท</p></div>{selectedMetaInboxUrl ? <a href={selectedMetaInboxUrl} target="_blank" rel="noopener noreferrer" title="เปิดห้องแชทจริงใน Meta Business Suite" aria-label="เปิดห้องแชทจริงใน Meta Business Suite" className="inline-flex h-7 shrink-0 items-center gap-1 rounded-lg border border-fuchsia-300/25 bg-fuchsia-400/[0.07] px-2 text-[9px] font-semibold text-fuchsia-100 transition hover:border-fuchsia-200/55 hover:bg-fuchsia-400/[0.14] hover:text-white"><ExternalLink className="h-3 w-3" />แชทจริง</a> : null}<label className="flex items-center gap-1 text-[9px] text-cyan-100/40" title="ปรับความกว้างแผง"><span>↔</span><input type="range" min="280" max="520" step="20" value={toolsWidth} onChange={event => setToolsWidth(Number(event.target.value))} className="w-16 accent-cyan-400" /></label><button type="button" onClick={() => setToolsOpen(false)} className="rounded-lg p-1.5 text-cyan-100/45 hover:bg-cyan-300/10 hover:text-cyan-100" aria-label="หุบแผงเครื่องมือ"><X className="h-4 w-4" /></button></div></CardHeader><CardContent className="min-h-0 space-y-3 overflow-y-auto p-3">{selected ? <><div className="rounded-xl border border-cyan-300/10 bg-cyan-300/[0.04] p-3"><p className="truncate text-sm font-semibold text-cyan-100">{selected.customerName || "ลูกค้าใหม่"}</p><p className="mt-1 truncate text-[10px] text-cyan-100/45">{selected.pageName || "ไม่ระบุเพจ"}</p></div><TrackingNumberCard rows={selectedTrackingRows} /><div className="grid grid-cols-2 gap-2">{toolValues.map(item => <CopyValueCard key={item.key} label={item.label} value={item.value} copied={copiedToolField === item.key} onCopy={() => void copyToolValue(item.key, item.value)} />)}</div><div className={`rounded-xl border p-3 ${selected.codTodayActive ? "border-fuchsia-300/45 bg-fuchsia-400/[0.08] shadow-[0_0_24px_rgba(255,70,205,.18)]" : "border-cyan-300/10 bg-cyan-300/[0.04]"}`}><div className="flex items-center justify-between gap-2"><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-100/65">COD SIGNAL DECK</p><span className={`h-2.5 w-2.5 rounded-full ${selected.codTodayActive ? "bg-fuchsia-100 shadow-[0_0_14px_rgba(255,255,255,.95)]" : "bg-cyan-100/20"}`} /></div><p className={`mt-2 text-sm font-semibold ${selected.codTodayActive ? "text-fuchsia-50" : "text-cyan-100/65"}`}>{selected.codTodayActive ? "COD วันนี้ · มีออเดอร์แล้ว" : "ยังไม่มี COD วันนี้"}</p><div className="mt-2 grid grid-cols-2 gap-2 text-[10px]"><span className="rounded-lg bg-black/20 p-2 text-cyan-100/55">COD signal <b className="ml-1 text-cyan-100">{selected.codSignalCount ?? 0}</b></span><span className="rounded-lg bg-black/20 p-2 text-cyan-100/55">COD วันนี้ <b className="ml-1 text-cyan-100">{selected.todayCodSignalCount ?? 0}</b></span></div></div>{selectedTrackingRows.length ? selectedTrackingRows.map((row, index) => <div key={`${row.tracking_number}-${index}`} className="rounded-xl border border-emerald-300/15 bg-emerald-300/[0.04] p-3"><div className="flex items-center justify-between gap-2"><p className="font-mono text-sm font-bold text-emerald-100">{row.tracking_number || "ไม่มีเลข"}</p><span className="text-[10px] text-emerald-200/65">สำรอง</span></div><p className="mt-1 truncate text-[10px] text-cyan-100/45">{row.order_number_display || row.order_number || "ไม่พบออเดอร์"} · {row.shipping_carrier || "FLASH EXPRESS"}</p><div className="mt-3 grid gap-2"><Button type="button" size="sm" onClick={() => setReplyText(String(row.facebook_tracking_message || ""))} disabled={!row.facebook_tracking_message} className="h-8 justify-start bg-emerald-500/15 text-[10px] text-emerald-100 hover:bg-emerald-500/25">เสียบ Facebook ลงกล่อง</Button><Button type="button" size="sm" variant="outline" onClick={() => setReplyText(String(row.drakside_tracking_message || ""))} disabled={!row.drakside_tracking_message} className="h-8 justify-start border-cyan-300/20 text-[10px] text-cyan-100">เสียบ Drakside ลงกล่อง</Button></div><p className="mt-2 text-[9px] leading-4 text-cyan-100/35">กดแล้วแค่ใส่ในช่องพิมพ์ ยังไม่ส่งให้ลูกค้า</p></div>) : <div className="rounded-xl border border-cyan-300/10 bg-black/20 p-3 text-xs leading-5 text-cyan-100/45">ห้องนี้ยังไม่มี Tracking สำรอง</div>}</> : <div className="p-4 text-center text-xs text-cyan-100/40">เลือกห้องแชทก่อน</div>}</CardContent></Card>
++      {!toolsOpen ? <button type="button" onClick={() => setToolsOpen(true)} aria-label="เปิดแผงเครื่องมือ" className="chat-tool-action chat-tool-action--primary absolute right-2 top-2 z-30 px-3">เปิดเครื่องมือ</button> : null}
++      <Card className={`chat-cosmos-tools chat-tools-panel relative flex min-h-0 w-[320px] shrink-0 flex-col overflow-hidden rounded-2xl border backdrop-blur-xl transition-[width] duration-200 ${toolsOpen ? "" : "pointer-events-none"}`} style={{ width: toolsOpen ? "320px" : "0px" }}>
++        <CardHeader className="shrink-0 border-b border-cyan-300/10 px-3 pb-3 pt-3">
++          <div className="flex items-center justify-between gap-2">
++            <div className="min-w-0">
++              <CardTitle className="text-sm text-cyan-100">เครื่องมือห้องนี้</CardTitle>
++              <p className="mt-1 truncate text-[10px] text-cyan-100/45">{selected ? `${selected.customerName || "ลูกค้าใหม่"} · ${selected.pageName || "ไม่ระบุเพจ"}` : "เลือกห้องแชทก่อน"}</p>
++            </div>
++            <div className="flex shrink-0 items-center gap-1.5">
++              {selectedMetaInboxUrl ? <a href={selectedMetaInboxUrl} target="_blank" rel="noopener noreferrer" title="เปิดห้องแชทจริงใน Meta Business Suite" aria-label="เปิดห้องแชทจริงใน Meta Business Suite" className="chat-tool-action chat-tool-action--primary h-8 px-2"><ExternalLink className="h-3 w-3" />แชทจริง</a> : null}
++              <button type="button" onClick={() => setToolsOpen(false)} className="chat-tool-action chat-tool-action--icon" aria-label="หุบแผงเครื่องมือ"><X className="h-4 w-4" /></button>
++            </div>
++          </div>
++        </CardHeader>
++        <CardContent className="min-h-0 space-y-3 overflow-y-auto p-3">
++          {selected ? <>
++            {availableToolValues.length ? <section className="space-y-1.5">
++              <div className="flex items-center justify-between gap-2"><p className="chat-tools-section-title">ข้อมูลสำหรับคัดลอก</p><span className="text-[9px] text-cyan-100/35">แตะแถวเพื่อคัดลอก</span></div>
++              <div className="space-y-1.5">{availableToolValues.map(item => <CopyValueCard key={item.key} label={item.label} value={item.value} copied={copiedToolField === item.key} onCopy={() => void copyToolValue(item.key, item.value)} />)}</div>
++            </section> : null}
++            <section className="space-y-2">
++              <div className="flex items-center justify-between gap-2"><p className="chat-tools-section-title">ข้อความเลขพัสดุ</p><span className="chat-tools-section-tag">สำรอง</span></div>
++              {selectedTrackingRows.length ? <>
++                <div className="space-y-2">{selectedTrackingRows.map((row, index) => <div key={`${row.tracking_number}-${index}`} className="chat-tools-item">
++                  <div className="flex items-center justify-between gap-2"><p className="truncate font-mono text-xs font-semibold text-cyan-50">{row.tracking_number || "รอเลขพัสดุ"}</p><span className="shrink-0 text-[9px] text-cyan-100/45">{row.shipping_carrier || "ขนส่งไม่ระบุ"}</span></div>
++                  <p className="mt-1 truncate text-[9px] text-cyan-100/45">{row.order_number_display || row.order_number || "ไม่พบออเดอร์"}</p>
++                  <div className="mt-2 grid grid-cols-2 gap-1.5">
++                    <Button type="button" size="sm" onClick={() => setReplyText(String(row.facebook_tracking_message || ""))} disabled={!row.facebook_tracking_message} className="chat-tool-action h-8 w-full">Facebook</Button>
++                    <Button type="button" size="sm" variant="outline" onClick={() => setReplyText(String(row.drakside_tracking_message || ""))} disabled={!row.drakside_tracking_message} className="chat-tool-action h-8 w-full">Drakside</Button>
++                  </div>
++                </div>)}</div>
++                <p className="text-[9px] leading-4 text-cyan-100/35">กดเพื่อใส่ในกล่องพิมพ์ · ยังไม่ส่ง</p>
++              </> : <p className="chat-tools-empty">ไม่มีข้อความเลขพัสดุสำรองในห้องนี้</p>}
++            </section>
++            {!availableToolValues.length && !selectedTrackingRows.length ? <p className="chat-tools-empty">ห้องนี้ยังไม่มีข้อมูลสำรอง</p> : null}
++          </> : <p className="chat-tools-empty">เลือกห้องแชทเพื่อใช้เครื่องมือ</p>}
++        </CardContent>
++      </Card>
+     </div>
+     {isMobile && mobileOpen ? <div className="fixed inset-0 z-50 flex items-end bg-[#03050b]/85 p-2 backdrop-blur-md"><div className="flex h-[94dvh] max-h-[94dvh] w-full min-h-0 flex-col overflow-hidden rounded-3xl border border-cyan-300/25 bg-[#0b101a]/95 shadow-[0_0_36px_rgba(34,211,238,.12),0_0_56px_rgba(168,85,247,.12)] backdrop-blur-xl">{conversation}</div></div> : null}
+     {summaryOpen ? <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"><div className="w-full max-w-2xl rounded-3xl border border-fuchsia-400/25 bg-[#15101d] p-5 shadow-2xl shadow-fuchsia-950/40"><div className="flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-[0.22em] text-fuchsia-300">ADMIN ORDER SUMMARY</p><h3 className="mt-2 text-xl font-semibold text-white">สร้างใบสรุปออเดอร์ในห้องนี้</h3></div><button onClick={() => setSummaryOpen(false)} className="rounded-xl p-2 text-fuchsia-100/50 hover:bg-fuchsia-500/10 hover:text-white"><X className="h-5 w-5" /></button></div><Textarea autoFocus value={summaryText} onChange={event => setSummaryText(event.target.value)} placeholder="วางข้อความลูกค้าที่นี่…" className="mt-4 min-h-48 border-fuchsia-500/20 bg-black/25 text-sm leading-6 text-white placeholder:text-fuchsia-100/25" />{summary ? <div className="mt-4 rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.06] p-4"><div className="flex items-center justify-between gap-3"><p className="text-xs font-semibold uppercase tracking-wider text-emerald-300">PREVIEW · {summary.orderNumber}</p><span className="text-[10px] text-emerald-200/60">ยังไม่ส่ง</span></div><div className="mt-3 grid gap-2 text-sm sm:grid-cols-2"><div><span className="text-[10px] text-fuchsia-100/40">ชื่อลูกค้า</span><p className="text-white">{summary.customerName || "ไม่ระบุชื่อ"}</p></div><div><span className="text-[10px] text-fuchsia-100/40">เบอร์โทร</span><p className="text-white">{summary.phone || "ไม่ระบุเบอร์โทร"}</p></div><div className="sm:col-span-2"><span className="text-[10px] text-fuchsia-100/40">ที่อยู่</span><p className="text-fuchsia-100/80">{summary.address || "ไม่ระบุที่อยู่"}</p></div><div><span className="text-[10px] text-fuchsia-100/40">สินค้า</span><p className="text-fuchsia-200">{summary.product}</p></div><div><span className="text-[10px] text-fuchsia-100/40">COD</span><p className="text-cyan-200">{summary.cod === "ไม่ระบุ" ? summary.cod : `${summary.cod} บาท`}</p></div></div><div className="mt-3 border-t border-emerald-400/10 pt-3"><span className="text-[10px] text-fuchsia-100/40">ข้อความที่จะนำไปใส่ช่องตอบกลับ</span><pre className="mt-1 whitespace-pre-wrap text-xs leading-5 text-fuchsia-100/75">{summary.copyText}</pre></div>{summary.timingMs ? <p className="mt-3 border-t border-emerald-400/10 pt-2 text-[10px] text-emerald-200/55">วัดเวลา: รวม {summary.timingMs.total}ms · ดึงข้อมูล {summary.timingMs.dataLookup}ms · แปลงข้อความ {summary.timingMs.parse}ms · Audit {summary.timingMs.audit}ms</p> : null}</div> : null}<div className="mt-4 rounded-xl border border-fuchsia-400/10 bg-black/15 p-3"><p className="text-[10px] font-semibold uppercase tracking-wider text-fuchsia-100/40">ประวัติ Timing ล่าสุด</p>{summaryTimingsQuery.isLoading ? <p className="mt-2 text-[10px] text-fuchsia-100/35">กำลังโหลด…</p> : <div className="mt-2 space-y-1">{summaryTimingsQuery.data?.slice(0, 5).map(row => { const timing = (row.metadata as { timingMs?: { total?: number; dataLookup?: number; parse?: number; audit?: number } }).timingMs; return <p key={row.id} className="text-[10px] text-fuchsia-100/50">{row.orderNumber ?? "draft"} · รวม {timing?.total ?? "—"}ms · data {timing?.dataLookup ?? "—"}ms · parse {timing?.parse ?? "—"}ms</p>; })}</div>}</div><div className="mt-4 flex justify-end gap-2"><Button variant="outline" onClick={() => setSummaryOpen(false)} className="border-fuchsia-400/20 bg-transparent text-fuchsia-100/70">ยกเลิก</Button><Button disabled={!summaryText.trim() || generateSummary.isPending} onClick={() => generateSummary.mutate({ rawText: summaryText, pageId: selectedPageId || undefined, threadId: selectedThreadId || undefined })} className="bg-gradient-to-r from-fuchsia-600 via-violet-600 to-emerald-500">{generateSummary.isPending ? "กำลังอ่าน…" : "สรุปออเดอร์"}</Button></div></div></div> : null}
