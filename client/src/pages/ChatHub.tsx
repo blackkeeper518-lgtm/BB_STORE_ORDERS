@@ -185,7 +185,9 @@ export default function ChatHub() {
     }
     try {
       const raw = window.sessionStorage.getItem(`darkside-send-gate:${selectedPageId}:${selectedThreadId}`);
-      setHandoffTracking(raw ? JSON.parse(raw) : null);
+      const parsed = raw ? JSON.parse(raw) : null;
+      setHandoffTracking(parsed);
+      if (parsed && (parsed.tracking_number || parsed.facebook_tracking_message || parsed.drakside_tracking_message)) setToolsOpen(true);
     } catch {
       setHandoffTracking(null);
     }
@@ -213,6 +215,7 @@ export default function ChatHub() {
       order_number: room.order_number ?? "",
       order_number_display: room.order_number_display ?? "",
       shipping_carrier: room.shipping_carrier ?? "",
+      address_display_packer: room.address_display_packer ?? room.full_address ?? room.address ?? "",
       facebook_tracking_message: room.facebook_tracking_message ?? "",
       drakside_tracking_message: room.drakside_tracking_message ?? "",
     };
@@ -235,10 +238,10 @@ export default function ChatHub() {
       { key: "phone", label: "เบอร์โทร", value: room?.phone ?? room?.customerPhone ?? room?.extracted_phone },
       { key: "cod", label: "COD", value: room?.cod_amount ?? room?.codAmount },
       { key: "order", label: "ออเดอร์", value: room?.order_number_display ?? room?.order_number },
-      { key: "address", label: "ที่อยู่", value: room?.full_address ?? room?.address ?? room?.shipping_address },
+      { key: "address", label: "ที่อยู่", value: room?.address_display_packer || room?.full_address || room?.address || room?.shipping_address || handoffTracking?.address_display_packer },
       { key: "packer", label: "ข้อมูลแพ็ก", value: room?.manus_for_packer },
     ];
-  }, [selected]);
+  }, [selected, handoffTracking]);
   const chatEvidenceQuery = trpc.orders.chatEvidence.useQuery({ pageId: selectedPageId, threadId: selectedThreadId }, { enabled: Boolean(selectedPageId && selectedThreadId && orderDetailOpen), refetchInterval: 60_000 });
   const totalMessages = useMemo(() => threads.reduce((total, thread) => total + thread.messageCount, 0), [threads]);
   const uploadImage = trpc.chat.uploadImage.useMutation({ onSuccess: result => setReplyImageUrl(`${window.location.origin}${result.url}`) });

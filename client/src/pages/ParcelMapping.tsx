@@ -29,6 +29,7 @@ type ParcelMappingRow = {
   matched_phone?: string | null;
   customer_name?: string | null;
   recipient_name?: string | null;
+  address_display_packer?: string | null;
   parcel_address?: string | null;
   pickup_date?: string | null;
   parcel_delivery_status?: string | null;
@@ -238,6 +239,7 @@ export default function ParcelMapping() {
         tracking_number: row.tracking_number,
         order_number: row.order_number,
         order_number_display: row.order_number_display,
+        address_display_packer: row.address_display_packer,
         shipping_carrier: row.shipping_carrier,
         facebook_tracking_message: row.facebook_tracking_message,
         drakside_tracking_message: row.drakside_tracking_message,
