@@ -175,7 +175,7 @@ select
   ord.chat_link_key
 from
   "🔮SHADOW_xXx_RECALL" pcl
-  join "🏹HUNTER_xXx_TARGET" ord on ord.upsert_key = pcl.upsert_key
+  join "🧿BB_xXx_ORDERCONTROL" ord on ord.upsert_key = pcl.upsert_key
 where
   NULLIF(btrim(pcl.tracking_number), ''::text) is not null
   and (
@@ -274,8 +274,8 @@ from
   join public."🧿BB_xXx_ORDERCONTROL" ord
     on ord.upsert_key = pcl.upsert_key
 
-  -- HUNTER เป็นท่อเสริม ไม่ใช่ต้นทางหลัก
-  left join public."🏹HUNTER_xXx_TARGET" h
+  -- ORDERCONTROL เป็นแหล่งข้อมูลหลักของสายส่งเลข
+  left join public."🧿BB_xXx_ORDERCONTROL" h
     on h.upsert_key = ord.upsert_key
 
 where
@@ -376,8 +376,8 @@ from
   join public."🧿BB_xXx_ORDERCONTROL" ord
     on ord.upsert_key = pcl.upsert_key
 
-  -- HUNTER เป็นท่อเสริม ไม่ใช่ต้นทางหลัก
-  left join public."🏹HUNTER_xXx_TARGET" h
+  -- ORDERCONTROL เป็นแหล่งข้อมูลหลักของสายส่งเลข
+  left join public."🧿BB_xXx_ORDERCONTROL" h
     on h.upsert_key = ord.upsert_key
 
 where
