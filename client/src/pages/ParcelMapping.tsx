@@ -90,7 +90,7 @@ function isSent(row: ParcelMappingRow) {
         "DELIVERED",
         "SENT_TO_TELEGRAM",
       ].includes(value)
-    ) || Boolean(clean(row.parcel_sent_at));
+    ) || Boolean(clean(row.parcel_sent_at)) || /📌\s*📣\s*แจ้งเลขพัสดุจัดส่ง/u.test(clean(row.page_latest_message));
 }
 function asBool(value: unknown) {
   return value === true || value === "true" || value === 1 || value === "1";
