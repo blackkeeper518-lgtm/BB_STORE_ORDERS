@@ -725,7 +725,13 @@ export async function readParcelMappingQueue(status: "all" | "sent" = "all", lim
   if ("error" in activeData && activeData.error) fail(activeData.error);
   const sent = status === "all" || status === "sent" ? await api.from("📓DEAD_xXx_NOTE").select("*").limit(safeLimit) : { data: [], error: null };
   if (sent.error) fail(sent.error);
-  const rows = [...("data" in activeData ? (activeData.data ?? []) : []), ...(sent.data ?? [])];
+  // DEAD is the authoritative sent history. If the same parcel briefly exists
+  // in both views while the source status is propagating, keep DEAD first so
+  // the web never hides a sent row behind the waiting-queue copy.
+  const rows = [
+    ...(sent.data ?? []).map((row: any) => ({ ...row, parcel_queue_source: "DEAD" })),
+    ...( "data" in activeData ? (activeData.data ?? []) : [] ).map((row: any) => ({ ...row, parcel_queue_source: "ROGUE" })),
+  ];
   const seen = new Set<string>();
   return rows.map((row: any) => {
     const messageId = String(row.message_id ?? "").trim();
