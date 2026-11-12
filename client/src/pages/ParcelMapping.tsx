@@ -84,6 +84,7 @@ function isSent(row: ParcelMappingRow) {
     .some(value =>
       [
         "🔥SENT",
+        "⚡SENT",
         "SENT",
         "SUCCESS",
         "COMPLETED",
