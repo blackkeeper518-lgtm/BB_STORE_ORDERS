@@ -641,6 +641,7 @@ export function mapChatRowsToThreads(sourceRows: any[]) {
       order_time_display: row.order_time_display || null, cod_amount: row.cod_amount ?? null,
       facebook_name: row.facebook_name || null, manus_for_packer: row.manus_for_packer || null,
       parcel_status_emoji: row.parcel_status_emoji || null,
+      delivery_status: row.delivery_status || null,
     };
     current.latestAt = row._occurred || row.occurred_at || current.latestAt;
     current.preview = row._text || (row._hasAttachment ? "[ไฟล์แนบ]" : current.preview);
@@ -665,7 +666,7 @@ export function mapChatRowsToThreads(sourceRows: any[]) {
     current.messageCount += 1;
     current.chatTimeline.push(`${row._speaker === "page" ? "[เพจ]" : "[ลูกค้า]"} ${row._text || (row._hasAttachment ? "[ไฟล์แนบ]" : "")}`);
     // Tracking fields are supplied directly on either room-side table; keep the newest non-empty value.
-    for (const field of ["tracking_number", "order_number", "order_number_display", "shipping_carrier", "facebook_tracking_message", "drakside_tracking_message"]) {
+    for (const field of ["tracking_number", "order_number", "order_number_display", "shipping_carrier", "facebook_tracking_message", "drakside_tracking_message", "delivery_status"]) {
       if (row[field] != null && String(row[field]).trim()) current[field] = row[field];
     }
 

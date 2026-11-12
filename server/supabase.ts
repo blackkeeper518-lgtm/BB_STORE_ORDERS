@@ -70,7 +70,7 @@ export async function supabaseGet<T>(path: string, project: SupabaseProject = "m
   }
   throw new Error(`Supabase connection failed after 3 attempts (${path}): ${lastError instanceof Error ? lastError.message : String(lastError)}. Target=${target}`);
 }
-// สัญญาอ่าน ChatHub ล็อก v3 ตาม CHAT_HUB_READ_CONTRACT.md; อ่าน Matrix view เดียวและระบุคอลัมน์ชัดเจน
+// สัญญาอ่าน ChatHub ล็อก v4 ตาม CHAT_HUB_READ_CONTRACT.md; อ่าน Matrix view เดียวและระบุคอลัมน์ชัดเจน
 const CHAT_READ_WINDOW_MS = 2 * 24 * 60 * 60 * 1000;
 type ChatReadFilter = { pageId?: string; threadId?: string };
 export const CHAT_CUSTOMER_TABLE = "Cust_Chat⭐BINARY_xXx_STAR";
@@ -89,6 +89,7 @@ export const CHAT_MATRIX_READ_COLUMNS = [
   "page_latest_message", "page_message_time_th", "order_time", "cod_amount", "phone", "pager_message_time_th",
   "time_slot_label",
   "manus_for_packer", "facebook_name", "shipping_carrier",
+  "delivery_status",
 ] as const;
 function chatReadPath(filter: ChatReadFilter = {}) {
   const query = new URLSearchParams();

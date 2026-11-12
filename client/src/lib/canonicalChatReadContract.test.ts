@@ -16,7 +16,7 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-describe("ChatHub read contract v2", () => {
+describe("ChatHub read contract v4", () => {
   it("reads one unified Matrix view with dedicated Chat credentials", async () => {
     vi.stubEnv("CHAT_SUPABASE_URL", "https://zxmczmgmtbnammtljdls.supabase.co");
     vi.stubEnv("CHAT_SUPABASE_SERVICE_ROLE_KEY", "test-chat-service-role-key");
@@ -24,8 +24,8 @@ describe("ChatHub read contract v2", () => {
     vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
       requests.push({ url: String(input), init });
       return new Response(JSON.stringify([
-        { source_side: "customer", id: 1, message_text: "customer message" },
-        { source_side: "page", id: 2, message_text: "page message" },
+        { speaker: "customer", id: 1, message_text: "customer message" },
+        { speaker: "page", id: 2, message_text: "page message" },
       ]), { status: 200, headers: { "content-type": "application/json" } });
     });
 
@@ -93,9 +93,10 @@ describe("ChatHub read contract v2", () => {
 
   it("locks explicit Matrix-view fields, preserves message_text, and excludes message_raw", () => {
     const requiredFields = [
-      "source_side", "id", "page_id", "thread_id", "chat_link_key", "message_id", "message_text",
+      "speaker", "id", "page_id", "thread_id", "chat_link_key", "message_id", "message_text",
       "customer_latest_message", "page_latest_message", "customer_message_time_th", "page_message_time_th",
       "phone", "upsert_key", "order_number", "order_time_display", "cod_amount", "tracking_number",
+      "parcel_status_emoji", "delivery_status",
     ];
     for (const column of requiredFields) expect(CHAT_MATRIX_READ_COLUMNS).toContain(column);
     expect(CHAT_MATRIX_READ_COLUMNS).not.toContain("*");
@@ -132,6 +133,8 @@ describe("ChatHub read contract v2", () => {
       order_number: "ORD-081126-192451",
       order_time_display: "09/11 11:50",
       cod_amount: 990,
+      parcel_status_emoji: "⚡SENT",
+      delivery_status: "🔥SENT",
     };
 
     const [message] = mapChatRowsToMessages([row]);
@@ -150,6 +153,8 @@ describe("ChatHub read contract v2", () => {
     expect(thread.upsert_key).toBe("BB_06_ORD-081126-192451_0615107528_22180");
     expect(thread.order_number).toBe("ORD-081126-192451");
     expect(thread.cod_amount).toBe(990);
+    expect(thread.parcel_status_emoji).toBe("⚡SENT");
+    expect(thread.delivery_status).toBe("🔥SENT");
   });
 
   it("trusts the user-defined speaker field when it differs from Matrix source side", () => {
