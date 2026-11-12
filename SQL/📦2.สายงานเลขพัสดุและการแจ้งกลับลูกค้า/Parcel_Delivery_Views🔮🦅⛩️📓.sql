@@ -624,6 +624,7 @@ select
   ord.target_room,
   ord.parcel_status_emoji,
   ord.facebook_tracking_message,
+  ord.drakside_tracking_message,
   ord.chat_link_key
 from
   parcels parcel
