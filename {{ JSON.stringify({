@@ -1,0 +1,34 @@
+{{ JSON.stringify({
+  sent_at: $json.sent_at ?? new Date().toISOString(),
+  parcel_status_emoji: '⚡SENT',
+
+  delivery_status: $json.{{ $('📌📣').item.json.delivery_status }} ?? null,
+  consignee: $json.{{ $('📌📣').item.json.consignee }} ?? null,
+  phone_number: $json.{{ $('📌📣').item.json.phone_number }} ?? null,
+  address: $json.add{{ $('📌📣').item.json.address }}ress ?? null,
+  cod_amount: $json.{{ $('📌📣').item.json.cod_amount }} ?? null,
+
+{{ $('📌📣').item.json.delivery_status }}
+{{ $('📌📣').item.json.consignee }}
+{{ $('📌📣').item.json.phone_number }}
+{{ $('📌📣').item.json.address }}
+{{ $('📌📣').item.json.cod_amount }}
+
+
+{{ $('📌📣').item.json.order_number }}
+{{ $('📌📣').item.json.upsert_key }}
+{{ $('📌📣').item.json.recipient_id }}
+{{ $('📌📣').item.json.page_id }}
+{{ $('📌📣').item.json.page_name }}
+
+
+{{ $('📌📣').item.json.facebook_tracking_status }}
+{{ $('📌📣').item.json.facebook_tracking_sent_at }}
+{{ $('📌📣').item.json.facebook_tracking_message }}
+{{ $('📌📣').item.json.drakside_tracking_message }}
+{{ $('📌📣').item.json.sent_at }}
+
+
+
+
+}) }}

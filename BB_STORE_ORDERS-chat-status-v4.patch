@@ -1,0 +1,319 @@
+diff --git a/CHAT_HUB_READ_CONTRACT.md b/CHAT_HUB_READ_CONTRACT.md
+index 5e468bf..b68629b 100644
+--- a/CHAT_HUB_READ_CONTRACT.md
++++ b/CHAT_HUB_READ_CONTRACT.md
+@@ -1,4 +1,4 @@
+-# ChatHub Read Contract — Protocol Lock v3
++# ChatHub Read Contract — Protocol Lock v4
+ 
+ เอกสารนี้ล็อกเส้นทางอ่านของ ChatHub: อ่านจาก `public."🌠BINARY_xXx_MATRIX"` เพียงวิวเดียว ซึ่งรวมแถวจาก `public."Cust_Chat⭐BINARY_xXx_STAR"` และ `public."Pg_Chat⭐BINARY_xXx_STAR"` ด้วย `UNION ALL`. สองตารางต้นทางยังคงแยกกันสำหรับ workflow และการจัดเก็บ แต่ไม่ใช่เส้นอ่านหลักของหน้า ChatHub.
+ 
+@@ -6,7 +6,7 @@
+ 
+ 1. ChatHub อ่าน `🌠BINARY_xXx_MATRIX` ด้วย explicit column list ใน `server/supabase.ts`; ห้ามใช้ `select(*)` และห้ามยิง query แยกไปสองตารางจาก ChatHub.
+ 2. ใช้ `page_id` + `thread_id` กรองห้อง และใช้ `chat_link_key` เป็นคีย์เชื่อมบริบทห้อง; `upsert_key` เป็นข้อมูลประกอบของออเดอร์ ไม่ใช่ตัวแทน `chat_link_key`.
+-3. `source_side` ระบุแถว `customer` หรือ `page`; mapper ใช้แยกฝั่งข้อความและคง source table identity สำหรับ UI.
++3. `speaker` เป็นค่า `customer` หรือ `page` สำหรับระบุฝั่งข้อความ; reader ใช้ค่านี้ติด source table identity ภายใน ไม่ต้องมีคอลัมน์ `source_side` เพิ่มใน Matrix.
+ 4. `message_text` คือแหล่งเดียวของข้อความรายข้อความที่ใช้ทำ bubble/preview; ห้ามอ่าน `message_raw` หรือใช้ฟิลด์สรุปข้อความล่าสุดแทน.
+ 5. `customer_latest_message` และ `page_latest_message` เป็นข้อมูลสรุปล่าสุดคนละฝั่ง ต้องเก็บ/แสดงแยกกัน ห้ามรวมเป็น field เดียวหรือใช้แทน `message_text`.
+ 6. ใช้ `occurred_at` เพื่อเรียงเวลาและตัดช่วงข้อมูล; เวลาอ่านง่ายของแชทใช้ `time_th` หรือ `message_time_display` ตามที่มี และเวลา summary ของลูกค้า/เพจใช้คอลัมน์เวลาแยกของตน.
+@@ -18,8 +18,12 @@
+ 
+ ## คอลัมน์ Matrix ที่ ChatHub อ่าน
+ 
+-`source_side`, `id`, `chat_link_key`, `page_id`, `page_name`, `portal_key`, `assigned_agent`, `assigned_hashtag`, `conversation_id`, `thread_id`, `customer_id`, `customer_name`, `recipient_id`, `recipient_name`, `message_id`, `speaker`, `is_sent`, `time`, `time_th`, `message_time_display`, `created_at`, `has_attachment`, `attachment_type`, `attachment_url`, `attachment_urls`, `attachments_raw`, `sticker_url`, `shares_link`, `chat_age_hours`, `is_within_24h`, `can_send_standard`, `is_24h_window_valid`, `messaging_tag_required`, `dedupe_key`, `sync_status`, `customer_chat_age_hours`, `send_facebook_route`, `occurred_at`, `message_text`, `drakside_tracking_message`, `tracking_number`, `parcel_status_emoji`, `facebook_tracking_message`, `upsert_key`, `order_number`, `order_number_display`, `order_time_display`, `customer_latest_message`, `customer_message_time_th`, `page_latest_message`, `page_message_time_th`, `order_time`, `cod_amount`, `phone`, `pager_message_time_th`, `manus_for_packer`, `facebook_name`, `shipping_carrier`.
++`id`, `chat_link_key`, `page_id`, `page_name`, `portal_key`, `assigned_agent`, `assigned_hashtag`, `conversation_id`, `thread_id`, `customer_id`, `customer_name`, `recipient_id`, `recipient_name`, `message_id`, `speaker`, `is_sent`, `time`, `time_th`, `message_time_display`, `created_at`, `has_attachment`, `attachment_type`, `attachment_url`, `attachment_urls`, `attachments_raw`, `sticker_url`, `shares_link`, `chat_age_hours`, `is_within_24h`, `can_send_standard`, `is_24h_window_valid`, `messaging_tag_required`, `dedupe_key`, `sync_status`, `customer_chat_age_hours`, `send_facebook_route`, `occurred_at`, `message_text`, `drakside_tracking_message`, `tracking_number`, `parcel_status_emoji`, `facebook_tracking_message`, `upsert_key`, `order_number`, `order_number_display`, `order_time_display`, `customer_latest_message`, `customer_message_time_th`, `page_latest_message`, `page_message_time_th`, `order_time`, `cod_amount`, `phone`, `pager_message_time_th`, `time_slot_label`, `manus_for_packer`, `facebook_name`, `shipping_carrier`, `delivery_status`.
+ 
+ ## Protocol change
+ 
+ การเพิ่ม/ลบคอลัมน์หรือเปลี่ยนความหมายของ field ต้องได้รับคำยืนยันจากผู้ใช้ก่อน แล้วปรับ SQL view, constants, mapper, UI และ regression test พร้อมกัน และเพิ่มเลข protocol version เมื่อเป็นการเปลี่ยนสัญญา ไม่ให้การปรับ styling หรือแก้ logic ของ Order/COD แฝงมากับงานนี้.
++
++## Protocol v4 change
++
++เพิ่ม `delivery_status` เป็น optional field ที่ส่งตรงจาก `row_data` ผ่าน Matrix โดยไม่ join และไม่คำนวณสถานะใหม่; `parcel_status_emoji` คงเป็น field เดิมของสายเลขพัสดุ. ChatHub แสดงสองค่าในป้ายเล็กใต้หัวข้อเครื่องมือห้องนี้ ถ้าไม่มีค่าจะแสดง `รอ` แบบไม่เรืองแสง ถ้ามีค่าจะแสดงค่าจริงและเปิดไฟของป้าย.
+diff --git "a/SQL/\360\237\222\2543.\340\270\252\340\270\262\340\270\242\340\271\201\340\270\212\340\270\227/BINARY_CHAT_OBJECTS.sql" "b/SQL/\360\237\222\2543.\340\270\252\340\270\262\340\270\242\340\271\201\340\270\212\340\270\227/BINARY_CHAT_OBJECTS.sql"
+index 3899a4e..95dcd7f 100644
+--- "a/SQL/\360\237\222\2543.\340\270\252\340\270\262\340\270\242\340\271\201\340\270\212\340\270\227/BINARY_CHAT_OBJECTS.sql"
++++ "b/SQL/\360\237\222\2543.\340\270\252\340\270\262\340\270\242\340\271\201\340\270\212\340\270\227/BINARY_CHAT_OBJECTS.sql"
+@@ -72,7 +72,8 @@ SELECT
+   row_data ->> 'manus_for_packer' AS manus_for_packer,
+   row_data ->> 'facebook_name' AS facebook_name,
+   row_data ->> 'shipping_carrier' AS shipping_carrier,
+-  row_data ->> 'time_slot_label' AS time_slot_label
++  row_data ->> 'time_slot_label' AS time_slot_label,
++  row_data ->> 'delivery_status' AS delivery_status
+ FROM source_rows;
+ 
+ CREATE OR REPLACE VIEW public."🌓VAGABOND_xXx_DISMISS"
+diff --git "a/SQL/\360\237\222\2543.\340\270\252\340\270\262\340\270\242\340\271\201\340\270\212\340\270\227/BINARY_MATRIX_delivery_status.sql" "b/SQL/\360\237\222\2543.\340\270\252\340\270\262\340\270\242\340\271\201\340\270\212\340\270\227/BINARY_MATRIX_delivery_status.sql"
+new file mode 100644
+index 0000000..404d973
+--- /dev/null
++++ "b/SQL/\360\237\222\2543.\340\270\252\340\270\262\340\270\242\340\271\201\340\270\212\340\270\227/BINARY_MATRIX_delivery_status.sql"
+@@ -0,0 +1,77 @@
++-- Migration สำหรับ Supabase โปรเจกต์ Chat: ส่ง delivery_status ผ่านใน Matrix view เท่านั้น
++-- ไม่เพิ่ม join, ไม่แก้แถวข้อมูล และไม่เปลี่ยนตารางต้นทาง; ถ้า row ต้นทางไม่มี field นี้จะได้ NULL
++CREATE OR REPLACE VIEW public."🌠BINARY_xXx_MATRIX"
++WITH (security_invoker = true) AS
++WITH source_rows AS (
++  SELECT to_jsonb(m.*) AS row_data
++  FROM public."Cust_Chat⭐BINARY_xXx_STAR" AS m
++  UNION ALL
++  SELECT to_jsonb(m.*) AS row_data
++  FROM public."Pg_Chat⭐BINARY_xXx_STAR" AS m
++)
++SELECT
++  NULLIF(row_data ->> 'id', '')::bigint AS id,
++  row_data ->> 'chat_link_key' AS chat_link_key,
++  row_data ->> 'page_id' AS page_id,
++  row_data ->> 'page_name' AS page_name,
++  row_data ->> 'portal_key' AS portal_key,
++  row_data ->> 'assigned_agent' AS assigned_agent,
++  row_data ->> 'assigned_hashtag' AS assigned_hashtag,
++  row_data ->> 'conversation_id' AS conversation_id,
++  COALESCE(row_data ->> 'thread_id', row_data ->> 'threadId') AS thread_id,
++  row_data ->> 'customer_id' AS customer_id,
++  row_data ->> 'customer_name' AS customer_name,
++  row_data ->> 'recipient_id' AS recipient_id,
++  row_data ->> 'recipient_name' AS recipient_name,
++  row_data ->> 'message_id' AS message_id,
++  row_data ->> 'speaker' AS speaker,
++  NULLIF(row_data ->> 'is_sent', '')::boolean AS is_sent,
++  NULLIF(row_data ->> 'time', '')::timestamptz AS time,
++  row_data ->> 'time_th' AS time_th,
++  row_data ->> 'message_time_display' AS message_time_display,
++  NULLIF(row_data ->> 'created_at', '')::timestamptz AS created_at,
++  NULLIF(row_data ->> 'has_attachment', '')::boolean AS has_attachment,
++  row_data ->> 'attachment_type' AS attachment_type,
++  row_data ->> 'attachment_url' AS attachment_url,
++  row_data -> 'attachment_urls' AS attachment_urls,
++  row_data -> 'attachments_raw' AS attachments_raw,
++  row_data ->> 'sticker_url' AS sticker_url,
++  row_data ->> 'shares_link' AS shares_link,
++  NULLIF(row_data ->> 'chat_age_hours', '')::numeric AS chat_age_hours,
++  NULLIF(row_data ->> 'is_within_24h', '')::boolean AS is_within_24h,
++  NULLIF(row_data ->> 'can_send_standard', '')::boolean AS can_send_standard,
++  NULLIF(row_data ->> 'is_24h_window_valid', '')::boolean AS is_24h_window_valid,
++  row_data ->> 'messaging_tag_required' AS messaging_tag_required,
++  row_data ->> 'dedupe_key' AS dedupe_key,
++  row_data ->> 'sync_status' AS sync_status,
++  row_data ->> 'customer_chat_age_hours' AS customer_chat_age_hours,
++  row_data ->> 'send_facebook_route' AS send_facebook_route,
++  COALESCE(
++    NULLIF(row_data ->> 'occurred_at', ''),
++    NULLIF(row_data ->> 'time', ''),
++    NULLIF(row_data ->> 'created_at', ''),
++    NULLIF(row_data ->> 'synced_at', '')
++  )::timestamptz AS occurred_at,
++  row_data ->> 'message_text' AS message_text,
++  row_data ->> 'drakside_tracking_message' AS drakside_tracking_message,
++  row_data ->> 'tracking_number' AS tracking_number,
++  row_data ->> 'parcel_status_emoji' AS parcel_status_emoji,
++  row_data ->> 'facebook_tracking_message' AS facebook_tracking_message,
++  row_data ->> 'upsert_key' AS upsert_key,
++  row_data ->> 'order_number' AS order_number,
++  row_data ->> 'order_number_display' AS order_number_display,
++  row_data ->> 'order_time_display' AS order_time_display,
++  row_data ->> 'customer_latest_message' AS customer_latest_message,
++  row_data ->> 'customer_message_time_th' AS customer_message_time_th,
++  row_data ->> 'page_latest_message' AS page_latest_message,
++  row_data ->> 'page_message_time_th' AS page_message_time_th,
++  row_data ->> 'order_time' AS order_time,
++  NULLIF(row_data ->> 'cod_amount', '')::numeric(12, 2) AS cod_amount,
++  row_data ->> 'phone' AS phone,
++  row_data ->> 'pager_message_time_th' AS pager_message_time_th,
++  row_data ->> 'manus_for_packer' AS manus_for_packer,
++  row_data ->> 'facebook_name' AS facebook_name,
++  row_data ->> 'shipping_carrier' AS shipping_carrier,
++  row_data ->> 'time_slot_label' AS time_slot_label,
++  row_data ->> 'delivery_status' AS delivery_status
++FROM source_rows;
+diff --git a/client/src/index.css b/client/src/index.css
+index c260f9e..275eedc 100644
+--- a/client/src/index.css
++++ b/client/src/index.css
+@@ -819,8 +819,11 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
+ .room-list-card::after { content:""; position:absolute; z-index:-1; left:13px; right:13px; top:0; height:1px; background:linear-gradient(90deg,transparent,rgba(255,81,207,.5),rgba(92,236,255,.42),transparent); opacity:.3; }
+ .room-list-card:hover::before { transform:translateX(100%); }
+ .room-list-card:hover { border-color:rgba(255,91,210,.42); box-shadow:inset 3px 0 #ff58cc,0 0 18px rgba(184,66,255,.14); transform:translateX(2px); }
+-.room-list-card--signal { border-color:rgba(255,74,204,.48); box-shadow:inset 3px 0 #ff4fc8,0 0 16px rgba(255,35,181,.16),0 0 28px rgba(120,54,255,.08); }
+-.room-list-card--signal::after { opacity:.9; background:linear-gradient(90deg,transparent,#ff74d7,#fff1fc,#ff42bf,transparent); box-shadow:0 0 8px #ff54ca; }
++.room-list-card--selected { border-color:rgba(255,56,232,.78); box-shadow:inset 3px 0 #FF38E8,0 0 10px rgba(255,0,217,.28),0 0 22px rgba(165,0,255,.15); animation:selected-room-edge-pulse 1.8s ease-in-out infinite; }
++.room-list-card--selected::after { opacity:1; background:linear-gradient(90deg,transparent,#FF38E8,#fff,#FF00D9,transparent); box-shadow:0 0 9px #FF38E8; }
++.room-list-card--selected:hover { transform:none; }
++@keyframes selected-room-edge-pulse { 0%,100% { border-color:rgba(255,56,232,.56); box-shadow:inset 3px 0 rgba(255,56,232,.72),0 0 8px rgba(255,0,217,.22),0 0 20px rgba(165,0,255,.12); } 50% { border-color:rgba(255,56,232,1); box-shadow:inset 3px 0 #FF38E8,0 0 14px rgba(255,0,217,.42),0 0 30px rgba(165,0,255,.22); } }
++@media (prefers-reduced-motion:reduce) { .room-list-card--selected { animation:none; border-color:rgba(255,56,232,.9); box-shadow:inset 3px 0 #FF38E8,0 0 10px rgba(255,0,217,.28),0 0 22px rgba(165,0,255,.15); } }
+ /* F03 Dual Spectrum from แบบขอบการ์ดปุ่ม.css: one static cyan-purple-magenta frame for the tools panel. */
+ .chat-tools-panel { border:1px solid transparent !important; background:linear-gradient(rgba(8,13,29,.97),rgba(8,13,29,.97)) padding-box,linear-gradient(120deg,#00E5FF,#A500FF,#FF00D9) border-box !important; box-shadow:0 10px 28px rgba(0,0,0,.3),0 0 14px rgba(0,229,255,.08),0 0 14px rgba(255,0,217,.05) !important; }
+ .chat-tool-action { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:31px; border:1px solid rgba(0,229,255,.22) !important; border-radius:10px !important; background:rgba(16,35,58,.52) !important; color:#E8F7FF !important; font-size:10px !important; font-weight:600; line-height:1; transition:background .18s,border-color .18s,box-shadow .18s,color .18s; }
+@@ -831,7 +834,17 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
+ .chat-tool-action--icon { width:32px; height:32px; min-height:32px; padding:0 !important; }
+ .chat-tool-action:disabled { cursor:not-allowed; opacity:.38 !important; }
+ .chat-tool-action:focus-visible,.chat-tool-copy-row:focus-visible { outline:2px solid #FF38E8; outline-offset:2px; }
++.chat-conversation-actions { display:flex; max-width:100%; flex-wrap:wrap; align-items:center; gap:5px; border:1px solid rgba(0,229,255,.12); border-radius:12px; background:rgba(8,13,29,.38); padding:3px; }
+ .chat-tools-section-title { color:#91A9C2; font-size:9px; font-weight:700; letter-spacing:.12em; }
++.chat-send-status-row { display:flex; flex-wrap:wrap; align-items:center; gap:5px; }
++.chat-send-status { display:inline-flex; max-width:100%; align-items:center; gap:5px; min-height:20px; padding:2px 7px; border:1px solid rgba(145,169,194,.18); border-radius:999px; background:rgba(16,35,58,.35); color:rgba(145,169,194,.7); font:500 8px/1.2 'IBM Plex Mono',monospace; white-space:nowrap; }
++.chat-send-status__dot { width:5px; height:5px; flex:0 0 5px; border-radius:50%; background:rgba(145,169,194,.45); }
++.chat-send-status__label { color:rgba(145,169,194,.78); font:600 8px/1.2 'Space Grotesk',sans-serif; }
++.chat-send-status__value { overflow:hidden; text-overflow:ellipsis; }
++.chat-send-status--active.chat-send-status--parcel { border-color:rgba(0,229,255,.42); background:rgba(0,229,255,.07); color:#ccf8ff; box-shadow:0 0 8px rgba(0,229,255,.16),inset 0 0 6px rgba(0,229,255,.06); }
++.chat-send-status--active.chat-send-status--parcel .chat-send-status__dot { background:#00E5FF; box-shadow:0 0 7px rgba(0,229,255,.9); }
++.chat-send-status--active.chat-send-status--telegram { border-color:rgba(255,56,232,.48); background:rgba(255,0,217,.07); color:#ffe1f9; box-shadow:0 0 8px rgba(255,0,217,.17),inset 0 0 6px rgba(255,0,217,.06); }
++.chat-send-status--active.chat-send-status--telegram .chat-send-status__dot { background:#FF38E8; box-shadow:0 0 7px rgba(255,56,232,.9); }
+ .chat-tools-section-tag { border:1px solid rgba(255,56,232,.2); border-radius:999px; background:rgba(255,0,217,.06); padding:2px 7px; color:#dda9d8; font-size:8px; }
+ .chat-tools-item { border:1px solid rgba(0,229,255,.14); border-radius:12px; background:rgba(16,35,58,.28); padding:10px; }
+ .chat-tools-empty { border:1px dashed rgba(0,229,255,.16); border-radius:10px; padding:10px; color:rgba(145,169,194,.65); font-size:10px; text-align:center; }
+diff --git a/client/src/lib/canonical.ts b/client/src/lib/canonical.ts
+index 109c01c..4a6a814 100644
+--- a/client/src/lib/canonical.ts
++++ b/client/src/lib/canonical.ts
+@@ -641,6 +641,7 @@ export function mapChatRowsToThreads(sourceRows: any[]) {
+       order_time_display: row.order_time_display || null, cod_amount: row.cod_amount ?? null,
+       facebook_name: row.facebook_name || null, manus_for_packer: row.manus_for_packer || null,
+       parcel_status_emoji: row.parcel_status_emoji || null,
++      delivery_status: row.delivery_status || null,
+     };
+     current.latestAt = row._occurred || row.occurred_at || current.latestAt;
+     current.preview = row._text || (row._hasAttachment ? "[ไฟล์แนบ]" : current.preview);
+@@ -665,7 +666,7 @@ export function mapChatRowsToThreads(sourceRows: any[]) {
+     current.messageCount += 1;
+     current.chatTimeline.push(`${row._speaker === "page" ? "[เพจ]" : "[ลูกค้า]"} ${row._text || (row._hasAttachment ? "[ไฟล์แนบ]" : "")}`);
+     // Tracking fields are supplied directly on either room-side table; keep the newest non-empty value.
+-    for (const field of ["tracking_number", "order_number", "order_number_display", "shipping_carrier", "facebook_tracking_message", "drakside_tracking_message"]) {
++    for (const field of ["tracking_number", "order_number", "order_number_display", "shipping_carrier", "facebook_tracking_message", "drakside_tracking_message", "delivery_status"]) {
+       if (row[field] != null && String(row[field]).trim()) current[field] = row[field];
+     }
+ 
+diff --git a/client/src/lib/canonicalChatReadContract.test.ts b/client/src/lib/canonicalChatReadContract.test.ts
+index 779137e..8bfd6b3 100644
+--- a/client/src/lib/canonicalChatReadContract.test.ts
++++ b/client/src/lib/canonicalChatReadContract.test.ts
+@@ -16,7 +16,7 @@ afterEach(() => {
+   vi.unstubAllEnvs();
+ });
+ 
+-describe("ChatHub read contract v2", () => {
++describe("ChatHub read contract v4", () => {
+   it("reads one unified Matrix view with dedicated Chat credentials", async () => {
+     vi.stubEnv("CHAT_SUPABASE_URL", "https://zxmczmgmtbnammtljdls.supabase.co");
+     vi.stubEnv("CHAT_SUPABASE_SERVICE_ROLE_KEY", "test-chat-service-role-key");
+@@ -24,8 +24,8 @@ describe("ChatHub read contract v2", () => {
+     vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+       requests.push({ url: String(input), init });
+       return new Response(JSON.stringify([
+-        { source_side: "customer", id: 1, message_text: "customer message" },
+-        { source_side: "page", id: 2, message_text: "page message" },
++        { speaker: "customer", id: 1, message_text: "customer message" },
++        { speaker: "page", id: 2, message_text: "page message" },
+       ]), { status: 200, headers: { "content-type": "application/json" } });
+     });
+ 
+@@ -93,9 +93,10 @@ describe("ChatHub read contract v2", () => {
+ 
+   it("locks explicit Matrix-view fields, preserves message_text, and excludes message_raw", () => {
+     const requiredFields = [
+-      "source_side", "id", "page_id", "thread_id", "chat_link_key", "message_id", "message_text",
++      "speaker", "id", "page_id", "thread_id", "chat_link_key", "message_id", "message_text",
+       "customer_latest_message", "page_latest_message", "customer_message_time_th", "page_message_time_th",
+       "phone", "upsert_key", "order_number", "order_time_display", "cod_amount", "tracking_number",
++      "parcel_status_emoji", "delivery_status",
+     ];
+     for (const column of requiredFields) expect(CHAT_MATRIX_READ_COLUMNS).toContain(column);
+     expect(CHAT_MATRIX_READ_COLUMNS).not.toContain("*");
+@@ -132,6 +133,8 @@ describe("ChatHub read contract v2", () => {
+       order_number: "ORD-081126-192451",
+       order_time_display: "09/11 11:50",
+       cod_amount: 990,
++      parcel_status_emoji: "⚡SENT",
++      delivery_status: "🔥SENT",
+     };
+ 
+     const [message] = mapChatRowsToMessages([row]);
+@@ -150,6 +153,8 @@ describe("ChatHub read contract v2", () => {
+     expect(thread.upsert_key).toBe("BB_06_ORD-081126-192451_0615107528_22180");
+     expect(thread.order_number).toBe("ORD-081126-192451");
+     expect(thread.cod_amount).toBe(990);
++    expect(thread.parcel_status_emoji).toBe("⚡SENT");
++    expect(thread.delivery_status).toBe("🔥SENT");
+   });
+ 
+   it("trusts the user-defined speaker field when it differs from Matrix source side", () => {
+diff --git a/client/src/pages/ChatHub.tsx b/client/src/pages/ChatHub.tsx
+index 81b767f..31d1d25 100644
+--- a/client/src/pages/ChatHub.tsx
++++ b/client/src/pages/ChatHub.tsx
+@@ -94,6 +94,15 @@ function CopyValueCard({ label, value, copied, onCopy }: { label: string; value:
+     <span className={`chat-tool-copy-row__action ${copied ? "is-copied" : ""}`}>{copied ? "คัดลอกแล้ว ✓" : "คัดลอก"}</span>
+   </button>;
+ }
++function SendStatusBadge({ label, value, route }: { label: string; value: unknown; route: "parcel" | "telegram" }) {
++  const status = String(value ?? "").trim();
++  const active = Boolean(status);
++  return <span className={`chat-send-status chat-send-status--${route} ${active ? "chat-send-status--active" : ""}`} title={`${label}: ${status || "รอ"}`}>
++    <span className="chat-send-status__dot" aria-hidden="true" />
++    <span className="chat-send-status__label">{label}</span>
++    <span className="chat-send-status__value">{status || "รอ"}</span>
++  </span>;
++}
+ export default function ChatHub() {
+   const [, setLocation] = useLocation();
+   const isMobile = useIsMobile();
+@@ -243,7 +252,6 @@ export default function ChatHub() {
+     const room = selected as Record<string, any> | undefined;
+     return [
+       { key: "phone", label: "เบอร์โทร", value: room?.phone ?? room?.customerPhone ?? room?.extracted_phone },
+-      { key: "cod", label: "COD", value: room?.cod_amount ?? room?.codAmount },
+       { key: "order", label: "ออเดอร์", value: room?.order_number_display ?? room?.order_number },
+       { key: "address", label: "ที่อยู่", value: room?.address_display_packer || room?.full_address || room?.address || room?.shipping_address || handoffTracking?.address_display_packer },
+       { key: "packer", label: "ข้อมูลแพ็ก", value: room?.manus_for_packer },
+@@ -376,7 +384,7 @@ export default function ChatHub() {
+   </div>;
+ 
+   const conversation = selected ? <div className="chat-cosmos-conversation flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+-    <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-cyan-300/15 bg-gradient-to-r from-cyan-400/[0.035] via-transparent to-fuchsia-500/[0.06] px-4 py-3 sm:px-5"><div className="flex min-w-0 items-center gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-cyan-300/20 bg-gradient-to-br from-cyan-400/20 via-violet-500/20 to-fuchsia-500/25 text-cyan-100 shadow-[0_0_18px_rgba(34,211,238,.12)]"><CircleUserRound className="h-5 w-5" /></div><div className="min-w-0"><div className="mb-1 flex flex-wrap items-center gap-1.5"><span className={`chat-room-code-label ${selected.codTodayActive ? "cod-room-header" : ""} ${hasTimeSlotLabel(selected) ? "time-slot-room-sign" : ""} rounded-md border px-1.5 py-0.5 font-mono text-[9px] font-semibold`} title={selected.timeSlotLabel || undefined}>ROOM · {selected.pageId ? selected.pageId.slice(-4) : "BB"}{selected.codTodayActive ? " ⚡" : ""}{hasTimeSlotLabel(selected) ? " 🔥" : ""}</span></div><h2 className="chat-customer-name-label truncate text-sm font-semibold">{selected.customerName || "ลูกค้าใหม่"}</h2><div className="mt-1 flex items-center gap-2 text-xs text-cyan-100/55"><span className="truncate">{selected.pageName}</span><span>·</span><span>{timeLabel(selected.latestAt)}</span></div></div></div><div className="flex max-w-full flex-wrap items-center justify-end gap-2"><Badge className="hidden border border-emerald-400/25 bg-emerald-400/10 text-emerald-300 sm:inline-flex">● ONLINE</Badge><Button size="sm" variant="outline" onClick={confirmSelectedOrder} disabled={selectedConfirmed || confirmOrder.isPending} className="rounded-xl border-violet-300/25 bg-violet-400/[0.08] text-xs text-violet-100 hover:border-fuchsia-300/45 hover:bg-fuchsia-400/15">{selectedConfirmed ? <><CheckCircle2 className="mr-1 h-3.5 w-3.5" />ยืนยันแล้ว</> : confirmOrder.isPending ? "กำลังบันทึก…" : "ยืนยันเป็นออเดอร์"}</Button><Button size="sm" variant="outline" onClick={() => setOrderDetailOpen(true)} className="rounded-xl border-cyan-300/30 bg-cyan-400/[0.08] text-xs text-cyan-100 shadow-[0_0_14px_rgba(34,211,238,.08)] hover:bg-cyan-400/15" title="นับข้อความที่มีคำว่า COD ในข้อมูลแชทที่โหลด">COD ({selected.codSignalCount ?? 0})</Button><Button size="sm" onClick={openOrderSummary} className="rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-xs shadow-[0_0_16px_rgba(217,70,239,.18)] hover:brightness-110">สรุปออเดอร์</Button>{isMobile ? <button onClick={() => setMobileOpen(false)} className="rounded-xl p-2 text-fuchsia-100/55 hover:bg-fuchsia-500/10 hover:text-white" aria-label="ปิดห้องแชท"><X className="h-5 w-5" /></button> : null}</div></div>
++    <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-cyan-300/15 bg-gradient-to-r from-cyan-400/[0.035] via-transparent to-fuchsia-500/[0.06] px-4 py-3 sm:px-5"><div className="flex min-w-0 items-center gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-cyan-300/20 bg-gradient-to-br from-cyan-400/20 via-violet-500/20 to-fuchsia-500/25 text-cyan-100 shadow-[0_0_18px_rgba(34,211,238,.12)]"><CircleUserRound className="h-5 w-5" /></div><div className="min-w-0"><div className="mb-1 flex flex-wrap items-center gap-1.5"><span className={`chat-room-code-label ${selected.codTodayActive ? "cod-room-header" : ""} ${hasTimeSlotLabel(selected) ? "time-slot-room-sign" : ""} rounded-md border px-1.5 py-0.5 font-mono text-[9px] font-semibold`} title={selected.timeSlotLabel || undefined}>ROOM · {selected.pageId ? selected.pageId.slice(-4) : "BB"}{selected.codTodayActive ? " ⚡" : ""}{hasTimeSlotLabel(selected) ? " 🔥" : ""}</span></div><h2 className="chat-customer-name-label truncate text-sm font-semibold">{selected.customerName || "ลูกค้าใหม่"}</h2><div className="mt-1 flex items-center gap-2 text-xs text-cyan-100/55"><span className="truncate">{selected.pageName}</span><span>·</span><span>{timeLabel(selected.latestAt)}</span></div></div></div><div className="flex max-w-full flex-wrap items-center justify-end gap-2"><Badge className="hidden border border-emerald-400/25 bg-emerald-400/10 text-emerald-300 sm:inline-flex">● ONLINE</Badge><div className="chat-conversation-actions"><Button size="sm" variant="outline" onClick={confirmSelectedOrder} disabled={selectedConfirmed || confirmOrder.isPending} className="chat-tool-action h-8 px-3">{selectedConfirmed ? <><CheckCircle2 className="mr-1 h-3.5 w-3.5" />ยืนยันแล้ว</> : confirmOrder.isPending ? "กำลังบันทึก…" : "ยืนยันเป็นออเดอร์"}</Button><Button size="sm" variant="outline" onClick={() => setOrderDetailOpen(true)} className="chat-tool-action h-8 px-3" title="นับข้อความที่มีคำว่า COD ในข้อมูลแชทที่โหลด">COD ({selected.codSignalCount ?? 0})</Button><Button size="sm" onClick={openOrderSummary} className="chat-tool-action h-8 px-3">สรุปออเดอร์</Button></div>{isMobile ? <button onClick={() => setMobileOpen(false)} className="rounded-xl p-2 text-fuchsia-100/55 hover:bg-fuchsia-500/10 hover:text-white" aria-label="ปิดห้องแชท"><X className="h-5 w-5" /></button> : null}</div></div>
+     <div ref={chatTimelineRef} onScroll={handleTimelineScroll} className="chat-cosmos-timeline relative min-h-0 flex-1 flex flex-col justify-start gap-3 overflow-y-auto overscroll-contain bg-[radial-gradient(circle_at_82%_8%,rgba(16,185,129,0.12),transparent_28%),radial-gradient(circle_at_12%_74%,rgba(168,85,247,0.11),transparent_30%),linear-gradient(135deg,#080c15,#0d0914_56%,#090b12)] p-4 sm:p-5 [-webkit-overflow-scrolling:touch]">
+       {showNewMessages ? <button type="button" onClick={jumpToLatest} className="sticky bottom-3 left-1/2 z-20 mx-auto -mb-10 rounded-full border border-fuchsia-300/30 bg-gradient-to-r from-fuchsia-600 via-violet-600 to-emerald-500 px-4 py-2 text-xs font-semibold text-white shadow-[0_0_24px_rgba(168,85,247,0.45)] transition hover:scale-105">ข้อความใหม่ · ลงล่างสุด</button> : null}
+       {messagesQuery.isFetching ? <div className="absolute right-4 top-4 z-10 inline-flex items-center gap-1.5 rounded-full border border-fuchsia-400/20 bg-[#15101d]/90 px-2.5 py-1 text-[10px] text-fuchsia-200"><LoaderCircle className="h-3 w-3 animate-spin" />กำลังอัปเดต</div> : null}
+@@ -394,7 +402,7 @@ export default function ChatHub() {
+     <header className="neon-sign relative shrink-0 overflow-hidden rounded-2xl border border-cyan-300/35 bg-gradient-to-r from-[#0c1421] via-[#151020] to-[#170d1d] px-4 py-3 shadow-[0_0_14px_rgba(34,211,238,.24),0_0_32px_rgba(168,85,247,.20),inset_0_0_20px_rgba(217,70,239,.10)] backdrop-blur-xl"><div className="hero-orbit pointer-events-none opacity-60" aria-hidden="true" /><div className="relative z-10 flex items-center justify-between gap-3"><div className="min-w-0"><p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-fuchsia-300">COSMIC · CHAT CONTROL</p><h1 className="mt-1 text-xl font-semibold tracking-tight text-white drop-shadow-[0_0_8px_rgba(244,114,182,.95)]">กล่องข้อความรวม</h1></div><div className="flex items-center gap-2"><span className="hidden text-[10px] text-fuchsia-100/35 sm:inline">เลือกห้องเพื่อเริ่มตอบ</span><Button variant="outline" size="sm" onClick={() => threadsQuery.refetch()} className="chat-tool-action h-8 px-3"><RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${threadsQuery.isFetching ? "animate-spin" : ""}`} />รีเฟรช</Button></div></div></header>
+     <div className="relative flex min-h-0 flex-1 flex-nowrap gap-3 overflow-x-auto overscroll-x-contain pb-1 [-webkit-overflow-scrolling:touch] xl:gap-4 xl:overflow-hidden"><Card className="flex w-[min(290px,84vw)] min-h-0 shrink-0 flex-col overflow-hidden rounded-3xl border-cyan-300/20 bg-[#0b111c]/95 shadow-[0_8px_32px_rgba(34,211,238,.08),0_0_24px_rgba(168,85,247,.06)] backdrop-blur-xl"><CardHeader className="border-b border-fuchsia-500/10 pb-3"><div className="flex items-center justify-between"><CardTitle className="text-base">ห้องแชท <span className="ml-1 text-xs font-normal text-fuchsia-100/35">{filteredThreads.length}</span></CardTitle><button onClick={() => setPageFilterOpen(value => !value)} className={`chat-tool-action chat-tool-action--filter ${selectedPages.length ? "chat-tool-action--active" : ""}`}><span className="h-2 w-2 rounded-sm border border-current" />เพจ{selectedPages.length ? ` · ${selectedPages.length}` : ""}<ChevronDown className="h-3 w-3" /></button></div>
+       <div className="relative mt-3"><Search className="absolute left-3 top-2.5 h-4 w-4 text-fuchsia-100/30" /><Input value={search} onChange={event => setSearch(event.target.value)} placeholder="ค้นหาชื่อลูกค้าหรือข้อความ…" className="rounded-xl border-fuchsia-500/15 bg-black/20 pl-9 text-white placeholder:text-fuchsia-100/25 focus-visible:ring-fuchsia-400" />{pageFilterOpen ? <div className="absolute right-0 top-12 z-20 w-64 rounded-2xl border border-fuchsia-400/20 bg-[#181020] p-3 shadow-2xl shadow-black/50"><div className="mb-2 flex items-center justify-between"><p className="text-[10px] font-semibold uppercase tracking-wider text-fuchsia-300">เลือกเพจ</p><button onClick={() => setSelectedPages([])} className="text-[10px] text-fuchsia-100/40 hover:text-white">ล้าง</button></div>{availablePages.map(([pageId, pageName, codToday]) => { const active = selectedPages.includes(pageId); return <button key={pageId} type="button" onClick={() => setSelectedPages(current => active ? current.filter(item => item !== pageId) : [...current, pageId])} className={`page-holo-label group flex w-full items-center gap-2 rounded-xl border px-2.5 py-2 text-left text-xs transition ${codToday ? "page-holo-label--live" : ""} ${active ? "border-cyan-300/55 bg-cyan-300/15 text-cyan-50 shadow-[0_0_16px_rgba(34,211,238,.20)]" : "border-fuchsia-300/10 bg-black/15 text-fuchsia-50/70 hover:border-fuchsia-300/35 hover:bg-fuchsia-500/10"}`}><span className={`relative flex h-2.5 w-2.5 shrink-0 rounded-full ${codToday ? "bg-fuchsia-100 shadow-[0_0_12px_rgba(255,255,255,.95)]" : active ? "bg-cyan-300 shadow-[0_0_10px_rgba(34,211,238,.9)]" : "bg-fuchsia-200/25"}`} /><span className="min-w-0 flex-1 truncate">{pageName}</span><span className="font-mono text-[9px] text-fuchsia-100/35">BB.{pageId.slice(-4)}</span>{codToday ? <span className="cod-neon-sign" aria-label="COD วันนี้">COD</span> : null}</button>; })}{!availablePages.length ? <p className="p-2 text-xs text-fuchsia-100/35">ยังไม่มีรายชื่อเพจ</p> : null}</div> : null}</div>
+-      <div className="mt-3 flex flex-wrap gap-1.5">{([ ["all", "ทั้งหมด"], ["unread", "ยังไม่อ่าน"], ["ordered", "มี COD"] ] as const).map(([value, label]) => <button key={value} type="button" onClick={() => setStatusFilter(value)} className={`chat-tool-action chat-tool-action--filter ${statusFilter === value ? "chat-tool-action--active" : ""}`}>{label}</button>)}</div></CardHeader><CardContent className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 [-webkit-overflow-scrolling:touch]">{threadsQuery.isLoading ? <div className="flex items-center justify-center gap-2 p-12 text-sm text-fuchsia-100/40"><RefreshCw className="h-4 w-4 animate-spin" />กำลังโหลดห้อง…</div> : filteredThreads.length === 0 ? <div className="p-12 text-center text-sm text-fuchsia-100/40"><MessageCircle className="mx-auto mb-3 h-8 w-8 text-fuchsia-100/15" />ยังไม่มีห้องตามตัวกรอง</div> : filteredThreads.map((thread, index) => <button key={thread.key} onClick={() => { setSelectedKey(thread.key); if (isMobile) setMobileOpen(true); }} className={`room-list-card ${thread.codTodayActive ? "room-list-card--signal" : ""} relative mb-1 flex w-full items-start gap-3 rounded-2xl p-3.5 text-left transition ${selected?.key === thread.key ? "bg-gradient-to-r from-fuchsia-400/[0.13] via-violet-500/[0.08] to-pink-500/[0.10] ring-1 ring-fuchsia-300/45 shadow-[0_0_20px_rgba(255,0,217,.16)]" : "hover:bg-cyan-300/[0.06] hover:ring-1 hover:ring-cyan-300/15"}`}><span className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${index % 2 ? "bg-fuchsia-500/20 text-fuchsia-200" : "bg-fuchsia-500/20 text-fuchsia-200"}`}>{(thread.customerName || "ลูกค้า").slice(0, 1)}</span><span className="min-w-0 flex-1"><span className="flex items-center justify-between gap-2"><span className="chat-customer-list-label truncate text-sm font-semibold">{thread.customerName || "ลูกค้าใหม่"}</span><span className="shrink-0 text-xs text-cyan-100/55">{timeLabel(thread.latestAt)}</span></span><span className="mt-1 flex items-center gap-1.5 truncate text-xs text-fuchsia-100/75"><span className={`chat-room-code-label ${hasCodOrder(thread) ? "cod-room-sign--order" : thread.codTodayActive ? "cod-room-sign" : ""} shrink-0 rounded border px-1.5 py-0.5 font-mono text-[9px] ${thread.codTodayActive ? "border-fuchsia-200/80 bg-fuchsia-400/20 text-fuchsia-50 shadow-[0_0_14px_rgba(255,70,205,.8)]" : "border-fuchsia-300/25 bg-fuchsia-400/[0.08] text-fuchsia-100"} ${hasTimeSlotLabel(thread) ? "time-slot-room-sign" : ""}`} title={thread.timeSlotLabel || undefined}>BB.{thread.pageId ? thread.pageId.slice(-4) : "ROOM"}{hasCodOrder(thread) || thread.codTodayActive ? " ⚡" : ""}{hasTimeSlotLabel(thread) ? " 🔥" : ""}</span>{thread.parcel_status_emoji ? <span title="สถานะพัสดุ" className="rounded bg-lime-400/15 px-1 text-lime-200 shadow-[0_0_10px_rgba(140,255,0,.22)]">{thread.parcel_status_emoji}</span> : null}{thread.unread ? <span className="rounded bg-cyan-400/15 px-1 text-cyan-200">ใหม่</span> : null}{thread.codSignalCount > 0 ? <span title="นับข้อความที่มีคำว่า COD เท่านั้น" className="rounded bg-emerald-400/15 px-1 text-emerald-200">COD {thread.codSignalCount}</span> : null}{thread.orderCount > 0 ? <span title="แถวออเดอร์ที่ผูกกับห้องได้" className="rounded bg-cyan-400/15 px-1 text-cyan-200">ORD {thread.orderCount}</span> : null}{confirmedKeys.has(`${thread.pageId}:${thread.threadId}`) ? <span className="rounded bg-fuchsia-400/15 px-1 text-cyan-200">ยืนยันแล้ว</span> : null}<span className="truncate">{thread.pageName}</span></span><span className="mt-1 block truncate text-xs text-fuchsia-100/45">{thread.preview}</span></span></button>)}</CardContent></Card>
++      <div className="mt-3 flex flex-wrap gap-1.5">{([ ["all", "ทั้งหมด"], ["unread", "ยังไม่อ่าน"], ["ordered", "มี COD"] ] as const).map(([value, label]) => <button key={value} type="button" onClick={() => setStatusFilter(value)} className={`chat-tool-action chat-tool-action--filter ${statusFilter === value ? "chat-tool-action--active" : ""}`}>{label}</button>)}</div></CardHeader><CardContent className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 [-webkit-overflow-scrolling:touch]">{threadsQuery.isLoading ? <div className="flex items-center justify-center gap-2 p-12 text-sm text-fuchsia-100/40"><RefreshCw className="h-4 w-4 animate-spin" />กำลังโหลดห้อง…</div> : filteredThreads.length === 0 ? <div className="p-12 text-center text-sm text-fuchsia-100/40"><MessageCircle className="mx-auto mb-3 h-8 w-8 text-fuchsia-100/15" />ยังไม่มีห้องตามตัวกรอง</div> : filteredThreads.map((thread, index) => <button key={thread.key} onClick={() => { setSelectedKey(thread.key); if (isMobile) setMobileOpen(true); }} className={`room-list-card relative mb-1 flex w-full items-start gap-3 rounded-2xl p-3.5 text-left transition ${selected?.key === thread.key ? "room-list-card--selected bg-gradient-to-r from-fuchsia-400/[0.13] via-violet-500/[0.08] to-pink-500/[0.10]" : "hover:bg-cyan-300/[0.06] hover:ring-1 hover:ring-cyan-300/15"}`}><span className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${index % 2 ? "bg-fuchsia-500/20 text-fuchsia-200" : "bg-fuchsia-500/20 text-fuchsia-200"}`}>{(thread.customerName || "ลูกค้า").slice(0, 1)}</span><span className="min-w-0 flex-1"><span className="flex items-center justify-between gap-2"><span className="chat-customer-list-label truncate text-sm font-semibold">{thread.customerName || "ลูกค้าใหม่"}</span><span className="shrink-0 text-xs text-cyan-100/55">{timeLabel(thread.latestAt)}</span></span><span className="mt-1 flex items-center gap-1.5 truncate text-xs text-fuchsia-100/75"><span className={`chat-room-code-label ${hasCodOrder(thread) ? "cod-room-sign--order" : thread.codTodayActive ? "cod-room-sign" : ""} shrink-0 rounded border px-1.5 py-0.5 font-mono text-[9px] ${thread.codTodayActive ? "border-fuchsia-200/80 bg-fuchsia-400/20 text-fuchsia-50 shadow-[0_0_14px_rgba(255,70,205,.8)]" : "border-fuchsia-300/25 bg-fuchsia-400/[0.08] text-fuchsia-100"} ${hasTimeSlotLabel(thread) ? "time-slot-room-sign" : ""}`} title={thread.timeSlotLabel || undefined}>BB.{thread.pageId ? thread.pageId.slice(-4) : "ROOM"}{hasCodOrder(thread) || thread.codTodayActive ? " ⚡" : ""}{hasTimeSlotLabel(thread) ? " 🔥" : ""}</span>{thread.parcel_status_emoji ? <span title="สถานะพัสดุ" className="rounded bg-lime-400/15 px-1 text-lime-200 shadow-[0_0_10px_rgba(140,255,0,.22)]">{thread.parcel_status_emoji}</span> : null}{thread.unread ? <span className="rounded bg-cyan-400/15 px-1 text-cyan-200">ใหม่</span> : null}{thread.codSignalCount > 0 ? <span title="นับข้อความที่มีคำว่า COD เท่านั้น" className="rounded bg-emerald-400/15 px-1 text-emerald-200">COD {thread.codSignalCount}</span> : null}{thread.orderCount > 0 ? <span title="แถวออเดอร์ที่ผูกกับห้องได้" className="rounded bg-cyan-400/15 px-1 text-cyan-200">ORD {thread.orderCount}</span> : null}{confirmedKeys.has(`${thread.pageId}:${thread.threadId}`) ? <span className="rounded bg-fuchsia-400/15 px-1 text-cyan-200">ยืนยันแล้ว</span> : null}<span className="truncate">{thread.pageName}</span></span><span className="mt-1 block truncate text-xs text-fuchsia-100/45">{thread.preview}</span></span></button>)}</CardContent></Card>
+       <Card className="hidden h-full min-h-0 min-w-[min(560px,85vw)] flex-1 overflow-hidden rounded-3xl border-violet-300/20 bg-[#0b101b]/95 shadow-[0_8px_36px_rgba(168,85,247,.10)] backdrop-blur-xl md:block">{conversation}</Card>
+       {!toolsOpen ? <button type="button" onClick={() => setToolsOpen(true)} aria-label="เปิดแผงเครื่องมือ" className="chat-tool-action chat-tool-action--primary absolute right-2 top-2 z-30 px-3">เปิดเครื่องมือ</button> : null}
+       <Card className={`chat-cosmos-tools chat-tools-panel relative flex min-h-0 w-[320px] shrink-0 flex-col overflow-hidden rounded-2xl border backdrop-blur-xl transition-[width] duration-200 ${toolsOpen ? "" : "pointer-events-none"}`} style={{ width: toolsOpen ? "320px" : "0px" }}>
+@@ -402,6 +410,10 @@ export default function ChatHub() {
+           <div className="flex items-center justify-between gap-2">
+             <div className="min-w-0">
+               <CardTitle className="text-sm text-cyan-100">เครื่องมือห้องนี้</CardTitle>
++              <div className="chat-send-status-row mt-1.5">
++                <SendStatusBadge label="เลข" value={selected?.parcel_status_emoji} route="parcel" />
++                <SendStatusBadge label="Telegram" value={selected?.delivery_status} route="telegram" />
++              </div>
+               <p className="mt-1 truncate text-[10px] text-cyan-100/45">{selected ? `${selected.customerName || "ลูกค้าใหม่"} · ${selected.pageName || "ไม่ระบุเพจ"}` : "เลือกห้องแชทก่อน"}</p>
+             </div>
+             <div className="flex shrink-0 items-center gap-1.5">
+diff --git a/server/supabase.ts b/server/supabase.ts
+index 162b601..03659d8 100644
+--- a/server/supabase.ts
++++ b/server/supabase.ts
+@@ -70,7 +70,7 @@ export async function supabaseGet<T>(path: string, project: SupabaseProject = "m
+   }
+   throw new Error(`Supabase connection failed after 3 attempts (${path}): ${lastError instanceof Error ? lastError.message : String(lastError)}. Target=${target}`);
+ }
+-// สัญญาอ่าน ChatHub ล็อก v3 ตาม CHAT_HUB_READ_CONTRACT.md; อ่าน Matrix view เดียวและระบุคอลัมน์ชัดเจน
++// สัญญาอ่าน ChatHub ล็อก v4 ตาม CHAT_HUB_READ_CONTRACT.md; อ่าน Matrix view เดียวและระบุคอลัมน์ชัดเจน
+ const CHAT_READ_WINDOW_MS = 2 * 24 * 60 * 60 * 1000;
+ type ChatReadFilter = { pageId?: string; threadId?: string };
+ export const CHAT_CUSTOMER_TABLE = "Cust_Chat⭐BINARY_xXx_STAR";
+@@ -89,6 +89,7 @@ export const CHAT_MATRIX_READ_COLUMNS = [
+   "page_latest_message", "page_message_time_th", "order_time", "cod_amount", "phone", "pager_message_time_th",
+   "time_slot_label",
+   "manus_for_packer", "facebook_name", "shipping_carrier",
++  "delivery_status",
+ ] as const;
+ function chatReadPath(filter: ChatReadFilter = {}) {
+   const query = new URLSearchParams();
