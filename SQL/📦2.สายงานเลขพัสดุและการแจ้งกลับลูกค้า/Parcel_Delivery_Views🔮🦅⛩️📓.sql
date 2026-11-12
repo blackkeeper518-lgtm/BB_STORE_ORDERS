@@ -102,6 +102,7 @@ where
         'SENT'::text,
         'DELIVERED'::text,
         '🔥SENT'::text,
+        '⚡SENT'::text,
         'SENT_TO_TELEGRAM'::text
       ]
     )
@@ -178,19 +179,28 @@ from
 where
   NULLIF(btrim(pcl.tracking_number), ''::text) is not null
   and (
-    ord.facebook_tracking_status is null
-    or (
-      upper(btrim(ord.facebook_tracking_status)) <> all (
+    upper(btrim(COALESCE(ord.facebook_tracking_status, ''::text))) <> all (
         array[
           'SENT'::text,
           'DELIVERED'::text,
           '🔥SENT'::text,
+        '⚡SENT'::text,
           'SENT_TO_TELEGRAM'::text,
           'SUCCESS'::text,
           'COMPLETED'::text
         ]
       )
-    )
+  )
+  and upper(btrim(COALESCE(ord.parcel_status_emoji, ''::text))) <> all (
+    ARRAY[
+      'SENT'::text,
+      'DELIVERED'::text,
+      '🔥SENT'::text,
+      '⚡SENT'::text,
+      'SENT_TO_TELEGRAM'::text,
+      'SUCCESS'::text,
+      'COMPLETED'::text
+    ]
   )
   and not (
     COALESCE(ord.page_latest_message, ''::text) ~~* '%แจ้งเลขพัสดุจัดส่ง%'::text
@@ -271,19 +281,28 @@ from
 where
   NULLIF(btrim(pcl.tracking_number), ''::text) is not null
   and (
-    ord.facebook_tracking_status is null
-    or (
-      upper(btrim(ord.facebook_tracking_status)) <> all (
+    upper(btrim(COALESCE(ord.facebook_tracking_status, ''::text))) <> all (
         array[
           'SENT'::text,
           'DELIVERED'::text,
           '🔥SENT'::text,
+        '⚡SENT'::text,
           'SENT_TO_TELEGRAM'::text,
           'SUCCESS'::text,
           'COMPLETED'::text
         ]
       )
-    )
+  )
+  and upper(btrim(COALESCE(ord.parcel_status_emoji, ''::text))) <> all (
+    ARRAY[
+      'SENT'::text,
+      'DELIVERED'::text,
+      '🔥SENT'::text,
+      '⚡SENT'::text,
+      'SENT_TO_TELEGRAM'::text,
+      'SUCCESS'::text,
+      'COMPLETED'::text
+    ]
   )
   and not (
     COALESCE(ord.page_latest_message, ''::text) ~~* '%แจ้งเลขพัสดุจัดส่ง%'::text
@@ -364,19 +383,28 @@ from
 where
   NULLIF(btrim(pcl.tracking_number), ''::text) is not null
   and (
-    ord.facebook_tracking_status is null
-    or (
-      upper(btrim(ord.facebook_tracking_status)) <> all (
+    upper(btrim(COALESCE(ord.facebook_tracking_status, ''::text))) <> all (
         array[
           'SENT'::text,
           'DELIVERED'::text,
           '🔥SENT'::text,
+        '⚡SENT'::text,
           'SENT_TO_TELEGRAM'::text,
           'SUCCESS'::text,
           'COMPLETED'::text
         ]
       )
-    )
+  )
+  and upper(btrim(COALESCE(ord.parcel_status_emoji, ''::text))) <> all (
+    ARRAY[
+      'SENT'::text,
+      'DELIVERED'::text,
+      '🔥SENT'::text,
+      '⚡SENT'::text,
+      'SENT_TO_TELEGRAM'::text,
+      'SUCCESS'::text,
+      'COMPLETED'::text
+    ]
   )
   and not (
     COALESCE(ord.page_latest_message, ''::text) ~~* '%แจ้งเลขพัสดุจัดส่ง%'::text
@@ -461,6 +489,7 @@ where
     ) <> all (
       array[
         '🔥SENT'::text,
+        '⚡SENT'::text,
         'SENT'::text,
         'SUCCESS'::text,
         'COMPLETED'::text,
@@ -473,6 +502,7 @@ where
     upper(btrim(COALESCE(pulse.delivery_status, ''::text))) <> all (
       array[
         '🔥SENT'::text,
+        '⚡SENT'::text,
         'SENT'::text,
         'SUCCESS'::text,
         'COMPLETED'::text,
@@ -480,6 +510,17 @@ where
         'SENT_TO_TELEGRAM'::text
       ]
     )
+  )
+  and upper(btrim(COALESCE(pulse.parcel_status_emoji, ''::text))) <> all (
+    ARRAY[
+      'SENT'::text,
+      'DELIVERED'::text,
+      '🔥SENT'::text,
+      '⚡SENT'::text,
+      'SENT_TO_TELEGRAM'::text,
+      'SUCCESS'::text,
+      'COMPLETED'::text
+    ]
   );
 
   -- 4. DEAD · ประวัติส่งเลขแล้ว
@@ -558,6 +599,7 @@ where
       upper(btrim(COALESCE(parcel.delivery_status, ''::text))) = any (
         array[
           '🔥SENT'::text,
+        '⚡SENT'::text,
           'SENT'::text,
           'SUCCESS'::text,
           'COMPLETED'::text,
@@ -571,6 +613,21 @@ where
       ) = any (
         array[
           '🔥SENT'::text,
+        '⚡SENT'::text,
+          'SENT'::text,
+          'SUCCESS'::text,
+          'COMPLETED'::text,
+          'DELIVERED'::text
+        ]
+      )
+    )
+    or (
+      upper(
+        btrim(COALESCE(ord.parcel_status_emoji, ''::text))
+      ) = any (
+        ARRAY[
+          '🔥SENT'::text,
+          '⚡SENT'::text,
           'SENT'::text,
           'SUCCESS'::text,
           'COMPLETED'::text,
