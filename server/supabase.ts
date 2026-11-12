@@ -78,7 +78,7 @@ export const CHAT_PAGE_TABLE = "Pg_Chat⭐BINARY_xXx_STAR";
 export const CHAT_MATRIX_VIEW = "🌠BINARY_xXx_MATRIX";
 export const CHAT_PAGE_TOKEN_TABLE = "🌈MILKY_WAY_xXx_TOKEN _PAGE";
 export const CHAT_MATRIX_READ_COLUMNS = [
-  "source_side", "id", "chat_link_key", "page_id", "page_name", "portal_key", "assigned_agent", "assigned_hashtag",
+  "id", "chat_link_key", "page_id", "page_name", "portal_key", "assigned_agent", "assigned_hashtag",
   "conversation_id", "thread_id", "customer_id", "customer_name", "recipient_id", "recipient_name", "message_id",
   "speaker", "is_sent", "time", "time_th", "message_time_display", "created_at", "has_attachment", "attachment_type",
   "attachment_url", "attachment_urls", "attachments_raw", "sticker_url", "shares_link", "chat_age_hours",
@@ -101,7 +101,7 @@ function chatReadPath(filter: ChatReadFilter = {}) {
 }
 async function fetchChatRows(filter: ChatReadFilter = {}, credentials?: ChatSupabaseCredentials) {
   const rows = await supabaseGet<Array<Record<string, unknown>>>(chatReadPath(filter), "chat", credentials);
-  return rows.map(row => ({ ...row, _source_table: row.source_side === "page" ? CHAT_PAGE_TABLE : CHAT_CUSTOMER_TABLE }));
+  return rows.map(row => ({ ...row, _source_table: row.speaker === "page" ? CHAT_PAGE_TABLE : CHAT_CUSTOMER_TABLE }));
 }
 export async function fetchChatThreadRows(credentials?: ChatSupabaseCredentials) {
   return fetchChatRows({}, credentials);
@@ -112,7 +112,7 @@ export async function fetchChatMessageRows(input: { pageId: string; threadId: st
 const CHAT_CONNECTION_CHECKS = [
   { name: CHAT_CUSTOMER_TABLE, columns: "id,page_id,thread_id,message_text,phone" },
   { name: CHAT_PAGE_TABLE, columns: "id,page_id,thread_id,message_text" },
-  { name: CHAT_MATRIX_VIEW, columns: "id,source_side,page_id,thread_id,message_text" },
+  { name: CHAT_MATRIX_VIEW, columns: "id,page_id,thread_id,speaker,message_text" },
   { name: "🌓VAGABOND_xXx_DISMISS", columns: "id" },
   { name: "🏴‍☠️SIRIUS_xXx_CRASH", columns: "case_id" },
   { name: CHAT_PAGE_TOKEN_TABLE, columns: "page_id,access_token" },
