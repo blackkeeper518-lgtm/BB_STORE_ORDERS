@@ -620,7 +620,6 @@ select
   ord.delivery_state,
   ord.delivery_status as order_delivery_status,
   ord.message_id,
-  ord.recipient_id,
   ord.send_facebook_route,
   ord.target_room,
   ord.parcel_status_emoji,
