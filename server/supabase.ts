@@ -87,6 +87,7 @@ export const CHAT_MATRIX_READ_COLUMNS = [
   "tracking_number", "parcel_status_emoji", "facebook_tracking_message", "upsert_key", "order_number",
   "order_number_display", "order_time_display", "customer_latest_message", "customer_message_time_th",
   "page_latest_message", "page_message_time_th", "order_time", "cod_amount", "phone", "pager_message_time_th",
+  "time_slot_label",
   "manus_for_packer", "facebook_name", "shipping_carrier",
 ] as const;
 function chatReadPath(filter: ChatReadFilter = {}) {

@@ -868,6 +868,7 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 /* CHAT ROOM RECOVERY — bring back pink neon room/customer labels and visible page-order ticker. */
 .chat-cosmos-composer--open { height:min(320px,42vh); min-height:min(230px,42vh); max-height:42vh; }
 .chat-room-code-label { position:relative; display:inline-flex; align-items:center; border-color:rgba(255,156,225,.62) !important; background:rgba(121,15,81,.34) !important; color:#ffe7f7 !important; text-shadow:0 0 3px #fff,0 0 8px rgba(255,128,218,.9); box-shadow:0 0 7px rgba(255,60,190,.38),inset 0 0 8px rgba(255,78,195,.12); }
+.time-slot-room-sign { border-color:#ffd46a !important; background:rgba(139,83,0,.38) !important; color:#fff5d7 !important; text-shadow:0 0 3px #fff,0 0 9px rgba(255,207,93,.95); box-shadow:0 0 6px rgba(255,210,89,.9),0 0 18px rgba(255,171,39,.72),inset 0 0 8px rgba(255,205,89,.22) !important; }
 .chat-customer-name-label { display:inline-flex; width:fit-content; max-width:100%; margin-top:.3rem; padding:.13rem .58rem; border:1px solid rgba(255,142,220,.58); border-radius:.62rem; background:linear-gradient(90deg,rgba(115,12,76,.4),rgba(42,14,46,.55)); color:#fff2fb; text-shadow:0 0 3px #fff,0 0 9px rgba(255,105,211,.8); box-shadow:0 0 8px rgba(255,45,180,.32),inset 0 0 9px rgba(255,90,204,.12); }
 .chat-customer-list-label { color:#fff0fa; text-shadow:0 0 4px rgba(255,255,255,.55),0 0 10px rgba(255,78,194,.62); }
 .chat-page-name-label { color:#ffc6eb; text-shadow:0 0 6px rgba(255,86,201,.72); }

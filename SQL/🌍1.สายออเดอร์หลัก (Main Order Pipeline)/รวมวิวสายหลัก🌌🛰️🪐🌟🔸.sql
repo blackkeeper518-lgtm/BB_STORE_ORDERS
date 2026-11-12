@@ -2,6 +2,12 @@
 -- ไม่ได้แก้ไขเงื่อนไขหรือลอจิกของแต่ละ View
 BEGIN;
 
+-- Ensure the source field exists before creating dependent views.
+ALTER TABLE public."🗝️HERMES_ARCHIVE"
+  ADD COLUMN IF NOT EXISTS time_slot_label text;
+ALTER TABLE public."🌀SINGULARITY_xXx_EXCHANGE"
+  ADD COLUMN IF NOT EXISTS time_slot_label text;
+
 -- คีย์กลางสำหรับเชื่อม 3 อีเมล / 3 สาย / 3 โปรเจค
 ALTER TABLE public."🗝️HERMES_ARCHIVE"
   ADD COLUMN IF NOT EXISTS chat_link_key text;
@@ -28,6 +34,7 @@ select
   h.order_date,
   h.order_time,
   h.order_time_display,
+  h.time_slot_label,
   h.day_of_week,
   h.order_time_source,
   h.page_id,
@@ -217,6 +224,7 @@ select
   s.order_date,
   s.order_time,
   s.order_time_display,
+  s.time_slot_label,
   s.day_of_week,
   s.order_time_source,
   s.page_id,
@@ -409,6 +417,7 @@ select
   order_date,
   order_time,
   order_time_display,
+  time_slot_label,
   day_of_week,
   order_time_source,
   page_id,
@@ -592,6 +601,7 @@ select
   order_date,
   order_time,
   order_time_display,
+  time_slot_label,
   day_of_week,
   order_time_source,
   page_id,
@@ -720,6 +730,7 @@ select
   order_date,
   order_time,
   order_time_display,
+  time_slot_label,
   day_of_week,
   order_time_source,
   page_id,
