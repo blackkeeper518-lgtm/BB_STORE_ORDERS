@@ -624,8 +624,8 @@ select
   ord.target_room,
   ord.parcel_status_emoji,
   ord.facebook_tracking_message,
-  ord.drakside_tracking_message,
-  ord.chat_link_key
+  ord.chat_link_key,
+  ord.drakside_tracking_message
 from
   parcels parcel
   left join "🧿BB_xXx_ORDERCONTROL" ord on regexp_replace(
