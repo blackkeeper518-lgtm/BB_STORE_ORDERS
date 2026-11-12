@@ -156,7 +156,8 @@ select
   h.raw_text,
   h.recipient_id,
   h.expected_cod,
-  h.telegram_bill_header
+  
+  h.telegram_bill_header,
 from
   "🗝️HERMES_ARCHIVE" h
   left join lateral (
@@ -345,7 +346,8 @@ select
   s.raw_text,
   s.recipient_id,
   s.expected_cod,
-  s.telegram_bill_header
+  s.telegram_bill_header,
+    s.time_slot_label
 from
   "🌀SINGULARITY_xXx_EXCHANGE" s
   left join lateral (
@@ -537,6 +539,7 @@ select
   raw_text,
   recipient_id,
   expected_cod,
+  time_slot_label,
   telegram_bill_header
 from
   "🌌MULTIVERSE_xXx_NEXUS" c
@@ -696,6 +699,7 @@ select
   customer_product_previous,
   source_table,
   stock_notice,
+  time_slot_label,
     telegram_change_alert_web,
   telegram_message_web
 from
@@ -846,6 +850,7 @@ select
   raw_text,
   recipient_id,
   expected_cod,
+   time_slot_label,
   telegram_bill_header
 from
   "🌌MULTIVERSE_xXx_NEXUS" c
@@ -1258,6 +1263,7 @@ select
   "balloonNotice",
   is_backlog,
   branch_route,
+   time_slot_label,
   telegram_message_web,
   telegram_change_alert_web
 from
