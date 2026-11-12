@@ -819,8 +819,15 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .room-list-card::after { content:""; position:absolute; z-index:-1; left:13px; right:13px; top:0; height:1px; background:linear-gradient(90deg,transparent,rgba(255,81,207,.5),rgba(92,236,255,.42),transparent); opacity:.3; }
 .room-list-card:hover::before { transform:translateX(100%); }
 .room-list-card:hover { border-color:rgba(255,91,210,.42); box-shadow:inset 3px 0 #ff58cc,0 0 18px rgba(184,66,255,.14); transform:translateX(2px); }
-.room-list-card--signal { border-color:rgba(255,74,204,.48); box-shadow:inset 3px 0 #ff4fc8,0 0 16px rgba(255,35,181,.16),0 0 28px rgba(120,54,255,.08); }
-.room-list-card--signal::after { opacity:.9; background:linear-gradient(90deg,transparent,#ff74d7,#fff1fc,#ff42bf,transparent); box-shadow:0 0 8px #ff54ca; }
+.room-list-card--selected { border-color:rgba(255,56,232,.78); box-shadow:inset 3px 0 #FF38E8,0 0 10px rgba(255,0,217,.28),0 0 22px rgba(165,0,255,.15); animation:selected-room-edge-flicker 2.4s linear infinite; }
+.room-list-card--selected::after { opacity:1; background:linear-gradient(90deg,transparent,#FF38E8,#fff,#FF00D9,transparent); box-shadow:0 0 9px #FF38E8; }
+.room-list-card--selected:hover { transform:none; }
+@keyframes selected-room-edge-flicker {
+  0%, 17%, 19%, 22%, 52%, 54%, 100% { border-color:rgba(255,56,232,.82); box-shadow:inset 3px 0 #FF38E8,0 0 10px rgba(255,0,217,.34),0 0 24px rgba(165,0,255,.18); }
+  18%, 53% { border-color:rgba(255,56,232,.28); box-shadow:inset 3px 0 rgba(255,56,232,.42),0 0 3px rgba(255,0,217,.12),0 0 8px rgba(165,0,255,.08); }
+  20%, 56% { border-color:#fff; box-shadow:inset 3px 0 #FF38E8,0 0 15px rgba(255,0,217,.62),0 0 34px rgba(165,0,255,.28); }
+}
+@media (prefers-reduced-motion:reduce) { .room-list-card--selected { animation:none; border-color:rgba(255,56,232,.9); box-shadow:inset 3px 0 #FF38E8,0 0 10px rgba(255,0,217,.28),0 0 22px rgba(165,0,255,.15); } }
 /* F03 Dual Spectrum from แบบขอบการ์ดปุ่ม.css: one static cyan-purple-magenta frame for the tools panel. */
 .chat-tools-panel { border:1px solid transparent !important; background:linear-gradient(rgba(8,13,29,.97),rgba(8,13,29,.97)) padding-box,linear-gradient(120deg,#00E5FF,#A500FF,#FF00D9) border-box !important; box-shadow:0 10px 28px rgba(0,0,0,.3),0 0 14px rgba(0,229,255,.08),0 0 14px rgba(255,0,217,.05) !important; }
 .chat-tool-action { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:31px; border:1px solid rgba(0,229,255,.22) !important; border-radius:10px !important; background:rgba(16,35,58,.52) !important; color:#E8F7FF !important; font-size:10px !important; font-weight:600; line-height:1; transition:background .18s,border-color .18s,box-shadow .18s,color .18s; }
@@ -831,7 +838,17 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .chat-tool-action--icon { width:32px; height:32px; min-height:32px; padding:0 !important; }
 .chat-tool-action:disabled { cursor:not-allowed; opacity:.38 !important; }
 .chat-tool-action:focus-visible,.chat-tool-copy-row:focus-visible { outline:2px solid #FF38E8; outline-offset:2px; }
+.chat-conversation-actions { display:flex; max-width:100%; flex-wrap:wrap; align-items:center; gap:5px; border:1px solid rgba(0,229,255,.12); border-radius:12px; background:rgba(8,13,29,.38); padding:3px; }
 .chat-tools-section-title { color:#91A9C2; font-size:9px; font-weight:700; letter-spacing:.12em; }
+.chat-send-status-row { display:flex; flex-wrap:wrap; align-items:center; gap:5px; }
+.chat-send-status { display:inline-flex; max-width:100%; align-items:center; gap:5px; min-height:20px; padding:2px 7px; border:1px solid rgba(145,169,194,.18); border-radius:999px; background:rgba(16,35,58,.35); color:rgba(145,169,194,.7); font:500 8px/1.2 'IBM Plex Mono',monospace; white-space:nowrap; }
+.chat-send-status__dot { width:5px; height:5px; flex:0 0 5px; border-radius:50%; background:rgba(145,169,194,.45); }
+.chat-send-status__label { color:rgba(145,169,194,.78); font:600 8px/1.2 'Space Grotesk',sans-serif; }
+.chat-send-status__value { overflow:hidden; text-overflow:ellipsis; }
+.chat-send-status--active.chat-send-status--parcel { border-color:rgba(0,229,255,.42); background:rgba(0,229,255,.07); color:#ccf8ff; box-shadow:0 0 8px rgba(0,229,255,.16),inset 0 0 6px rgba(0,229,255,.06); }
+.chat-send-status--active.chat-send-status--parcel .chat-send-status__dot { background:#00E5FF; box-shadow:0 0 7px rgba(0,229,255,.9); }
+.chat-send-status--active.chat-send-status--telegram { border-color:rgba(255,56,232,.48); background:rgba(255,0,217,.07); color:#ffe1f9; box-shadow:0 0 8px rgba(255,0,217,.17),inset 0 0 6px rgba(255,0,217,.06); }
+.chat-send-status--active.chat-send-status--telegram .chat-send-status__dot { background:#FF38E8; box-shadow:0 0 7px rgba(255,56,232,.9); }
 .chat-tools-section-tag { border:1px solid rgba(255,56,232,.2); border-radius:999px; background:rgba(255,0,217,.06); padding:2px 7px; color:#dda9d8; font-size:8px; }
 .chat-tools-item { border:1px solid rgba(0,229,255,.14); border-radius:12px; background:rgba(16,35,58,.28); padding:10px; }
 .chat-tools-empty { border:1px dashed rgba(0,229,255,.16); border-radius:10px; padding:10px; color:rgba(145,169,194,.65); font-size:10px; text-align:center; }
