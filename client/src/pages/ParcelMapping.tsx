@@ -34,6 +34,7 @@ type ParcelMappingRow = {
   pickup_date?: string | null;
   parcel_delivery_status?: string | null;
   parcel_sent_at?: string | null;
+  sent_at?: string | null;
   page_name?: string | null;
   order_number?: string | null;
   order_number_display?: string | null;
@@ -93,7 +94,7 @@ function isSent(row: ParcelMappingRow) {
         "DELIVERED",
         "SENT_TO_TELEGRAM",
       ].includes(value)
-    ) || Boolean(clean(row.parcel_sent_at)) || /📌\s*📣\s*แจ้งเลขพัสดุจัดส่ง/u.test(clean(row.page_latest_message));
+    ) || Boolean(clean(row.sent_at) || clean(row.parcel_sent_at)) || /📌\s*📣\s*แจ้งเลขพัสดุจัดส่ง/u.test(clean(row.page_latest_message));
 }
 function asBool(value: unknown) {
   return value === true || value === "true" || value === 1 || value === "1";
