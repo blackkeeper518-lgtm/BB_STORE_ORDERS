@@ -21,13 +21,20 @@ import { useMemo, useState } from "react";
 type QueueFilter = "all" | "ready" | "over24" | "over48" | "sent";
 type OrbitLane = "waiting" | "send" | "expired" | "sent";
 type ParcelMappingRow = {
+  message_id?: string | null;
+  recipient_id?: string | null;
+  chat_key?: string | null;
+  chat_key_valid?: boolean;
   tracking_number?: string | null;
   matched_phone?: string | null;
+  customer_name?: string | null;
   recipient_name?: string | null;
+  address_display_packer?: string | null;
   parcel_address?: string | null;
   pickup_date?: string | null;
   parcel_delivery_status?: string | null;
   parcel_sent_at?: string | null;
+  sent_at?: string | null;
   page_name?: string | null;
   order_number?: string | null;
   order_number_display?: string | null;
@@ -75,18 +82,19 @@ function ageHours(row: ParcelMappingRow) {
     : Math.max(0, (Date.now() - timestamp) / 36e5);
 }
 function isSent(row: ParcelMappingRow) {
-  return [row.parcel_delivery_status, row.facebook_tracking_status]
+  return [row.parcel_status_emoji, row.parcel_delivery_status, row.facebook_tracking_status]
     .map(value => clean(value).toUpperCase())
     .some(value =>
       [
         "🔥SENT",
+        "⚡SENT",
         "SENT",
         "SUCCESS",
         "COMPLETED",
         "DELIVERED",
         "SENT_TO_TELEGRAM",
       ].includes(value)
-    ) || clean(row.page_latest_message).includes("📌 แจ้งเลขพัสดุจัดส่ง");
+    ) || Boolean(clean(row.sent_at) || clean(row.parcel_sent_at)) || /📌\s*📣\s*แจ้งเลขพัสดุจัดส่ง/u.test(clean(row.page_latest_message));
 }
 function asBool(value: unknown) {
   return value === true || value === "true" || value === 1 || value === "1";
@@ -110,7 +118,7 @@ function orbitMeta(lane: OrbitLane) {
     waiting: { icon: "🛰️", label: "WAITING ORBIT", sub: "ยังไม่พบสัญญาณลูกค้า", color: "border-violet-300/25 bg-violet-300/[.06] text-violet-100" },
     send: { icon: "🚀", label: "SEND GATE", sub: "พร้อมส่งตามหน้าต่างแชท", color: "border-emerald-300/25 bg-emerald-300/[.06] text-emerald-100" },
     expired: { icon: "🕳️", label: "EXPIRED VAULT", sub: "เกินหน้าต่างส่ง", color: "border-amber-300/25 bg-amber-300/[.06] text-amber-100" },
-    sent: { icon: "🔥", label: "🔥SENT", sub: "TRACKING SIGNAL CONFIRMED", color: "border-fuchsia-300/25 bg-fuchsia-300/[.06] text-fuchsia-100" },
+    sent: { icon: "⚡", label: "⚡SENT", sub: "FACEBOOK TRACKING CONFIRMED", color: "border-fuchsia-300/25 bg-fuchsia-300/[.06] text-fuchsia-100" },
   }[lane];
 }
 function rowStatus(row: ParcelMappingRow): QueueFilter {
@@ -150,9 +158,9 @@ function statusMeta(status: QueueFilter) {
       icon: "🔴",
       className: "border-red-300/30 bg-red-300/[0.08] text-red-100",
     },
-    sent: {
-      label: "ส่งแล้ว",
-      icon: "🔥",
+      sent: {
+        label: "ส่งแล้ว",
+        icon: "⚡",
       className: "border-emerald-300/30 bg-emerald-300/[0.08] text-emerald-100",
     },
   }[status];
@@ -178,6 +186,9 @@ export default function ParcelMapping() {
     return rows.filter(row => {
       const statusMatches = filter === "all" || rowStatus(row) === filter;
       const haystack = [
+        row.message_id,
+        row.recipient_id,
+        row.chat_key,
         row.tracking_number,
         row.recipient_name,
         row.matched_phone,
@@ -205,9 +216,9 @@ export default function ParcelMapping() {
   const orbitLanes: OrbitLane[] = ["waiting", "send", "expired", "sent"];
   const sendGateRows = useMemo(() => {
     const seen = new Set<string>();
-    return rows.filter(row => orbitLane(row) === "send").filter(row => {
-      const key = clean(row.chat_link_key) || `${clean(row.page_id)}:${clean(row.thread_id || row.threadId)}` || clean(row.page_name);
-      if (!key || seen.has(key)) return false;
+    return rows.filter(row => orbitLane(row) === "send" && !isSent(row) && clean(row.tracking_number) && Boolean(clean(row.facebook_tracking_message) || clean(row.drakside_tracking_message))).filter(row => {
+      const key = clean(row.chat_key);
+      if (!row.chat_key_valid || !key || seen.has(key)) return false;
       seen.add(key);
       return true;
     });
@@ -223,15 +234,19 @@ export default function ParcelMapping() {
     const threadId = clean(row.thread_id || row.threadId) || clean(keyThreadId);
     if (pageId && threadId && typeof window !== "undefined") {
       window.sessionStorage.setItem(`darkside-send-gate:${pageId}:${threadId}`, JSON.stringify({
+        chat_key: row.chat_key,
+        message_id: row.message_id,
+        recipient_id: row.recipient_id,
         tracking_number: row.tracking_number,
         order_number: row.order_number,
         order_number_display: row.order_number_display,
+        address_display_packer: row.address_display_packer,
         shipping_carrier: row.shipping_carrier,
         facebook_tracking_message: row.facebook_tracking_message,
         drakside_tracking_message: row.drakside_tracking_message,
       }));
     }
-    return pageId && threadId ? `/chats?page_id=${encodeURIComponent(pageId)}&thread_id=${encodeURIComponent(threadId)}` : "";
+    return row.chat_key_valid && pageId && threadId ? `/chats?page_id=${encodeURIComponent(pageId)}&thread_id=${encodeURIComponent(threadId)}` : "";
   }
 
   async function copyMessage(row: ParcelMappingRow) {
@@ -373,9 +388,9 @@ export default function ParcelMapping() {
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto p-4"><div className="grid gap-2 sm:grid-cols-2">
             {sendGateRows.map((row, index) => { const href = chatHref(row); return <article key={`${clean(row.page_name)}-${clean(row.tracking_number)}-${index}`} className="group rounded-2xl border border-emerald-300/15 bg-emerald-300/[.035] p-3 transition hover:-translate-y-0.5 hover:border-emerald-200/50 hover:bg-emerald-300/[.08]">
-              <div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="truncate text-sm font-semibold text-white">{clean(row.page_name) || "ไม่ระบุเพจ"}</p><p className="mt-1 truncate font-mono text-[9px] text-emerald-200/50">{clean(row.chat_link_key) || `${clean(row.page_id)}_${clean(row.thread_id || row.threadId)}` || "NO CHAT KEY"}</p></div><span className="shrink-0 rounded-md border border-emerald-300/20 bg-emerald-300/[.08] px-1.5 py-0.5 text-[9px] text-emerald-200">🟢 OPEN</span></div>
+              <div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="truncate text-sm font-semibold text-white">{clean(row.page_name) || "ไม่ระบุเพจ"}</p><p className="mt-1 truncate font-mono text-[9px] text-emerald-200/50">{clean(row.chat_key) || "NO CHAT KEY"}</p></div><span className="shrink-0 rounded-md border border-emerald-300/20 bg-emerald-300/[.08] px-1.5 py-0.5 text-[9px] text-emerald-200">🟢 OPEN</span></div>
               <div className="mt-2 grid grid-cols-2 gap-1 text-[10px] text-cyan-100/60"><span>ลูกค้า · {clean(row.recipient_name) || "—"}</span><span>เลข · {clean(row.tracking_number) || "—"}</span></div>
-              {href ? <a href={href} onClick={() => setSendGateOpen(false)} className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-cyan-300/25 bg-cyan-400/[.07] px-2.5 py-2 text-[10px] font-semibold text-cyan-100 transition hover:border-cyan-200/60 hover:bg-cyan-400/[.15]"><MessageCircle className="h-3.5 w-3.5" />เข้าแชทห้องนี้<ArrowUpRight className="h-3.5 w-3.5" /></a> : <p className="mt-3 rounded-lg border border-amber-300/15 bg-amber-300/[.04] px-2 py-1.5 text-[9px] text-amber-100/60">ยังไม่มี chat_link_key สำหรับเปิดห้อง</p>}
+              {href ? <a href={href} onClick={() => setSendGateOpen(false)} className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-cyan-300/25 bg-cyan-400/[.07] px-2.5 py-2 text-[10px] font-semibold text-cyan-100 transition hover:border-cyan-200/60 hover:bg-cyan-400/[.15]"><MessageCircle className="h-3.5 w-3.5" />เข้าแชทห้องนี้<ArrowUpRight className="h-3.5 w-3.5" /></a> : <p className="mt-3 rounded-lg border border-amber-300/15 bg-amber-300/[.04] px-2 py-1.5 text-[9px] text-amber-100/60">ยังไม่มี message_id + recipient_id สำหรับเปิดห้อง</p>}
             </article>; })}
             {!sendGateRows.length ? <div className="col-span-full rounded-2xl border border-emerald-300/15 bg-black/20 p-8 text-center text-sm text-emerald-100/50"><MessageCircle className="mx-auto mb-2 h-7 w-7 text-emerald-300/40" />ยังไม่มีห้องที่แมฟใน SEND GATE</div> : null}
           </div></div>
@@ -431,7 +446,7 @@ export default function ParcelMapping() {
                     </div>
                     <div className="flex flex-col items-end gap-0.5">
                       <Badge variant="outline" className={meta.className}>
-                        {isSent(row) ? "🔥SENT" : `${meta.icon} ${meta.label}`}
+                        {isSent(row) ? "⚡SENT" : `${meta.icon} ${meta.label}`}
                         {age != null && status !== "sent" ? ` · ${age.toFixed(1)} ชม.` : ""}
                       </Badge>
                       {isSent(row) ? <span className="font-mono text-[8px] tracking-[.12em] text-fuchsia-200/65">TRACKING SIGNAL CONFIRMED</span> : null}
@@ -439,11 +454,12 @@ export default function ParcelMapping() {
                   </div>
                   <div className="mt-2 grid gap-1.5 rounded-xl border border-white/10 bg-slate-950/45 p-2.5 text-xs shadow-[inset_0_0_18px_rgba(148,163,184,.035)] sm:grid-cols-2">
                     <p className="text-white/85">
-                      👤 {clean(row.recipient_name) || "ไม่ระบุชื่อผู้รับ"}
+                      👤 {clean(row.customer_name || row.recipient_name) || "ไม่ระบุชื่อผู้รับ"}
                     </p>
-                    <p className="text-white/70">
-                      📞 {clean(row.matched_phone) || "ไม่ระบุเบอร์"}
-                    </p>
+                    <button type="button" onClick={() => void copyValue(row.matched_phone, `phone:${clean(row.tracking_number)}`)} disabled={!clean(row.matched_phone)} className="flex items-center gap-1.5 text-left text-white/70 hover:text-cyan-100 disabled:opacity-50">
+                      <span>📞 {clean(row.matched_phone) || "ไม่ระบุเบอร์"}</span>
+                      {copied === `phone:${clean(row.tracking_number)}` ? <Check className="h-3.5 w-3.5 text-emerald-300" /> : <Clipboard className="h-3.5 w-3.5 text-cyan-300/70" />}
+                    </button>
                     <p className="text-white/60 sm:col-span-2">
                       🧾{" "}
                       {clean(row.order_number_display || row.order_number) ||
@@ -552,7 +568,7 @@ export default function ParcelMapping() {
                     <p>เบอร์โทร · {clean(selected.matched_phone) || "—"}</p>
                     <p>ขนส่ง · {clean(selected.shipping_carrier) || "FLASH EXPRESS"}</p>
                     <p>เลขออเดอร์ · {clean(selected.order_number_display || selected.order_number) || "—"}</p>
-                    <p className="font-semibold text-cyan-200">สถานะ · {isSent(selected) ? "🔥SENT" : clean(selected.parcel_status_emoji) || "รอตรวจ"}</p>
+                    <p className="font-semibold text-cyan-200">สถานะ · {isSent(selected) ? "⚡SENT" : clean(selected.parcel_status_emoji) || "รอตรวจ"}</p>
                   </div>
                 </div>
                 <div className="grid gap-3">

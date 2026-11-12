@@ -102,6 +102,7 @@ where
         'SENT'::text,
         'DELIVERED'::text,
         '🔥SENT'::text,
+        '⚡SENT'::text,
         'SENT_TO_TELEGRAM'::text
       ]
     )
@@ -123,6 +124,7 @@ select
   ord.page_id,
   ord."threadId",
   ord.customer_id,
+  ord.recipient_id,
   ord.message_id,
   jsonb_build_object('id', ord.message_id) as m,
   ord.shipping_carrier,
@@ -133,7 +135,9 @@ select
   pcl.id as parcel_row_id,
   pcl.pickup_date,
   pcl.delivery_status,
+  pcl.delivery_status as parcel_delivery_status,
   pcl.sent_at,
+  pcl.sent_at as parcel_sent_at,
   ord.page_name,
   ord.portal_key,
   ord.facebook_name,
@@ -174,23 +178,43 @@ select
   ord.chat_link_key
 from
   "🔮SHADOW_xXx_RECALL" pcl
-  join "🏹HUNTER_xXx_TARGET" ord on ord.upsert_key = pcl.upsert_key
+  join "🧿BB_xXx_ORDERCONTROL" ord on ord.upsert_key = pcl.upsert_key
 where
   NULLIF(btrim(pcl.tracking_number), ''::text) is not null
   and (
-    ord.facebook_tracking_status is null
-    or (
-      upper(btrim(ord.facebook_tracking_status)) <> all (
+    upper(btrim(COALESCE(ord.facebook_tracking_status, ''::text))) <> all (
         array[
           'SENT'::text,
           'DELIVERED'::text,
           '🔥SENT'::text,
+        '⚡SENT'::text,
           'SENT_TO_TELEGRAM'::text,
           'SUCCESS'::text,
           'COMPLETED'::text
         ]
       )
-    )
+  )
+  and upper(btrim(COALESCE(ord.parcel_status_emoji, ''::text))) <> all (
+    ARRAY[
+      'SENT'::text,
+      'DELIVERED'::text,
+      '🔥SENT'::text,
+      '⚡SENT'::text,
+      'SENT_TO_TELEGRAM'::text,
+      'SUCCESS'::text,
+      'COMPLETED'::text
+    ]
+  )
+  and upper(btrim(COALESCE(pcl.delivery_status, ''::text))) <> all (
+    ARRAY[
+      'SENT'::text,
+      'DELIVERED'::text,
+      '🔥SENT'::text,
+      '⚡SENT'::text,
+      'SENT_TO_TELEGRAM'::text,
+      'SUCCESS'::text,
+      'COMPLETED'::text
+    ]
   )
   and not (
     COALESCE(ord.page_latest_message, ''::text) ~~* '%แจ้งเลขพัสดุจัดส่ง%'::text
@@ -210,6 +234,7 @@ select
   ord.page_id,
   ord."threadId",
   ord.customer_id,
+  ord.recipient_id,
   ord.message_id,
   jsonb_build_object('id', ord.message_id) as m,
   ord.shipping_carrier,
@@ -220,7 +245,9 @@ select
   pcl.id as parcel_row_id,
   pcl.pickup_date,
   pcl.delivery_status,
+  pcl.delivery_status as parcel_delivery_status,
   pcl.sent_at,
+  pcl.sent_at as parcel_sent_at,
   ord.page_name,
   ord.portal_key,
   ord.facebook_name,
@@ -264,26 +291,46 @@ from
   join public."🧿BB_xXx_ORDERCONTROL" ord
     on ord.upsert_key = pcl.upsert_key
 
-  -- HUNTER เป็นท่อเสริม ไม่ใช่ต้นทางหลัก
-  left join public."🏹HUNTER_xXx_TARGET" h
+  -- ORDERCONTROL เป็นแหล่งข้อมูลหลักของสายส่งเลข
+  left join public."🧿BB_xXx_ORDERCONTROL" h
     on h.upsert_key = ord.upsert_key
 
 where
   NULLIF(btrim(pcl.tracking_number), ''::text) is not null
   and (
-    ord.facebook_tracking_status is null
-    or (
-      upper(btrim(ord.facebook_tracking_status)) <> all (
+    upper(btrim(COALESCE(ord.facebook_tracking_status, ''::text))) <> all (
         array[
           'SENT'::text,
           'DELIVERED'::text,
           '🔥SENT'::text,
+        '⚡SENT'::text,
           'SENT_TO_TELEGRAM'::text,
           'SUCCESS'::text,
           'COMPLETED'::text
         ]
       )
-    )
+  )
+  and upper(btrim(COALESCE(ord.parcel_status_emoji, ''::text))) <> all (
+    ARRAY[
+      'SENT'::text,
+      'DELIVERED'::text,
+      '🔥SENT'::text,
+      '⚡SENT'::text,
+      'SENT_TO_TELEGRAM'::text,
+      'SUCCESS'::text,
+      'COMPLETED'::text
+    ]
+  )
+  and upper(btrim(COALESCE(pcl.delivery_status, ''::text))) <> all (
+    ARRAY[
+      'SENT'::text,
+      'DELIVERED'::text,
+      '🔥SENT'::text,
+      '⚡SENT'::text,
+      'SENT_TO_TELEGRAM'::text,
+      'SUCCESS'::text,
+      'COMPLETED'::text
+    ]
   )
   and not (
     COALESCE(ord.page_latest_message, ''::text) ~~* '%แจ้งเลขพัสดุจัดส่ง%'::text
@@ -303,6 +350,7 @@ select
   ord.page_id,
   ord."threadId",
   ord.customer_id,
+  ord.recipient_id,
   ord.message_id,
   jsonb_build_object('id', ord.message_id) as m,
   ord.shipping_carrier,
@@ -313,7 +361,9 @@ select
   pcl.id as parcel_row_id,
   pcl.pickup_date,
   pcl.delivery_status,
+  pcl.delivery_status as parcel_delivery_status,
   pcl.sent_at,
+  pcl.sent_at as parcel_sent_at,
   ord.page_name,
   ord.portal_key,
   ord.facebook_name,
@@ -357,26 +407,46 @@ from
   join public."🧿BB_xXx_ORDERCONTROL" ord
     on ord.upsert_key = pcl.upsert_key
 
-  -- HUNTER เป็นท่อเสริม ไม่ใช่ต้นทางหลัก
-  left join public."🏹HUNTER_xXx_TARGET" h
+  -- ORDERCONTROL เป็นแหล่งข้อมูลหลักของสายส่งเลข
+  left join public."🧿BB_xXx_ORDERCONTROL" h
     on h.upsert_key = ord.upsert_key
 
 where
   NULLIF(btrim(pcl.tracking_number), ''::text) is not null
   and (
-    ord.facebook_tracking_status is null
-    or (
-      upper(btrim(ord.facebook_tracking_status)) <> all (
+    upper(btrim(COALESCE(ord.facebook_tracking_status, ''::text))) <> all (
         array[
           'SENT'::text,
           'DELIVERED'::text,
           '🔥SENT'::text,
+        '⚡SENT'::text,
           'SENT_TO_TELEGRAM'::text,
           'SUCCESS'::text,
           'COMPLETED'::text
         ]
       )
-    )
+  )
+  and upper(btrim(COALESCE(ord.parcel_status_emoji, ''::text))) <> all (
+    ARRAY[
+      'SENT'::text,
+      'DELIVERED'::text,
+      '🔥SENT'::text,
+      '⚡SENT'::text,
+      'SENT_TO_TELEGRAM'::text,
+      'SUCCESS'::text,
+      'COMPLETED'::text
+    ]
+  )
+  and upper(btrim(COALESCE(pcl.delivery_status, ''::text))) <> all (
+    ARRAY[
+      'SENT'::text,
+      'DELIVERED'::text,
+      '🔥SENT'::text,
+      '⚡SENT'::text,
+      'SENT_TO_TELEGRAM'::text,
+      'SUCCESS'::text,
+      'COMPLETED'::text
+    ]
   )
   and not (
     COALESCE(ord.page_latest_message, ''::text) ~~* '%แจ้งเลขพัสดุจัดส่ง%'::text
@@ -461,6 +531,7 @@ where
     ) <> all (
       array[
         '🔥SENT'::text,
+        '⚡SENT'::text,
         'SENT'::text,
         'SUCCESS'::text,
         'COMPLETED'::text,
@@ -473,6 +544,7 @@ where
     upper(btrim(COALESCE(pulse.delivery_status, ''::text))) <> all (
       array[
         '🔥SENT'::text,
+        '⚡SENT'::text,
         'SENT'::text,
         'SUCCESS'::text,
         'COMPLETED'::text,
@@ -480,6 +552,17 @@ where
         'SENT_TO_TELEGRAM'::text
       ]
     )
+  )
+  and upper(btrim(COALESCE(pulse.parcel_status_emoji, ''::text))) <> all (
+    ARRAY[
+      'SENT'::text,
+      'DELIVERED'::text,
+      '🔥SENT'::text,
+      '⚡SENT'::text,
+      'SENT_TO_TELEGRAM'::text,
+      'SUCCESS'::text,
+      'COMPLETED'::text
+    ]
   );
 
   -- 4. DEAD · ประวัติส่งเลขแล้ว
@@ -493,11 +576,14 @@ select
   parcel.cod_amount as parcel_cod_amount,
   parcel.address as parcel_address,
   parcel.delivery_status,
+  parcel.delivery_status as parcel_delivery_status,
   parcel.sent_at,
+  parcel.sent_at as parcel_sent_at,
   ord.upsert_key,
   ord.page_id,
   ord."threadId",
   ord.customer_id,
+  ord.recipient_id,
   ord.page_name,
   ord.portal_key,
   ord.facebook_name,
@@ -537,7 +623,9 @@ select
   ord.send_facebook_route,
   ord.target_room,
   ord.parcel_status_emoji,
-  ord.facebook_tracking_message
+  ord.facebook_tracking_message,
+  ord.chat_link_key,
+  COALESCE(parcel.drakside_tracking_message, ord.drakside_tracking_message) as drakside_tracking_message
 from
   parcels parcel
   left join "🧿BB_xXx_ORDERCONTROL" ord on regexp_replace(
@@ -558,6 +646,7 @@ where
       upper(btrim(COALESCE(parcel.delivery_status, ''::text))) = any (
         array[
           '🔥SENT'::text,
+        '⚡SENT'::text,
           'SENT'::text,
           'SUCCESS'::text,
           'COMPLETED'::text,
@@ -571,6 +660,21 @@ where
       ) = any (
         array[
           '🔥SENT'::text,
+        '⚡SENT'::text,
+          'SENT'::text,
+          'SUCCESS'::text,
+          'COMPLETED'::text,
+          'DELIVERED'::text
+        ]
+      )
+    )
+    or (
+      upper(
+        btrim(COALESCE(ord.parcel_status_emoji, ''::text))
+      ) = any (
+        ARRAY[
+          '🔥SENT'::text,
+          '⚡SENT'::text,
           'SENT'::text,
           'SUCCESS'::text,
           'COMPLETED'::text,

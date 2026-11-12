@@ -507,6 +507,29 @@ export async function readGenesisOrderHistory(date: string) {
 
   return { orders, total: orders.length, sourceView: "🌟GENESIS_xXx_HISTORY", fetchedAt: new Date().toISOString() };
 }
+
+export async function readDailyTrackingHistory(date: string) {
+  const api = getSupabase("parcel");
+  if (!api) fail({ message: "ยังไม่ได้เชื่อม Tracking & Messenger: ไปที่ /secret-gallery แล้วบันทึก URL กับ Anon/Publishable Key" });
+  const { data, error } = await api.from("📓DEAD_xXx_NOTE").select("*").limit(2000);
+  if (error) fail(error);
+  const dayKey = (value: unknown) => {
+    const raw = String(value ?? "").trim();
+    if (!raw) return "";
+    const parsed = new Date(raw);
+    return Number.isNaN(parsed.getTime())
+      ? raw.slice(0, 10)
+      : new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok" }).format(parsed);
+  };
+  const orders = (data ?? []).filter((row: any) => [
+    row.facebook_tracking_sent_at,
+    row.sent_at,
+    row.pickup_date,
+    row.order_time,
+    row.order_time_display,
+  ].some(value => dayKey(value) === date));
+  return { orders, total: orders.length, sourceView: "📓DEAD_xXx_NOTE", fetchedAt: new Date().toISOString() };
+}
 export async function readTelegramSentHistory(search = "") {
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
@@ -612,6 +635,7 @@ export function mapChatRowsToThreads(sourceRows: any[]) {
       pageLatestMessage: row.page_latest_message || null, pageMessageTimeTh: row.page_message_time_th || null,
       pagerMessageTimeTh: row.pager_message_time_th || null,
       upsert_key: row.upsert_key || null, order_number: row.order_number || null,
+      is_sent: row.is_sent === true || row.is_sent === "true",
       order_number_display: row.order_number_display || null, order_time: row.order_time || null,
       order_time_display: row.order_time_display || null, cod_amount: row.cod_amount ?? null,
       facebook_name: row.facebook_name || null, manus_for_packer: row.manus_for_packer || null,
@@ -624,6 +648,7 @@ export function mapChatRowsToThreads(sourceRows: any[]) {
     current.portalKey ||= row.portal_key || null;
     current.chatLinkKey ||= row.chat_link_key || null;
     current.customerName = row.customer_name || row.facebook_name || row.recipient_name || (current.customerName === "ลูกค้า" ? row._name : current.customerName) || current.customerName;
+    current.is_sent ||= row.is_sent === true || row.is_sent === "true";
     for (const [source, target] of [
       ["customer_latest_message", "customerLatestMessage"], ["customer_message_time_th", "customerMessageTimeTh"],
       ["page_latest_message", "pageLatestMessage"], ["page_message_time_th", "pageMessageTimeTh"],
@@ -723,10 +748,25 @@ export async function readParcelMappingQueue(status: "all" | "sent" = "all", lim
   if ("error" in activeData && activeData.error) fail(activeData.error);
   const sent = status === "all" || status === "sent" ? await api.from("📓DEAD_xXx_NOTE").select("*").limit(safeLimit) : { data: [], error: null };
   if (sent.error) fail(sent.error);
-  const rows = [...("data" in activeData ? (activeData.data ?? []) : []), ...(sent.data ?? [])];
+  // DEAD is the authoritative sent history. If the same parcel briefly exists
+  // in both views while the source status is propagating, keep DEAD first so
+  // the web never hides a sent row behind the waiting-queue copy.
+  const rows = [
+    ...(sent.data ?? []).map((row: any) => ({ ...row, parcel_queue_source: "DEAD" })),
+    ...( "data" in activeData ? (activeData.data ?? []) : [] ).map((row: any) => ({ ...row, parcel_queue_source: "ROGUE" })),
+  ];
   const seen = new Set<string>();
-  return rows.filter((row: any) => {
-    const key = String(row.tracking_number ?? row.order_number ?? row.id ?? "").trim();
+  return rows.map((row: any) => {
+    const messageId = String(row.message_id ?? "").trim();
+    const recipientId = String(row.recipient_id ?? "").trim();
+    return {
+      ...row,
+      chat_key: messageId && recipientId ? `${messageId}:${recipientId}` : null,
+      chat_key_valid: Boolean(messageId && recipientId),
+    };
+  }).filter((row: any) => {
+    // ห้องแชทใช้คีย์คู่เท่านั้น; fallback นี้มีไว้แค่กันแถว parcel ที่ไม่มีข้อมูลแชทหายจากหน้าคิว
+    const key = row.chat_key || `parcel:${String(row.id ?? row.tracking_number ?? row.order_number ?? "")}`;
     if (!key || seen.has(key)) return false;
     seen.add(key);
     return true;

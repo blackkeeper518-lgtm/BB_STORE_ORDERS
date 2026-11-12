@@ -36,3 +36,27 @@ where
     (tracking_number is not null)
     and (btrim(tracking_number) <> ''::text)
   );
+
+-- กติกาหลักของสายส่งเลข: มี sent_at แล้วถือว่าส่งเลขสำเร็จเสมอ
+UPDATE public.parcels
+SET parcel_status_emoji = '⚡SENT'
+WHERE NULLIF(btrim(sent_at), '') IS NOT NULL
+  AND COALESCE(btrim(parcel_status_emoji), '') <> '⚡SENT';
+
+CREATE OR REPLACE FUNCTION public.enforce_parcel_sent_status()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NULLIF(btrim(NEW.sent_at), '') IS NOT NULL THEN
+    NEW.parcel_status_emoji := '⚡SENT';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS parcels_sent_status_guard ON public.parcels;
+CREATE TRIGGER parcels_sent_status_guard
+BEFORE INSERT OR UPDATE OF sent_at ON public.parcels
+FOR EACH ROW
+EXECUTE FUNCTION public.enforce_parcel_sent_status();

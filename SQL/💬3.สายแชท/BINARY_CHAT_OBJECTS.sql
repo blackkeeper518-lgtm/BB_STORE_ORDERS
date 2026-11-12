@@ -3,14 +3,13 @@
 CREATE OR REPLACE VIEW public."🌠BINARY_xXx_MATRIX"
 WITH (security_invoker = true) AS
 WITH source_rows AS (
-  SELECT 'customer'::text AS source_side, to_jsonb(m.*) AS row_data
+  SELECT to_jsonb(m.*) AS row_data
   FROM public."Cust_Chat⭐BINARY_xXx_STAR" AS m
   UNION ALL
-  SELECT 'page'::text AS source_side, to_jsonb(m.*) AS row_data
+  SELECT to_jsonb(m.*) AS row_data
   FROM public."Pg_Chat⭐BINARY_xXx_STAR" AS m
 )
 SELECT
-  source_side,
   NULLIF(row_data ->> 'id', '')::bigint AS id,
   row_data ->> 'chat_link_key' AS chat_link_key,
   row_data ->> 'page_id' AS page_id,
@@ -25,7 +24,7 @@ SELECT
   row_data ->> 'recipient_id' AS recipient_id,
   row_data ->> 'recipient_name' AS recipient_name,
   row_data ->> 'message_id' AS message_id,
-  COALESCE(row_data ->> 'speaker', row_data ->> 'speaker_type', source_side) AS speaker,
+  row_data ->> 'speaker' AS speaker,
   NULLIF(row_data ->> 'is_sent', '')::boolean AS is_sent,
   NULLIF(row_data ->> 'time', '')::timestamptz AS time,
   row_data ->> 'time_th' AS time_th,
@@ -312,7 +311,7 @@ COMMENT ON TABLE public."Pg_Chat⭐BINARY_xXx_STAR" IS 'ข้อความข
 COMMENT ON COLUMN public."Pg_Chat⭐BINARY_xXx_STAR".message_text IS 'แหล่งเนื้อหาข้อความเดียวที่หน้า ChatHub และ view ใช้อ่าน.';
 COMMENT ON COLUMN public."Pg_Chat⭐BINARY_xXx_STAR".chat_link_key IS 'คีย์เชื่อมข้อความกับห้องสนทนา; อาจซ้ำหลายข้อความในห้องเดียวกัน.';
 
-COMMENT ON VIEW public."🌠BINARY_xXx_MATRIX" IS 'จุดอ่านเดียวของ ChatHub รวมข้อความจาก Cust/Pg ด้วย UNION ALL; message_text เป็นเนื้อหารายข้อความเพียงแหล่งเดียว, source_side ระบุตารางต้นทาง และ speaker ระบุผู้พูด.';
+COMMENT ON VIEW public."🌠BINARY_xXx_MATRIX" IS 'จุดอ่านเดียวของ ChatHub รวมข้อความจาก Cust/Pg ด้วย UNION ALL; message_text เป็นเนื้อหารายข้อความเพียงแหล่งเดียว และ speaker เป็นตัวระบุผู้พูดเพียงตัวเดียว.';
 COMMENT ON VIEW public."🌓VAGABOND_xXx_DISMISS" IS 'วิวอ่าน message_text จาก Cust_Chat⭐BINARY_xXx_STAR และ Pg_Chat⭐BINARY_xXx_STAR เพื่อคัดเคสปิดงาน/ยกเลิก พร้อมข้อมูลพื้นที่และผู้ขนส่งที่มีในแถว.';
 COMMENT ON TABLE public."🏴‍☠️SIRIUS_xXx_CRASH" IS 'บันทึก/สถานะที่ดูแลต่อสำหรับเคส; ใช้ case_id เชื่อมกับ id ของแถวใน 🌓VAGABOND_xXx_DISMISS.';
 COMMENT ON TABLE public."🌈MILKY_WAY_xXx_TOKEN _PAGE" IS 'คลัง Meta Page Token keyed ด้วย page_id; ให้อ่านเฉพาะฝั่ง server/service_role และห้ามเปิดให้ anon หรือ browser.';

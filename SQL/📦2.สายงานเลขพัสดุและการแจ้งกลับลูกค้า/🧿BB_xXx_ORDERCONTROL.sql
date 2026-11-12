@@ -455,7 +455,8 @@ select
   ord.send_facebook_route,
   ord.target_room,
   ord.parcel_status_emoji,
-  ord.facebook_tracking_message
+  ord.facebook_tracking_message,
+  parcel.drakside_tracking_message
 from
   parcels parcel
   left join "🧿BB_xXx_ORDERCONTROL" ord on regexp_replace(
@@ -498,4 +499,4 @@ where
     )
   );
 
-  
+
