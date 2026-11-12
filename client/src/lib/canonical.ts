@@ -507,6 +507,29 @@ export async function readGenesisOrderHistory(date: string) {
 
   return { orders, total: orders.length, sourceView: "🌟GENESIS_xXx_HISTORY", fetchedAt: new Date().toISOString() };
 }
+
+export async function readDailyTrackingHistory(date: string) {
+  const api = getSupabase("parcel");
+  if (!api) fail({ message: "ยังไม่ได้เชื่อม Tracking & Messenger: ไปที่ /secret-gallery แล้วบันทึก URL กับ Anon/Publishable Key" });
+  const { data, error } = await api.from("📓DEAD_xXx_NOTE").select("*").limit(2000);
+  if (error) fail(error);
+  const dayKey = (value: unknown) => {
+    const raw = String(value ?? "").trim();
+    if (!raw) return "";
+    const parsed = new Date(raw);
+    return Number.isNaN(parsed.getTime())
+      ? raw.slice(0, 10)
+      : new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok" }).format(parsed);
+  };
+  const orders = (data ?? []).filter((row: any) => [
+    row.facebook_tracking_sent_at,
+    row.sent_at,
+    row.pickup_date,
+    row.order_time,
+    row.order_time_display,
+  ].some(value => dayKey(value) === date));
+  return { orders, total: orders.length, sourceView: "📓DEAD_xXx_NOTE", fetchedAt: new Date().toISOString() };
+}
 export async function readTelegramSentHistory(search = "") {
   const api = getSupabase();
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });

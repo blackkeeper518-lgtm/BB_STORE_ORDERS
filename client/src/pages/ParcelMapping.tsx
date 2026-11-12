@@ -27,6 +27,7 @@ type ParcelMappingRow = {
   chat_key_valid?: boolean;
   tracking_number?: string | null;
   matched_phone?: string | null;
+  customer_name?: string | null;
   recipient_name?: string | null;
   parcel_address?: string | null;
   pickup_date?: string | null;
@@ -115,7 +116,7 @@ function orbitMeta(lane: OrbitLane) {
     waiting: { icon: "🛰️", label: "WAITING ORBIT", sub: "ยังไม่พบสัญญาณลูกค้า", color: "border-violet-300/25 bg-violet-300/[.06] text-violet-100" },
     send: { icon: "🚀", label: "SEND GATE", sub: "พร้อมส่งตามหน้าต่างแชท", color: "border-emerald-300/25 bg-emerald-300/[.06] text-emerald-100" },
     expired: { icon: "🕳️", label: "EXPIRED VAULT", sub: "เกินหน้าต่างส่ง", color: "border-amber-300/25 bg-amber-300/[.06] text-amber-100" },
-    sent: { icon: "🔥", label: "🔥SENT", sub: "TRACKING SIGNAL CONFIRMED", color: "border-fuchsia-300/25 bg-fuchsia-300/[.06] text-fuchsia-100" },
+    sent: { icon: "⚡", label: "⚡SENT", sub: "FACEBOOK TRACKING CONFIRMED", color: "border-fuchsia-300/25 bg-fuchsia-300/[.06] text-fuchsia-100" },
   }[lane];
 }
 function rowStatus(row: ParcelMappingRow): QueueFilter {
@@ -155,9 +156,9 @@ function statusMeta(status: QueueFilter) {
       icon: "🔴",
       className: "border-red-300/30 bg-red-300/[0.08] text-red-100",
     },
-    sent: {
-      label: "ส่งแล้ว",
-      icon: "🔥",
+      sent: {
+        label: "ส่งแล้ว",
+        icon: "⚡",
       className: "border-emerald-300/30 bg-emerald-300/[0.08] text-emerald-100",
     },
   }[status];
@@ -442,7 +443,7 @@ export default function ParcelMapping() {
                     </div>
                     <div className="flex flex-col items-end gap-0.5">
                       <Badge variant="outline" className={meta.className}>
-                        {isSent(row) ? "🔥SENT" : `${meta.icon} ${meta.label}`}
+                        {isSent(row) ? "⚡SENT" : `${meta.icon} ${meta.label}`}
                         {age != null && status !== "sent" ? ` · ${age.toFixed(1)} ชม.` : ""}
                       </Badge>
                       {isSent(row) ? <span className="font-mono text-[8px] tracking-[.12em] text-fuchsia-200/65">TRACKING SIGNAL CONFIRMED</span> : null}
@@ -450,11 +451,12 @@ export default function ParcelMapping() {
                   </div>
                   <div className="mt-2 grid gap-1.5 rounded-xl border border-white/10 bg-slate-950/45 p-2.5 text-xs shadow-[inset_0_0_18px_rgba(148,163,184,.035)] sm:grid-cols-2">
                     <p className="text-white/85">
-                      👤 {clean(row.recipient_name) || "ไม่ระบุชื่อผู้รับ"}
+                      👤 {clean(row.customer_name || row.recipient_name) || "ไม่ระบุชื่อผู้รับ"}
                     </p>
-                    <p className="text-white/70">
-                      📞 {clean(row.matched_phone) || "ไม่ระบุเบอร์"}
-                    </p>
+                    <button type="button" onClick={() => void copyValue(row.matched_phone, `phone:${clean(row.tracking_number)}`)} disabled={!clean(row.matched_phone)} className="flex items-center gap-1.5 text-left text-white/70 hover:text-cyan-100 disabled:opacity-50">
+                      <span>📞 {clean(row.matched_phone) || "ไม่ระบุเบอร์"}</span>
+                      {copied === `phone:${clean(row.tracking_number)}` ? <Check className="h-3.5 w-3.5 text-emerald-300" /> : <Clipboard className="h-3.5 w-3.5 text-cyan-300/70" />}
+                    </button>
                     <p className="text-white/60 sm:col-span-2">
                       🧾{" "}
                       {clean(row.order_number_display || row.order_number) ||
@@ -563,7 +565,7 @@ export default function ParcelMapping() {
                     <p>เบอร์โทร · {clean(selected.matched_phone) || "—"}</p>
                     <p>ขนส่ง · {clean(selected.shipping_carrier) || "FLASH EXPRESS"}</p>
                     <p>เลขออเดอร์ · {clean(selected.order_number_display || selected.order_number) || "—"}</p>
-                    <p className="font-semibold text-cyan-200">สถานะ · {isSent(selected) ? "🔥SENT" : clean(selected.parcel_status_emoji) || "รอตรวจ"}</p>
+                    <p className="font-semibold text-cyan-200">สถานะ · {isSent(selected) ? "⚡SENT" : clean(selected.parcel_status_emoji) || "รอตรวจ"}</p>
                   </div>
                 </div>
                 <div className="grid gap-3">
