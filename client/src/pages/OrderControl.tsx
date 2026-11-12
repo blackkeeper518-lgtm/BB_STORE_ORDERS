@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import OrderEditWorkbench from "@/components/OrderEditWorkbench";
 import { getActiveCamp, mapChatRowsToThreads, orderTimeSortKey, readCanonicalOrders, readParcelByTrackingNumber, readParcelMappingQueue, readTelegramDeliveryOrders } from "@/lib/canonical";
+import { buildMetaInboxPageUrl, parseMetaChatLinkKey } from "@/lib/meta-inbox";
 import { getOrderWarnings } from "@/lib/orderWarnings";
 import { useQuery } from "@tanstack/react-query";
 import { CalendarDays, Check, CheckCircle2, Clock3, Database, Download, ExternalLink, MessageCircle, Pencil, RefreshCw, Search, Send, ShoppingCart, WalletCards, XCircle } from "lucide-react";
@@ -117,16 +118,6 @@ function canSend(row: CanonicalOrderRow) {
 }
 
 // ⫘ TRACKING SEARCH · เลขพัสดุหลักค้นตรง ส่วนข้อความแต่งหล่อเป็นข้อมูลเสริม
-const PAGE_BUSINESS_MAP: Record<string, string> = {
-  "103411062505149": "200213502365612",
-  "1032290633303246": "200213502365612",
-  "1047257891810878": "200213502365612",
-  "111414924711459": "200213502365612",
-  "113923148350742": "200213502365612",
-  "1064404466767377": "3106079592877973",
-  "1235719106287717": "3106079592877973",
-};
-
 function extractPureTrackingNumber(value: unknown) {
   const text = String(value ?? "").toUpperCase().replace(/[‐‑‒–—]/g, "-");
   return text.match(/\bTH[A-Z0-9]{8,20}\b/)?.[0] ?? "";
@@ -141,15 +132,14 @@ function splitTrackingInput(value: unknown) {
 function pageIdFromRow(row: Record<string, any>) {
   const direct = String(row.page_id ?? "").trim();
   if (direct) return direct;
+  const parsed = parseMetaChatLinkKey(row.chat_link_key);
+  if (parsed) return parsed.pageId;
   const key = String(row.chat_link_key ?? "");
   return key.split(":", 1)[0].trim();
 }
 
 function businessInboxUrl(row: Record<string, any>) {
-  const pageId = pageIdFromRow(row);
-  const businessId = PAGE_BUSINESS_MAP[pageId];
-  if (!pageId || !businessId) return "";
-  return `https://business.facebook.com/latest/inbox/all/?business_id=${encodeURIComponent(businessId)}&asset_id=${encodeURIComponent(pageId)}`;
+  return buildMetaInboxPageUrl(pageIdFromRow(row));
 }
 
 // ⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘

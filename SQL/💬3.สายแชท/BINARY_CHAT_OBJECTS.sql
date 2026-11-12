@@ -71,7 +71,8 @@ SELECT
   row_data ->> 'pager_message_time_th' AS pager_message_time_th,
   row_data ->> 'manus_for_packer' AS manus_for_packer,
   row_data ->> 'facebook_name' AS facebook_name,
-  row_data ->> 'shipping_carrier' AS shipping_carrier
+  row_data ->> 'shipping_carrier' AS shipping_carrier,
+  row_data ->> 'time_slot_label' AS time_slot_label
 FROM source_rows;
 
 CREATE OR REPLACE VIEW public."🌓VAGABOND_xXx_DISMISS"
@@ -307,11 +308,11 @@ COMMENT ON COLUMN public."Cust_Chat⭐BINARY_xXx_STAR".message_text IS 'แห�
 COMMENT ON COLUMN public."Cust_Chat⭐BINARY_xXx_STAR".chat_link_key IS 'คีย์เชื่อมข้อความกับห้องสนทนา; อาจซ้ำหลายข้อความในห้องเดียวกัน.';
 COMMENT ON COLUMN public."Cust_Chat⭐BINARY_xXx_STAR".phone IS 'เบอร์โทรสำหรับค้นหาข้ามโต๊ะ; ไม่ใช้เป็น unique key.';
 
-COMMENT ON TABLE public."Pg_Chat⭐BINARY_xXx_STAR" IS 'ข้อความขาออกจากเพจ แยกจากข้อความขาเข้าของลูกค้า; message_text คือเนื้อหาหลัก.';
-COMMENT ON COLUMN public."Pg_Chat⭐BINARY_xXx_STAR".message_text IS 'แหล่งเนื้อหาข้อความเดียวที่หน้า ChatHub และ view ใช้อ่าน.';
+COMMENT ON TABLE public."Pg_Chat⭐BINARY_xXx_STAR" IS 'ข้อความขาออกจากเพจ แยกจากข้อความขาเข้าของลูกค้า; ใช้ message_text เป็นหลัก และ facebook_tracking_message เป็นข้อความสำรองของ tracking notification เมื่อ message_text ว่าง.';
+COMMENT ON COLUMN public."Pg_Chat⭐BINARY_xXx_STAR".message_text IS 'เนื้อหาหลักของข้อความขาออก; สำหรับ tracking notification หน้า ChatHub ใช้ facebook_tracking_message สำรองเมื่อค่านี้ว่าง.';
 COMMENT ON COLUMN public."Pg_Chat⭐BINARY_xXx_STAR".chat_link_key IS 'คีย์เชื่อมข้อความกับห้องสนทนา; อาจซ้ำหลายข้อความในห้องเดียวกัน.';
 
-COMMENT ON VIEW public."🌠BINARY_xXx_MATRIX" IS 'จุดอ่านเดียวของ ChatHub รวมข้อความจาก Cust/Pg ด้วย UNION ALL; message_text เป็นเนื้อหารายข้อความเพียงแหล่งเดียว และ speaker เป็นตัวระบุผู้พูดเพียงตัวเดียว.';
+COMMENT ON VIEW public."🌠BINARY_xXx_MATRIX" IS 'จุดอ่านเดียวของ ChatHub รวมข้อความจาก Cust/Pg ด้วย UNION ALL; ใช้ message_text เป็นหลัก และ facebook_tracking_message สำรองเฉพาะข้อความ tracking ขาออกเมื่อ message_text ว่าง; speaker เป็นตัวระบุผู้พูด.';
 COMMENT ON VIEW public."🌓VAGABOND_xXx_DISMISS" IS 'วิวอ่าน message_text จาก Cust_Chat⭐BINARY_xXx_STAR และ Pg_Chat⭐BINARY_xXx_STAR เพื่อคัดเคสปิดงาน/ยกเลิก พร้อมข้อมูลพื้นที่และผู้ขนส่งที่มีในแถว.';
 COMMENT ON TABLE public."🏴‍☠️SIRIUS_xXx_CRASH" IS 'บันทึก/สถานะที่ดูแลต่อสำหรับเคส; ใช้ case_id เชื่อมกับ id ของแถวใน 🌓VAGABOND_xXx_DISMISS.';
 COMMENT ON TABLE public."🌈MILKY_WAY_xXx_TOKEN _PAGE" IS 'คลัง Meta Page Token keyed ด้วย page_id; ให้อ่านเฉพาะฝั่ง server/service_role และห้ามเปิดให้ anon หรือ browser.';

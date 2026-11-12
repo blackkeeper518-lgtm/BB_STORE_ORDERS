@@ -611,8 +611,8 @@ function normalizeChatReadRows(sourceRows: any[]) {
       _speaker: speaker,
       _side: isPageSpeaker ? "right" : "left",
       _name: isPageSpeaker ? row.page_name : row.customer_name || row.facebook_name || row.recipient_name,
-      // message_text คือเนื้อหาของข้อความแต่ละรายการ; ฟิลด์ latest_* เก็บแยกต่างหาก
-      _text: asText(row.message_text),
+      // message_text เป็นหลัก; ข้อความ tracking ขาออกใช้ facebook_tracking_message เมื่อ message_text ว่าง
+      _text: asText(row.message_text) || (isPageSpeaker ? asText(row.facebook_tracking_message) : ""),
       _thread: row.thread_id,
       _occurred: row.occurred_at || row.time,
       _hasAttachment: hasChatAttachment(row),
@@ -628,6 +628,7 @@ export function mapChatRowsToThreads(sourceRows: any[]) {
     const key = `${pageId}:${threadId}`;
     const current = map.get(key) ?? {
       key, pageId, threadId, portalKey: row.portal_key || null, chatLinkKey: row.chat_link_key || null,
+      timeSlotLabel: String(row.time_slot_label ?? "").trim() || null,
       customerId: row.customer_id || row.recipient_id || null, customerPhone: row.phone || null, pageName: row.page_name || "ไม่ระบุเพจ",
       customerName: row.customer_name || row.facebook_name || row.recipient_name || row._name || "ลูกค้า", latestAt: row._occurred || row.occurred_at || null,
       preview: row._text || (row._hasAttachment ? "[ไฟล์แนบ]" : ""), unread: false, messageCount: 0, chatTimeline: [],
@@ -643,6 +644,7 @@ export function mapChatRowsToThreads(sourceRows: any[]) {
     };
     current.latestAt = row._occurred || row.occurred_at || current.latestAt;
     current.preview = row._text || (row._hasAttachment ? "[ไฟล์แนบ]" : current.preview);
+    if (String(row.time_slot_label ?? "").trim()) current.timeSlotLabel = String(row.time_slot_label).trim();
     current.customerId ||= row.customer_id || row.recipient_id || null;
     current.customerPhone ||= row.phone || null;
     current.portalKey ||= row.portal_key || null;
@@ -679,8 +681,8 @@ export function mapChatRowsToThreads(sourceRows: any[]) {
 export function mapChatRowsToMessages(sourceRows: any[]) {
   return normalizeChatReadRows(sourceRows).map((row: any) => ({
     id: row.id,
-    text: row._text || (row._hasAttachment ? "ส่งรูปภาพ" : ""),
-    message_text: row._text,
+    text: row._text,
+    message_text: asText(row.message_text),
     direction: row._speaker === "page" ? "outbound" : "inbound",
     senderType: row._speaker,
     senderName: row._name,

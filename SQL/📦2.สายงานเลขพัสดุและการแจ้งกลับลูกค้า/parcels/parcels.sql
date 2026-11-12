@@ -1,7 +1,7 @@
 create table public.parcels (
   id bigserial not null,
   pickup_date text null,
-  tracking_number text null,
+  tracking_number text not null,
   consignee text null,
   phone_number text null,
   address text null,
@@ -25,17 +25,11 @@ create table public.parcels (
   chat_link_key text null,
   bkk_cutoff_route text null,
   phone_candidates jsonb null,
-  constraint parcels_pkey primary key (id)
+  constraint parcels_pkey primary key (tracking_number),
+  constraint parcels_id_key unique (id)
 ) TABLESPACE pg_default;
 
 create index IF not exists parcels_phone_number_idx on public.parcels using btree (phone_number) TABLESPACE pg_default;
-
-create unique INDEX IF not exists parcels_tracking_number_uq on public.parcels using btree (tracking_number) TABLESPACE pg_default
-where
-  (
-    (tracking_number is not null)
-    and (btrim(tracking_number) <> ''::text)
-  );
 
 -- กติกาหลักของสายส่งเลข: มี sent_at แล้วถือว่าส่งเลขสำเร็จเสมอ
 UPDATE public.parcels

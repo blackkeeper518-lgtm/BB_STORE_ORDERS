@@ -46,6 +46,7 @@ create table public."Pg_Chat⭐BINARY_xXx_STAR" (
   order_number text null,
   order_number_display text null,
   order_time_display text null,
+  time_slot_label text null,
   customer_latest_message text null,
   customer_message_time_th text null,
   page_latest_message text null,
