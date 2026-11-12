@@ -79,7 +79,7 @@ function ageHours(row: ParcelMappingRow) {
     : Math.max(0, (Date.now() - timestamp) / 36e5);
 }
 function isSent(row: ParcelMappingRow) {
-  return [row.parcel_delivery_status, row.facebook_tracking_status]
+  return [row.parcel_status_emoji, row.parcel_delivery_status, row.facebook_tracking_status]
     .map(value => clean(value).toUpperCase())
     .some(value =>
       [
