@@ -147,7 +147,15 @@ export default function ChatHub() {
   }, []);
   useEffect(() => { localStorage.setItem(CHAT_PAGE_FILTER_KEY, JSON.stringify(selectedPages)); }, [selectedPages]);
   useEffect(() => { if (selectedKey) localStorage.setItem(CHAT_SELECTED_ROOM_KEY, selectedKey); }, [selectedKey]);
-  const threadsQuery = trpc.chat.threads.useQuery(undefined, { enabled: hasBrowserChatConfig, refetchInterval: hasBrowserChatConfig ? 15_000 : false, select: mapChatRowsToThreads });
+  const threadsQuery = trpc.chat.threads.useQuery(undefined, {
+    enabled: hasBrowserChatConfig,
+    staleTime: 0,
+    refetchInterval: hasBrowserChatConfig ? 8_000 : false,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    select: mapChatRowsToThreads,
+  });
   const threads = threadsQuery.data ?? [];
   const availablePages = useMemo<Array<[string, string, boolean]>>(
     () => Array.from(new Map(threads.filter(thread => thread.pageId && thread.pageName && thread.pageName !== "ไม่ระบุเพจ").map(thread => [thread.pageId as string, { name: thread.pageName as string, active: Boolean((thread as any).codTodayActive) }] as [string, { name: string; active: boolean }])).entries()).map(([pageId, value]) => [pageId, value.name, value.active] as [string, string, boolean]).sort((a, b) => a[1].localeCompare(b[1], "th")),
@@ -168,7 +176,15 @@ export default function ChatHub() {
   const selectedThreadId = selected?.threadId ?? "";
   const selectedCustomerId = selected?.customerId ?? "";
   const [handoffTracking, setHandoffTracking] = useState<Record<string, any> | null>(null);
-  const messagesQuery = trpc.chat.messages.useQuery({ pageId: selectedPageId, threadId: selectedThreadId }, { enabled: hasBrowserChatConfig && Boolean(selectedPageId && selectedThreadId), refetchInterval: hasBrowserChatConfig ? 5_000 : false, select: mapChatRowsToMessages });
+  const messagesQuery = trpc.chat.messages.useQuery({ pageId: selectedPageId, threadId: selectedThreadId }, {
+    enabled: hasBrowserChatConfig && Boolean(selectedPageId && selectedThreadId),
+    staleTime: 0,
+    refetchInterval: hasBrowserChatConfig ? 2_000 : false,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    select: mapChatRowsToMessages,
+  });
   useEffect(() => {
     setOptimisticMessages([]);
     optimisticMessageIdRef.current = null;
