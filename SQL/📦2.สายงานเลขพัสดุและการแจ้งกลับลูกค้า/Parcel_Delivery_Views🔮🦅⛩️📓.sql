@@ -124,6 +124,7 @@ select
   ord.page_id,
   ord."threadId",
   ord.customer_id,
+  ord.recipient_id,
   ord.message_id,
   jsonb_build_object('id', ord.message_id) as m,
   ord.shipping_carrier,
@@ -220,6 +221,7 @@ select
   ord.page_id,
   ord."threadId",
   ord.customer_id,
+  ord.recipient_id,
   ord.message_id,
   jsonb_build_object('id', ord.message_id) as m,
   ord.shipping_carrier,
@@ -322,6 +324,7 @@ select
   ord.page_id,
   ord."threadId",
   ord.customer_id,
+  ord.recipient_id,
   ord.message_id,
   jsonb_build_object('id', ord.message_id) as m,
   ord.shipping_carrier,
@@ -539,6 +542,7 @@ select
   ord.page_id,
   ord."threadId",
   ord.customer_id,
+  ord.recipient_id,
   ord.page_name,
   ord.portal_key,
   ord.facebook_name,
@@ -575,10 +579,12 @@ select
   ord.delivery_state,
   ord.delivery_status as order_delivery_status,
   ord.message_id,
+  ord.recipient_id,
   ord.send_facebook_route,
   ord.target_room,
   ord.parcel_status_emoji,
-  ord.facebook_tracking_message
+  ord.facebook_tracking_message,
+  ord.chat_link_key
 from
   parcels parcel
   left join "🧿BB_xXx_ORDERCONTROL" ord on regexp_replace(
