@@ -215,7 +215,7 @@ export default function ParcelMapping() {
   const orbitLanes: OrbitLane[] = ["waiting", "send", "expired", "sent"];
   const sendGateRows = useMemo(() => {
     const seen = new Set<string>();
-    return rows.filter(row => orbitLane(row) === "send").filter(row => {
+    return rows.filter(row => orbitLane(row) === "send" && !isSent(row) && clean(row.tracking_number) && Boolean(clean(row.facebook_tracking_message) || clean(row.drakside_tracking_message))).filter(row => {
       const key = clean(row.chat_key);
       if (!row.chat_key_valid || !key || seen.has(key)) return false;
       seen.add(key);
