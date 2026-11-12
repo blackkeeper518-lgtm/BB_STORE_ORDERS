@@ -727,8 +727,17 @@ export async function readParcelMappingQueue(status: "all" | "sent" = "all", lim
   if (sent.error) fail(sent.error);
   const rows = [...("data" in activeData ? (activeData.data ?? []) : []), ...(sent.data ?? [])];
   const seen = new Set<string>();
-  return rows.filter((row: any) => {
-    const key = String(row.tracking_number ?? row.order_number ?? row.id ?? "").trim();
+  return rows.map((row: any) => {
+    const messageId = String(row.message_id ?? "").trim();
+    const recipientId = String(row.recipient_id ?? "").trim();
+    return {
+      ...row,
+      chat_key: messageId && recipientId ? `${messageId}:${recipientId}` : null,
+      chat_key_valid: Boolean(messageId && recipientId),
+    };
+  }).filter((row: any) => {
+    // ห้องแชทใช้คีย์คู่เท่านั้น; fallback นี้มีไว้แค่กันแถว parcel ที่ไม่มีข้อมูลแชทหายจากหน้าคิว
+    const key = row.chat_key || `parcel:${String(row.id ?? row.tracking_number ?? row.order_number ?? "")}`;
     if (!key || seen.has(key)) return false;
     seen.add(key);
     return true;
