@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import OrderEditWorkbench from "@/components/OrderEditWorkbench";
-import { getActiveCamp, mapChatRowsToThreads, orderTimeSortKey, readCanonicalOrders, readParcelByTrackingNumber, readParcelMappingQueue, readTelegramDeliveryOrders } from "@/lib/canonical";
+import { getActiveCamp, mapChatRowsToThreads, orderTimeSortKey, readBbAlertRoom, readBlackboxRoom, readCanonicalOrders, readParcelByTrackingNumber, readParcelMappingQueue, readTelegramDeliveryOrders } from "@/lib/canonical";
 import { buildMetaInboxPageUrl, parseMetaChatLinkKey } from "@/lib/meta-inbox";
 import { getOrderWarnings } from "@/lib/orderWarnings";
 import { useQuery } from "@tanstack/react-query";
@@ -195,6 +195,18 @@ export default function OrderControl() {
     enabled: searchPanelOpen && trackingSearchReady,
     staleTime: 15_000,
   });
+  const paradoxQuery = useQuery({
+    queryKey: ["order-control-paradox-trace", getActiveCamp(), search.trim()],
+    queryFn: () => readBbAlertRoom(search),
+    enabled: searchPanelOpen && trackingSearchReady,
+    staleTime: 15_000,
+  });
+  const blackboxQuery = useQuery({
+    queryKey: ["order-control-blackbox-trace", getActiveCamp(), search.trim()],
+    queryFn: () => readBlackboxRoom(search),
+    enabled: searchPanelOpen && trackingSearchReady,
+    staleTime: 15_000,
+  });
   // ⫘ ORDER SORT · ใช้ CENTRAL ORDER CLOCK เรียงล่าสุดไว้บนสุดเสมอ
   const rawOrders = useMemo(() => [...((query.data?.orders ?? []) as CanonicalOrderRow[])].sort((a, b) => orderTimeSortKey(b.order_time_display) - orderTimeSortKey(a.order_time_display)), [query.data?.orders]);
   const pageNames = useMemo(() => Array.from(new Set(rawOrders.map((row) => String(row.page_name ?? "").trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, "th")), [rawOrders]);
@@ -332,6 +344,28 @@ export default function OrderControl() {
               </div>
               {trackingInput.isDecorated ? <p className="mt-2 rounded-lg border border-fuchsia-300/15 bg-fuchsia-400/[0.04] px-3 py-2 text-[10px] text-fuchsia-100/75">ตรวจพบข้อความแต่งหล่อ · ระบบแยกเลขหลัก <span className="font-mono font-semibold text-fuchsia-100">{trackingInput.pure}</span> ไปค้นใน parcels โดยตรง</p> : null}
               {!trackingInput.raw ? <p className="order-search-empty mb-3 rounded-xl border border-violet-300/10 bg-violet-400/[0.025] p-3 text-center text-[11px] text-slate-400">เริ่มจากเบอร์โทรได้เลย · ระบบจะแสดงออเดอร์ที่ตรงด้านล่าง และค้นคิวพัสดุในแผงนี้</p> : null}
+              <div className="mt-3 grid gap-3 lg:grid-cols-2">
+                <article className="order-dna-card rounded-2xl border border-fuchsia-300/25 bg-fuchsia-400/[.035] p-3">
+                  <div className="flex items-center justify-between gap-2"><h3 className="text-[10px] font-bold uppercase tracking-[.18em] text-fuchsia-100">01 · ORDER CONTROL · HERMES</h3><span className="rounded-full border border-fuchsia-300/25 px-2 py-1 text-[9px] text-fuchsia-100/70">{orders.length} รายการ</span></div>
+                  <div className="mt-2 space-y-2">{orders.slice(0, 4).map((row) => <div key={row.upsert_key} className="rounded-xl border border-white/10 bg-black/20 p-2 text-[10px]"><div className="flex justify-between gap-2"><b className="font-mono text-cyan-100">{directText(row.order_number)}</b><span className="text-violet-200/60">{directText(row.order_time_display)}</span></div><p className="mt-1 text-white">{directText(row.customer_name)} · {directText(row.phone)}</p><p className="mt-1 text-amber-100/80">{money(row.cod_amount)} · {directText(row.page_name)}</p></div>)}</div>
+                  {orders.length > 4 ? <p className="mt-2 text-[9px] text-slate-500">แสดง 4 รายการล่าสุด · รายการที่เหลือดูได้ที่ Order Control</p> : null}
+                </article>
+                <article className="order-dna-card rounded-2xl border border-pink-300/25 bg-pink-400/[.035] p-3">
+                  <div className="flex items-center justify-between gap-2"><h3 className="text-[10px] font-bold uppercase tracking-[.18em] text-pink-100">02 · CHANGE HISTORY · PARADOX</h3><span className="rounded-full border border-pink-300/25 px-2 py-1 text-[9px] text-pink-100/70">{paradoxQuery.data?.length ?? 0} รายการ</span></div>
+                  <div className="mt-2 space-y-2">{(paradoxQuery.data ?? []).slice(0, 4).map((row: any, index: number) => <div key={`${row.upsert_key || row.id}-${index}`} className="rounded-xl border border-white/10 bg-black/20 p-2 text-[10px]"><b className="font-mono text-pink-100">{directText(row.order_number_display || row.order_number || row.upsert_key)}</b><p className="mt-1 text-white">{directText(row.customer_name || row.facebook_name)} · {directText(row.phone || row.extracted_phone)}</p><p className="mt-1 line-clamp-2 text-pink-100/65">{directText(row.customer_change_summary || row.customer_change_admin_footer_text || row.original || row.new)}</p></div>)}</div>
+                  {!paradoxQuery.data?.length && !paradoxQuery.isFetching ? <p className="mt-3 text-[10px] text-slate-500">ไม่พบรอยเปลี่ยนของจากเบอร์นี้</p> : null}
+                </article>
+                <article className="order-dna-card rounded-2xl border border-rose-300/25 bg-rose-400/[.035] p-3">
+                  <div className="flex items-center justify-between gap-2"><h3 className="text-[10px] font-bold uppercase tracking-[.18em] text-rose-100">03 · BLACKBOX · THANATOS</h3><span className="rounded-full border border-rose-300/25 px-2 py-1 text-[9px] text-rose-100/70">{blackboxQuery.data?.length ?? 0} รายการ</span></div>
+                  <div className="mt-2 space-y-2">{(blackboxQuery.data ?? []).slice(0, 4).map((row: any, index: number) => <div key={`${row.upsert_key || row.id}-${index}`} className="rounded-xl border border-white/10 bg-black/20 p-2 text-[10px]"><b className="font-mono text-rose-100">{directText(row.order_number_display || row.order_number || row.upsert_key)}</b><p className="mt-1 text-white">{directText(row.customer_name || row.facebook_name)} · {directText(row.phone || row.extracted_phone)}</p><p className="mt-1 line-clamp-2 text-rose-100/65">{directText(row.alert_status || row.reason || row.last_chat_text || row.telegram_actual_bill)}</p></div>)}</div>
+                  {!blackboxQuery.data?.length && !blackboxQuery.isFetching ? <p className="mt-3 text-[10px] text-slate-500">ไม่พบรอย Blackbox จากเบอร์นี้</p> : null}
+                </article>
+              </div>
+              <div className="mt-3 grid gap-3 lg:grid-cols-3">
+                <article className="order-dna-card rounded-2xl border border-violet-300/25 bg-violet-400/[.035] p-3"><h3 className="text-[10px] font-bold uppercase tracking-[.18em] text-violet-100">04 · CHAT · MESSENGER</h3><p className="mt-3 text-2xl font-semibold text-cyan-100">{matchingChatThreads.length}</p><p className="text-[10px] text-slate-400">ห้องแชทที่จับคู่กับเบอร์นี้</p></article>
+                <article className="order-dna-card rounded-2xl border border-cyan-300/25 bg-cyan-400/[.035] p-3"><h3 className="text-[10px] font-bold uppercase tracking-[.18em] text-cyan-100">05 · PARCEL · TRACKING</h3><p className="mt-3 text-2xl font-semibold text-cyan-100">{trackingRows.length}</p><p className="text-[10px] text-slate-400">รอยเลขพัสดุที่จับคู่ได้</p></article>
+                <article className="order-dna-card rounded-2xl border border-sky-300/25 bg-sky-400/[.035] p-3"><h3 className="text-[10px] font-bold uppercase tracking-[.18em] text-sky-100">06 · TELEGRAM · PIONEER / GENESIS</h3><p className="mt-3 text-2xl font-semibold text-sky-100">{telegramTraceRows.length}</p><p className="text-[10px] text-slate-400">คิวพักและประวัติส่งแล้ว</p></article>
+              </div>
               {trackingQueueQuery.isError ? <p className="mt-3 rounded-xl border border-pink-300/20 bg-pink-400/[0.04] p-3 text-xs text-pink-200">ค้นคิวพัสดุไม่สำเร็จ: {trackingQueueQuery.error instanceof Error ? trackingQueueQuery.error.message : String(trackingQueueQuery.error)}</p> : null}
               {directParcelQuery.isError ? <p className="mt-3 rounded-xl border border-pink-300/20 bg-pink-400/[0.04] p-3 text-xs text-pink-200">ค้น parcels โดยตรงไม่สำเร็จ: {directParcelQuery.error instanceof Error ? directParcelQuery.error.message : String(directParcelQuery.error)}</p> : null}
               {chatThreadsQuery.isError ? <p className="mt-3 rounded-xl border border-violet-300/20 bg-violet-400/[0.04] p-3 text-xs text-violet-100">ค้นโปรเจกต์ Chat ไม่สำเร็จ: {chatThreadsQuery.error instanceof Error ? chatThreadsQuery.error.message : String(chatThreadsQuery.error)}</p> : null}

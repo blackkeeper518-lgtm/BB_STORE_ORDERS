@@ -915,3 +915,7 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .page-holo-label--live::before { box-shadow:0 0 7px #fff,0 0 17px rgba(255,67,202,.75),0 0 27px rgba(255,0,153,.5); }
 .chat-cosmos-composer--open > div:nth-child(2) { scrollbar-width:thin; scrollbar-color:rgba(244,114,182,.55) rgba(10,12,22,.35); }
 @media (prefers-reduced-motion:reduce) { .page-holo-label--live { animation:none; } }
+
+/* UNIVERSAL SEARCH · ORDER DNA cards */
+.order-control-room .order-dna-card { min-height: 9rem; box-shadow: inset 0 1px 0 rgba(255,255,255,.045), 0 0 20px rgba(103,232,249,.035); transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease; }
+.order-control-room .order-dna-card:hover { border-color: rgba(103,232,249,.5); box-shadow: 0 0 0 1px rgba(103,232,249,.08), 0 0 24px rgba(103,232,249,.1), 0 0 28px rgba(217,70,239,.06); transform: translateY(-1px); }
