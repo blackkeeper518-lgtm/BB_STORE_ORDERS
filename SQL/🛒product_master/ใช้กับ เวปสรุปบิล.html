@@ -1,0 +1,54 @@
+-- สิทธิ์เว็บอ่านสินค้าอย่างเดียว
+-- ใช้กับ DRΛKSIDE-Space-Vault-neon.html
+-- เว็บอ่านได้เฉพาะ status = ACTIVE
+-- เว็บไม่มีสิทธิ์ INSERT / UPDATE / DELETE
+
+revoke all on table public."🛒product_master"
+from anon, authenticated, public;
+
+grant select on table public."🛒product_master"
+to anon, authenticated;
+
+alter table public."🛒product_master" enable row level security;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = '🛒product_master'
+      and policyname = 'product_master_web_read_active'
+  ) then
+    create policy product_master_web_read_active
+      on public."🛒product_master"
+      for select
+      to anon, authenticated
+      using (status = 'ACTIVE');
+  end if;
+end;
+$$;
+
+-- ตรวจสอบสิทธิ์ที่เว็บมี
+select
+  grantee,
+  privilege_type
+from information_schema.role_table_grants
+where table_schema = 'public'
+  and table_name = '🛒product_master'
+  and grantee in ('anon', 'authenticated');
+
+-- ตรวจสินค้าที่เว็บอ่านได้
+select
+  emoji,
+  master_sku,
+  th_name,
+  name_standard,
+  brand,
+  variant,
+  unit_price,
+  alias,
+  status
+from public."🛒product_master"
+where status = 'ACTIVE'
+order by th_name asc;
