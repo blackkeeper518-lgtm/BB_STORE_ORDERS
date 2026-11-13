@@ -625,7 +625,17 @@ export async function readDailyParcels(date: string, search = "") {
 function normalizeChatReadRows(sourceRows: any[]) {
   return sourceRows.filter(row => {
     // ห้องจริงต้องมี page_id และ thread_id; กันแถว metadata/แถวว่างไม่ให้กลายเป็นห้อง
-    return String(row?.page_id ?? "").trim() && String(row?.thread_id ?? row?.threadId ?? "").trim();
+    const hasRoomKey = String(row?.page_id ?? "").trim() && String(row?.thread_id ?? row?.threadId ?? "").trim();
+    if (!hasRoomKey) return false;
+    const isPage = row._source_table === "Pg_Chat⭐BINARY_xXx_STAR";
+    // แถว delivery/status อย่างเดียวไม่ใช่ข้อความแชท และห้ามเปิดเป็นห้องเปล่า
+    return Boolean(
+      asText(row?.message_text).trim()
+      || (isPage && asText(row?.facebook_tracking_message).trim())
+      || asText(row?.customer_latest_message).trim()
+      || asText(row?.page_latest_message).trim()
+      || hasChatAttachment(row),
+    );
   }).map(row => {
     const isPage = row._source_table === "Pg_Chat⭐BINARY_xXx_STAR";
     const speaker = row.speaker || (isPage ? "page" : "customer");

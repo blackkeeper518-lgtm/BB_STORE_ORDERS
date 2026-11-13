@@ -160,6 +160,22 @@ describe("ChatHub read contract v5", () => {
     expect(threads[0].customerName).toBe("ชื่อ Facebook จริง");
   });
 
+  it("does not create an empty room from a delivery-status-only row", () => {
+    const threads = mapChatRowsToThreads([{
+      _source_table: CHAT_PAGE_TABLE,
+      page_id: "page-1",
+      thread_id: "thread-status-only",
+      speaker: "page",
+      delivery_status: "🔥SENT",
+      parcel_status_emoji: "🔴",
+      tracking_number: "TH123456789",
+      message_text: null,
+      facebook_tracking_message: null,
+    }]);
+
+    expect(threads).toEqual([]);
+  });
+
   it("preserves the existing order-slot and tracking fields for ChatHub filters", () => {
     const [thread] = mapChatRowsToThreads([{
       page_id: "page-1",
