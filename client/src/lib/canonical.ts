@@ -642,8 +642,19 @@ function normalizeChatReadRows(sourceRows: any[]) {
     );
   }).map(row => {
     const isPage = row._source_table === "Pg_Chat⭐BINARY_xXx_STAR";
-    const speaker = row.speaker || (isPage ? "page" : "customer");
+    // ตารางจริงมีทั้งค่า page/customer, inbound/outbound และบางรอบเป็นตัวพิมพ์ใหญ่
+    // ถ้ามี speaker ให้เชื่อ speaker ก่อนเสมอ; ใช้ชื่อตารางเป็น fallback เท่านั้น
+    const rawSpeaker = asText(row.speaker).trim().toLowerCase();
+    const speaker = rawSpeaker
+      ? (/^(page|เพจ|admin|แอดมิน|outbound|เจ้าหน้าที่)$/i.test(rawSpeaker) ? "page" : "customer")
+      : (isPage ? "page" : "customer");
     const isPageSpeaker = speaker === "page";
+    // customer_latest_message คือข้อความแรก/ล่าสุดจากลูกค้าในแถวสรุปของ n8n
+    // บางแถวไม่มี message_text แต่มีฟิลด์นี้ จึงห้ามปล่อยให้กลายเป็น bubble ว่าง
+    const messageText = asText(row.message_text).trim()
+      || (isPageSpeaker ? asText(row.page_latest_message).trim() : asText(row.customer_latest_message).trim())
+      || asText(row.text).trim()
+      || asText(row.message).trim();
     const threadId = String(row.thread_id ?? row.threadId ?? "").trim();
     return {
       ...row,
@@ -653,7 +664,7 @@ function normalizeChatReadRows(sourceRows: any[]) {
       // ชื่อป้ายห้องมาจาก Facebook API เท่านั้น; customer_name เป็นชื่อในบิล ห้ามนำมาแทน
       _name: isPageSpeaker ? row.page_name : row.facebook_name,
       // message_text เป็นหลัก; ข้อความ tracking ขาออกใช้ facebook_tracking_message เมื่อ message_text ว่าง
-      _text: asText(row.message_text) || (isPageSpeaker ? asText(row.facebook_tracking_message) : ""),
+      _text: messageText || (isPageSpeaker ? asText(row.facebook_tracking_message).trim() : ""),
       _thread: threadId,
       _occurred: row.occurred_at || row.time,
       _hasAttachment: hasChatAttachment(row),
