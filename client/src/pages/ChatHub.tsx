@@ -139,6 +139,7 @@ export default function ChatHub() {
   const [showNewMessages, setShowNewMessages] = useState(false);
   const nearBottomRef = useRef(true);
   const lastSelectedKeyRef = useRef<string | null>(null);
+  const routeSelectionPendingRef = useRef<string | null>(null);
   useEffect(() => {
     const refreshConfig = () => setBrowserChatConfig(readBrowserChatConfig());
     window.addEventListener("storage", refreshConfig);
@@ -198,10 +199,21 @@ export default function ChatHub() {
       return;
     }
     try {
-      const raw = window.sessionStorage.getItem(`darkside-send-gate:${selectedPageId}:${selectedThreadId}`);
+      const storageKey = `darkside-send-gate:${selectedPageId}:${selectedThreadId}`;
+      const raw = window.sessionStorage.getItem(storageKey);
       const parsed = raw ? JSON.parse(raw) : null;
       setHandoffTracking(parsed);
       if (parsed && (parsed.tracking_number || parsed.facebook_tracking_message || parsed.drakside_tracking_message)) setToolsOpen(true);
+      const facebookMessage = String(selected?.facebook_tracking_message || parsed?.facebook_tracking_message || "").trim();
+      const draksideMessage = String(selected?.drakside_tracking_message || parsed?.drakside_tracking_message || "").trim();
+      const stagedMessage = facebookMessage || draksideMessage;
+      if (stagedMessage) {
+        setReplyText(stagedMessage);
+        setComposerOpen(true);
+        setDeliveryStatus("idle");
+        setReplyNotice("ข้อความพร้อมตรวจทานในกล่องตอบแชท · ยังไม่ส่ง");
+        window.sessionStorage.removeItem(storageKey);
+      }
     } catch {
       setHandoffTracking(null);
     }
@@ -232,6 +244,7 @@ export default function ChatHub() {
       address_display_packer: room.address_display_packer ?? room.full_address ?? room.address ?? "",
       facebook_tracking_message: room.facebook_tracking_message ?? "",
       drakside_tracking_message: room.drakside_tracking_message ?? "",
+      source_lane: room.source_lane ?? "",
     };
     const merged = { ...handoffTracking };
     Object.entries(row).forEach(([key, value]) => {
@@ -306,11 +319,23 @@ export default function ChatHub() {
     if (!pageId || !threadId) return;
     const target = threads.find(thread => thread.pageId === pageId && thread.threadId === threadId);
     if (target) {
+      routeSelectionPendingRef.current = target.key;
+      setSelectedPages([]);
+      setSearch("");
+      setStatusFilter("all");
       setSelectedKey(target.key);
       if (isMobile) setMobileOpen(true);
+      window.history.replaceState(null, "", window.location.pathname);
     }
   }, [threads, isMobile]);
-  useEffect(() => { if (selectedKey && !filteredThreads.some(thread => thread.key === selectedKey)) setSelectedKey(filteredThreads[0]?.key ?? null); }, [filteredThreads, selectedKey]);
+  useEffect(() => {
+    if (routeSelectionPendingRef.current) {
+      if (!filteredThreads.some(thread => thread.key === routeSelectionPendingRef.current)) return;
+      routeSelectionPendingRef.current = null;
+      return;
+    }
+    if (selectedKey && !filteredThreads.some(thread => thread.key === selectedKey)) setSelectedKey(filteredThreads[0]?.key ?? null);
+  }, [filteredThreads, selectedKey]);
   useEffect(() => {
     const element = chatTimelineRef.current;
     if (!element) return;
@@ -438,6 +463,7 @@ export default function ChatHub() {
                 <div className="space-y-2">{selectedTrackingRows.map((row, index) => <div key={`${row.tracking_number}-${index}`} className="chat-tools-item">
                   <div className="flex items-center justify-between gap-2"><p className="truncate font-mono text-xs font-semibold text-cyan-50">{row.tracking_number || "รอเลขพัสดุ"}</p><span className="shrink-0 text-[9px] text-cyan-100/45">{row.shipping_carrier || "ขนส่งไม่ระบุ"}</span></div>
                   <p className="mt-1 truncate text-[9px] text-cyan-100/45">{row.order_number_display || row.order_number || "ไม่พบออเดอร์"}</p>
+                  <p className="mt-1 truncate text-[9px] text-cyan-100/45">SOURCE LANE · {row.source_lane || "ไม่ระบุ"}</p>
                   <div className="mt-2 grid grid-cols-2 gap-1.5">
                     <Button type="button" size="sm" onClick={() => setReplyText(String(row.facebook_tracking_message || ""))} disabled={!row.facebook_tracking_message} className="chat-tool-action h-8 w-full">Facebook</Button>
                     <Button type="button" size="sm" variant="outline" onClick={() => setReplyText(String(row.drakside_tracking_message || ""))} disabled={!row.drakside_tracking_message} className="chat-tool-action h-8 w-full">Drakside</Button>

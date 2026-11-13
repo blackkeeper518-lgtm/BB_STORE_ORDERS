@@ -680,7 +680,7 @@ export function mapChatRowsToThreads(sourceRows: any[]) {
     current.messageCount += 1;
     current.chatTimeline.push(`${row._speaker === "page" ? "[เพจ]" : "[ลูกค้า]"} ${row._text || (row._hasAttachment ? "[ไฟล์แนบ]" : "")}`);
     // Tracking fields are supplied directly on either room-side table; keep the newest non-empty value.
-    for (const field of ["tracking_number", "order_number", "order_number_display", "shipping_carrier", "facebook_tracking_message", "drakside_tracking_message", "delivery_status"]) {
+    for (const field of ["tracking_number", "order_number", "order_number_display", "shipping_carrier", "facebook_tracking_message", "drakside_tracking_message", "source_lane", "delivery_status"]) {
       if (row[field] != null && String(row[field]).trim()) current[field] = row[field];
     }
 
