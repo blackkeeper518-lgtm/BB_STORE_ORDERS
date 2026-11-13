@@ -385,6 +385,19 @@ export default function ScriptAtelier() {
     else setError("คัดลอกลิงก์ไม่ได้ โปรดตรวจสิทธิ์ Clipboard ของเบราว์เซอร์");
   };
 
+  const copyImage = async () => {
+    if (!currentImage) return;
+    try {
+      if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") throw new Error("เบราว์เซอร์นี้ยังไม่รองรับการคัดลอกภาพโดยตรง");
+      const response = await fetch(currentImage.url);
+      const blob = await response.blob();
+      await navigator.clipboard.write([new ClipboardItem({ [blob.type || "image/png"]: blob })]);
+      setMessage("คัดลอกภาพแล้ว · ไปวางในแชทได้เลย");
+    } catch (copyError) {
+      setError(copyError instanceof Error ? copyError.message : "คัดลอกภาพไม่สำเร็จ");
+    }
+  };
+
   const copyAiPayload = async () => {
     const payload = `สคริปต์ต้นฉบับ:\n${draft.script_text}\n\nบริบทสำหรับ AI:\n${draft.ai_context}\n\nกติกาการตอบ:\n${draft.ai_instruction}`;
     if (await copyText(payload)) setMessage("คัดลอกข้อความสำหรับ AI แล้ว");
@@ -396,10 +409,10 @@ export default function ScriptAtelier() {
       <header className="script-atelier-hero mb-5 overflow-hidden rounded-[2rem] border p-5 sm:p-7">
         <div className="relative z-10 flex flex-wrap items-end justify-between gap-5">
           <div>
-            <p className="script-kicker"><Sparkles className="h-3.5 w-3.5" /> BB SCRIPT ATELIER</p>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-5xl">คลังสคริปต์และภาพสำหรับแชต</h1>
+            <p className="script-kicker"><Sparkles className="h-3.5 w-3.5" /> PRIVATE ADMIN VAULT · RESPONSE ASSETS</p>
+            <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-5xl">คลังภาพและสคริปต์ส่วนตัว</h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-fuchsia-100/65">
-              เก็บงานเขียนกับภาพการตลาดไว้หยิบใช้ตอบแชต แยกจากออเดอร์และโต๊ะสินค้า
+              จิ้มภาพเพื่อเปิดและคัดลอก · จิ้มสคริปต์เพื่อคัดลอกทั้งก้อน · วางตอบลูกค้าใน ChatHub ได้ทันที
             </p>
           </div>
           <Button onClick={() => openEditor()} className="script-primary">
@@ -618,7 +631,7 @@ export default function ScriptAtelier() {
                 <p className="script-kicker">IMAGE · CHAT LIBRARY</p>
                 <SheetTitle className="text-white">{imageSelection.title || "ภาพในคลัง"}</SheetTitle>
                 <SheetDescription className="text-fuchsia-100/50">
-                  {imageSelection.index + 1} / {imageSelection.images.length} · {currentImage.caption || "ภาพประกอบ"}
+                  {imageSelection.index + 1} / {imageSelection.images.length} · {currentImage.caption || "ภาพประกอบ"} · วางในแชทได้
                 </SheetDescription>
               </SheetHeader>
               <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 sm:p-6">
@@ -645,6 +658,7 @@ export default function ScriptAtelier() {
                 {message && <p role="status" className="rounded-lg border border-emerald-300/20 bg-emerald-400/[.06] p-3 text-xs text-emerald-200">{message}</p>}
                 <div className="flex flex-wrap gap-2 border-t border-fuchsia-300/10 pt-4">
                   <Button type="button" onClick={() => void downloadCurrentImage()} className="script-primary"><Download className="h-4 w-4" /> ดาวน์โหลดภาพ</Button>
+                  <Button type="button" onClick={() => void copyImage()} variant="outline" className="border-emerald-300/20 text-emerald-100"><Copy className="h-4 w-4" /> คัดลอกภาพ</Button>
                   <Button type="button" onClick={() => void copyImageLink()} variant="outline" className="border-cyan-300/20 text-cyan-100"><Copy className="h-4 w-4" /> คัดลอกลิงก์ภาพ</Button>
                   <a href={currentImage.url} target="_blank" rel="noreferrer" className="inline-flex h-9 items-center gap-2 rounded-md border border-fuchsia-300/20 px-3 text-sm text-fuchsia-100 hover:bg-fuchsia-400/10">
                     <ExternalLink className="h-4 w-4" /> เปิดภาพต้นฉบับ
