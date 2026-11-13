@@ -128,6 +128,28 @@ export function orderTimeSortKey(value: unknown): number {
   }
   return displayOrderSortKey(raw);
 }
+
+function chatDateMs(value: unknown): number | null {
+  const raw = String(value ?? "").trim();
+  if (!raw) return null;
+  const display = raw.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  if (display) {
+    let year = Number(display[3]);
+    if (year < 100) year += 1957;
+    else if (year > 2400) year -= 543;
+    const localAsUtc = Date.UTC(year, Number(display[2]) - 1, Number(display[1]), Number(display[4] ?? 0), Number(display[5] ?? 0), Number(display[6] ?? 0));
+    return localAsUtc - 7 * 60 * 60 * 1000;
+  }
+  const parsed = new Date(raw).getTime();
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function isBangkokToday(value: unknown, now = new Date()) {
+  const timestamp = chatDateMs(value);
+  if (timestamp == null) return false;
+  const format = (date: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok", year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
+  return format(new Date(timestamp)) === format(now);
+}
 function displayDateKey(value: unknown): string {
   const match = String(value ?? "").trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
   if (!match) return "";
@@ -653,6 +675,8 @@ export function mapChatRowsToThreads(sourceRows: any[]) {
       facebook_name: row.facebook_name || null, manus_for_packer: row.manus_for_packer || null,
       parcel_status_emoji: row.parcel_status_emoji || null,
       delivery_status: row.delivery_status || null,
+      orderTodayActive: false,
+      trackingAgeMs: null,
     };
     current.latestAt = row._occurred || row.occurred_at || current.latestAt;
     current.preview = row._text || (row._hasAttachment ? "[ไฟล์แนบ]" : current.preview);
@@ -680,8 +704,22 @@ export function mapChatRowsToThreads(sourceRows: any[]) {
     current.messageCount += 1;
     current.chatTimeline.push(`${row._speaker === "page" ? "[เพจ]" : "[ลูกค้า]"} ${row._text || (row._hasAttachment ? "[ไฟล์แนบ]" : "")}`);
     // Tracking fields are supplied directly on either room-side table; keep the newest non-empty value.
-    for (const field of ["tracking_number", "order_number", "order_number_display", "shipping_carrier", "facebook_tracking_message", "drakside_tracking_message", "source_lane", "delivery_status"]) {
+    for (const field of ["tracking_number", "order_number", "order_number_display", "shipping_carrier", "facebook_tracking_message", "drakside_tracking_message", "source_lane", "delivery_status", "tracking_created_at", "tracking_number_created_at", "tracking_time", "tracking_at", "tracking_sent_at", "facebook_tracking_sent_at", "sent_at", "pickup_date"]) {
       if (row[field] != null && String(row[field]).trim()) current[field] = row[field];
+    }
+
+    const hasOrderNumber = Boolean(String(current.order_number_display ?? current.order_number ?? "").trim());
+    const orderTime = current.order_time_display ?? current.order_time ?? row.order_time_display ?? row.order_time ?? row.occurred_at;
+    current.orderTodayActive = current.orderTodayActive || (hasOrderNumber && isBangkokToday(orderTime));
+    if (current.tracking_number) {
+      const trackingTime = [
+        current.tracking_created_at, current.tracking_number_created_at, current.tracking_time,
+        current.tracking_at, current.tracking_sent_at, current.facebook_tracking_sent_at,
+        current.sent_at, current.pickup_date, current.order_time_display, current.order_time,
+        current.latestAt,
+      ].find(value => String(value ?? "").trim());
+      const timestamp = chatDateMs(trackingTime);
+      if (timestamp != null) current.trackingAgeMs = Date.now() - timestamp;
     }
 
     map.set(key, current);

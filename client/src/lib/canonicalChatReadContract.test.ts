@@ -160,6 +160,26 @@ describe("ChatHub read contract v5", () => {
     expect(threads[0].customerName).toBe("ชื่อ Facebook จริง");
   });
 
+  it("preserves the existing order-slot and tracking fields for ChatHub filters", () => {
+    const [thread] = mapChatRowsToThreads([{
+      page_id: "page-1",
+      thread_id: "thread-1",
+      speaker: "page",
+      page_name: "เพจตัวอย่าง",
+      facebook_name: "ลูกค้าตัวอย่าง",
+      message_text: "มีเลขพัสดุแล้ว",
+      time_slot_label: "🌤 ออเดอร์รอบบ่าย [สั่ง:13/11/2026 18:11 น.]",
+      tracking_number: "TH123456789",
+      tracking_created_at: "2026-11-12T00:00:00.000Z",
+      parcel_status_emoji: "🔴",
+    }]);
+
+    expect(thread.timeSlotLabel).toContain("ออเดอร์รอบบ่าย");
+    expect(thread.tracking_number).toBe("TH123456789");
+    expect(thread.trackingAgeMs).toBeGreaterThan(24 * 60 * 60 * 1000);
+    expect(thread.parcel_status_emoji).toBe("🔴");
+  });
+
   it("reconciles sent optimistic messages by provider message_id, not duplicate text", () => {
     const optimistic = [{ id: "optimistic-1", messageId: "meta-new", text: "👍", direction: "outbound" }];
     const previousSameText = [{ messageId: "meta-old", text: "👍", direction: "outbound" }];
