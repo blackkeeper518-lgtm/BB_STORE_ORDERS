@@ -7,8 +7,9 @@ import {
   checkChatConnection,
   fetchChatMessageRows,
   fetchChatThreadRows,
+  recordOutgoingChatMessage,
 } from "../../../server/supabase";
-import { mapChatRowsToMessages, mapChatRowsToThreads } from "./canonical";
+import { mapChatRowsToMessages, mapChatRowsToThreads, reconcileOptimisticMessages } from "./canonical";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -52,8 +53,37 @@ describe("ChatHub read contract v5", () => {
 
     expect(requests).toHaveLength(1);
     expect(requests[0].url).toContain("https://browser-chat.supabase.co/rest/v1/");
-    expect((requests[0].init?.headers as Record<string, string>).Authorization)
-      .toBe("Bearer browser-chat-key");
+    expect((requests[0].init?.headers as Record<string, string>).Authorization).toBe("Bearer browser-chat-key");
+  });
+
+  it("confirms the canonical Pg_Chat write independently from the OrderControl mirror", async () => {
+    const requests: string[] = [];
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL) => {
+      requests.push(String(input));
+      return requests.length === 1
+        ? new Response(JSON.stringify([{ id: 7 }]), { status: 201, headers: { "content-type": "application/json" } })
+        : new Response("mirror unavailable", { status: 500 });
+    });
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      await expect(recordOutgoingChatMessage({ pageId: "page-1", threadId: "thread-1", recipientId: "customer-1", messageId: "meta-1", text: "👍" }, { url: "https://chat-test.supabase.co", serviceRoleKey: "test-key" })).resolves.toBeUndefined();
+      expect(requests).toHaveLength(2);
+      expect(requests[0]).toContain(encodeURIComponent(CHAT_PAGE_TABLE));
+      expect(requests[1]).toContain(encodeURIComponent("🧿BB_xXx_ORDERCONTROL"));
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
+  it("does not report a saved chat history when Pg_Chat rejects the write", async () => {
+    const requests: string[] = [];
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL) => {
+      requests.push(String(input));
+      return new Response("canonical write rejected", { status: 400 });
+    });
+    await expect(recordOutgoingChatMessage({ pageId: "page-1", threadId: "thread-1", recipientId: "customer-1", messageId: "meta-2", text: "ทดสอบ" }, { url: "https://chat-test.supabase.co", serviceRoleKey: "test-key" })).rejects.toThrow("Supabase returned HTTP 400");
+    expect(requests).toHaveLength(1);
+    expect(requests[0]).toContain(encodeURIComponent(CHAT_PAGE_TABLE));
   });
 
   it("filters selected-room messages in that same single view request", async () => {
@@ -105,6 +135,14 @@ describe("ChatHub read contract v5", () => {
     const [withoutStatus] = mapChatRowsToThreads([baseRow]);
     expect(withStatus.delivery_status).toBe("🔥SENT");
     expect(withoutStatus.delivery_status).toBeNull();
+  });
+
+  it("reconciles sent optimistic messages by provider message_id, not duplicate text", () => {
+    const optimistic = [{ id: "optimistic-1", messageId: "meta-new", text: "👍", direction: "outbound" }];
+    const previousSameText = [{ messageId: "meta-old", text: "👍", direction: "outbound" }];
+    const persistedSameMessage = [{ messageId: "meta-new", text: "👍", direction: "outbound" }];
+    expect(reconcileOptimisticMessages(optimistic, previousSameText)).toEqual(optimistic);
+    expect(reconcileOptimisticMessages(optimistic, persistedSameMessage)).toEqual([]);
   });
 
   it("uses message_text for bubbles and preserves latest customer/page text independently", () => {

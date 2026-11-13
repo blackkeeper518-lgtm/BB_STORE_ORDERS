@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useIsMobile } from "@/hooks/useMobile";
-import { mapChatRowsToMessages, mapChatRowsToThreads } from "@/lib/canonical";
+import { mapChatRowsToMessages, mapChatRowsToThreads, reconcileOptimisticMessages } from "@/lib/canonical";
 import { buildMetaConversationUrl } from "@/lib/meta-inbox";
 import { readBrowserChatConfig } from "@/lib/chat-config";
 import { trpc } from "@/lib/trpc";
@@ -190,10 +190,8 @@ export default function ChatHub() {
     optimisticMessageIdRef.current = null;
   }, [selectedPageId, selectedThreadId]);
   useEffect(() => {
-    const serverTexts = new Set((messagesQuery.data ?? []).filter(message => message.direction === "outbound").map(message => message.text));
-    if (!serverTexts.size) return;
-    setOptimisticMessages(current => current.filter(message => !serverTexts.has(message.text)));
-  }, [messagesQuery.data]);
+    setOptimisticMessages(current => reconcileOptimisticMessages(current, messagesQuery.data ?? []));
+  }, [messagesQuery.data, optimisticMessages]);
   useEffect(() => {
     if (!selectedPageId || !selectedThreadId || typeof window === "undefined") {
       setHandoffTracking(null);
@@ -263,9 +261,12 @@ export default function ChatHub() {
   const uploadImage = trpc.chat.uploadImage.useMutation({ onSuccess: result => setReplyImageUrl(`${window.location.origin}${result.url}`) });
   const sendReply = trpc.chat.sendReply.useMutation({
     onMutate: () => { setDeliveryStatus("sending"); setReplyNotice("กำลังส่งไปยัง Facebook…"); },
-    onSuccess: () => {
+    onSuccess: result => {
       setDeliveryStatus("sent");
-      setReplyNotice("ส่งข้อความสำเร็จแล้ว");
+      setReplyNotice(result.historyPersisted ? "ส่งข้อความสำเร็จแล้ว" : "ส่งแล้ว แต่บันทึกประวัติใน ChatHub ไม่สำเร็จ");
+      if (result.message_id) {
+        setOptimisticMessages(current => current.map(message => message.id === optimisticMessageIdRef.current ? { ...message, messageId: result.message_id } : message));
+      }
       setReplyText("");
       setReplyImageUrl("");
       setStickerId("");

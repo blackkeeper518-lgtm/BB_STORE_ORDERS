@@ -702,6 +702,18 @@ export function mapChatRowsToMessages(sourceRows: any[]) {
     imageUrls: Array.isArray(row.attachment_urls) ? row.attachment_urls : row.attachment_url ? [row.attachment_url] : [],
   }));
 }
+export function reconcileOptimisticMessages(optimistic: any[], persisted: any[]) {
+  const persistedIds = new Set(persisted
+    .filter(message => message.direction === "outbound")
+    .map(message => String(message.messageId ?? "").trim())
+    .filter(Boolean));
+  if (!persistedIds.size) return optimistic;
+  const remaining = optimistic.filter(message => {
+    const messageId = String(message.messageId ?? "").trim();
+    return !messageId || !persistedIds.has(messageId);
+  });
+  return remaining.length === optimistic.length ? optimistic : remaining;
+}
 export type CloseJobCase = { id: string; page_id: string; page_name: string; conversation_key: string; customer_id: string; customer_name: string; speaker_type: string; occurred_at: string; message_text: string; case_type: string; area: string; branch: string; carrier_employee: string; tracking_number: string; order_number: string };
 export async function readCloseJobCases(limit = 10000): Promise<CloseJobCase[]> {
   const api = getSupabase();
