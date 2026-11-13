@@ -221,11 +221,11 @@ export default function OrderControl() {
   const trackingRows = trackingInput.pure && directParcelQuery.data?.length ? directParcelQuery.data : fallbackTrackingRows;
   const matchingChatThreads = (chatThreadsQuery.data ?? []).filter((thread: any) => {
     if (!trackingTerm) return false;
-    const haystack = [thread.chatLinkKey, thread.key, thread.customerPhone, thread.customerName, thread.customerId, thread.pageName, thread.preview, ...(thread.chatTimeline ?? [])]
+    const haystack = [thread.chatLinkKey, thread.key, thread.customerPhone, thread.phone, thread.customerName, thread.customerId, thread.pageName, thread.preview, thread.order_number, thread.order_number_display, thread.latestOrderNumber, thread.upsert_key, thread.searchText, ...(thread.chatTimeline ?? [])]
       .map((value) => String(value ?? "").trim().toLowerCase()).join(" ");
-    const phoneDigits = normalizePhoneForSearch(thread.customerPhone);
+    const phoneDigits = [thread.customerPhone, thread.phone].map(normalizePhoneForSearch).join(" ");
     return haystack.includes(trackingTerm) || (phoneSearch.length >= 7 && phoneDigits.includes(phoneSearch));
-  }).slice(0, 8);
+  });
   const telegramTraceRows = [
     ...(telegramSentQuery.data?.orders ?? []).map((row: any) => ({ ...row, _traceRoom: "sent" })),
     ...(telegramQueueQuery.data?.orders ?? []).map((row: any) => ({ ...row, _traceRoom: "queue" })),
@@ -286,7 +286,7 @@ export default function OrderControl() {
           <SheetTrigger asChild>
             <Button type="button" variant="outline" aria-label="เปิดค้นหาและตัวกรองจากด้านขว" className="order-search-toggle flex h-10 items-center gap-2 px-4">
               <Search className="h-4 w-4 text-cyan-200" />
-              <span>ค้นหา / ตัวกรอง</span>
+              <span>UNIVERSAL SEARCH</span>
               {search.trim() ? <span className="max-w-[160px] truncate rounded-full border border-cyan-200/20 bg-cyan-300/[.08] px-2 py-0.5 text-[10px] normal-case tracking-normal">{search.trim()}</span> : null}
               <span className="rounded-full border border-fuchsia-200/20 bg-fuchsia-300/[.07] px-2 py-0.5 text-[9px] text-fuchsia-100/80">เปิดจากขวา</span>
             </Button>
@@ -295,7 +295,7 @@ export default function OrderControl() {
         <SheetContent side="right" className="order-control-room flex w-[min(860px,100vw)] flex-col gap-0 overflow-hidden border-l border-cyan-300/25 bg-[#05070d] p-0 text-white shadow-[-18px_0_60px_rgba(34,211,238,.12)] sm:max-w-[860px]">
           <SheetHeader className="border-b border-cyan-300/15 bg-gradient-to-r from-violet-500/[.10] via-cyan-400/[.05] to-transparent pr-14">
             <SheetTitle className="text-left text-sm font-bold tracking-[.14em] text-cyan-100">UNIVERSAL SEARCH · ORDER CONTROL</SheetTitle>
-            <SheetDescription className="text-left text-xs leading-5 text-slate-300/70">ค้นด้วยเบอร์โทรเป็นหลัก แล้วตรวจ HERMES · Chat · Parcel ในแผงด้านขวานี้</SheetDescription>
+            <SheetDescription className="text-left text-xs leading-5 text-slate-300/70">ค้นด้วยเบอร์โทรหรือเลขออเดอร์ แล้วตรวจ HERMES · Chat · Parcel · Telegram ในแผงด้านขวานี้</SheetDescription>
           </SheetHeader>
           <section className="order-search-drawer min-h-0 flex-1 overflow-y-auto rounded-none border-0">
           <div className="order-search-head p-3 sm:p-4">
@@ -360,7 +360,7 @@ export default function OrderControl() {
                   {matchingChatThreads.map((thread: any) => {
                     const chatSearch = String(thread.customerName || thread.customerPhone || thread.chatLinkKey || thread.threadId || search);
                     return <article key={thread.key} className="order-chat-match rounded-xl border p-3">
-                      <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="text-xs font-semibold text-white">{String(thread.customerName || "ไม่ระบุชื่อลูกค้า")}</p><p className="mt-1 font-mono text-[10px] text-cyan-100/80">{String(thread.customerPhone || "ไม่พบเบอร์ในแชท")}</p></div><span className="text-[10px] text-violet-200/75">{String(thread.pageName || "ไม่ระบุเพจ")}</span></div>
+                      <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="text-xs font-semibold text-white">{String(thread.customerName || "ไม่ระบุชื่อลูกค้า")}</p><p className="mt-1 font-mono text-[10px] text-cyan-100/80">{String(thread.customerPhone || thread.phone || "ไม่พบเบอร์ในแชท")}</p><p className="mt-1 font-mono text-[10px] text-emerald-200/80">{String(thread.latestOrderNumber || thread.order_number || "ไม่พบเลขออเดอร์")}</p></div><span className="text-[10px] text-violet-200/75">{String(thread.pageName || "ไม่ระบุเพจ")}</span></div>
                       <p className="mt-2 line-clamp-2 text-[10px] leading-4 text-slate-300">{String(thread.preview || "ไม่มีข้อความตัวอย่าง")}</p>
                       <div className="mt-2 flex flex-wrap items-center justify-between gap-2"><span className="max-w-full truncate font-mono text-[9px] text-violet-200/70">{thread.chatLinkKey ? `chat_link_key · ${String(thread.chatLinkKey)}` : `thread key · ${String(thread.key)}`}</span><Link href={`/chats?search=${encodeURIComponent(chatSearch)}`} className="inline-flex items-center gap-1 rounded-lg border border-cyan-300/20 bg-cyan-400/[0.04] px-2.5 py-1.5 text-[10px] font-semibold text-cyan-100 hover:bg-cyan-400/[0.1]">เปิดห้องแชท <ExternalLink className="h-3 w-3" /></Link></div>
                     </article>;

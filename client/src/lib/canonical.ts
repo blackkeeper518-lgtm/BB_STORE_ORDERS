@@ -679,6 +679,7 @@ export function mapChatRowsToThreads(sourceRows: any[]) {
       pageLatestMessage: row.page_latest_message || null, pageMessageTimeTh: row.page_message_time_th || null,
       pagerMessageTimeTh: row.pager_message_time_th || null,
       upsert_key: row.upsert_key || null, order_number: row.order_number || null,
+      _searchTokens: "",
       is_sent: row.is_sent === true || row.is_sent === "true",
       order_number_display: row.order_number_display || null, order_time: row.order_time || null,
       order_time_display: row.order_time_display || null, cod_amount: row.cod_amount ?? null,
@@ -717,6 +718,7 @@ export function mapChatRowsToThreads(sourceRows: any[]) {
     for (const field of ["tracking_number", "order_number", "order_number_display", "shipping_carrier", "facebook_tracking_message", "drakside_tracking_message", "source_lane", "delivery_status", "tracking_created_at", "tracking_number_created_at", "tracking_time", "tracking_at", "tracking_sent_at", "facebook_tracking_sent_at", "sent_at", "pickup_date"]) {
       if (row[field] != null && String(row[field]).trim()) current[field] = row[field];
     }
+    current._searchTokens = [current._searchTokens, row.phone, row.customer_id, row.recipient_id, row.order_number, row.order_number_display, row.upsert_key, row.chat_link_key].filter(Boolean).join(" ");
 
     const hasOrderNumber = Boolean(String(current.order_number_display ?? current.order_number ?? "").trim());
     const orderTime = current.order_time_display ?? current.order_time ?? row.order_time_display ?? row.order_time ?? row.occurred_at;
@@ -734,11 +736,11 @@ export function mapChatRowsToThreads(sourceRows: any[]) {
 
     map.set(key, current);
   }
-  return Array.from(map.values()).map(({ _customerNamePriority, ...thread }) => ({
+  return Array.from(map.values()).map(({ _customerNamePriority, _searchTokens, ...thread }) => ({
     ...thread,
     customerPhone: thread.phone || thread.customerPhone || null,
     latestOrderNumber: thread.order_number_display || thread.order_number || "",
-    searchText: [thread.customerName, thread.customerPhone, thread.customerId, thread.chatLinkKey, thread.upsert_key, thread.order_number, thread.order_number_display, thread.preview].filter(Boolean).join(" "),
+    searchText: [thread.customerName, thread.customerPhone, thread.customerId, thread.chatLinkKey, thread.upsert_key, thread.order_number, thread.order_number_display, _searchTokens, thread.preview].filter(Boolean).join(" "),
   })).sort((a, b) => new Date(b.latestAt || 0).getTime() - new Date(a.latestAt || 0).getTime());
 }
 export function mapChatRowsToMessages(sourceRows: any[]) {

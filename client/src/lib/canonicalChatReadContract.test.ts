@@ -196,6 +196,17 @@ describe("ChatHub read contract v5", () => {
     expect(thread.parcel_status_emoji).toBe("🔴");
   });
 
+  it("keeps search tokens from every order row in the same room", () => {
+    const [thread] = mapChatRowsToThreads([
+      { page_id: "page-1", thread_id: "thread-1", speaker: "customer", facebook_name: "ลูกค้า", message_text: "สั่งรอบแรก", phone: "0811111111", order_number: "ORD-OLD-001" },
+      { page_id: "page-1", thread_id: "thread-1", speaker: "page", message_text: "ยืนยันรอบล่าสุด", phone: "0899999999", order_number: "ORD-NEW-002" },
+    ]);
+
+    expect(thread.searchText).toContain("ORD-OLD-001");
+    expect(thread.searchText).toContain("ORD-NEW-002");
+    expect(thread.searchText).toContain("0811111111");
+  });
+
   it("reconciles sent optimistic messages by provider message_id, not duplicate text", () => {
     const optimistic = [{ id: "optimistic-1", messageId: "meta-new", text: "👍", direction: "outbound" }];
     const previousSameText = [{ messageId: "meta-old", text: "👍", direction: "outbound" }];
