@@ -70,14 +70,14 @@ export async function supabaseGet<T>(path: string, project: SupabaseProject = "m
   }
   throw new Error(`Supabase connection failed after 3 attempts (${path}): ${lastError instanceof Error ? lastError.message : String(lastError)}. Target=${target}`);
 }
-// สัญญาอ่าน ChatHub ล็อก v4 ตาม CHAT_HUB_READ_CONTRACT.md; อ่าน Matrix view เดียวและระบุคอลัมน์ชัดเจน
+// สัญญาอ่าน ChatHub: อ่านสองฝั่งต้นทางโดยตรง แล้วให้ canonical layer รวมเป็นห้องเดียว
 const CHAT_READ_WINDOW_MS = 2 * 24 * 60 * 60 * 1000;
 type ChatReadFilter = { pageId?: string; threadId?: string };
 export const CHAT_CUSTOMER_TABLE = "Cust_Chat⭐BINARY_xXx_STAR";
 export const CHAT_PAGE_TABLE = "Pg_Chat⭐BINARY_xXx_STAR";
 export const CHAT_MATRIX_VIEW = "🌠BINARY_xXx_MATRIX";
 export const CHAT_PAGE_TOKEN_TABLE = "🌈MILKY_WAY_xXx_TOKEN _PAGE";
-function chatReadPath(filter: ChatReadFilter = {}) {
+function chatReadPath(table: string, filter: ChatReadFilter = {}) {
   const query = new URLSearchParams();
   query.set("select", "*");
   query.set("occurred_at", `gte.${new Date(Date.now() - CHAT_READ_WINDOW_MS).toISOString()}`);
@@ -85,11 +85,17 @@ function chatReadPath(filter: ChatReadFilter = {}) {
   query.set("limit", "10000");
   if (filter.pageId) query.set("page_id", `eq.${filter.pageId}`);
   if (filter.threadId) query.set("thread_id", `eq.${filter.threadId}`);
-  return `${encodeURIComponent(CHAT_MATRIX_VIEW)}?${query.toString()}`;
+  return `${encodeURIComponent(table)}?${query.toString()}`;
 }
 async function fetchChatRows(filter: ChatReadFilter = {}, credentials?: ChatSupabaseCredentials) {
-  const rows = await supabaseGet<Array<Record<string, unknown>>>(chatReadPath(filter), "chat", credentials);
-  return rows.map(row => ({ ...row, _source_table: row.speaker === "page" ? CHAT_PAGE_TABLE : CHAT_CUSTOMER_TABLE }));
+  const [customerRows, pageRows] = await Promise.all([
+    supabaseGet<Array<Record<string, unknown>>>(chatReadPath(CHAT_CUSTOMER_TABLE, filter), "chat", credentials),
+    supabaseGet<Array<Record<string, unknown>>>(chatReadPath(CHAT_PAGE_TABLE, filter), "chat", credentials),
+  ]);
+  return [
+    ...customerRows.map(row => ({ ...row, _source_table: CHAT_CUSTOMER_TABLE })),
+    ...pageRows.map(row => ({ ...row, _source_table: CHAT_PAGE_TABLE })),
+  ];
 }
 export async function fetchChatThreadRows(credentials?: ChatSupabaseCredentials) {
   return fetchChatRows({}, credentials);

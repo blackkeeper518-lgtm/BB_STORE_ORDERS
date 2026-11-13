@@ -601,19 +601,24 @@ export async function readDailyParcels(date: string, search = "") {
   return { parcels, total: parcels.length, sourceTable: "parcels", fetchedAt: new Date().toISOString() };
 }
 function normalizeChatReadRows(sourceRows: any[]) {
-  return sourceRows.map(row => {
+  return sourceRows.filter(row => {
+    // ห้องจริงต้องมี page_id และ thread_id; กันแถว metadata/แถวว่างไม่ให้กลายเป็นห้อง
+    return String(row?.page_id ?? "").trim() && String(row?.thread_id ?? row?.threadId ?? "").trim();
+  }).map(row => {
     const isPage = row._source_table === "Pg_Chat⭐BINARY_xXx_STAR";
     const speaker = row.speaker || (isPage ? "page" : "customer");
     const isPageSpeaker = speaker === "page";
+    const threadId = String(row.thread_id ?? row.threadId ?? "").trim();
     return {
       ...row,
       // เชื่อค่า speaker ที่ผู้ใช้กำหนด; ใช้ต้นทางตารางสำรองเมื่อไม่มีค่าเท่านั้น
       _speaker: speaker,
       _side: isPageSpeaker ? "right" : "left",
+      // ชื่อป้ายห้องมาจาก Facebook API เท่านั้น; customer_name เป็นชื่อในบิล ห้ามนำมาแทน
       _name: isPageSpeaker ? row.page_name : row.facebook_name,
       // message_text เป็นหลัก; ข้อความ tracking ขาออกใช้ facebook_tracking_message เมื่อ message_text ว่าง
       _text: asText(row.message_text) || (isPageSpeaker ? asText(row.facebook_tracking_message) : ""),
-      _thread: row.thread_id,
+      _thread: threadId,
       _occurred: row.occurred_at || row.time,
       _hasAttachment: hasChatAttachment(row),
     };

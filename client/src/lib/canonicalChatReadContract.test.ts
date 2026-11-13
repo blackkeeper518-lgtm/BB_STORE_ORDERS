@@ -16,27 +16,31 @@ afterEach(() => {
 });
 
 describe("ChatHub read contract v5", () => {
-  it("reads one unified Matrix view with dedicated Chat credentials", async () => {
+  it("reads Cust and Pg source tables with dedicated Chat credentials", async () => {
     vi.stubEnv("CHAT_SUPABASE_URL", "https://zxmczmgmtbnammtljdls.supabase.co");
     vi.stubEnv("CHAT_SUPABASE_SERVICE_ROLE_KEY", "test-chat-service-role-key");
     const requests: Array<{ url: string; init?: RequestInit }> = [];
     vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
-      requests.push({ url: String(input), init });
-      return new Response(JSON.stringify([
-        { speaker: "customer", id: 1, message_text: "customer message" },
-        { speaker: "page", id: 2, message_text: "page message" },
-      ]), { status: 200, headers: { "content-type": "application/json" } });
+      const url = String(input);
+      requests.push({ url, init });
+      const isPage = url.includes(encodeURIComponent(CHAT_PAGE_TABLE));
+      return new Response(JSON.stringify(isPage
+        ? [{ speaker: "page", id: 2, message_text: "page message" }]
+        : [{ speaker: "customer", id: 1, facebook_name: "Facebook customer", message_text: "customer message" }]), { status: 200, headers: { "content-type": "application/json" } });
     });
 
     const rows = await fetchChatThreadRows();
-    expect(requests).toHaveLength(1);
-    expect(requests[0].url).toContain(`/rest/v1/${encodeURIComponent(CHAT_MATRIX_VIEW)}?`);
-    expect(new URL(requests[0].url).searchParams.get("select")).toBe("*");
+    expect(requests).toHaveLength(2);
+    expect(requests.map(url => url.url)).toEqual(expect.arrayContaining([
+      expect.stringContaining(`/rest/v1/${encodeURIComponent(CHAT_CUSTOMER_TABLE)}?`),
+      expect.stringContaining(`/rest/v1/${encodeURIComponent(CHAT_PAGE_TABLE)}?`),
+    ]));
+    expect(requests.every(({ url }) => new URL(url).searchParams.get("select") === "*")).toBe(true);
     expect(rows.map(row => row._source_table)).toEqual([CHAT_CUSTOMER_TABLE, CHAT_PAGE_TABLE]);
-    expect((requests[0].init?.headers as Record<string, string>).Authorization).toBe("Bearer test-chat-service-role-key");
+    expect(requests.every(({ init }) => (init?.headers as Record<string, string>).Authorization === "Bearer test-chat-service-role-key")).toBe(true);
   });
 
-  it("uses browser-selected Chat credentials for the protected Matrix read", async () => {
+  it("uses browser-selected Chat credentials for the protected two-table read", async () => {
     vi.stubEnv("CHAT_SUPABASE_URL", "https://server-chat.supabase.co");
     vi.stubEnv("CHAT_SUPABASE_SERVICE_ROLE_KEY", "server-chat-key");
     const requests: Array<{ url: string; init?: RequestInit }> = [];
@@ -50,12 +54,12 @@ describe("ChatHub read contract v5", () => {
       serviceRoleKey: "browser-chat-key",
     });
 
-    expect(requests).toHaveLength(1);
-    expect(requests[0].url).toContain("https://browser-chat.supabase.co/rest/v1/");
-    expect((requests[0].init?.headers as Record<string, string>).Authorization).toBe("Bearer browser-chat-key");
+    expect(requests).toHaveLength(2);
+    expect(requests.every(({ url }) => url.startsWith("https://browser-chat.supabase.co/rest/v1/"))).toBe(true);
+    expect(requests.every(({ init }) => (init?.headers as Record<string, string>).Authorization === "Bearer browser-chat-key")).toBe(true);
   });
 
-  it("filters selected-room messages in that same single view request", async () => {
+  it("filters selected-room messages in both source-table requests", async () => {
     vi.stubEnv("CHAT_SUPABASE_URL", "https://zxmczmgmtbnammtljdls.supabase.co");
     vi.stubEnv("CHAT_SUPABASE_SERVICE_ROLE_KEY", "test-chat-service-role-key");
     const requests: string[] = [];
@@ -65,12 +69,14 @@ describe("ChatHub read contract v5", () => {
     });
 
     await expect(fetchChatMessageRows({ pageId: "page-1", threadId: "thread-1" })).resolves.toEqual([]);
-    expect(requests).toHaveLength(1);
-    const url = new URL(requests[0]);
-    expect(url.pathname).toContain(encodeURIComponent(CHAT_MATRIX_VIEW));
-    expect(url.searchParams.get("page_id")).toBe("eq.page-1");
-    expect(url.searchParams.get("thread_id")).toBe("eq.thread-1");
-    expect(url.searchParams.get("select")).toBe("*");
+    expect(requests).toHaveLength(2);
+    for (const request of requests) {
+      const url = new URL(request);
+      expect(url.pathname).toContain("/rest/v1/");
+      expect(url.searchParams.get("page_id")).toBe("eq.page-1");
+      expect(url.searchParams.get("thread_id")).toBe("eq.thread-1");
+      expect(url.searchParams.get("select")).toBe("*");
+    }
   });
 
   it("checks all six renamed Chat objects without returning any token value", async () => {
@@ -127,6 +133,31 @@ describe("ChatHub read contract v5", () => {
       },
     ]);
     expect(thread.customerName).toBe("ชื่อ Facebook จาก API");
+  });
+
+  it("does not replace a missing Facebook name with the bill customer_name", () => {
+    const [thread] = mapChatRowsToThreads([{
+      page_id: "page-1",
+      thread_id: "thread-1",
+      speaker: "customer",
+      customer_name: "ชื่อจากแถวแชท",
+      recipient_name: "ชื่อผู้รับ",
+      message_text: "สวัสดี",
+    }]);
+
+    expect(thread.customerName).toBe("");
+  });
+
+  it("does not create an empty room from rows without page_id or thread_id", () => {
+    const threads = mapChatRowsToThreads([
+      { page_id: null, thread_id: null, speaker: "customer", customer_name: "ไม่มีห้อง", message_text: "metadata" },
+      { page_id: "page-1", thread_id: "", speaker: "page", page_name: "เพจ", message_text: "ไม่มีคีย์" },
+      { page_id: "page-1", thread_id: "thread-1", speaker: "customer", facebook_name: "ชื่อ Facebook จริง", customer_name: "ชื่อในบิล", message_text: "มีห้อง" },
+    ]);
+
+    expect(threads).toHaveLength(1);
+    expect(threads[0].key).toBe("page-1:thread-1");
+    expect(threads[0].customerName).toBe("ชื่อ Facebook จริง");
   });
 
   it("reconciles sent optimistic messages by provider message_id, not duplicate text", () => {
