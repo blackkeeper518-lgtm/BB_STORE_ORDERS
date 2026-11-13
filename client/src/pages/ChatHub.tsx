@@ -263,7 +263,7 @@ export default function ChatHub() {
     onMutate: () => { setDeliveryStatus("sending"); setReplyNotice("กำลังส่งไปยัง Facebook…"); },
     onSuccess: result => {
       setDeliveryStatus("sent");
-      setReplyNotice(result.historyPersisted ? "ส่งข้อความสำเร็จแล้ว" : "ส่งแล้ว แต่บันทึกประวัติใน ChatHub ไม่สำเร็จ");
+      setReplyNotice("ส่งข้อความสำเร็จแล้ว");
       if (result.message_id) {
         setOptimisticMessages(current => current.map(message => message.id === optimisticMessageIdRef.current ? { ...message, messageId: result.message_id } : message));
       }

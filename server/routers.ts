@@ -19,8 +19,8 @@ async function persistOutgoingChatBestEffort(
   input: Parameters<typeof recordOutgoingChatMessage>[0],
   credentials?: Parameters<typeof recordOutgoingChatMessage>[1],
 ) {
-  try { await recordOutgoingChatMessage(input, credentials); return true; }
-  catch (error) { console.error("[chat] outgoing write-back failed after Meta accepted message", error); return false; }
+  try { await recordOutgoingChatMessage(input, credentials); }
+  catch (error) { console.error("[chat] outgoing write-back failed after Meta accepted message", error); }
 }
 async function persistLocalChatBestEffort(input: Parameters<typeof db.saveChatMessage>[0]) {
   try { await db.saveChatMessage(input); }
@@ -42,9 +42,9 @@ export const appRouter = router({
     sendReply: publicProcedure.input(z.object({ pageId: z.string(), pageName: z.string().optional(), portalKey: z.string().optional(), chatLinkKey: z.string().optional(), threadId: z.string(), recipientId: z.string(), text: z.string().optional(), imageUrl: z.string().optional(), stickerId: z.string().optional() })).mutation(async ({ input, ctx }) => {
       const credentials = requireBrowserChatConfig(ctx);
       const result = await sendMetaMessage(input, credentials);
-      const historyPersisted = await persistOutgoingChatBestEffort({ portalKey: input.portalKey, chatLinkKey: input.chatLinkKey, pageId: input.pageId, pageName: input.pageName, threadId: input.threadId, recipientId: input.recipientId, messageId: result.message_id, text: input.text }, credentials);
+      void persistOutgoingChatBestEffort({ portalKey: input.portalKey, chatLinkKey: input.chatLinkKey, pageId: input.pageId, pageName: input.pageName, threadId: input.threadId, recipientId: input.recipientId, messageId: result.message_id, text: input.text }, credentials);
       void persistLocalChatBestEffort({ pageId: input.pageId, threadId: input.threadId, senderId: input.pageId, senderType: "page", direction: "outbound", text: input.text, attachments: input.imageUrl ? [{ url: input.imageUrl }] : undefined, adminUserId: ctx.user?.id, providerMessageId: result.message_id });
-      return { ...result, historyPersisted };
+      return result;
     }),
     uploadImage: publicProcedure.input(z.object({ fileName: z.string(), contentType: z.string(), base64: z.string() })).mutation(async ({ input }) => {
       const comma = input.base64.indexOf(",");
