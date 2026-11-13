@@ -44,6 +44,7 @@ import {
 } from "@/lib/canonical";
 import { trpc } from "@/lib/trpc";
 import { clearBrowserChatConfig, readBrowserChatConfig, saveBrowserChatConfig } from "@/lib/chat-config";
+import { THEME_LAB_ROOMS, readThemeLab, saveThemeLab, type ThemeLabSettings } from "@/lib/theme-lab";
 
 type CodeLanguage = "sql" | "java" | "md";
 type VaultDoc = {
@@ -137,6 +138,7 @@ export default function SecretGallery() {
   const [frameLab, setFrameLab] = useState<FrameLabSettings>(() =>
     readLocal(FRAME_LAB_KEY, DEFAULT_FRAME_LAB)
   );
+  const [themeLab, setThemeLab] = useState<ThemeLabSettings>(() => readThemeLab());
   const [activeId, setActiveId] = useState<string | null>(
     () => readLocal<VaultDoc[]>(DOCS_KEY, [])[0]?.id ?? null
   );
@@ -207,6 +209,9 @@ export default function SecretGallery() {
   useEffect(() => {
     localStorage.setItem(FRAME_LAB_KEY, JSON.stringify(frameLab));
   }, [frameLab]);
+  useEffect(() => {
+    saveThemeLab(themeLab);
+  }, [themeLab]);
   const previewSound = () => {
     if (typeof window === "undefined") return;
     const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
@@ -643,6 +648,26 @@ export default function SecretGallery() {
                 <div><p className="font-mono text-[10px] tracking-[0.25em]" style={{ color: frameLab.accent }}>FRAME PREVIEW · LIVE</p><h3 className="mt-2 text-xl font-semibold text-white">การ์ดนีออนของจารย์</h3><p className="mt-1 text-xs text-white/55">ปรับค่าด้านซ้าย แล้วดูแสงขอบเปลี่ยนทันที</p></div>
                 <div className="flex items-center justify-between text-[10px] text-white/55"><span style={{ color: frameLab.secondary }}>LOCAL AUTOSAVE</span><span>GLOW {frameLab.glow}%</span></div>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="neon-card relative overflow-hidden rounded-3xl border-fuchsia-300/25 bg-[#100817]">
+          <CardHeader className="relative">
+            <CardTitle className="flex items-center gap-2 text-sm text-white"><Code2 className="h-4 w-4 text-fuchsia-300" /> THEME LAB · ใส่ CSS ให้ห้องจริง</CardTitle>
+            <p className="text-xs text-fuchsia-100/55">ติ๊กห้องปลายทาง แล้ววางโค้ด CSS ที่คัดลอกจากหน้าเว็บได้เลย · มีผลเฉพาะห้องที่เลือก</p>
+          </CardHeader>
+          <CardContent className="relative grid gap-4 lg:grid-cols-[minmax(260px,360px)_minmax(0,1fr)]">
+            <div className="grid content-start gap-2">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-200/60">เลือกห้องที่จะเปลี่ยน</p>
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
+                {THEME_LAB_ROOMS.map(room => <label key={room.key} className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-xs transition ${themeLab.rooms.includes(room.key) ? "border-cyan-300/55 bg-cyan-300/10 text-cyan-50 shadow-[0_0_18px_rgba(34,211,238,.12)]" : "border-white/10 bg-black/20 text-white/55 hover:border-fuchsia-300/30"}`}><input type="checkbox" checked={themeLab.rooms.includes(room.key)} onChange={event => setThemeLab(current => ({ ...current, rooms: event.target.checked ? [...current.rooms, room.key] : current.rooms.filter(item => item !== room.key) }))} className="h-4 w-4 accent-cyan-400" /><span>{room.label}</span></label>)}
+              </div>
+              <p className="text-[10px] leading-4 text-white/35">ถ้าไม่ติ๊กห้องใด CSS จะยังไม่ถูกฉีดเข้าไป · ค่าเก็บใน browser นี้เท่านั้น</p>
+            </div>
+            <div className="grid gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-2"><label className="text-[10px] font-semibold uppercase tracking-[0.2em] text-fuchsia-200/70">CUSTOM CSS · CARD FRAME</label><div className="flex gap-2"><Button type="button" variant="outline" onClick={() => void navigator.clipboard?.writeText(themeLab.css)} className="h-7 border-cyan-300/20 bg-black/20 px-2 text-[10px] text-cyan-100">คัดลอก CSS</Button><Button type="button" variant="outline" onClick={() => setThemeLab({ rooms: [], css: "" })} className="h-7 border-pink-300/20 bg-black/20 px-2 text-[10px] text-pink-100">ล้าง</Button></div></div>
+              <textarea value={themeLab.css} onChange={event => setThemeLab(current => ({ ...current, css: event.target.value }))} spellCheck={false} className="min-h-[210px] w-full resize-y rounded-2xl border border-fuchsia-300/20 bg-[#080611] p-4 font-mono text-xs leading-5 text-cyan-100 outline-none placeholder:text-white/25 focus:border-cyan-300/55" placeholder={'/* วาง CSS จากหน้าเว็บตรงนี้ */\n.neon-card {\n  border: 2px solid #39ffb6;\n  box-shadow: 0 0 24px #39ffb666;\n}'} />
+              <div className="flex flex-wrap items-center justify-between gap-2"><span className="text-[10px] text-emerald-300/70">{themeLab.rooms.length ? `กำลังใช้กับ ${themeLab.rooms.length} ห้อง · autosave` : "ยังไม่ได้เลือกห้อง"}</span><Button type="button" onClick={() => setThemeLab(current => ({ ...current, css: `/* CYBER FRAME · แก้ selector ได้ตามต้องการ */\n.neon-card {\n  border-color: #39ffb6 !important;\n  box-shadow: 0 0 26px #39ffb666, inset 0 0 18px #c44dff22 !important;\n}` }))} className="h-8 bg-gradient-to-r from-fuchsia-600 to-violet-700 px-3 text-[10px]">ใส่ CSS ตัวอย่าง</Button></div>
             </div>
           </CardContent>
         </Card>
