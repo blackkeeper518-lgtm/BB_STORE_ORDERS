@@ -537,7 +537,7 @@ renderScripts();renderFiles();$('code').value='-- เขียน SQL, Java, Mar
   const API_ROOT='https://yyqptukudsuizpklfrdd.supabase.co';
   const ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl5cXB0dWt1ZHN1aXpwa2xmcmRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE5MzU5ODAsImV4cCI6MjA5NzUxMTk4MH0.6z_NdqgTBfVKTUVssv_MOnyhGAWViv72PikgW5EuIxQ';
   let activeRequest=0;
-  window.DARKSIDE_SUPABASE_READ=Object.freeze({url:API_ROOT,anonKey:ANON_KEY});
+  if(!window.DARKSIDE_SUPABASE_READ?.url){window.DARKSIDE_SUPABASE_READ=Object.freeze({url:API_ROOT,anonKey:ANON_KEY});}
   const cleanText=value=>String(value||'').normalize('NFC').replace(/[\u200B-\u200F\uFEFF]/g,' ').replace(/[\r\n]+/g,' ').replace(/\s+/g,' ').trim();
   const cleanPlace=value=>cleanText(value).replace(/\d{5}/g,' ').replace(/[^\p{L}\p{M}\s.-]/gu,' ').replace(/\s+/g,' ').trim().replace(/^[.-]+|[.-]+$/g,'');
   function capture(text,re){const m=text.match(re);return m?cleanPlace(m[1]):''}
@@ -887,7 +887,7 @@ renderScripts();renderFiles();$('code').value='-- เขียน SQL, Java, Mar
       productCatalog=(await response.json()).filter(product=>product.status==='ACTIVE'&&product.master_sku&&Number.isFinite(Number(product.unit_price)));
       catalogState.textContent=`LIVE · ${productCatalog.length} สินค้า ACTIVE · อ่านอย่างเดียว`;
       renderProductResults();
-    }catch(error){catalogState.textContent='เชื่อม catalog ไม่สำเร็จ · พิมพ์รายการเองได้';productResults.replaceChildren();}
+    }catch(error){console.error('PRODUCT CATALOG LOAD FAILED',error);catalogState.textContent=`เชื่อม catalog ไม่สำเร็จ · ${error?.message||'ตรวจ URL, RLS และคอลัมน์ product_master'}`;productResults.replaceChildren();}
   }
   function bangkokParts(date=new Date()){
     return Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Bangkok',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).formatToParts(date).map(part=>[part.type,part.value]));
