@@ -40,9 +40,9 @@ export function prepareThemeCss(css: string) {
   // The lab accepts standalone frame recipes copied from the Cyber Frame page.
   // Those recipes usually target .frame/.f22, while the real app cards use .neon-card.
   // Translate only these two known compatibility selectors; all other user CSS stays intact.
-  if (!source.includes(".frame") && !source.includes(".f22")) return source;
+  if (!source.includes(".frame") && !/\.f\d+\b/.test(source)) return source;
   return source
-    .replace(/\.f22\b/g, ".neon-card")
+    .replace(/\.f\d+\b/g, ".neon-card")
     .replace(/\.frame\b/g, ".neon-card")
     .replace(/\.content\b/g, ".neon-card > *");
 }
