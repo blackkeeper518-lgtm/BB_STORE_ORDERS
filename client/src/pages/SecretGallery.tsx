@@ -139,7 +139,7 @@ export default function SecretGallery() {
     readLocal(FRAME_LAB_KEY, DEFAULT_FRAME_LAB)
   );
   const [themeLab, setThemeLab] = useState<ThemeLabSettings>(() => readThemeLab());
-  const [themeLabMessage, setThemeLabMessage] = useState("");
+  const [savedThemeLab, setSavedThemeLab] = useState<ThemeLabSettings>(() => readThemeLab());
   const [activeId, setActiveId] = useState<string | null>(
     () => readLocal<VaultDoc[]>(DOCS_KEY, [])[0]?.id ?? null
   );
@@ -212,9 +212,9 @@ export default function SecretGallery() {
   }, [frameLab]);
   const commitThemeLab = () => {
     saveThemeLab(themeLab);
-    setThemeLabMessage(`บันทึกแล้ว · ใช้กับ ${themeLab.rooms.length} ห้อง`);
-    window.setTimeout(() => setThemeLabMessage(""), 2400);
+    setSavedThemeLab(themeLab);
   };
+  const themeLabDirty = JSON.stringify(themeLab) !== JSON.stringify(savedThemeLab);
   const previewSound = () => {
     if (typeof window === "undefined") return;
     const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
@@ -670,7 +670,7 @@ export default function SecretGallery() {
             <div className="grid gap-2">
               <div className="flex flex-wrap items-center justify-between gap-2"><label className="text-[10px] font-semibold uppercase tracking-[0.2em] text-fuchsia-200/70">CUSTOM CSS · CARD FRAME</label><div className="flex gap-2"><Button type="button" variant="outline" onClick={() => void navigator.clipboard?.writeText(themeLab.css)} className="h-7 border-cyan-300/20 bg-black/20 px-2 text-[10px] text-cyan-100">คัดลอก CSS</Button><Button type="button" variant="outline" onClick={() => setThemeLab({ rooms: [], css: "" })} className="h-7 border-pink-300/20 bg-black/20 px-2 text-[10px] text-pink-100">ล้าง</Button></div></div>
               <textarea value={themeLab.css} onChange={event => setThemeLab(current => ({ ...current, css: event.target.value }))} spellCheck={false} className="min-h-[210px] w-full resize-y rounded-2xl border border-fuchsia-300/20 bg-[#080611] p-4 font-mono text-xs leading-5 text-cyan-100 outline-none placeholder:text-white/25 focus:border-cyan-300/55" placeholder={'/* วาง CSS จากหน้าเว็บตรงนี้ */\n.neon-card {\n  border: 2px solid #39ffb6;\n  box-shadow: 0 0 24px #39ffb666;\n}'} />
-              <div className="flex flex-wrap items-center justify-between gap-2"><span className="text-[10px] text-emerald-300/70">{themeLabMessage || (themeLab.rooms.length ? `แก้ไขค้างอยู่ · เลือก ${themeLab.rooms.length} ห้อง` : "ยังไม่ได้เลือกห้อง")}</span><div className="flex flex-wrap gap-2"><Button type="button" variant="outline" onClick={() => setThemeLab(current => ({ ...current, css: `/* CYBER FRAME · แก้ selector ได้ตามต้องการ */\n.neon-card {\n  border-color: #39ffb6 !important;\n  box-shadow: 0 0 26px #39ffb666, inset 0 0 18px #c44dff22 !important;\n}` }))} className="h-8 border-fuchsia-300/20 bg-black/20 px-3 text-[10px] text-fuchsia-100">ใส่ CSS ตัวอย่าง</Button><Button type="button" onClick={commitThemeLab} disabled={!themeLab.rooms.length || !themeLab.css.trim()} className="h-8 bg-gradient-to-r from-cyan-400 via-blue-500 to-violet-600 px-3 text-[10px] font-semibold text-[#06101e] disabled:opacity-40"><Save className="mr-1.5 h-3.5 w-3.5" />บันทึกและใช้จริง</Button></div></div>
+              <div className="flex flex-wrap items-center justify-between gap-2"><span className={`text-[10px] ${themeLabDirty ? "text-amber-300/80" : "text-emerald-300/80"}`}>{themeLabDirty ? (themeLab.rooms.length ? `แก้ไขค้างอยู่ · เลือก ${themeLab.rooms.length} ห้อง` : "ยังไม่ได้เลือกห้อง") : themeLab.rooms.length ? `บันทึกแล้ว · ใช้กับ ${themeLab.rooms.length} ห้อง` : "ยังไม่ได้เลือกห้อง"}</span><div className="flex flex-wrap gap-2"><Button type="button" variant="outline" onClick={() => setThemeLab(current => ({ ...current, css: `/* CYBER FRAME · แก้ selector ได้ตามต้องการ */\n.neon-card {\n  border-color: #39ffb6 !important;\n  box-shadow: 0 0 26px #39ffb666, inset 0 0 18px #c44dff22 !important;\n}` }))} className="h-8 border-fuchsia-300/20 bg-black/20 px-3 text-[10px] text-fuchsia-100">ใส่ CSS ตัวอย่าง</Button><Button type="button" onClick={commitThemeLab} disabled={!themeLab.rooms.length || !themeLab.css.trim() || !themeLabDirty} className="h-8 bg-gradient-to-r from-cyan-400 via-blue-500 to-violet-600 px-3 text-[10px] font-semibold text-[#06101e] disabled:opacity-40"><Save className="mr-1.5 h-3.5 w-3.5" />บันทึกและใช้จริง</Button></div></div>
             </div>
           </CardContent>
         </Card>

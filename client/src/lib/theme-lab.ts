@@ -37,14 +37,18 @@ export function saveThemeLab(settings: ThemeLabSettings) {
 
 export function prepareThemeCss(css: string) {
   const source = String(css || "");
+  const cardSelector = ":is(.neon-card, .order-list-card, .order-detail-card, .order-parcel-result, .order-chat-match)";
   // The lab accepts standalone frame recipes copied from the Cyber Frame page.
-  // Those recipes usually target .frame/.f22, while the real app cards use .neon-card.
+  // Those recipes usually target .frame/.f35, while the real app cards use several room-specific classes.
   // Translate only these two known compatibility selectors; all other user CSS stays intact.
-  if (!source.includes(".frame") && !/\.f\d+\b/.test(source)) return source;
+  if (!source.includes(".frame") && !/\.f\d+\b/.test(source) && !source.includes(".neon-card")) return source;
+  const token = "__THEME_LAB_CARD__";
   return source
-    .replace(/\.f\d+\b/g, ".neon-card")
-    .replace(/\.frame\b/g, ".neon-card")
-    .replace(/\.content\b/g, ".neon-card > *");
+    .replace(/\.f\d+\b/g, token)
+    .replace(/\.frame\b/g, token)
+    .replace(/\.neon-card\b/g, token)
+    .replace(/__THEME_LAB_CARD__/g, cardSelector)
+    .replace(/\.content\b/g, `${cardSelector} > *`);
 }
 
 export function themeRoomFromPath(path: string): ThemeLabRoom | null {
