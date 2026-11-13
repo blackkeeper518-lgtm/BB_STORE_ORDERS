@@ -106,6 +106,29 @@ describe("ChatHub read contract v5", () => {
     expect(withoutStatus.delivery_status).toBeNull();
   });
 
+  it("uses facebook_name first and never displays the bill customer_name as the room name", () => {
+    const [thread] = mapChatRowsToThreads([
+      {
+        page_id: "page-1",
+        thread_id: "thread-1",
+        speaker: "customer",
+        facebook_name: "ชื่อ Facebook จาก API",
+        customer_name: "ชื่อในบิล",
+        message_text: "สวัสดี",
+        occurred_at: "2026-11-13T08:00:00.000Z",
+      },
+      {
+        page_id: "page-1",
+        thread_id: "thread-1",
+        speaker: "page",
+        customer_name: "ชื่อบิลแถวล่าสุด",
+        message_text: "ตอบกลับ",
+        occurred_at: "2026-11-13T08:01:00.000Z",
+      },
+    ]);
+    expect(thread.customerName).toBe("ชื่อ Facebook จาก API");
+  });
+
   it("reconciles sent optimistic messages by provider message_id, not duplicate text", () => {
     const optimistic = [{ id: "optimistic-1", messageId: "meta-new", text: "👍", direction: "outbound" }];
     const previousSameText = [{ messageId: "meta-old", text: "👍", direction: "outbound" }];

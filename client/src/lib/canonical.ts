@@ -610,7 +610,7 @@ function normalizeChatReadRows(sourceRows: any[]) {
       // เชื่อค่า speaker ที่ผู้ใช้กำหนด; ใช้ต้นทางตารางสำรองเมื่อไม่มีค่าเท่านั้น
       _speaker: speaker,
       _side: isPageSpeaker ? "right" : "left",
-      _name: isPageSpeaker ? row.page_name : row.customer_name || row.facebook_name || row.recipient_name,
+      _name: isPageSpeaker ? row.page_name : row.facebook_name,
       // message_text เป็นหลัก; ข้อความ tracking ขาออกใช้ facebook_tracking_message เมื่อ message_text ว่าง
       _text: asText(row.message_text) || (isPageSpeaker ? asText(row.facebook_tracking_message) : ""),
       _thread: row.thread_id,
@@ -619,6 +619,10 @@ function normalizeChatReadRows(sourceRows: any[]) {
     };
   }).sort((a, b) => new Date(a._occurred || 0).getTime() - new Date(b._occurred || 0).getTime());
 }
+function chatCustomerNameCandidate(row: any) {
+  const value = String(row.facebook_name ?? "").trim();
+  return value ? { value, priority: 1 } : null;
+}
 export function mapChatRowsToThreads(sourceRows: any[]) {
   const rows = normalizeChatReadRows(sourceRows);
   const map = new Map<string, any>();
@@ -626,11 +630,13 @@ export function mapChatRowsToThreads(sourceRows: any[]) {
     const pageId = String(row.page_id ?? "").trim();
     const threadId = String(row._thread ?? "").trim();
     const key = `${pageId}:${threadId}`;
+    const nameCandidate = chatCustomerNameCandidate(row);
     const current = map.get(key) ?? {
       key, pageId, threadId, portalKey: row.portal_key || null, chatLinkKey: row.chat_link_key || null,
       timeSlotLabel: String(row.time_slot_label ?? "").trim() || null,
       customerId: row.customer_id || row.recipient_id || null, customerPhone: row.phone || null, pageName: row.page_name || "ไม่ระบุเพจ",
-      customerName: row.customer_name || row.facebook_name || row.recipient_name || row._name || "ลูกค้า", latestAt: row._occurred || row.occurred_at || null,
+      customerName: nameCandidate?.value || "", _customerNamePriority: nameCandidate?.priority ?? -1,
+      latestAt: row._occurred || row.occurred_at || null,
       preview: row._text || (row._hasAttachment ? "[ไฟล์แนบ]" : ""), unread: false, messageCount: 0, chatTimeline: [],
       customerLatestMessage: row.customer_latest_message || null, customerMessageTimeTh: row.customer_message_time_th || null,
       pageLatestMessage: row.page_latest_message || null, pageMessageTimeTh: row.page_message_time_th || null,
@@ -650,7 +656,10 @@ export function mapChatRowsToThreads(sourceRows: any[]) {
     current.customerPhone ||= row.phone || null;
     current.portalKey ||= row.portal_key || null;
     current.chatLinkKey ||= row.chat_link_key || null;
-    current.customerName = row.customer_name || row.facebook_name || row.recipient_name || (current.customerName === "ลูกค้า" ? row._name : current.customerName) || current.customerName;
+    if (nameCandidate && nameCandidate.priority >= current._customerNamePriority) {
+      current.customerName = nameCandidate.value;
+      current._customerNamePriority = nameCandidate.priority;
+    }
     current.is_sent ||= row.is_sent === true || row.is_sent === "true";
     for (const [source, target] of [
       ["customer_latest_message", "customerLatestMessage"], ["customer_message_time_th", "customerMessageTimeTh"],
@@ -672,7 +681,7 @@ export function mapChatRowsToThreads(sourceRows: any[]) {
 
     map.set(key, current);
   }
-  return Array.from(map.values()).map(thread => ({
+  return Array.from(map.values()).map(({ _customerNamePriority, ...thread }) => ({
     ...thread,
     customerPhone: thread.phone || thread.customerPhone || null,
     latestOrderNumber: thread.order_number_display || thread.order_number || "",
