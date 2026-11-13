@@ -10,7 +10,7 @@ import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 import { Button } from "./ui/button";
 import { PRESENTATION_MODE } from "@shared/presentation";
 import { getActiveCamp, getSupabaseConfig, readCanonicalOrders, type Camp } from "@/lib/canonical";
-import { THEME_LAB_EVENT, readThemeLab, themeRoomFromPath } from "@/lib/theme-lab";
+import { THEME_LAB_EVENT, prepareThemeCss, readThemeLab, themeRoomFromPath } from "@/lib/theme-lab";
 
 const menuItems = [
   { icon: MessageCircle, label: "รวมแชทเพจ", path: "/chats" },
@@ -57,7 +57,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
     const applyThemeLab = () => {
       const settings = readThemeLab();
       const room = themeRoomFromPath(location);
-      setThemeLabCss(room && settings.rooms.includes(room) ? settings.css : "");
+      setThemeLabCss(room && settings.rooms.includes(room) ? prepareThemeCss(settings.css) : "");
     };
     applyThemeLab();
     window.addEventListener(THEME_LAB_EVENT, applyThemeLab);
