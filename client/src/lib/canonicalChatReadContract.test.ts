@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   CHAT_CUSTOMER_TABLE,
-  CHAT_MATRIX_READ_COLUMNS,
   CHAT_MATRIX_VIEW,
   CHAT_PAGE_TABLE,
   CHAT_PAGE_TOKEN_TABLE,
@@ -16,7 +15,7 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-describe("ChatHub read contract v4", () => {
+describe("ChatHub read contract v5", () => {
   it("reads one unified Matrix view with dedicated Chat credentials", async () => {
     vi.stubEnv("CHAT_SUPABASE_URL", "https://zxmczmgmtbnammtljdls.supabase.co");
     vi.stubEnv("CHAT_SUPABASE_SERVICE_ROLE_KEY", "test-chat-service-role-key");
@@ -32,6 +31,7 @@ describe("ChatHub read contract v4", () => {
     const rows = await fetchChatThreadRows();
     expect(requests).toHaveLength(1);
     expect(requests[0].url).toContain(`/rest/v1/${encodeURIComponent(CHAT_MATRIX_VIEW)}?`);
+    expect(new URL(requests[0].url).searchParams.get("select")).toBe("*");
     expect(rows.map(row => row._source_table)).toEqual([CHAT_CUSTOMER_TABLE, CHAT_PAGE_TABLE]);
     expect((requests[0].init?.headers as Record<string, string>).Authorization).toBe("Bearer test-chat-service-role-key");
   });
@@ -71,6 +71,7 @@ describe("ChatHub read contract v4", () => {
     expect(url.pathname).toContain(encodeURIComponent(CHAT_MATRIX_VIEW));
     expect(url.searchParams.get("page_id")).toBe("eq.page-1");
     expect(url.searchParams.get("thread_id")).toBe("eq.thread-1");
+    expect(url.searchParams.get("select")).toBe("*");
   });
 
   it("checks all six renamed Chat objects without returning any token value", async () => {
@@ -91,17 +92,19 @@ describe("ChatHub read contract v4", () => {
     expect(JSON.stringify(result)).not.toContain("access_token");
   });
 
-  it("locks explicit Matrix-view fields, preserves message_text, and excludes message_raw", () => {
-    const requiredFields = [
-      "speaker", "id", "page_id", "thread_id", "chat_link_key", "message_id", "message_text",
-      "customer_latest_message", "page_latest_message", "customer_message_time_th", "page_message_time_th",
-      "phone", "upsert_key", "order_number", "order_time_display", "cod_amount", "tracking_number",
-      "parcel_status_emoji", "delivery_status",
-    ];
-    for (const column of requiredFields) expect(CHAT_MATRIX_READ_COLUMNS).toContain(column);
-    expect(CHAT_MATRIX_READ_COLUMNS).not.toContain("*");
-    expect(CHAT_MATRIX_READ_COLUMNS).not.toContain("message_raw");
-    expect(new Set(CHAT_MATRIX_READ_COLUMNS).size).toBe(CHAT_MATRIX_READ_COLUMNS.length);
+  it("treats delivery_status as optional instead of requiring it in every row", () => {
+    const baseRow = {
+      page_id: "page-1",
+      page_name: "เจ๊บี 🅱🅱",
+      thread_id: "thread-1",
+      customer_name: "ลูกค้าตัวอย่าง",
+      speaker: "page",
+      message_text: "ข้อความทดสอบ",
+    };
+    const [withStatus] = mapChatRowsToThreads([{ ...baseRow, delivery_status: "🔥SENT" }]);
+    const [withoutStatus] = mapChatRowsToThreads([baseRow]);
+    expect(withStatus.delivery_status).toBe("🔥SENT");
+    expect(withoutStatus.delivery_status).toBeNull();
   });
 
   it("uses message_text for bubbles and preserves latest customer/page text independently", () => {

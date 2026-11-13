@@ -77,23 +77,9 @@ export const CHAT_CUSTOMER_TABLE = "Cust_Chat⭐BINARY_xXx_STAR";
 export const CHAT_PAGE_TABLE = "Pg_Chat⭐BINARY_xXx_STAR";
 export const CHAT_MATRIX_VIEW = "🌠BINARY_xXx_MATRIX";
 export const CHAT_PAGE_TOKEN_TABLE = "🌈MILKY_WAY_xXx_TOKEN _PAGE";
-export const CHAT_MATRIX_READ_COLUMNS = [
-  "id", "chat_link_key", "page_id", "page_name", "portal_key", "assigned_agent", "assigned_hashtag",
-  "conversation_id", "thread_id", "customer_id", "customer_name", "recipient_id", "recipient_name", "message_id",
-  "speaker", "is_sent", "time", "time_th", "message_time_display", "created_at", "has_attachment", "attachment_type",
-  "attachment_url", "attachment_urls", "attachments_raw", "sticker_url", "shares_link", "chat_age_hours",
-  "is_within_24h", "can_send_standard", "is_24h_window_valid", "messaging_tag_required", "dedupe_key", "sync_status",
-  "customer_chat_age_hours", "send_facebook_route", "occurred_at", "message_text", "drakside_tracking_message",
-  "tracking_number", "parcel_status_emoji", "facebook_tracking_message", "upsert_key", "order_number",
-  "order_number_display", "order_time_display", "customer_latest_message", "customer_message_time_th",
-  "page_latest_message", "page_message_time_th", "order_time", "cod_amount", "phone", "pager_message_time_th",
-  "time_slot_label",
-  "manus_for_packer", "facebook_name", "shipping_carrier",
-  "delivery_status",
-] as const;
 function chatReadPath(filter: ChatReadFilter = {}) {
   const query = new URLSearchParams();
-  query.set("select", CHAT_MATRIX_READ_COLUMNS.join(","));
+  query.set("select", "*");
   query.set("occurred_at", `gte.${new Date(Date.now() - CHAT_READ_WINDOW_MS).toISOString()}`);
   query.set("order", "occurred_at.desc");
   query.set("limit", "10000");
