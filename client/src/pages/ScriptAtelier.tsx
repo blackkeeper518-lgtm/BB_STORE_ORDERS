@@ -63,7 +63,6 @@ type ImageSelection = {
 const SCRIPT_TABLE = "sales_script_cards";
 const IMAGE_BUCKET = "sales-script-images";
 const SCRIPT_COLUMNS = "id,title,subtitle,script_text,ai_context,ai_instruction,blocks_json,status,version,updated_at,created_at";
-const SCRIPT_ATELIER_SUPABASE_URL = "https://efieodrwkmpcxftnlaqx.supabase.co";
 
 const emptyDraft = (): ScriptCard => ({
   id: "",
@@ -121,11 +120,11 @@ export default function ScriptAtelier() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [uncommittedImagePaths, setUncommittedImagePaths] = useState<string[]>([]);
   const [pendingDeletePaths, setPendingDeletePaths] = useState<string[]>([]);
-  const api = getSupabase("tracking", SCRIPT_ATELIER_SUPABASE_URL);
+  const api = getSupabase("vault");
 
   const load = async () => {
     if (!api) {
-      setError("ยังไม่พบ Anon/Publishable Key ของ Supabase efieodrwkmpcxftnlaqx: ตั้งค่า VITE_TRACKING_SUPABASE_ANON_KEY ใน Render ด้วย public anon/publishable key ของโปรเจกต์นี้ (ห้ามใช้ service_role)");
+      setError("ยังไม่พบ Private Vault connection: ไปที่ Secret Gallery → ROOM 04 · PRIVATE VAULT แล้วกรอก URL กับ Anon/Publishable Key (ห้ามใช้ service_role)");
       setLoading(false);
       return;
     }
