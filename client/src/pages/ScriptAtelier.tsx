@@ -117,6 +117,7 @@ export default function ScriptAtelier() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const [uncommittedImagePaths, setUncommittedImagePaths] = useState<string[]>([]);
   const [pendingDeletePaths, setPendingDeletePaths] = useState<string[]>([]);
@@ -182,6 +183,7 @@ export default function ScriptAtelier() {
     setUncommittedImagePaths([]);
     setPendingDeletePaths([]);
     setImageSelection(null);
+    setImageUrl("");
     setMessage("");
     setError("");
     setEditorOpen(true);
@@ -341,6 +343,21 @@ export default function ScriptAtelier() {
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
     void uploadImages(files);
+  };
+
+  const addImageFromUrl = () => {
+    const url = imageUrl.trim();
+    if (!/^https?:\/\//i.test(url)) {
+      setError("ใส่ลิงก์ภาพที่ขึ้นต้นด้วย http:// หรือ https://");
+      return;
+    }
+    setDraft((current) => ({
+      ...current,
+      blocks_json: [...current.blocks_json, { type: "image", url, caption: "ภาพจากลิงก์ภายนอก" }],
+    }));
+    setImageUrl("");
+    setError("");
+    setMessage("เพิ่มภาพจากลิงก์แล้ว · กดบันทึกการ์ดเพื่อเก็บรายการ");
   };
 
   const openImageDrawer = (title: string, images: ScriptBlock[], index = 0) => {
@@ -577,6 +594,10 @@ export default function ScriptAtelier() {
                 <Button type="button" variant="outline" disabled={saving} onClick={() => fileRef.current?.click()} className="border-cyan-300/25 text-cyan-100">
                   <ImagePlus className="h-4 w-4" /> เลือกภาพ
                 </Button>
+              </div>
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                <Input value={imageUrl} onChange={(event) => setImageUrl(event.target.value)} placeholder="หรือวางลิงก์ภาพ Google Drive / CDN ที่เปิดสาธารณะ" className="border-cyan-300/20 bg-black/25 text-xs text-white placeholder:text-white/30" />
+                <Button type="button" variant="outline" disabled={!imageUrl.trim() || saving} onClick={addImageFromUrl} className="shrink-0 border-emerald-300/25 text-emerald-100">เพิ่มภาพจากลิงก์</Button>
               </div>
               {draft.blocks_json.length > 0 && (
                 <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
