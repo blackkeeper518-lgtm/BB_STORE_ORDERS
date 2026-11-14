@@ -104,7 +104,7 @@ describe("ChatHub read contract v5", () => {
       page_name: "เจ๊บี 🅱🅱",
       thread_id: "thread-1",
       customer_name: "ลูกค้าตัวอย่าง",
-      speaker: "page",
+      speaker: "customer",
       message_text: "ข้อความทดสอบ",
     };
     const [withStatus] = mapChatRowsToThreads([{ ...baseRow, delivery_status: "🔥SENT" }]);
@@ -177,6 +177,18 @@ describe("ChatHub read contract v5", () => {
     expect(threads).toEqual([]);
   });
 
+  it("does not create a room from page-only rows", () => {
+    const threads = mapChatRowsToThreads([{
+      _source_table: CHAT_PAGE_TABLE,
+      page_id: "page-only",
+      thread_id: "thread-only",
+      message_text: "ข้อความที่เพจส่งออกไป",
+      occurred_at: "2026-11-14T04:50:06.000Z",
+    }]);
+
+    expect(threads).toEqual([]);
+  });
+
   it("preserves the existing order-slot and tracking fields for ChatHub filters", () => {
     const [thread] = mapChatRowsToThreads([{
       page_id: "page-1",
@@ -189,6 +201,11 @@ describe("ChatHub read contract v5", () => {
       tracking_number: "TH123456789",
       tracking_created_at: "2026-11-12T00:00:00.000Z",
       parcel_status_emoji: "🔴",
+    }, {
+      page_id: "page-1",
+      thread_id: "thread-1",
+      speaker: "customer",
+      message_text: "ลูกค้าทักเข้ามา",
     }]);
 
     expect(thread.timeSlotLabel).toContain("ออเดอร์รอบบ่าย");

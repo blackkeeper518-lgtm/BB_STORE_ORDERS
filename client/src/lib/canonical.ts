@@ -678,6 +678,11 @@ function chatCustomerNameCandidate(row: any) {
 export function mapChatRowsToThreads(sourceRows: any[]) {
   const rows = normalizeChatReadRows(sourceRows);
   const map = new Map<string, any>();
+  const customerThreadKeys = new Set(
+    rows
+      .filter(row => row._speaker === "customer" && (row._text || row._hasAttachment))
+      .map(row => `${String(row.page_id ?? "").trim()}:${String(row._thread ?? "").trim()}`),
+  );
   for (const row of rows) {
     const pageId = String(row.page_id ?? "").trim();
     const threadId = String(row._thread ?? "").trim();
@@ -751,7 +756,7 @@ export function mapChatRowsToThreads(sourceRows: any[]) {
 
     map.set(key, current);
   }
-  return Array.from(map.values()).map(({ _customerNamePriority, _searchTokens, ...thread }) => ({
+  return Array.from(map.values()).filter(thread => customerThreadKeys.has(thread.key)).map(({ _customerNamePriority, _searchTokens, ...thread }) => ({
     ...thread,
     customerPhone: thread.phone || thread.customerPhone || null,
     latestOrderNumber: thread.order_number_display || thread.order_number || "",
