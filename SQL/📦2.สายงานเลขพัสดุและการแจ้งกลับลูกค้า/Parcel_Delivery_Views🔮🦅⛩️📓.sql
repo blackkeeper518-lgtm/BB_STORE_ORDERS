@@ -18,7 +18,7 @@ select
   p.address,
   p.cod_amount,
   null::text as delivery_status,
-  null::timestamptz as sent_at,
+  null::text as sent_at,
   ord.parcel_status_emoji,
   ord.upsert_key
 from public.parcels p
@@ -30,7 +30,7 @@ join lateral (
     o.upsert_key,
     o.order_time,
     o.updated_at
-  from public."🧿BB_xXx_ORDERCONTROL" o
+  from public."🧿ST_xXx_ORDERCONTROL" o
   where (
     regexp_replace(coalesce(o.phone, ''), '[^0-9]', '', 'g') <> ''
     and regexp_replace(coalesce(p.phone_number, ''), '[^0-9]', '', 'g') <> ''
@@ -59,6 +59,7 @@ where nullif(btrim(p.tracking_number), '') is not null
     nullif(btrim(p.phone_number), '') is not null
     or nullif(btrim(p.order_phone), '') is not null
   );
+  
 
 -- 2. ROGUE · คิวพัสดุรอส่งเลข
 create or replace view public."🦅ROGUE_xXx_SHIPPINGz" as
@@ -250,7 +251,7 @@ select
   ord.sku,
   ord.manus_for_packer,
   ord.telegram_copy_text,
-  ord.carton_count,
+  ord.carton_count,a
   ord.created_at,
   ord.updated_at,
   ord.assigned_agent,

@@ -1,0 +1,121 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "useCustomSchema": true,
+        "operation": "update",
+        "tableId": "Cust_Chat⭐BINARY_xXx_STAR",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "chat_link_key",
+              "condition": "eq",
+              "keyValue": "={{ $json.chat_link_key }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldValue": "={{ $json.upsert_key }}"
+            },
+            {
+              "fieldValue": "={{ $json.chat_link_key }}"
+            },
+            {
+              "fieldValue": "={{ $json.page_id }}"
+            },
+            {
+              "fieldValue": "={{ $json.thread_id || $json.threadId || null }}"
+            },
+            {
+              "fieldValue": "={{ $json.order_number }}"
+            },
+            {
+              "fieldValue": "={{ $json.order_time }}"
+            },
+            {
+              "fieldValue": "={{ $json.order_time_display }}"
+            },
+            {
+              "fieldValue": "={{ $json.cod_amount == null ? null : String($json.cod_amount) }}"
+            },
+            {
+              "fieldValue": "={{ $json.page_name }}"
+            },
+            {
+              "fieldValue": "={{ $json.customer_name }}"
+            },
+            {
+              "fieldValue": "={{ $json.phone || $json.extracted_phone || null }}"
+            },
+            {
+              "fieldValue": "={{ $json.recipient_id }}"
+            },
+            {
+              "fieldValue": "={{ $json.pager_message_time_th }}"
+            },
+            {
+              "fieldValue": "={{ $json.page_latest_message }}"
+            },
+            {
+              "fieldValue": "={{ $json.customer_message_time_th }}"
+            },
+            {
+              "fieldValue": "={{ $json.customer_latest_message }}"
+            },
+            {
+              "fieldValue": "={{ $json.message_id }}"
+            },
+            {
+              "fieldValue": "={{ $json.manus_for_packer }}"
+            },
+            {
+              "fieldValue": "={{ $json.facebook_name }}"
+            },
+            {
+              "fieldValue": "={{ $json.shipping_carrier }}"
+            },
+            {
+              "fieldValue": "={{ $json.tracking_number || $json.admin_tracking_number || null }}"
+            },
+            {
+              "fieldValue": "={{ $json.facebook_tracking_message }}"
+            },
+            {
+              "fieldValue": "={{ $json.drakside_tracking_message }}"
+            },
+            {
+              "fieldValue": "={{ $json.delivery_status }}"
+            },
+            {
+              "fieldValue": "={{ $now.toISO() }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        912,
+        2784
+      ],
+      "id": "1dd8a3fe-a2d6-473a-ab22-f6b3b1c20af8",
+      "name": "🧧FB_TRACKING_TODAY7",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "wRnRtXyL7qPLhG8N",
+          "name": "👑BB_CHAT"
+        }
+      },
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {},
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "f4fcccb61c84d5d75854e90735e6c1d4dc7f96a459bba4b39bf25fd07d0f4e26"
+  }
+}
