@@ -128,6 +128,11 @@ export default function SecretGallery() {
   const [parcelKey, setParcelKey] = useState(parcelConnection?.anonKey || "");
   const [parcelMessage, setParcelMessage] = useState(parcelConnection ? "ตั้งค่าไว้ในเครื่องนี้แล้ว" : "");
   const [parcelBusy, setParcelBusy] = useState(false);
+  const vaultConnection = getSupabaseConfig(camp, "vault");
+  const [vaultUrl, setVaultUrl] = useState(vaultConnection?.url || "");
+  const [vaultKey, setVaultKey] = useState(vaultConnection?.anonKey || "");
+  const [vaultMessage, setVaultMessage] = useState(vaultConnection ? "ตั้งค่าไว้ในเครื่องนี้แล้ว" : "");
+  const [vaultBusy, setVaultBusy] = useState(false);
   const [docs, setDocs] = useState<VaultDoc[]>(() => readLocal(DOCS_KEY, []));
   const [images, setImages] = useState<GalleryItem[]>(() =>
     readLocal(IMAGES_KEY, [])
@@ -308,6 +313,33 @@ export default function SecretGallery() {
     setUrl("");
     setKey("");
     setMessage("ล้าง connection Parcel แล้ว · จะ fallback ไป Tracking เดิม");
+  };
+  const saveVaultConnection = async () => {
+    setVaultBusy(true);
+    setVaultMessage("");
+    try {
+      const url = vaultUrl.trim().replace(/\/$/, "");
+      const anonKey = vaultKey.trim();
+      if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url)) throw new Error("URL โปรเจกต์ Private Vault ไม่ถูกต้อง");
+      if (!anonKey) throw new Error("กรุณาใส่ Anon/Publishable Key ของ Private Vault");
+      if (/service_role|secret/i.test(anonKey)) throw new Error("ห้ามใส่ service-role หรือ secret key ในหน้าเว็บ");
+      saveSupabaseConfig({ url, anonKey }, camp, "vault");
+      const api = getSupabase("vault");
+      if (!api) throw new Error("สร้าง Private Vault Supabase client ไม่สำเร็จ");
+      const { error: authError } = await api.auth.getSession();
+      if (authError) throw authError;
+      setVaultMessage("เชื่อมต่อแล้ว · ช่องนี้ยังไม่ฟิก table");
+    } catch (e) {
+      setVaultMessage(e instanceof Error ? e.message : String(e));
+    } finally {
+      setVaultBusy(false);
+    }
+  };
+  const clearVaultConnection = () => {
+    clearSupabaseConfig(camp, "vault");
+    setVaultUrl("");
+    setVaultKey("");
+    setVaultMessage("ล้าง connection Private Vault แล้ว");
   };
   const login = () => {
     if (password === ROOM_PASSWORD) {
@@ -608,6 +640,23 @@ export default function SecretGallery() {
             </CardContent>
           </Card>
         </div>
+        <Card className="group project-room-card relative overflow-hidden rounded-3xl border-emerald-300/35 bg-[radial-gradient(ellipse_at_top_right,rgba(52,211,153,.2),transparent_42%),linear-gradient(135deg,rgba(5,35,34,.98),rgba(8,12,31,.96))] shadow-[0_0_34px_rgba(52,211,153,.16)] transition duration-300 hover:-translate-y-1 hover:border-emerald-200/70 hover:shadow-[0_0_50px_rgba(52,211,153,.3)]">
+          <div className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full border border-emerald-200/20 shadow-[0_0_45px_rgba(52,211,153,.35)]" />
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-sm text-emerald-100"><ImagePlus className="h-5 w-5 text-emerald-300" />ROOM 04 · PRIVATE VAULT · ASSETS</CardTitle>
+            <p className="text-xs leading-5 text-emerald-100/65">คลังภาพ สคริปต์ บทความ และข้อมูลการตลาด · ช่องนี้มีไว้เชื่อมโปรเจกต์เท่านั้น ไม่ฟิกชื่อตาราง</p>
+          </CardHeader>
+          <CardContent className="grid gap-3 md:grid-cols-2">
+            <label className="grid gap-1 text-[11px] text-emerald-100/70">PRIVATE VAULT SUPABASE URL<Input value={vaultUrl} onChange={event => setVaultUrl(event.target.value)} placeholder="https://vault-project.supabase.co" className="border-emerald-300/25 bg-black/35 text-white placeholder:text-emerald-100/30" /></label>
+            <label className="grid gap-1 text-[11px] text-emerald-100/70">PRIVATE VAULT ANON / PUBLISHABLE KEY<Input type="password" value={vaultKey} onChange={event => setVaultKey(event.target.value)} placeholder="sb_publishable_… หรือ anon key" className="border-emerald-300/25 bg-black/35 font-mono text-white placeholder:text-emerald-100/30" /></label>
+            <div className="flex flex-wrap items-center gap-2 md:col-span-2">
+              <Button type="button" onClick={() => void saveVaultConnection()} disabled={vaultBusy} className="bg-gradient-to-r from-emerald-400 via-cyan-500 to-blue-600 text-[#06101e] shadow-[0_0_22px_rgba(52,211,153,.3)] hover:brightness-110">{vaultBusy ? "กำลังตรวจ…" : "บันทึก Private Vault"}</Button>
+              <Button type="button" variant="outline" onClick={clearVaultConnection} className="border-emerald-300/25 bg-black/20 text-emerald-100 hover:bg-emerald-300/10">ล้าง</Button>
+              <span className="text-xs text-emerald-100/70">{vaultMessage}</span>
+            </div>
+            <p className="text-[10px] leading-4 text-emerald-100/45 md:col-span-2">ใส่เฉพาะ Anon/Publishable Key · ห้ามใส่ service-role · ตารางของภาพ สคริปต์ และบทความจะกำหนดแยกในแต่ละฟีเจอร์</p>
+          </CardContent>
+        </Card>
         <Card className="neon-card rounded-3xl border-fuchsia-400/20 bg-black/20">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-sm text-white"><span className="text-lg">🔔</span> LOCAL VAULT · AUTOSAVE · เสียงแจ้งเตือนแชท</CardTitle>

@@ -268,6 +268,24 @@ describe("ChatHub read contract v5", () => {
     expect(thread.delivery_status).toBe("🔥SENT");
   });
 
+  it("uses customer_latest_message when the customer source row has no message_text", () => {
+    const [message] = mapChatRowsToMessages([{
+      _source_table: CHAT_CUSTOMER_TABLE,
+      page_id: "page-1",
+      thread_id: "thread-1",
+      speaker: "CUSTOMER",
+      facebook_name: "ลูกค้าตัวอย่าง",
+      message_text: null,
+      customer_latest_message: "ลูกค้าทักมาก่อน ขอเช็กค่าส่งหน่อยค่ะ",
+      page_latest_message: "Your AI agent transferred this chat to you.",
+      occurred_at: "2026-11-13T08:00:00.000Z",
+    }]);
+
+    expect(message.senderType).toBe("customer");
+    expect(message.direction).toBe("inbound");
+    expect(message.text).toBe("ลูกค้าทักมาก่อน ขอเช็กค่าส่งหน่อยค่ะ");
+  });
+
   it("trusts the user-defined speaker field when it differs from Matrix source side", () => {
     const [message] = mapChatRowsToMessages([{
       _source_table: CHAT_PAGE_TABLE,

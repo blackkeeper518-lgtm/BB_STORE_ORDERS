@@ -15,8 +15,9 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 const CONFIG_KEY = "bb-supabase-config";
 const TRACKING_CONFIG_KEY = "bb-tracking-supabase-config";
 const PARCEL_CONFIG_KEY = "bb-parcel-supabase-config";
+const VAULT_CONFIG_KEY = "bb-vault-supabase-config";
 export type Camp = "BB";
-export type SupabaseProject = "main" | "tracking" | "parcel";
+export type SupabaseProject = "main" | "tracking" | "parcel" | "vault";
 const DEPLOYMENT_CAMP: Camp = "BB";
 export type SupabaseConfig = { url: string; anonKey: string; orderTable?: string };
 // Browser client ใช้เฉพาะ Anon/Publishable key; Chat ต้องผ่าน protected server route เท่านั้น
@@ -26,13 +27,16 @@ const DEPLOYMENT_TRACKING_URL = String(import.meta.env.VITE_TRACKING_SUPABASE_UR
 const DEPLOYMENT_TRACKING_ANON_KEY = String(import.meta.env.VITE_TRACKING_SUPABASE_ANON_KEY ?? "").trim();
 const DEPLOYMENT_PARCEL_URL = String(import.meta.env.VITE_PARCEL_SUPABASE_URL ?? "").trim().replace(/\/$/, "");
 const DEPLOYMENT_PARCEL_ANON_KEY = String(import.meta.env.VITE_PARCEL_SUPABASE_ANON_KEY ?? "").trim();
+const DEPLOYMENT_VAULT_URL = String(import.meta.env.VITE_VAULT_SUPABASE_URL ?? "").trim().replace(/\/$/, "");
+const DEPLOYMENT_VAULT_ANON_KEY = String(import.meta.env.VITE_VAULT_SUPABASE_ANON_KEY ?? "").trim();
 const clients: Partial<Record<SupabaseProject, SupabaseClient>> = {};
 const clientSignatures: Partial<Record<SupabaseProject, string>> = {};
 export function getActiveCamp(): Camp { return DEPLOYMENT_CAMP; }
-export function setActiveCamp(_camp: Camp) { for (const project of ["main", "tracking", "parcel"] as const) { delete clients[project]; delete clientSignatures[project]; } }
+export function setActiveCamp(_camp: Camp) { for (const project of ["main", "tracking", "parcel", "vault"] as const) { delete clients[project]; delete clientSignatures[project]; } }
 function profileKey(_camp: Camp, project: SupabaseProject) {
   if (project === "tracking") return TRACKING_CONFIG_KEY;
   if (project === "parcel") return PARCEL_CONFIG_KEY;
+  if (project === "vault") return VAULT_CONFIG_KEY;
   return CONFIG_KEY;
 }
 export function getSupabaseConfig(camp: Camp = getActiveCamp(), project: SupabaseProject = "main"): SupabaseConfig | null {
@@ -50,8 +54,8 @@ export function getSupabaseConfig(camp: Camp = getActiveCamp(), project: Supabas
       }
     }
   } catch { /* invalid local value; try deployment defaults */ }
-  const url = project === "tracking" ? DEPLOYMENT_TRACKING_URL : project === "parcel" ? DEPLOYMENT_PARCEL_URL || DEPLOYMENT_TRACKING_URL : DEPLOYMENT_SUPABASE_URL;
-  const anonKey = project === "tracking" ? DEPLOYMENT_TRACKING_ANON_KEY : project === "parcel" ? DEPLOYMENT_PARCEL_ANON_KEY || DEPLOYMENT_TRACKING_ANON_KEY : DEPLOYMENT_SUPABASE_ANON_KEY;
+  const url = project === "tracking" ? DEPLOYMENT_TRACKING_URL : project === "parcel" ? DEPLOYMENT_PARCEL_URL || DEPLOYMENT_TRACKING_URL : project === "vault" ? DEPLOYMENT_VAULT_URL : DEPLOYMENT_SUPABASE_URL;
+  const anonKey = project === "tracking" ? DEPLOYMENT_TRACKING_ANON_KEY : project === "parcel" ? DEPLOYMENT_PARCEL_ANON_KEY || DEPLOYMENT_TRACKING_ANON_KEY : project === "vault" ? DEPLOYMENT_VAULT_ANON_KEY : DEPLOYMENT_SUPABASE_ANON_KEY;
   return url && anonKey ? { url, anonKey, orderTable: project === "main" ? defaultOrderView(camp) : undefined } : null;
 }
 export function saveSupabaseConfig(config: SupabaseConfig, camp: Camp = getActiveCamp(), project: SupabaseProject = "main") {
@@ -638,8 +642,19 @@ function normalizeChatReadRows(sourceRows: any[]) {
     );
   }).map(row => {
     const isPage = row._source_table === "Pg_Chat⭐BINARY_xXx_STAR";
-    const speaker = row.speaker || (isPage ? "page" : "customer");
+    // ตารางจริงมีทั้งค่า page/customer, inbound/outbound และบางรอบเป็นตัวพิมพ์ใหญ่
+    // ถ้ามี speaker ให้เชื่อ speaker ก่อนเสมอ; ใช้ชื่อตารางเป็น fallback เท่านั้น
+    const rawSpeaker = asText(row.speaker).trim().toLowerCase();
+    const speaker = rawSpeaker
+      ? (/^(page|เพจ|admin|แอดมิน|outbound|เจ้าหน้าที่)$/i.test(rawSpeaker) ? "page" : "customer")
+      : (isPage ? "page" : "customer");
     const isPageSpeaker = speaker === "page";
+    // customer_latest_message คือข้อความแรก/ล่าสุดจากลูกค้าในแถวสรุปของ n8n
+    // บางแถวไม่มี message_text แต่มีฟิลด์นี้ จึงห้ามปล่อยให้กลายเป็น bubble ว่าง
+    const messageText = asText(row.message_text).trim()
+      || (isPageSpeaker ? asText(row.page_latest_message).trim() : asText(row.customer_latest_message).trim())
+      || asText(row.text).trim()
+      || asText(row.message).trim();
     const threadId = String(row.thread_id ?? row.threadId ?? "").trim();
     return {
       ...row,
@@ -649,7 +664,7 @@ function normalizeChatReadRows(sourceRows: any[]) {
       // ชื่อป้ายห้องมาจาก Facebook API เท่านั้น; customer_name เป็นชื่อในบิล ห้ามนำมาแทน
       _name: isPageSpeaker ? row.page_name : row.facebook_name,
       // message_text เป็นหลัก; ข้อความ tracking ขาออกใช้ facebook_tracking_message เมื่อ message_text ว่าง
-      _text: asText(row.message_text) || (isPageSpeaker ? asText(row.facebook_tracking_message) : ""),
+      _text: messageText || (isPageSpeaker ? asText(row.facebook_tracking_message).trim() : ""),
       _thread: threadId,
       _occurred: row.occurred_at || row.time,
       _hasAttachment: hasChatAttachment(row),

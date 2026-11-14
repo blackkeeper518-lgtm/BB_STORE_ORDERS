@@ -45,8 +45,8 @@ function displayMessageText(message: Record<string, any>) {
   if (text) return text;
   return imageUrls(message.attachmentsJson).length > 0 ? "ส่งรูปภาพ" : "";
 }
-function isPageTimelineLine(line: string) { return /\[\s*เพจ\s*[:：]/i.test(line); }
-function isCustomerTimelineLine(line: string) { return /\[\s*ลูกค้า\s*[:：]/i.test(line); }
+function isPageTimelineLine(line: string) { return /\[\s*เพจ\s*\]?\s*[:：]?/i.test(line); }
+function isCustomerTimelineLine(line: string) { return /\[\s*ลูกค้า\s*\]?\s*[:：]?/i.test(line); }
 function isThreadControlConflict(message: string) { return /META_THREAD_CONTROL_CONFLICT|another app|currently controlling|ควบคุมเธรด|แอพอื่นกำลังควบคุม/i.test(message); }
 function isTransientMetaInternal(message: string) { return /META_TRANSIENT_INTERNAL|2018012|code=-1/i.test(message); }
 function hasTimeSlotLabel(thread: Record<string, any>) { return Boolean(String(thread.timeSlotLabel ?? "").trim()); }
