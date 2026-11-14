@@ -304,6 +304,25 @@ describe("ChatHub read contract v5", () => {
     expect(message.text).toBe("ลูกค้าทักมาก่อน ขอเช็กค่าส่งหน่อยค่ะ");
   });
 
+  it("splits customer and page latest fields when staggered flows write one summary row", () => {
+    const messages = mapChatRowsToMessages([{
+      _source_table: CHAT_PAGE_TABLE,
+      page_id: "page-1",
+      thread_id: "thread-1",
+      message_text: null,
+      customer_latest_message: "🔥ร้อนๆมีป่าว",
+      customer_message_time_th: "14/11/2569 11:17:38",
+      page_latest_message: "รับโปรลับในแชทนะเจ้าค่ะ",
+      page_message_time_th: "14/11/2569 11:17:37",
+    }]);
+
+    expect(messages).toHaveLength(2);
+    expect(messages.map(message => [message.senderType, message.text])).toEqual([
+      ["page", "รับโปรลับในแชทนะเจ้าค่ะ"],
+      ["customer", "🔥ร้อนๆมีป่าว"],
+    ]);
+  });
+
   it("uses the source table as authority when speaker metadata is wrong", () => {
     const [message] = mapChatRowsToMessages([{
       _source_table: CHAT_CUSTOMER_TABLE,

@@ -640,7 +640,7 @@ function normalizeChatReadRows(sourceRows: any[]) {
       || asText(row?.page_latest_message).trim()
       || hasChatAttachment(row),
     );
-  }).map(row => {
+  }).flatMap(row => {
     const isPage = row._source_table === "Pg_Chat⭐BINARY_xXx_STAR";
     // สองโต๊ะต้นทางเป็น source of truth: Cust = ลูกค้า, Pg = เพจ
     // เพราะบางรอบ n8n ใส่ speaker ผิดแถวจนข้อความลูกค้าถูกตีเป็นข้อความเพจ
@@ -656,7 +656,7 @@ function normalizeChatReadRows(sourceRows: any[]) {
       || asText(row.text).trim()
       || asText(row.message).trim();
     const threadId = String(row.thread_id ?? row.threadId ?? "").trim();
-    return {
+    const base = {
       ...row,
       // เชื่อค่า speaker ที่ผู้ใช้กำหนด; ใช้ต้นทางตารางสำรองเมื่อไม่มีค่าเท่านั้น
       _speaker: speaker,
@@ -669,7 +669,18 @@ function normalizeChatReadRows(sourceRows: any[]) {
       _occurred: row.occurred_at || row.time,
       _hasAttachment: hasChatAttachment(row),
     };
-  }).sort((a, b) => new Date(a._occurred || 0).getTime() - new Date(b._occurred || 0).getTime());
+    // แถวสรุปจาก n8n อาจมี customer_latest และ page_latest อยู่พร้อมกัน
+    // เพราะ 3 Flow เขียนห่างกันเป็นรอบ ๆ จึงต้องแตกเป็น bubble แยกฝั่งเอง
+    if (!asText(row.message_text).trim() && (asText(row.customer_latest_message).trim() || asText(row.page_latest_message).trim())) {
+      const splitRows = [];
+      const customerText = asText(row.customer_latest_message).trim();
+      const pageText = asText(row.page_latest_message).trim();
+      if (customerText) splitRows.push({ ...base, _speaker: "customer", _side: "left", _name: row.facebook_name, _text: customerText, _occurred: row.customer_message_time_th || row.occurred_at || row.time });
+      if (pageText) splitRows.push({ ...base, _speaker: "page", _side: "right", _name: row.page_name, _text: pageText, _occurred: row.page_message_time_th || row.occurred_at || row.time });
+      return splitRows;
+    }
+    return [base];
+  }).sort((a, b) => (chatDateMs(a._occurred) ?? 0) - (chatDateMs(b._occurred) ?? 0));
 }
 function chatCustomerNameCandidate(row: any) {
   const value = String(row.facebook_name ?? "").trim();
