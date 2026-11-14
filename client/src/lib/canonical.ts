@@ -626,8 +626,43 @@ export async function readDailyParcels(date: string, search = "") {
   });
   return { parcels, total: parcels.length, sourceTable: "parcels", fetchedAt: new Date().toISOString() };
 }
+function chatSourceRowDedupKey(row: any) {
+  const messageId = asText(row?.message_id).trim();
+  if (messageId && !/^(null|undefined)$/i.test(messageId)) return `message:${messageId}`;
+  const dedupeKey = asText(row?.dedupe_key).trim();
+  if (dedupeKey && !/^(null|undefined)$/i.test(dedupeKey)) return `dedupe:${dedupeKey}`;
+  return "";
+}
+function dedupeChatSourceRows(sourceRows: any[]) {
+  const output: any[] = [];
+  const indexByKey = new Map<string, number>();
+  const score = (row: any) =>
+    (asText(row?.message_text ?? row?.text).trim() ? 2 : 0)
+    + (hasChatAttachment(row) ? 1 : 0)
+    + (asText(row?.occurred_at ?? row?.time).trim() ? 1 : 0);
+
+  for (const row of sourceRows) {
+    const key = chatSourceRowDedupKey(row);
+    if (!key || !indexByKey.has(key)) {
+      if (key) indexByKey.set(key, output.length);
+      output.push(row);
+      continue;
+    }
+    const index = indexByKey.get(key)!;
+    const current = output[index];
+    const preferred = score(row) > score(current) ? row : current;
+    const fallback = preferred === row ? current : row;
+    const merged = { ...fallback, ...preferred };
+    for (const [field, value] of Object.entries(fallback)) {
+      if (merged[field] == null || String(merged[field]).trim() === "") merged[field] = value;
+    }
+    merged._source_table = preferred._source_table ?? fallback._source_table;
+    output[index] = merged;
+  }
+  return output;
+}
 function normalizeChatReadRows(sourceRows: any[]) {
-  return sourceRows.filter(row => {
+  const normalizedRows = dedupeChatSourceRows(sourceRows).filter(row => {
     // ห้องจริงต้องมี page_id และ thread_id; กันแถว metadata/แถวว่างไม่ให้กลายเป็นห้อง
     const hasRoomKey = String(row?.page_id ?? "").trim() && String(row?.thread_id ?? row?.threadId ?? "").trim();
     if (!hasRoomKey) return false;
@@ -675,12 +710,13 @@ function normalizeChatReadRows(sourceRows: any[]) {
       const splitRows = [];
       const customerText = asText(row.customer_latest_message).trim();
       const pageText = asText(row.page_latest_message).trim();
-      if (customerText) splitRows.push({ ...base, _speaker: "customer", _side: "left", _name: row.facebook_name, _text: customerText, _occurred: row.customer_message_time_th || row.occurred_at || row.time, time_th: row.customer_message_time_th || row.time_th });
-      if (pageText) splitRows.push({ ...base, _speaker: "page", _side: "right", _name: row.page_name, _text: pageText, _occurred: row.page_message_time_th || row.occurred_at || row.time, time_th: row.page_message_time_th || row.time_th });
+      if (customerText) splitRows.push({ ...base, _bubble_id: `${row.id ?? row.message_id ?? row.dedupe_key ?? threadId}:customer_latest`, _speaker: "customer", _side: "left", _name: row.facebook_name, _text: customerText, _occurred: row.customer_message_time_th || row.occurred_at || row.time, time_th: row.customer_message_time_th || row.time_th });
+      if (pageText) splitRows.push({ ...base, _bubble_id: `${row.id ?? row.message_id ?? row.dedupe_key ?? threadId}:page_latest`, _speaker: "page", _side: "right", _name: row.page_name, _text: pageText, _occurred: row.page_message_time_th || row.occurred_at || row.time, time_th: row.page_message_time_th || row.time_th });
       return splitRows;
     }
     return [base];
   }).sort((a, b) => (chatDateMs(a._occurred) ?? 0) - (chatDateMs(b._occurred) ?? 0));
+  return normalizedRows;
 }
 function chatCustomerNameCandidate(row: any) {
   const value = String(row.facebook_name ?? "").trim();
@@ -777,7 +813,7 @@ export function mapChatRowsToThreads(sourceRows: any[]) {
 export function mapChatRowsToMessages(sourceRows: any[]) {
   return normalizeChatReadRows(sourceRows).map((row: any) => ({
     // บางโต๊ะแชทไม่มี id ของแถว; ห้ามปล่อย undefined ซ้ำทุก bubble
-    id: row.id ?? row.message_id ?? row.dedupe_key ?? `${row._thread}:${row._occurred}:${row._speaker}:${row._text}`,
+    id: row._bubble_id ?? row.id ?? row.message_id ?? row.dedupe_key ?? `${row._thread}:${row._occurred}:${row._speaker}:${row._text}`,
     text: row._text,
     message_text: asText(row.message_text),
     direction: row._speaker === "page" ? "outbound" : "inbound",
