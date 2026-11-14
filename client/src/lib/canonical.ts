@@ -760,7 +760,8 @@ export function mapChatRowsToThreads(sourceRows: any[]) {
 }
 export function mapChatRowsToMessages(sourceRows: any[]) {
   return normalizeChatReadRows(sourceRows).map((row: any) => ({
-    id: row.id,
+    // บางโต๊ะแชทไม่มี id ของแถว; ห้ามปล่อย undefined ซ้ำทุก bubble
+    id: row.id ?? row.message_id ?? row.dedupe_key ?? `${row._thread}:${row._occurred}:${row._speaker}:${row._text}`,
     text: row._text,
     message_text: asText(row.message_text),
     direction: row._speaker === "page" ? "outbound" : "inbound",
