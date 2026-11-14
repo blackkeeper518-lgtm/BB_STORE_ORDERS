@@ -1,4 +1,4 @@
-create view public."⛩️VOID_xXx_GATEWAYz" as
+create or replace view public."⛩️VOID_xXx_GATEWAYz" as
 select
   pulse.upsert_key,
   pulse.page_id,
@@ -110,4 +110,8 @@ where
         'COMPLETED'::text
       ]
     )
-  );
+  )
+  and strpos(
+    COALESCE(pulse.facebook_tracking_message, ''::text),
+    '📌📣'::text
+  ) = 0;

@@ -1,4 +1,4 @@
-create view public."🔮SHADOW_xXx_RECALL" as
+create or replace view public."🔮SHADOW_xXx_RECALL" as
 select
   p.id,
   ord.portal_key,
