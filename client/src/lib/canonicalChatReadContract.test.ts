@@ -314,12 +314,17 @@ describe("ChatHub read contract v5", () => {
       customer_message_time_th: "14/11/2569 11:17:38",
       page_latest_message: "รับโปรลับในแชทนะเจ้าค่ะ",
       page_message_time_th: "14/11/2569 11:17:37",
+      time_th: "14/11/2569 10:00:00",
     }]);
 
     expect(messages).toHaveLength(2);
     expect(messages.map(message => [message.senderType, message.text])).toEqual([
       ["page", "รับโปรลับในแชทนะเจ้าค่ะ"],
       ["customer", "🔥ร้อนๆมีป่าว"],
+    ]);
+    expect(messages.map(message => message.timeTh)).toEqual([
+      "14/11/2569 11:17:37",
+      "14/11/2569 11:17:38",
     ]);
   });
 

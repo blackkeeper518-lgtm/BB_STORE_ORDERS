@@ -675,8 +675,8 @@ function normalizeChatReadRows(sourceRows: any[]) {
       const splitRows = [];
       const customerText = asText(row.customer_latest_message).trim();
       const pageText = asText(row.page_latest_message).trim();
-      if (customerText) splitRows.push({ ...base, _speaker: "customer", _side: "left", _name: row.facebook_name, _text: customerText, _occurred: row.customer_message_time_th || row.occurred_at || row.time });
-      if (pageText) splitRows.push({ ...base, _speaker: "page", _side: "right", _name: row.page_name, _text: pageText, _occurred: row.page_message_time_th || row.occurred_at || row.time });
+      if (customerText) splitRows.push({ ...base, _speaker: "customer", _side: "left", _name: row.facebook_name, _text: customerText, _occurred: row.customer_message_time_th || row.occurred_at || row.time, time_th: row.customer_message_time_th || row.time_th });
+      if (pageText) splitRows.push({ ...base, _speaker: "page", _side: "right", _name: row.page_name, _text: pageText, _occurred: row.page_message_time_th || row.occurred_at || row.time, time_th: row.page_message_time_th || row.time_th });
       return splitRows;
     }
     return [base];
