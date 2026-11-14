@@ -82,10 +82,10 @@ const emptyDraft = (): ScriptCard => ({
 function errorText(error: unknown) {
   const message = String((error as any)?.message ?? error ?? "เกิดข้อผิดพลาด");
   if (/PGRST205|42P01|sales_script_cards.*(schema cache|does not exist|not found)|(schema cache|does not exist|not found).*sales_script_cards/i.test(message)) {
-    return "ไม่พบตาราง sales_script_cards ใน Supabase efieodrwkmpcxftnlaqx ตรวจว่าได้รัน sql/20261106_script_atelier.sql ในโปรเจกต์นี้แล้ว";
+    return "ไม่พบตาราง sales_script_cards ใน Supabase ตรวจว่าได้รัน sql/20261114_private_vault.sql ในโปรเจกต์นี้แล้ว";
   }
   if (/bucket.*sales-script-images|sales-script-images.*(not found|does not exist)/i.test(message)) {
-    return "ไม่พบคลังภาพ sales-script-images ใน Supabase efieodrwkmpcxftnlaqx ตรวจ migration ของ Script Atelier";
+    return "ไม่พบคลังภาพ sales-script-images ใน Supabase ตรวจว่าได้รัน sql/20261114_private_vault.sql ในโปรเจกต์นี้แล้ว";
   }
   return message;
 }

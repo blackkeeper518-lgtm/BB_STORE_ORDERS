@@ -328,7 +328,7 @@ export default function SecretGallery() {
       if (!api) throw new Error("สร้าง Private Vault Supabase client ไม่สำเร็จ");
       const { error: authError } = await api.auth.getSession();
       if (authError) throw authError;
-      setVaultMessage("เชื่อมต่อแล้ว · ช่องนี้ยังไม่ฟิก table");
+      setVaultMessage("เชื่อมต่อแล้ว · ใช้ sales_script_cards + sales-script-images");
     } catch (e) {
       setVaultMessage(e instanceof Error ? e.message : String(e));
     } finally {
@@ -644,7 +644,7 @@ export default function SecretGallery() {
           <div className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full border border-emerald-200/20 shadow-[0_0_45px_rgba(52,211,153,.35)]" />
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-sm text-emerald-100"><ImagePlus className="h-5 w-5 text-emerald-300" />ROOM 04 · PRIVATE VAULT · ASSETS</CardTitle>
-            <p className="text-xs leading-5 text-emerald-100/65">คลังภาพ สคริปต์ บทความ และข้อมูลการตลาด · ช่องนี้มีไว้เชื่อมโปรเจกต์เท่านั้น ไม่ฟิกชื่อตาราง</p>
+            <p className="text-xs leading-5 text-emerald-100/65">คลังภาพ สคริปต์ บทความ และข้อมูลการตลาด · ล็อกใช้โต๊ะ <span className="font-mono text-emerald-200">sales_script_cards</span> และ bucket <span className="font-mono text-emerald-200">sales-script-images</span> ตายตัว</p>
           </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-2">
             <label className="grid gap-1 text-[11px] text-emerald-100/70">PRIVATE VAULT SUPABASE URL<Input value={vaultUrl} onChange={event => setVaultUrl(event.target.value)} placeholder="https://vault-project.supabase.co" className="border-emerald-300/25 bg-black/35 text-white placeholder:text-emerald-100/30" /></label>
