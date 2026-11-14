@@ -77,20 +77,21 @@ export const CHAT_CUSTOMER_TABLE = "Cust_Chat⭐BINARY_xXx_STAR";
 export const CHAT_PAGE_TABLE = "Pg_Chat⭐BINARY_xXx_STAR";
 export const CHAT_MATRIX_VIEW = "🌠BINARY_xXx_MATRIX";
 export const CHAT_PAGE_TOKEN_TABLE = "🌈MILKY_WAY_xXx_TOKEN _PAGE";
-function chatReadPath(table: string, filter: ChatReadFilter = {}) {
+function chatReadPath(table: string, filter: ChatReadFilter = {}, history = false) {
   const query = new URLSearchParams();
   query.set("select", "*");
-  query.set("occurred_at", `gte.${new Date(Date.now() - CHAT_READ_WINDOW_MS).toISOString()}`);
+  // รายการห้องใช้ recent window เพื่อลดภาระ แต่ห้องที่เปิดอยู่ต้องเห็นประวัติทั้ง thread
+  if (!history) query.set("occurred_at", `gte.${new Date(Date.now() - CHAT_READ_WINDOW_MS).toISOString()}`);
   query.set("order", "occurred_at.desc");
   query.set("limit", "10000");
   if (filter.pageId) query.set("page_id", `eq.${filter.pageId}`);
   if (filter.threadId) query.set("thread_id", `eq.${filter.threadId}`);
   return `${encodeURIComponent(table)}?${query.toString()}`;
 }
-async function fetchChatRows(filter: ChatReadFilter = {}, credentials?: ChatSupabaseCredentials) {
+async function fetchChatRows(filter: ChatReadFilter = {}, credentials?: ChatSupabaseCredentials, history = false) {
   const [customerRows, pageRows] = await Promise.all([
-    supabaseGet<Array<Record<string, unknown>>>(chatReadPath(CHAT_CUSTOMER_TABLE, filter), "chat", credentials),
-    supabaseGet<Array<Record<string, unknown>>>(chatReadPath(CHAT_PAGE_TABLE, filter), "chat", credentials),
+    supabaseGet<Array<Record<string, unknown>>>(chatReadPath(CHAT_CUSTOMER_TABLE, filter, history), "chat", credentials),
+    supabaseGet<Array<Record<string, unknown>>>(chatReadPath(CHAT_PAGE_TABLE, filter, history), "chat", credentials),
   ]);
   return [
     ...customerRows.map(row => ({ ...row, _source_table: CHAT_CUSTOMER_TABLE })),
@@ -101,7 +102,7 @@ export async function fetchChatThreadRows(credentials?: ChatSupabaseCredentials)
   return fetchChatRows({}, credentials);
 }
 export async function fetchChatMessageRows(input: { pageId: string; threadId: string }, credentials?: ChatSupabaseCredentials) {
-  return fetchChatRows({ pageId: input.pageId, threadId: input.threadId }, credentials);
+  return fetchChatRows({ pageId: input.pageId, threadId: input.threadId }, credentials, true);
 }
 const CHAT_CONNECTION_CHECKS = [
   { name: CHAT_CUSTOMER_TABLE, columns: "id,page_id,thread_id,message_text,phone" },

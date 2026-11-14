@@ -76,6 +76,7 @@ describe("ChatHub read contract v5", () => {
       expect(url.searchParams.get("page_id")).toBe("eq.page-1");
       expect(url.searchParams.get("thread_id")).toBe("eq.thread-1");
       expect(url.searchParams.get("select")).toBe("*");
+      expect(url.searchParams.has("occurred_at")).toBe(false);
     }
   });
 
