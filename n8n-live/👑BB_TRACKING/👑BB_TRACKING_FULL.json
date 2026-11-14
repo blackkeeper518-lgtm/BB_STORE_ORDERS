@@ -2,13 +2,14 @@
   "nodes": [
     {
       "parameters": {
+        "batchSize": 3,
         "options": {}
       },
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        -6720,
-        7856
+        -7392,
+        14160
       ],
       "id": "5ccdb0a0-4e08-49cf-b154-53d1385523d0",
       "name": "🩸 PSYCHOLOGY"
@@ -26,8 +27,8 @@
       "type": "n8n-nodes-base.supabase",
       "typeVersion": 1,
       "position": [
-        -7616,
-        7408
+        -8512,
+        13888
       ],
       "id": "bb39bc33-e079-4fa2-8427-01f367cfbfea",
       "name": "⛩️VOID_xXx_GATEWAYz1",
@@ -37,54 +38,6 @@
           "name": "🧿BB_xXx_ORDERCONTROL"
         }
       }
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "=https://graph.facebook.com/v26.0/{{ $json.page_id }}/messages",
-        "sendQuery": true,
-        "queryParameters": {
-          "parameters": []
-        },
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "={{ 'Bearer ' + $json.access_token }}"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({\n  recipient: {\n    id: String($json.recipient_psid || $json.customer_id)\n  },\n  messaging_type: \"RESPONSE\",\n  message: {\n    text: String($json.facebook_tracking_message || \"\")\n  }\n}) }}\n",
-        "options": {
-          "timeout": 120000
-        }
-      },
-      "id": "489afcb1-164e-4184-b4e3-c96c0770f973",
-      "name": "👣LIMBO JUNCTION1",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        -6496,
-        7712
-      ],
-      "retryOnFail": false,
-      "alwaysOutputData": false,
-      "executeOnce": false
-    },
-    {
-      "parameters": {},
-      "type": "n8n-nodes-base.wait",
-      "typeVersion": 1.1,
-      "position": [
-        -6048,
-        7712
-      ],
-      "id": "6f474e85-bb09-4fee-afd8-f8660c82abff",
-      "name": "Wait",
-      "webhookId": "72367e69-6e0e-4d6a-9136-d41faa27baa7"
     },
     {
       "parameters": {
@@ -102,7 +55,7 @@
                   {
                     "id": "54a78a2c-b889-4768-97b2-2c84d2f5b6f4",
                     "leftValue": "={{ $json.parcel_status_emoji }}",
-                    "rightValue": "📌",
+                    "rightValue": "🔥SENT",
                     "operator": {
                       "type": "string",
                       "operation": "equals",
@@ -197,37 +150,11 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.4,
       "position": [
-        -6944,
-        7488
+        -7616,
+        13856
       ],
       "id": "e23f2962-a749-4b54-9343-c3423fc529c8",
       "name": "⛓️THE DEAD INTERSECTION"
-    },
-    {
-      "parameters": {
-        "jsCode": "// n8n Code node\n// Mode: Run Once for All Items\n// ============================================================\n// หน้าที่ของโหนดนี้มีแค่ 3 อย่าง\n// 1) รับ parcelStatusEmoji จากโหนดก่อนหน้า ไม่คำนวณใหม่\n// 2) ตรวจว่าเคยส่งเลขแล้วหรือยัง ถ้าเคยส่งให้ติด 📌\n// 3) คง chat_link_key เดิม เพื่อให้ Order / Chat / Parcel ใช้คีย์เดียวกัน\n//\n// ไม่มีการกรองข้อมูล\n// ไม่มีการคำนวณเวลาแชท\n// ไม่มีการคำนวณ route\n// ไม่มีการเปลี่ยน emoji อื่น\n// ============================================================\n\nfunction clean(value) {\n  return String(value ?? '').trim();\n}\n\nfunction compact(value) {\n  return clean(value).replace(/\\s+/g, '');\n}\n\nfunction extractTrackingNumber(...values) {\n  const text = values\n    .map((value) => String(value ?? ''))\n    .join('\\n');\n\n  const matches = text.match(/\\bTH[0-9A-Z]{8,24}\\b/gi) || [];\n\n  return matches.length\n    ? matches[0].toUpperCase()\n    : null;\n}\n\nfunction buildSharedChatLinkKey(row) {\n  // ใช้ค่าที่โหนดก่อนหน้าสร้างมาแล้วเป็นอันดับแรก\n  const existingKey = clean(\n    row.chat_link_key ||\n    row.chatLinkKey ||\n    ''\n  );\n\n  if (existingKey) return existingKey;\n\n  // fallback สำหรับกรณีข้อมูลยังไม่มี chat_link_key\n  const pageId = clean(row.page_id);\n  const threadId = clean(\n    row.threadId ||\n    row.thread_id ||\n    row.threadID ||\n    row.recipient_psid ||\n    row.customer_id ||\n    ''\n  );\n\n  if (!pageId || !threadId) return null;\n\n  return `${pageId}:${threadId}`;\n}\n\nconst output = [];\n\nfor (const item of $input.all()) {\n  const row = item.json ?? {};\n\n  // รับค่าอีโมจิจากโหนดหน้าเท่านั้น\n  const incomingParcelStatusEmoji = clean(\n    row.parcelStatusEmoji ??\n    row.parcel_status_emoji ??\n    ''\n  );\n\n  const pageLatestMessage = String(\n    row.page_latest_message ??\n    row.page_latest_message_text ??\n    ''\n  );\n\n  const facebookTrackingMessage = String(\n    row.facebook_tracking_message ??\n    ''\n  );\n\n  const draksideTrackingMessage = String(\n    row.drakside_tracking_message ??\n    ''\n  );\n\n  const allMessages = [\n    pageLatestMessage,\n    facebookTrackingMessage,\n    draksideTrackingMessage,\n  ].join('\\n');\n\n  const compactMessages = compact(allMessages);\n\n  const trackingNumber = extractTrackingNumber(\n    row.admin_tracking_number,\n    row.tracking_number,\n    allMessages\n  );\n\n  // ตรวจเฉพาะว่าเคยได้รับเลข/มีข้อความแจ้งเลขแล้วหรือไม่\n  const hasTrackingNotice =\n    /📌แจ้งเลขพัสดุจัดส่ง/.test(compactMessages);\n\n  const hasTrackingNumberInMessage = Boolean(\n    extractTrackingNumber(allMessages)\n  );\n\n  const alreadySent =\n    incomingParcelStatusEmoji === '📌' ||\n    Boolean(row.already_sent) ||\n    hasTrackingNotice ||\n    hasTrackingNumberInMessage;\n\n  // ถ้าเดิมมีวันเวลาอยู่แล้ว ให้คงไว้\n  // ถ้ายังไม่มีและตรวจพบว่าเคยส่ง ให้ประทับเวลาปัจจุบัน\n  const existingSentAt = clean(\n    row.already_sent_at ||\n    row.tracking_sent_at ||\n    row.facebook_tracking_sent_at ||\n    ''\n  );\n\n  const alreadySentAt = alreadySent\n    ? (existingSentAt || new Date().toISOString())\n    : null;\n\n  // เคยส่งแล้วให้ใช้ 📌\n  // ยังไม่เคยส่งให้คงค่า emoji จากโหนดก่อนหน้าแบบเดิม\n  const parcelStatusEmoji = alreadySent\n    ? '📌'\n    : incomingParcelStatusEmoji;\n\n  // คีย์กลางที่ทั้ง 3 สายต้องใช้เหมือนกัน\n  const chatLinkKey = buildSharedChatLinkKey(row);\n\n  output.push({\n    json: {\n      ...row,\n\n      // ค่าอีโมจิกลาง\n      parcelStatusEmoji,\n      parcel_status_emoji: parcelStatusEmoji,\n\n      // สถานะเคยส่งและเวลา เผื่อใช้ตรวจฉุกเฉิน\n      already_sent: alreadySent,\n      has_tracking_notice: hasTrackingNotice,\n      admin_tracking_found: Boolean(\n        row.admin_tracking_number ||\n        hasTrackingNumberInMessage\n      ),\n      admin_tracking_number:\n        row.admin_tracking_number || trackingNumber,\n      already_sent_at: alreadySentAt,\n\n      // เลขที่พบจากข้อความ ใช้ตรวจสอบเท่านั้น\n      detected_tracking_number: trackingNumber,\n\n      // คีย์กลาง Order / Chat / Parcel\n      chat_link_key: chatLinkKey,\n    },\n  });\n}\n\nreturn output;\n"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        -7392,
-        7408
-      ],
-      "id": "8e096f19-e0ce-4783-a577-f526c4157a9c",
-      "name": "⏰CUTOFF 14:00 YESTERDAY2"
-    },
-    {
-      "parameters": {
-        "options": {}
-      },
-      "type": "n8n-nodes-base.splitInBatches",
-      "typeVersion": 3,
-      "position": [
-        -6720,
-        7328
-      ],
-      "id": "161ff844-e415-4c9c-8d42-2999cb957db8",
-      "name": "🩸 PSYCHOLOGY1"
     },
     {
       "parameters": {
@@ -238,8 +165,8 @@
       "type": "n8n-nodes-base.removeDuplicates",
       "typeVersion": 2,
       "position": [
-        -7168,
-        7520
+        -7840,
+        13888
       ],
       "id": "f93a35ae-5e8a-4d51-8a86-45990cf5cc63",
       "name": "Remove Duplicates"
@@ -249,8 +176,7 @@
         "rule": {
           "interval": [
             {
-              "field": "minutes",
-              "minutesInterval": 2
+              "field": "minutes"
             }
           ]
         }
@@ -258,435 +184,29 @@
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.3,
       "position": [
-        -7840,
-        7408
+        -8736,
+        13888
       ],
       "id": "d93541f2-6ff8-4f15-b9e2-1e486811e58a",
       "name": "Schedule Trigger"
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "bed96dcf-0111-4bb6-beeb-0d0a55c87b6d",
-              "name": "access_token",
-              "value": "={{ $json.time_th }}",
-              "type": "string"
-            }
-          ]
-        },
-        "includeOtherFields": true,
-        "options": {}
+        "jsCode": "// n8n Code node\n// Mode: Run Once for All Items\n// ============================================================\n//📣 PRE-SEND LOCK · PARCEL (Full Master Code)\n// วางไว้ที่โหนดหน้าก่อนเข้ากระบวนการคัดแยกเส้นทาง\n// \n// หลักการ:\n// - ไม่คำนวณแบบบิดเบี้ยว เชื่อตามเวลาสากลจริงบดคู่กับปัจจุบัน\n// - บิลใหม่ดั้งเดิมใช้หัวข้อความ 📌 เพื่อลงตารางบันทึกตามหลังแชทได้ถูกต้อง\n// - โหนดหน้าดักสกัด 📌📣 แจ้งเลขพัสดุจัดส่ง เพื่อป้องกันบิลวนลูปยิงซ้ำหาลูกค้า\n// - ส่ง 🟢 และ 🟡 เข้า ALLOW_FB_SEND เพื่อให้แอดมินตามจิ้มส่งมือหน้าเว็บได้สะดวก\n// ============================================================\n\nconst MIN_DAYS_BACK = 3;\n\nfunction clean(value) {\n  return String(value ?? '')\n    .replace(/\\u0000/g, '')\n    .trim();\n}\n\nfunction cleanInline(value) {\n  return clean(value).replace(/\\s+/g, ' ');\n}\n\nfunction parseDateValue(value) {\n  const raw = clean(value);\n  if (!raw) return null;\n\n  // แปลงวันที่ไทย DD/MM/YY หรือ DD/MM/YYYY\n  const thaiMatch = raw.match(\n    /^(\\d{1,2})[/-](\\d{1,2})[/-](\\d{2,4})(?:\\s+(\\d{1,2}):(\\d{2})(?::(\\d{2}))?)?$/\n  );\n\n  if (thaiMatch) {\n    let [, dd, mm, yyyy, hh = '0', mi = '0', ss = '0'] = thaiMatch;\n    let year = Number(yyyy);\n\n    if (year < 100) year += 2500;\n    if (year > 2400) year -= 543;\n\n    const utc = Date.UTC(\n      year,\n      Number(mm) - 1,\n      Number(dd),\n      Number(hh) - 7,\n      Number(mi),\n      Number(ss)\n    );\n\n    return Number.isFinite(utc) ? utc : null;\n  }\n\n  // ISO / timestamp มาตรฐาน เฟสบุ๊คสากล\n  const direct = Date.parse(raw);\n  if (Number.isFinite(direct)) return direct;\n\n  const match = raw.match(\n    /^(\\d{1,2})[/-](\\d{1,2})[/-](\\d{2,4})(?:\\s+(\\d{1,2}):(\\d{2})(?::(\\d{2}))?)?$/\n  );\n\n  if (!match) return null;\n\n  let [, dd, mm, yyyy, hh = '0', mi = '0', ss = '0'] = match;\n  let year = Number(yyyy);\n\n  if (year < 100) year += 2500;\n  if (year > 2400) year -= 543;\n\n  const utc = Date.UTC(\n    year,\n    Number(mm) - 1,\n    Number(dd),\n    Number(hh) - 7,\n    Number(mi),\n    Number(ss)\n  );\n\n  return Number.isFinite(utc) ? utc : null;\n}\n\n// 🎯 ฟังก์ชันเช็กเวลาแชทจริงนาฬิกาโลก: ไม่โดนตารางบันทึกหลอกหัวทิ่ม\nfunction getRealParcelStatusEmoji(row) {\n  const facebookTimeRaw = clean(row.customer_message_time_th || row.occurred_at || row.customer_message_time_utc);\n  \n  if (!facebookTimeRaw) {\n    const currentEmoji = clean(row.parcel_status_emoji);\n    return (currentEmoji && currentEmoji !== 'null' && currentEmoji !== '') ? currentEmoji : '🟢';\n  }\n\n  let messageMs = parseDateValue(facebookTimeRaw);\n  if (!Number.isFinite(messageMs)) {\n    messageMs = Date.parse(facebookTimeRaw);\n  }\n\n  if (!Number.isFinite(messageMs)) return '🟢';\n\n  // คำนวณอายุชั่วโมงเทียบเวลาปัจจุบันเซิร์ฟเวอร์แบบวินาทีต่อวินาที\n  const ageHours = (Date.now() - messageMs) / (60 * 60 * 1000);\n  if (!Number.isFinite(ageHours) || ageHours < 0) return '🟢';\n\n  if (ageHours < 24) return '🟢'; // แชทใหม่ 24 ชม. แท้\n  if (ageHours < 48) return '🟡'; // แชทค้างข้ามวัน เอาสีเหลืองไปโชว์ประดับหน้าเว็บส่ง gate\n  return '🔴'; // ดองเกิน 48 ชม.\n}\n\nfunction normalizeTracking(value) {\n  return clean(value)\n    .toUpperCase()\n    .replace(/[^0-9A-Z]/g, '');\n}\n\nfunction extractCarrier(text) {\n  const value = String(text ?? '');\n\n  if (/FLASH\\s*EXPRESS|แฟลช\\s*เอ็กซ์เพรส|แฟลช/i.test(value)) {\n    return 'FLASH EXPRESS';\n  }\n  if (/J\\s*&?\\s*T|เจแอนด์ที/i.test(value)) {\n    return 'J&T';\n  }\n  if (/KERRY|เคอรี่/i.test(value)) {\n    return 'KERRY';\n  }\n  if (/BEST\\s*EXPRESS|เบสท์/i.test(value)) {\n    return 'BEST EXPRESS';\n  }\n  if (/ไปรษณีย์ไทย|THAILAND\\s*POST/i.test(value)) {\n    return 'THAILAND POST';\n  }\n\n  return null;\n}\n\n// 🚀 โหนดยอดนักสืบ: ดักตรวจสอบประวัติแชทหาเครื่องหมาย 📌📣 ส่งซ้ำ\nfunction extractAdminTracking(row) {\n  const pageLatestMessage = String(\n    row.page_latest_message ??\n    row.page_latest_message_text ??\n    row.last_page_message ??\n    row.lastPageMessage ??\n    ''\n  );\n\n  const facebookTrackingMessage = String(row.facebook_tracking_message ?? '');\n  const draksideTrackingMessage = String(row.drakside_tracking_message ?? '');\n  \n  const combinedMessage = [\n    pageLatestMessage,\n    facebookTrackingMessage,\n    draksideTrackingMessage,\n  ].join('\\n');\n\n  const trackingMatches = combinedMessage.match(\n    /\\bTH[0-9A-Z]{8,24}\\b/gi\n  ) || [];\n\n  const adminTrackingNumber = trackingMatches.length\n    ? normalizeTracking(trackingMatches[0])\n    : null;\n\n  // 🎯 กฎเหล็กสัจจะโหนดหน้า: ถ้าเจอ 📌📣 ในแชท แปลว่าเคยผ่านท่อยิงจริงออกไปหาลูกค้าแล้ว สกัดด่วน!\n  const hasTrackingMarker = (message) =>\n    /📌\\s*📣\\s*แจ้งเลขพัสดุจัดส่ง/u.test(\n      String(message ?? '')\n    );\n    \n  const hasPageTrackingNotice = hasTrackingMarker(pageLatestMessage);\n  const hasFacebookTrackingNotice = hasTrackingMarker(facebookTrackingMessage);\n  const hasDraksideTrackingNotice = hasTrackingMarker(draksideTrackingMessage);\n  \n  const hasTrackingNotice =\n    hasPageTrackingNotice ||\n    hasFacebookTrackingNotice ||\n    hasDraksideTrackingNotice;\n    \n  const sentStatus = [\n    row.delivery_status,\n    row.facebook_tracking_status,\n    row.parcel_delivery_status,\n  ]\n    .map(value => clean(value).toUpperCase())\n    .some(value => ['📌📣', '🔥SENT','⚡SENT', 'SENT', 'SUCCESS', 'COMPLETED', 'DELIVERED', 'SENT_TO_TELEGRAM'].includes(value));\n\n  const adminTrackingFound = Boolean(adminTrackingNumber);\n\n  return {\n    admin_tracking_number: adminTrackingNumber,\n    admin_tracking_carrier: extractCarrier(combinedMessage),\n    admin_tracking_found: adminTrackingFound,\n    admin_tracking_source: adminTrackingFound ? 'ADMIN_MESSAGE_TH_PREFIX' : null,\n    has_tracking_notice: hasTrackingNotice,\n    // สกัดกั้นด้วยตัวแปรมาร์กเกอร์ส่งจริง 📌📣 เท่านั้น \n    already_sent: hasTrackingNotice || sentStatus,\n    already_sent_source: hasPageTrackingNotice\n      ? 'PAGE_LATEST_MESSAGE_TRACKING_MARKER'\n      : hasFacebookTrackingNotice\n        ? 'FACEBOOK_TRACKING_MESSAGE_MARKER'\n        : hasDraksideTrackingNotice\n          ? 'DRAKSIDE_TRACKING_MESSAGE_MARKER'\n      : sentStatus\n        ? 'DELIVERY_STATUS'\n        : null,\n  };\n}\n\nfunction getRecipientName(row) {\n  return cleanInline(\n    row.recipient_name ||\n    row.customer_name ||\n    row.facebook_name ||\n    row.flash_consignee ||\n    row.consignee ||\n    ''\n  ).replace(/^[👤📱\\s]+|[👤📱\\s]+$/gu, '').trim();\n}\n\nfunction routeFromEmoji(row, alreadySent, hasBlockingDataError) {\n  const emoji = clean(row.parcel_status_emoji);\n\n  if (alreadySent) {\n    return {\n      parcel_status_emoji: emoji,\n      bkk_cutoff_route: 'ALREADY_SENT_SAVE_ONLY',\n      route_source: 'ALREADY_SENT_GUARD',\n    };\n  }\n\n  if (hasBlockingDataError) {\n    return {\n      parcel_status_emoji: emoji,\n      bkk_cutoff_route: 'BLOCK_DATA_INCOMPLETE',\n      route_source: 'CUTOFF_DATA_STATUS',\n    };\n  }\n\n  // ปล่อยผ่านไปเปิดช่องหน้าเว็บ SEND GATE ทั้งคิวสีเขียว 🟢 และสีเหลือง 🟡\n  if (emoji === '🟢' || emoji === '🟡') {\n    return {\n      parcel_status_emoji: emoji,\n      bkk_cutoff_route: 'ALLOW_FB_SEND',\n      route_source: 'parcel_status_emoji',\n    };\n  }\n\n  return {\n    parcel_status_emoji: emoji,\n    bkk_cutoff_route: 'BLOCK_FB_EXPIRED',\n    route_source: 'parcel_status_emoji',\n  };\n}\n\nfunction buildFacebookTrackingMessage({\n  trackingNumber,\n  shippingCarrier,\n  orderTimeDisplay,\n  manusForPacker,\n  codAmount,\n  pageName,\n  phoneNumber,\n}) {\n  return [\n    `📌 แจ้งเลขพัสดุจัดส่ง 🚚: ${trackingNumber || 'รอเลขพัสดุ'}`,\n    phoneNumber ? `📱 เบอร์โทร: ${phoneNumber}` : '',\n    `🙏 หนูขอแจ้งเลขให้นะคะพี่ ${shippingCarrier}`,\n    `🗓️ วันที่สั่งซื้อ: ${orderTimeDisplay}`,\n    '',\n    '📦 รายการสินค้า:',\n    manusForPacker,\n    `💰 ยอดเก็บเงินปลายทาง (COD): ${codAmount} บาท`,\n    '',\n    '⏰ (เลขพัสดุจะเริ่มเช็คสถานะการเดินทางได้ช่วงเย็นๆ นะคะพี่ 💕)',\n    '',\n    'เพื่อความสบายใจ พี่สามารถแกะก่อนรับได้นะคะ',\n    'แต่ต้องถ่ายคลิปไว้นะคะ มีปัญหาร้านเรา รับผิดชอบให้ค่ะ',\n    `ขอบพระคุณที่อุดหนุน ${pageName} ❤️ ค่ะพี่`,\n  ].filter(Boolean).join('\\n');\n}\n\n\nfunction buildDraksideTrackingMessage({\n  trackingNumber,\n  shippingCarrier,\n  orderTimeDisplay,\n  manusForPacker,\n  codAmount,\n  pageName,\n  phoneNumber,\n}) {\n  return [\n    pageName ? `╳╳ [        ${pageName}        ] ╳╳` : '',\n    phoneNumber ? `📱 เบอร์โทร : ${phoneNumber}` : '',\n    trackingNumber ? `🔢 เลขพัสดุ: ${trackingNumber}` : '',\n    orderTimeDisplay ? `🗓️ ${orderTimeDisplay}` : '',\n    manusForPacker ? `${manusForPacker}` : '',\n    codAmount ? `💰 ยอดเก็บเงินปลายทาง : ${codAmount} บาท` : '',\n    shippingCarrier ? `╳╳ [ ${shippingCarrier} ] ╳╳` : '',\n  ].filter(Boolean).join('\\n');\n}\n\n\nconst nowMs = Date.now();\nconst minAllowedTimeMs = nowMs - (\n  MIN_DAYS_BACK * 24 * 60 * 60 * 1000\n);\n\nconst seen = new Set();\nconst output = [];\n\nfor (const item of $input.all()) {\n  const row = item.json ?? {};\n  const reasons = [];\n\n  const pickupDate = clean(row.pickup_date);\n  const pickupMs = parseDateValue(pickupDate);\n\n  if (pickupMs === null) {\n    reasons.push('MISSING_OR_INVALID_PICKUP_DATE');\n  } else if (pickupMs < minAllowedTimeMs) {\n    reasons.push('OLDER_THAN_3_DAYS');\n  } else if (pickupMs > nowMs) {\n    reasons.push('FUTURE_PICKUP_DATE');\n  }\n\n  const adminTracking = extractAdminTracking(row);\n  const parcelTrackingNumber = normalizeTracking(row.tracking_number);\n  const trackingNumber = parcelTrackingNumber || adminTracking.admin_tracking_number || '';\n  const recipientName = getRecipientName(row);\n\n  if (!trackingNumber) reasons.push('MISSING_TRACKING_NUMBER');\n  if (!recipientName) reasons.push('MISSING_RECIPIENT_NAME');\n\n  const pageId = clean(row.page_id);\n  const recipientPsid = clean(row.recipient_psid || row.customer_id);\n\n  const dedupKey = [\n    pageId,\n    recipientPsid,\n    trackingNumber,\n    clean(row.phone || row.extracted_phone),\n    recipientName,\n  ].join('|');\n\n  const isDuplicateInBatch = seen.has(dedupKey);\n  if (isDuplicateInBatch) reasons.push('DUPLICATE_IN_CURRENT_BATCH');\n  seen.add(dedupKey);\n\n  const hasDataError = reasons.some((reason) => [\n    'MISSING_OR_INVALID_PICKUP_DATE',\n    'OLDER_THAN_3_DAYS',\n    'FUTURE_PICKUP_DATE',\n    'MISSING_TRACKING_NUMBER',\n    'MISSING_RECIPIENT_NAME',\n\n].includes(reason));\n// คำนวณจุดสีเรียลไทม์\nconst realParcelStatusEmoji = getRealParcelStatusEmoji(row);\nconst route = routeFromEmoji(\n{ ...row, parcel_status_emoji: realParcelStatusEmoji },\nadminTracking.already_sent,\nhasDataError\n);\nconst recordStatus = reasons.length === 0 ? 'READY' : 'KEEP_FOR_REVIEW';\nconst orderTimeDisplay = cleanInline(row.order_time_display || row.order_date || '-');\nconst manusForPacker = cleanInline(row.manus_for_packer || row.google_for_packer || row.sku || 'สินค้าทั่วไป');\nconst codAmount = cleanInline(row.cod_amount || row.final_order_price || '0');\nconst shippingCarrier = adminTracking.admin_tracking_carrier || cleanInline(row.shipping_carrier || row.carrier || 'ขนส่งตามระบบ');\nconst pageName = cleanInline(row.page_name || '');\n// ดึงข้อความเดิม หรือสร้างใหม่แบบคงหัวข้อความ 📌 ไว้ตามสเปก\nlet facebookTrackingMessage = row.facebook_tracking_message || '';\nif (!facebookTrackingMessage) {\nfacebookTrackingMessage = buildFacebookTrackingMessage({\ntrackingNumber,\nshippingCarrier,\norderTimeDisplay,\nmanusForPacker,\ncodAmount,\npageName,\n});\n}\nconst draksideTrackingMessage = row.drakside_tracking_message || buildDraksideTrackingMessage({\ntrackingNumber,\nshippingCarrier,\norderTimeDisplay,\nmanusForPacker,\ncodAmount,\npageName,\n});\noutput.push({\njson: {\n...row,\n      pickup_date: pickupDate || null,\n      tracking_number: trackingNumber || null,\n      recipient_name: recipientName || null,\n      shipping_carrier: shippingCarrier,\n      order_time_display: orderTimeDisplay,\n      manus_for_packer: manusForPacker,\n      cod_amount: codAmount,\n      cutoff_record_status: recordStatus,\n      cutoff_is_permanent: true,\n      cutoff_processed_at: new Date().toISOString(),\n      cutoff_reasons: reasons,\n      cutoff_reason_text: reasons.length ? reasons.join(' | ') : 'PASS',\n      duplicate_in_current_batch: isDuplicateInBatch,\n      admin_tracking_number: adminTracking.admin_tracking_number,\n      admin_tracking_carrier: adminTracking.admin_tracking_carrier,\n      admin_tracking_found: adminTracking.admin_tracking_found,\n      admin_tracking_source: adminTracking.admin_tracking_source,\n      has_tracking_notice: adminTracking.has_tracking_notice,\n      already_sent: adminTracking.already_sent,\n      already_sent_source: adminTracking.already_sent_source,\n      parcel_status_emoji: route.parcel_status_emoji,\n      bkk_cutoff_route: route.bkk_cutoff_route,\n      send_facebook_route: route.bkk_cutoff_route,\n      sendFacebookRoute: route.bkk_cutoff_route,\n      route_source: route.route_source,\n      facebook_tracking_message: facebookTrackingMessage,\n      drakside_tracking_message: draksideTrackingMessage,\n      signature_status: row.signature_status || row.signatureStatus || (row.hasOrderSignature === false ? 'MISSING_SIGNATURE' : 'UNCHANGED'),\n},\n});\n}\nreturn output"
       },
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
-        -6720,
-        7520
+        -8288,
+        13888
       ],
-      "id": "9c4f5913-920e-42fe-ad03-b4702daf8460",
-      "name": "Edit Fields"
-    },
-    {
-      "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "1d0f1403-f2e8-4254-a503-16f92acd35c8",
-              "name": "upsert_key",
-              "value": "={{ $json.upsert_key }}",
-              "type": "string"
-            },
-            {
-              "id": "b6eb782d-a559-40bf-b67c-27427481d306",
-              "name": "facebook_tracking_message",
-              "value": "={{ $json.facebook_tracking_message }}",
-              "type": "string"
-            },
-            {
-              "id": "1c2d1dfd-e5f4-4a4f-9255-4af947950fb7",
-              "name": "drakside_tracking_message",
-              "value": "={{ $json.drakside_tracking_message }}",
-              "type": "string"
-            },
-            {
-              "id": "82ec3452-ac21-43c7-aee0-b4d8663bf85e",
-              "name": "threadId",
-              "value": "={{ $json.threadId }}",
-              "type": "string"
-            },
-            {
-              "id": "ef2f69df-16c7-4781-9b88-08ff088e2ba9",
-              "name": "page_name",
-              "value": "={{ $json.page_name }}",
-              "type": "string"
-            },
-            {
-              "id": "9af76d23-0eea-4788-bd31-cb54ac017c1e",
-              "name": "portal_key",
-              "value": "={{ $json.portal_key }}",
-              "type": "string"
-            },
-            {
-              "id": "72f1845a-c0bd-4a74-bfff-81794753ff3a",
-              "name": "order_number",
-              "value": "={{ $json.order_number }}",
-              "type": "string"
-            },
-            {
-              "id": "33308323-c69c-41cf-86d3-add3bd0f8710",
-              "name": "order_number_display",
-              "value": "={{ $json.order_number_display }}",
-              "type": "string"
-            },
-            {
-              "id": "79491941-12be-46c4-b30e-5ea7b64e7315",
-              "name": "message_id",
-              "value": "={{ $json.message_id }}",
-              "type": "string"
-            },
-            {
-              "id": "1692c474-2a7c-4c7d-958a-cbcb0dad1dda",
-              "name": "parcel_status_emoji",
-              "value": "={{ $json.parcel_status_emoji}}",
-              "type": "string"
-            },
-            {
-              "id": "7e2b9d81-f9a4-46a6-aefc-5e06e29ab6d5",
-              "name": "tracking_number",
-              "value": "={{ $json.tracking_number}}",
-              "type": "string"
-            },
-            {
-              "id": "41bfab11-2f5f-4f94-b0e6-310fa8f85a19",
-              "name": "page_id",
-              "value": "={{ $json.page_id }}",
-              "type": "string"
-            },
-            {
-              "id": "d5117822-5e58-41e6-a538-7d26371f2435",
-              "name": "customer_id",
-              "value": "={{ $json.customer_id }}",
-              "type": "string"
-            },
-            {
-              "id": "6d93e356-d48f-4992-b441-fa36e991e1ea",
-              "name": "order_time_display",
-              "value": "={{ $json.order_time_display }}",
-              "type": "string"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [
-        -7168,
-        7296
-      ],
-      "id": "eee552ef-28d0-4906-9419-673433ebd7f3",
-      "name": "Edit Fields1"
-    },
-    {
-      "parameters": {},
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
-      "position": [
-        -6272,
-        7520
-      ],
-      "id": "2d6d81d5-8eb9-47cf-a7e3-fa08a0f6af3b",
-      "name": "No Operation, do nothing"
-    },
-    {
-      "parameters": {
-        "useCustomSchema": true,
-        "operation": "update",
-        "tableId": "parcels",
-        "matchType": "allFilters",
-        "filters": {
-          "conditions": [
-            {
-              "keyName": "phone_number",
-              "condition": "eq",
-              "keyValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.admin_tracking_number}}"
-            }
-          ]
-        },
-        "fieldsUi": {
-          "fieldValues": [
-            {
-              "fieldId": "facebook_tracking_sent_at",
-              "fieldValue": "={{ $now.toISO() }}"
-            },
-            {
-              "fieldId": "facebook_tracking_status",
-              "fieldValue": "🔥SENT"
-            },
-            {
-              "fieldId": "message_id",
-              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.message_id }}"
-            },
-            {
-              "fieldId": "delivery_status",
-              "fieldValue": "🔥SENT"
-            },
-            {
-              "fieldId": "recipient_id",
-              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.customer_id}}"
-            },
-            {
-              "fieldId": "sent_at",
-              "fieldValue": "={{ $now.toISO() }}"
-            },
-            {
-              "fieldId": "upsert_key",
-              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.upsert_key}}"
-            },
-            {
-              "fieldId": "order_number",
-              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.order_number}}"
-            },
-            {
-              "fieldId": "order_phone",
-              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.extracted_phone}}"
-            },
-            {
-              "fieldId": "portal_key",
-              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.portal_key}}"
-            },
-            {
-              "fieldId": "page_name",
-              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.page_name}}"
-            },
-            {
-              "fieldId": "parcel_status_emoji",
-              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.parcel_status_emoji}}"
-            },
-            {
-              "fieldId": "facebook_tracking_message",
-              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.facebook_tracking_message}}"
-            },
-            {
-              "fieldId": "drakside_tracking_message",
-              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.drakside_tracking_message}}"
-            }
-          ]
-        }
-      },
-      "type": "n8n-nodes-base.supabase",
-      "typeVersion": 1,
-      "position": [
-        -6496,
-        7328
-      ],
-      "id": "bde3e566-1102-4266-9ab1-e8db69b19513",
-      "name": "🧧FB_TRACKING_TODAY8",
-      "alwaysOutputData": false,
-      "credentials": {
-        "supabaseApi": {
-          "id": "Zh6TPBgVH5JoqWt6",
-          "name": "🧿BB_xXx_ORDERCONTROL"
-        }
-      },
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "useCustomSchema": true,
-        "operation": "update",
-        "tableId": "parcels",
-        "matchType": "allFilters",
-        "filters": {
-          "conditions": [
-            {
-              "keyName": "phone_number",
-              "condition": "eq",
-              "keyValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.phone}}"
-            }
-          ]
-        },
-        "fieldsUi": {
-          "fieldValues": [
-            {
-              "fieldId": "facebook_tracking_sent_at",
-              "fieldValue": "={{ $now.toISO() }}"
-            },
-            {
-              "fieldId": "facebook_tracking_status",
-              "fieldValue": "🔥SENT"
-            },
-            {
-              "fieldId": "message_id",
-              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.message_id }}"
-            },
-            {
-              "fieldId": "delivery_status",
-              "fieldValue": "🔥SENT"
-            },
-            {
-              "fieldId": "recipient_id",
-              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.customer_id}}"
-            },
-            {
-              "fieldId": "sent_at",
-              "fieldValue": "={{ $now.toISO() }}"
-            },
-            {
-              "fieldId": "upsert_key",
-              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.upsert_key}}"
-            },
-            {
-              "fieldId": "order_number",
-              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.order_number}}"
-            },
-            {
-              "fieldId": "order_phone",
-              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.extracted_phone}}"
-            },
-            {
-              "fieldId": "portal_key",
-              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.portal_key}}"
-            },
-            {
-              "fieldId": "page_name",
-              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.page_name}}"
-            },
-            {
-              "fieldId": "parcel_status_emoji",
-              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.parcel_status_emoji}}"
-            },
-            {
-              "fieldId": "facebook_tracking_message",
-              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.facebook_tracking_message}}"
-            },
-            {
-              "fieldId": "drakside_tracking_message",
-              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.drakside_tracking_message}}"
-            },
-            {
-              "fieldId": "phone_candidates",
-              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.phone_candidates }}"
-            }
-          ]
-        }
-      },
-      "type": "n8n-nodes-base.supabase",
-      "typeVersion": 1,
-      "position": [
-        -6272,
-        7712
-      ],
-      "id": "f94f7f39-5844-48b4-ad18-8c1e07dedc45",
-      "name": "🧧FB_TRACKING_TODAY9",
-      "alwaysOutputData": false,
-      "credentials": {
-        "supabaseApi": {
-          "id": "Zh6TPBgVH5JoqWt6",
-          "name": "🧿BB_xXx_ORDERCONTROL"
-        }
-      },
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "useCustomSchema": true,
-        "operation": "update",
-        "tableId": "🧿BB_xXx_ORDERCONTROL",
-        "matchType": "allFilters",
-        "filters": {
-          "conditions": [
-            {
-              "keyName": "phone_number",
-              "condition": "eq",
-              "keyValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.phone}}"
-            }
-          ]
-        },
-        "fieldsUi": {
-          "fieldValues": [
-            {
-              "fieldId": "facebook_tracking_sent_at",
-              "fieldValue": "={{ $now.toISO() }}"
-            },
-            {
-              "fieldId": "facebook_tracking_status",
-              "fieldValue": "🔥SENT"
-            },
-            {
-              "fieldId": "message_id",
-              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.message_id }}"
-            },
-            {
-              "fieldId": "delivery_status",
-              "fieldValue": "🔥SENT"
-            },
-            {
-              "fieldId": "recipient_id",
-              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.customer_id}}"
-            },
-            {
-              "fieldId": "sent_at",
-              "fieldValue": "={{ $now.toISO() }}"
-            },
-            {
-              "fieldId": "upsert_key",
-              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.upsert_key}}"
-            },
-            {
-              "fieldId": "order_number",
-              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.order_number}}"
-            },
-            {
-              "fieldId": "order_phone",
-              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.extracted_phone}}"
-            },
-            {
-              "fieldId": "portal_key",
-              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.portal_key}}"
-            },
-            {
-              "fieldId": "page_name",
-              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.page_name}}"
-            },
-            {
-              "fieldId": "parcel_status_emoji",
-              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.parcel_status_emoji}}"
-            },
-            {
-              "fieldId": "facebook_tracking_message",
-              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.facebook_tracking_message}}"
-            },
-            {
-              "fieldId": "drakside_tracking_message",
-              "fieldValue": "={{ $('⛓️THE DEAD INTERSECTION').item.json.drakside_tracking_message}}"
-            }
-          ]
-        }
-      },
-      "type": "n8n-nodes-base.supabase",
-      "typeVersion": 1,
-      "position": [
-        -5824,
-        7856
-      ],
-      "id": "924ac5c3-8a26-443f-930f-045cb979a52b",
-      "name": "🧧FB_TRACKING_TODAY10",
-      "alwaysOutputData": false,
-      "credentials": {
-        "supabaseApi": {
-          "id": "Zh6TPBgVH5JoqWt6",
-          "name": "🧿BB_xXx_ORDERCONTROL"
-        }
-      },
-      "onError": "continueRegularOutput"
+      "id": "8e096f19-e0ce-4783-a577-f526c4157a9c",
+      "name": "⏰CUTOFF_14_00_YESTERDAY2_3DAY_NO_CONTINUE"
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "https://efieodrwkmpcxftnlaqx.supabase.co/rest/v1/🏹HUNTER_xXx_TARGET?on_conflict=upsert_key",
+        "url": "https://efieodrwkmpcxftnlaqx.supabase.co/rest/v1/🧿BB_xXx_ORDERCONTROL?on_conflict=upsert_key",
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -724,13 +244,13 @@
           "timeout": 120000
         }
       },
-      "id": "b8e026af-04ff-489e-9676-e061f0bf74b6",
-      "name": "🏹HUNTER_xXx_TARGET",
+      "id": "65620772-1895-4e27-b3b3-d89781d8ad94",
+      "name": "🧿BB_xXx_ORDERCONTROL",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -6944,
-        7296
+        -8064,
+        13888
       ],
       "retryOnFail": false,
       "alwaysOutputData": false,
@@ -740,7 +260,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://efieodrwkmpcxftnlaqx.supabase.co/rest/v1/🏹HUNTER_xXx_TARGET?on_conflict=upsert_key",
+        "url": "https://efieodrwkmpcxftnlaqx.supabase.co/rest/v1/🧿BB_xXx_ORDERCONTROL?on_conflict=upsert_key",
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -778,13 +298,343 @@
           "timeout": 120000
         }
       },
-      "id": "f7816220-fa3a-463c-8667-51a3b50fb0ff",
-      "name": "🏹HUNTER_xXx_TARGET1",
+      "id": "643cd74e-09ab-4e8d-bd32-21c5080ee0e8",
+      "name": "🧿BB_xXx_ORDERCONTROL4",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -6272,
+        14160
+      ],
+      "retryOnFail": false,
+      "alwaysOutputData": false,
+      "executeOnce": false,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://yuniclsmvhjuxamdvwbw.supabase.co/rest/v1/Pg_Chat⭐BINARY_xXx_STAR",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1bmljbHNtdmhqdXhhbWR2d2J3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5NDM2NzUxNCwiZXhwIjoyMTA5OTQzNTE0fQ.bdJCImBurhWjrk8pWPaWweP9UUnEovLlUIf5jibgIXY"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  chat_link_key: String($json.chat_link_key ?? ''),\n  page_id: String($json.page_id ?? ''),\n\n  thread_id: String(\n    $json.thread_id ??\n    $json.threadId ??\n    String($json.chat_link_key ?? '').split('*t*')[1] ??\n    ''\n  ),\n\n  threadId: String(\n    $json.thread_id ??\n    $json.threadId ??\n    String($json.chat_link_key ?? '').split('*t*')[1] ??\n    ''\n  ),\n\n  page_name: $json.page_name ?? undefined,\n  portal_key: $json.portal_key ?? undefined,\n\n  customer_id: $json.customer_id ?? $json.recipient_id ?? undefined,\n  recipient_id: $json.recipient_id ?? undefined,\n\n  // ชื่อ Facebook เป็นฟิลด์หลักใหม่\n  facebook_name: $json.facebook_name ?? undefined,\n\n  message_id: $json.message_id ?? undefined,\n  speaker: 'page',\n  is_sent: true,\n\n  occurred_at: $json.occurred_at ?? $now,\n  sync_status: 'READY_TO_SAVE',\n\n  tracking_number: $json.tracking_number ?? undefined,\n  parcel_status_emoji: $json.parcel_status_emoji ?? undefined,\n  facebook_tracking_message: $json.facebook_tracking_message ?? undefined,\n  drakside_tracking_message: $json.drakside_tracking_message ?? undefined,\n\n  // ถ้ามีค่าใหม่ค่อยเขียน ถ้าไม่มีจะไม่แตะค่าฐานข้อมูลเดิม\n  facebook_tracking_status: $json.facebook_tracking_status ?? undefined,\n  facebook_tracking_sent_at: $json.facebook_tracking_sent_at ?? undefined,\n\n\n  order_number: $json.order_number ?? undefined,\n  order_number_display: $json.order_number_display ?? undefined,\n  cod_amount: $json.cod_amount ?? undefined,\n  phone: $json.phone ?? undefined,\n  shipping_carrier: $json.shipping_carrier ?? undefined,\n  address_display_packer: $json.address_display_packer ?? undefined,\n  manus_for_packer: $json.manus_for_packer ?? undefined,\n  dedupe_key:\n    String($json.message_id ?? '') +\n    ':' +\n    String($json.recipient_id ?? ''),\n\n  // ตัดช่องว่างท้ายชื่อออก\n  target_room: 'Pg_Chat⭐BINARY_xXx_STAR',\n\n  source_lane: '🌌BB_TRACKING',\n\n  // ฟิลด์เดิมให้ไว้อันดับท้ายสุด\n  recipient_name: $json.recipient_name ?? undefined,\n  customer_name: $json.customer_name ?? undefined\n}) }}\n",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "2c3711f0-f1ab-4056-bc94-6f752cfc7270",
+      "name": "Pg_Chat⭐BINARY_xXx_STAR6",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -7392,
+        13696
+      ],
+      "retryOnFail": false,
+      "alwaysOutputData": false,
+      "executeOnce": false,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "RFBFxvVQtqpXFuL5",
+          "name": "🌌BB_CHAT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://efieodrwkmpcxftnlaqx.supabase.co/rest/v1/parcels?tracking_number=eq.{{ $('📌📣 PRE-SEND LOCK · PARCEL · ANTI-LEAK').item.json.tracking_number }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVmaWVvZHJ3a21wY3hmdG5sYXF4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5Mzg2NDExMiwiZXhwIjoyMTA5NDQwMTEyfQ.2QPueeHKAAfb-tYDiA_c7xDvlkwTNVehZ9qPQqR8Mo4"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVmaWVvZHJ3a21wY3hmdG5sYXF4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5Mzg2NDExMiwiZXhwIjoyMTA5NDQwMTEyfQ.2QPueeHKAAfb-tYDiA_c7xDvlkwTNVehZ9qPQqR8Mo4"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=representation"
+            },
+            {
+              "name": "on_conflict",
+              "value": "tracking_number"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  sent_at: $now.toISO(),\n  parcel_status_emoji: '⚡SENT',\n  delivery_status:'⚡SENT',\n  source_lane: '🌌BB_TRAaCKING',\nupsert_key:\n $('📌📣 PRE-SEND LOCK · PARCEL · ANTI-LEAK').item.json.upsert_key ?? $json.upsert_key ?? null,\n  consignee:\n    $('📌📣 PRE-SEND LOCK · PARCEL · ANTI-LEAK').item.json.consignee ?? $json.consignee ?? null,\n  phone_number:\n    $('📌📣 PRE-SEND LOCK · PARCEL · ANTI-LEAK').item.json.phone_number ?? $json.phone_number ?? null,\n  address:\n    $('📌📣 PRE-SEND LOCK · PARCEL · ANTI-LEAK').item.json.address ?? $json.address ?? null,\n  cod_amount:\n    $('📌📣 PRE-SEND LOCK · PARCEL · ANTI-LEAK').item.json.cod_amount ?? $json.cod_amount ?? null,\n\n  order_number:\n    $('📌📣 PRE-SEND LOCK · PARCEL · ANTI-LEAK').item.json.order_number ?? $json.order_number ?? null,\n  upsert_key:\n    $('📌📣 PRE-SEND LOCK · PARCEL · ANTI-LEAK').item.json.upsert_key ?? $json.upsert_key ?? null,\n  recipient_id:\n    $('📌📣 PRE-SEND LOCK · PARCEL · ANTI-LEAK').item.json.recipient_id ?? $json.recipient_id ?? null,\n  page_id:\n    $('📌📣 PRE-SEND LOCK · PARCEL · ANTI-LEAK').item.json.page_id ?? $json.page_id ?? null,\n  page_name:\n    $('📌📣 PRE-SEND LOCK · PARCEL · ANTI-LEAK').item.json.page_name ?? $json.page_name ?? null,\n  tracking_number :\n    $('📌📣 PRE-SEND LOCK · PARCEL · ANTI-LEAK').item.json.tracking_number  ?? $json.tracking_number  ?? null,\n  facebook_tracking_status:\n    $('📌📣 PRE-SEND LOCK · PARCEL · ANTI-LEAK').item.json.facebook_tracking_status ?? $json.facebook_tracking_status ?? null,\n  facebook_tracking_sent_at:\n    $('📌📣 PRE-SEND LOCK · PARCEL · ANTI-LEAK').item.json.facebook_tracking_sent_at ?? $json.facebook_tracking_sent_at ?? null,\n  facebook_tracking_message:\n    $('📌📣 PRE-SEND LOCK · PARCEL · ANTI-LEAK').item.json.facebook_tracking_message ?? $json.facebook_tracking_message ?? null,\n  drakside_tracking_message:\n    $('📌📣 PRE-SEND LOCK · PARCEL · ANTI-LEAK').item.json.drakside_tracking_message ?? $json.drakside_tracking_message ?? null,\n  chat_link_key:\n   $('📌📣 PRE-SEND LOCK · PARCEL · ANTI-LEAK').item.json.chat_link_key,\n  fb_tracking_message_for_web:\n    $('📌📣 PRE-SEND LOCK · PARCEL · ANTI-LEAK').item.json.fb_tracking_message_for_web\n    ?? $('📌📣 PRE-SEND LOCK · PARCEL · ANTI-LEAK').item.json.facebook_tracking_message\n    ?? $json.fb_tracking_message_for_web\n    ?? $json.facebook_tracking_message\n    ?? null,\n\n  ds_tracking_message_for_web:\n    $('📌📣 PRE-SEND LOCK · PARCEL · ANTI-LEAK').item.json.ds_tracking_message_for_web\n    ?? $('📌📣 PRE-SEND LOCK · PARCEL · ANTI-LEAK').item.json.drakside_tracking_message\n    ?? $json.ds_tracking_message_for_web\n    ?? $json.drakside_tracking_message\n    ?? null\n}) }}\n",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "76576904-a91f-472e-a198-69fc6b1e4947",
+      "name": "parcels4",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -6720,
+        14080
+      ],
+      "retryOnFail": false,
+      "alwaysOutputData": false,
+      "executeOnce": false,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://yuniclsmvhjuxamdvwbw.supabase.co/rest/v1/Pg_Chat⭐BINARY_xXx_STAR",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1bmljbHNtdmhqdXhhbWR2d2J3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5NDM2NzUxNCwiZXhwIjoyMTA5OTQzNTE0fQ.bdJCImBurhWjrk8pWPaWweP9UUnEovLlUIf5jibgIXY"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n \n  parcel_status_emoji:  $json.parcel_status_emoji ??null,\n  delivery_status: $json.delivery_status ?? null,\n  consignee: $json.consignee ?? null,\n  phone_number: $json.phone_number ?? null,\n  address: $json.address ?? null,\n  cod_amount: $json.cod_amount ?? null,\n  order_number: $json.order_number ?? null,\n  upsert_key: $json.upsert_key ?? null,\n  recipient_id: $json.recipient_id ?? null,\n  page_id: $json.page_id ?? null,\n  page_name: $json.page_name ?? null,\n\n  facebook_tracking_status: $json.facebook_tracking_status ?? null,\n  facebook_tracking_sent_at: $json.facebook_tracking_sent_at ?? null,\n  facebook_tracking_message: $json.facebook_tracking_message ?? null,\n  drakside_tracking_message: $json.drakside_tracking_message ?? null,\n  sent_at: $json.sent_at ?? new Date().toISOString(),\ntracking_number : $json.tracking_number ?? null,\n  parcel_status_emoji: '⚡SENT',\n  delivery_status: $json.delivery_status ?? null,\n  source_lane: '🌌BB_TRACKING',\n  facebook_tracking_sent_at: $json.facebook_tracking_sent_at ?? null,\n  facebook_tracking_status: $json.facebook_tracking_status ?? null,\n  fb_tracking_message_for_web:\n    $json.fb_tracking_message_for_web\n    ?? $json.facebook_tracking_message\n    ?? null,\n\n  ds_tracking_message_for_web:\n    $json.ds_tracking_message_for_web\n    ?? $json.drakside_tracking_message\n    ?? null\n}) }}\n",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "28164da2-6b27-4f82-88b1-2fa4d507fbd5",
+      "name": "Pg_Chat⭐BINARY_xXx_STAR",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -7392,
+        13888
+      ],
+      "retryOnFail": false,
+      "alwaysOutputData": false,
+      "executeOnce": false,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "RFBFxvVQtqpXFuL5",
+          "name": "🌌BB_CHAT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://yuniclsmvhjuxamdvwbw.supabase.co/rest/v1/Pg_Chat⭐BINARY_xXx_STAR",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1bmljbHNtdmhqdXhhbWR2d2J3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5NDM2NzUxNCwiZXhwIjoyMTA5OTQzNTE0fQ.bdJCImBurhWjrk8pWPaWweP9UUnEovLlUIf5jibgIXY"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=representation"
+            },
+            {}
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n\n  chat_link_key: String($json.chat_link_key ?? ''),\n  upsert_key: String($json.upsert_key ?? ''),\n  page_id: String($json.page_id ?? ''),\n\n  thread_id: String(\n    $json.thread_id ??\n    $json.threadId ??\n    ''\n  ),\n\n  threadId: String(\n    $json.threadId ??\n    $json.thread_id ??\n    ''\n  ),\n\n  page_name: $json.page_name ?? undefined,\n  portal_key: $json.portal_key ?? undefined,\n\n  customer_id:\n    $json.customer_id ??\n    $json.recipient_id ??\n    undefined,\n\n  recipient_id: $json.recipient_id ?? undefined,\n\n  // ชื่อจาก Facebook API\n  facebook_name: $json.facebook_name ?? undefined,\n\n  message_id: $json.message_id ?? undefined,\n\n  speaker: 'page',\n  is_sent: true,\n\n  occurred_at: $json.occurred_at ?? $now,\n  sync_status: 'READY_TO_SAVE',\n\n  message_text: $json.message_text ?? undefined,\n  tracking_number: $json.tracking_number ?? undefined,\n  parcel_status_emoji: $json.parcel_status_emoji ?? undefined,\n\n  facebook_tracking_message:\n    $json.facebook_tracking_message ?? undefined,\n\n  drakside_tracking_message:\n    $json.drakside_tracking_message ?? undefined,\n\n  // จุดสำคัญ: โหนดล่างนี้บันทึกหลังส่งสำเร็จ จึงปั้มตรง ๆ\n  facebook_tracking_status: '⚡SENT',\n  facebook_tracking_sent_at: $now,\n\norder_number: $json.order_number ?? undefined,\n  order_number_display: $json.order_number_display ?? undefined,\n  cod_amount: $json.cod_amount ?? undefined,\n  phone: $json.phone ?? undefined,\n  shipping_carrier: $json.shipping_carrier ?? undefined,\n  address_display_packer:\n    $json.address_display_packer ?? undefined,\n  manus_for_packer: $json.manus_for_packer ?? undefined,\n  dedupe_key:\n    String($json.message_id ?? '') +\n    ':' +\n    String($json.recipient_id ?? ''),\n\n  target_room: 'Pg_Chat⭐BINARY_xXx_STAR',\n  source_lane: '🌌BB_TRACKING',\n\n  // ฟิลด์เดิมไว้ท้ายสุด\n  recipient_name: $json.recipient_name ?? undefined,\n  customer_name: $json.customer_name ?? undefined\n\n}) }}\n",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "88815e0c-ee2a-4b35-af22-d2bd68c26061",
+      "name": "Pg_Chat⭐BINARY_xXx_STAR7",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
         -6496,
-        7520
+        14080
+      ],
+      "retryOnFail": false,
+      "alwaysOutputData": false,
+      "executeOnce": false,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "RFBFxvVQtqpXFuL5",
+          "name": "🌌BB_CHAT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://efieodrwkmpcxftnlaqx.supabase.co/rest/v1/parcels?tracking_number=eq.{{$json.tracking_number}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVmaWVvZHJ3a21wY3hmdG5sYXF4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5Mzg2NDExMiwiZXhwIjoyMTA5NDQwMTEyfQ.2QPueeHKAAfb-tYDiA_c7xDvlkwTNVehZ9qPQqR8Mo4"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVmaWVvZHJ3a21wY3hmdG5sYXF4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5Mzg2NDExMiwiZXhwIjoyMTA5NDQwMTEyfQ.2QPueeHKAAfb-tYDiA_c7xDvlkwTNVehZ9qPQqR8Mo4"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=representation"
+            },
+            {
+              "name": "on_conflict",
+              "value": "tracking_number"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n \n  parcel_status_emoji:  $json.parcel_status_emoji ??null,\n  delivery_status: $json.delivery_status ?? null,\n  consignee: $json.consignee ?? null,\n  phone_number: $json.phone_number ?? null,\n  address: $json.address ?? null,\n  cod_amount: $json.cod_amount ?? null,\n  order_number: $json.order_number ?? null,\n  upsert_key: $json.upsert_key ?? null,\n  recipient_id: $json.recipient_id ?? null,\n  page_id: $json.page_id ?? null,\n  page_name: $json.page_name ?? null,\n\n  facebook_tracking_status: $json.facebook_tracking_status ?? null,\n  facebook_tracking_sent_at: $json.facebook_tracking_sent_at ?? null,\n  facebook_tracking_message: $json.facebook_tracking_message ?? null,\n  drakside_tracking_message: $json.drakside_tracking_message ?? null,\n  sent_at: $json.sent_at ?? new Date().toISOString(),\ntracking_number : $json.tracking_number ?? null,\n  parcel_status_emoji: '⚡SENT',\n  delivery_status: $json.delivery_status ?? null,\n  source_lane: '🌌BB_TRACKING',\n  facebook_tracking_sent_at: $json.facebook_tracking_sent_at ?? null,\n  facebook_tracking_status: $json.facebook_tracking_status ?? null,\n  fb_tracking_message_for_web:\n    $json.fb_tracking_message_for_web\n    ?? $json.facebook_tracking_message\n    ?? null,\n\n  ds_tracking_message_for_web:\n    $json.ds_tracking_message_for_web\n    ?? $json.drakside_tracking_message\n    ?? null\n}) }}\n",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "cd7f5d39-fc5c-432d-a380-bb460c4ea3ac",
+      "name": "parcels2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -7168,
+        13696
+      ],
+      "retryOnFail": false,
+      "alwaysOutputData": false,
+      "executeOnce": false,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://efieodrwkmpcxftnlaqx.supabase.co/rest/v1/parcels?tracking_number=eq.{{$json.tracking_number}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVmaWVvZHJ3a21wY3hmdG5sYXF4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5Mzg2NDExMiwiZXhwIjoyMTA5NDQwMTEyfQ.2QPueeHKAAfb-tYDiA_c7xDvlkwTNVehZ9qPQqR8Mo4"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVmaWVvZHJ3a21wY3hmdG5sYXF4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5Mzg2NDExMiwiZXhwIjoyMTA5NDQwMTEyfQ.2QPueeHKAAfb-tYDiA_c7xDvlkwTNVehZ9qPQqR8Mo4"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=representation"
+            },
+            {
+              "name": "on_conflict",
+              "value": "tracking_number"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  sent_at: $json.sent_at ?? new Date().toISOString(),\n  parcel_status_emoji: '⚡SENT',\n  delivery_status: $json.delivery_status ?? null,\n  consignee: $json.consignee ?? null,\n  phone_number: $json.phone_number ?? null,\n  address: $json.address ?? null,\n  cod_amount: $json.cod_amount ?? null,\n  order_number: $json.order_number ?? null,\n  upsert_key: $json.upsert_key ?? null,\n  recipient_id: $json.recipient_id ?? null,\n  page_id: $json.page_id ?? null,\n  page_name: $json.page_name ?? null,\n\n  facebook_tracking_status: $json.facebook_tracking_status ?? null,\n  facebook_tracking_sent_at: $json.facebook_tracking_sent_at ?? null,\n  facebook_tracking_message: $json.facebook_tracking_message ?? null,\n  drakside_tracking_message: $json.drakside_tracking_message ?? null,\n  sent_at: $json.sent_at ?? new Date().toISOString(),\ntracking_number : $json.tracking_number ?? null,\n  parcel_status_emoji: '⚡SENT',\n  delivery_status: $json.delivery_status ?? null,\n  facebook_tracking_sent_at: $json.facebook_tracking_sent_at ?? null,\n  facebook_tracking_status: $json.facebook_tracking_status ?? null,\n  fb_tracking_message_for_web:\n    $json.fb_tracking_message_for_web\n    ?? $json.facebook_tracking_message\n    ?? null,\n  source_lane: '🌌BB_TRACKING',\n  ds_tracking_message_for_web:\n    $json.ds_tracking_message_for_web\n    ?? $json.drakside_tracking_message\n    ?? null\n}) }}\n",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "eb89f5b4-da97-406e-8719-f7e9effd25f3",
+      "name": "parcels",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -7168,
+        13888
+      ],
+      "retryOnFail": false,
+      "alwaysOutputData": false,
+      "executeOnce": false,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 📣 PRE-SEND LOCK · PARCEL · ANTI-LEAK\n// วางก่อน 👣 LIMBO JUNCTION1 · Facebook API\n//\n// หน้าที่:\n// 1. คัดรายการที่ลง Facebook แล้วออกจากคิว\n// 2. กันรายการซ้ำที่มาจาก ROGUE สองฝั่ง\n// 3. แยกสี 🟢 🟡 🔴 ให้ไหลต่อไปพร้อมกัน\n// 4. เตรียม lock ก่อนส่ง\n// 5. ยังไม่ประกาศ ⚡SENT จนกว่า Facebook จะตอบสำเร็จ\n//\n// สถานะ:\n// 📌       = มีข้อความแจ้งเลข แต่ยังไม่ส่ง Facebook\n// 📣       = เตรียมส่ง / ถูกล็อกในรอบนี้\n// 📌📣     = ส่ง Facebook สำเร็จแล้ว\n// ⚡SENT    = ส่งเลขให้ลูกค้าสำเร็จแล้ว\n\nconst MARKER = '📌📣';\nconst BASE_MARKER = '📌 แจ้งเลขพัสดุจัดส่ง';\nconst FINAL_MARKER_TEXT = '📌📣 แจ้งเลขพัสดุจัดส่ง';\n\nfunction text(value) {\n  return String(value ?? '').trim();\n}\n\nfunction hasValue(value) {\n  return text(value) !== '';\n}\n\nfunction normalizePhone(value) {\n  return text(value).replace(/[^\\d]/g, '');\n}\n\nfunction normalizeTracking(value) {\n  return text(value).toUpperCase().replace(/\\s+/g, '');\n}\n\nfunction normalizeMessage(value) {\n  return text(value).replace(/\\r\\n/g, '\\n');\n}\n\nfunction getColor(row) {\n  const candidates = [\n    row.parcel_status_emoji,\n    row.delivery_status,\n    row.parcel_delivery_status,\n    row.color,\n  ];\n\n  for (const value of candidates) {\n    const v = text(value);\n    if (['🟢', '🟡', '🔴'].includes(v)) return v;\n  }\n\n  return '⚪';\n}\n\nfunction alreadyFacebookMarked(row, fbMsg, dsMsg) {\n  const statusValues = [\n    row.facebook_tracking_status,\n    row.tracking_message_marker,\n    row.pre_send_lock_status,\n  ].map(text);\n\n  // ลง Facebook สำเร็จแล้ว\n  if (\n    statusValues.includes('⚡SENT') ||\n    statusValues.includes('📌📣') ||\n    statusValues.includes('FACEBOOK_SENT')\n  ) {\n    return true;\n  }\n\n  // มีหัวข้อความสำเร็จอยู่แล้วในข้อมูลที่ถูกดึงกลับมา\n  if (\n    fbMsg.includes(MARKER) ||\n    dsMsg.includes(MARKER) ||\n    fbMsg.includes(FINAL_MARKER_TEXT) ||\n    dsMsg.includes(FINAL_MARKER_TEXT)\n  ) {\n    return true;\n  }\n\n  return false;\n}\n\nfunction addMarker(message) {\n  const value = normalizeMessage(message);\n\n  if (!value) return '';\n\n  // ถ้ามีหัวสำเร็จอยู่แล้ว ไม่เติมซ้ำ\n  if (value.includes(MARKER) || value.includes(FINAL_MARKER_TEXT)) {\n    return value;\n  }\n\n  // รูปแบบปกติ\n  if (value.includes(BASE_MARKER)) {\n    return value.replace(BASE_MARKER, FINAL_MARKER_TEXT);\n  }\n\n  // กันกรณีมีช่องว่างหรือขึ้นบรรทัดต่างรูปแบบ\n  const flexibleHeader = /📌\\s*แจ้งเลขพัสดุจัดส่ง/;\n\n  if (flexibleHeader.test(value)) {\n    return value.replace(flexibleHeader, FINAL_MARKER_TEXT);\n  }\n\n  // ถ้าไม่มีหัวข้อความเลย ไม่สร้างข้อความปลอม\n  return value;\n}\n\nfunction buildSourceKey(row) {\n  const tracking = normalizeTracking(row.tracking_number);\n  const parcelId = text(row.parcel_row_id || row.id);\n  const upsertKey = text(row.upsert_key);\n  const recipientId = text(row.recipient_id);\n  const pageId = text(row.page_id);\n\n  // ใช้ parcel_row_id ก่อน เพราะเป็นตัวแทนแถว parcels โดยตรง\n  if (parcelId) return `parcel:${parcelId}`;\n\n  // เลขพัสดุหนึ่งเลขลงได้ครั้งเดียว\n  if (tracking) return `tracking:${tracking}`;\n\n  // fallback กรณีข้อมูลยังไม่มีเลข\n  if (upsertKey) return `order:${upsertKey}`;\n\n  return `room:${pageId}:${recipientId}`;\n}\n\nfunction buildLockKey(row) {\n  const sourceKey = buildSourceKey(row);\n  const recipientId = text(row.recipient_id);\n  const pageId = text(row.page_id);\n\n  return `PRE_SEND:${sourceKey}:${pageId}:${recipientId}`;\n}\n\nconst seen = new Set();\nconst output = [];\nconst rejected = [];\n\nfor (const item of $input.all()) {\n  const row = item.json ?? {};\n\n  const fbMsg = normalizeMessage(row.facebook_tracking_message);\n  const dsMsg = normalizeMessage(row.drakside_tracking_message);\n\n  const tracking = normalizeTracking(row.tracking_number);\n  const pageId = text(row.page_id);\n  const recipientId = text(row.recipient_id);\n  const messageId = text(row.message_id);\n\n  const sourceKey = buildSourceKey(row);\n  const lockKey = buildLockKey(row);\n\n  // ------------------------------------------------------------\n  // 1. ข้อมูลขั้นต่ำต้องครบก่อนส่ง\n  // ------------------------------------------------------------\n  const missing = [];\n\n  if (!tracking) missing.push('tracking_number');\n  if (!pageId) missing.push('page_id');\n  if (!recipientId) missing.push('recipient_id');\n  if (!messageId) missing.push('message_id');\n  if (!fbMsg && !dsMsg) missing.push('tracking_message');\n\n  if (missing.length) {\n    rejected.push({\n      reason: 'MISSING_REQUIRED_FIELDS',\n      missing,\n      source_key: sourceKey,\n      tracking_number: tracking,\n      page_id: pageId,\n      recipient_id: recipientId,\n      message_id: messageId,\n    });\n    continue;\n  }\n\n  // ------------------------------------------------------------\n  // 2. เคยลง Facebook แล้ว ห้ามหลุดไปส่งซ้ำ\n  // ------------------------------------------------------------\n  if (alreadyFacebookMarked(row, fbMsg, dsMsg)) {\n    rejected.push({\n      reason: 'ALREADY_FACEBOOK_MARKED',\n      source_key: sourceKey,\n      tracking_number: tracking,\n      page_id: pageId,\n      recipient_id: recipientId,\n      message_id: messageId,\n    });\n    continue;\n  }\n\n  // ------------------------------------------------------------\n  // 3. กันรายการซ้ำภายในรอบเดียวกัน\n  // ------------------------------------------------------------\n  if (seen.has(sourceKey)) {\n    rejected.push({\n      reason: 'DUPLICATE_IN_SAME_BATCH',\n      source_key: sourceKey,\n      tracking_number: tracking,\n      page_id: pageId,\n      recipient_id: recipientId,\n      message_id: messageId,\n    });\n    continue;\n  }\n\n  seen.add(sourceKey);\n\n  // ------------------------------------------------------------\n  // 4. เติมหัว 📌📣 แบบ idempotent\n  // ------------------------------------------------------------\n  const preparedFbMsg = addMarker(fbMsg);\n  const preparedDsMsg = addMarker(dsMsg);\n\n  // ต้องมีข้อความที่พร้อมส่งจริง\n  const sendText = preparedFbMsg || preparedDsMsg;\n\n  if (!sendText) {\n    rejected.push({\n      reason: 'EMPTY_PREPARED_MESSAGE',\n      source_key: sourceKey,\n      tracking_number: tracking,\n      page_id: pageId,\n      recipient_id: recipientId,\n      message_id: messageId,\n    });\n    continue;\n  }\n\n  const color = getColor(row);\n  const now = new Date().toISOString();\n\n  output.push({\n    json: {\n      ...row,\n\n      // -----------------------------\n      // identity สำหรับจับห้อง/กันซ้ำ\n      // -----------------------------\n      parcel_source_key: sourceKey,\n      pre_send_lock_key: lockKey,\n      page_recipient_key: `${pageId}:${recipientId}`,\n      message_recipient_key: `${messageId}:${recipientId}`,\n\n      // -----------------------------\n      // แยกสายสี\n      // -----------------------------\n      parcel_color: color,\n      parcel_lane:\n        color === '🟢'\n          ? 'GREEN'\n          : color === '🟡'\n            ? 'YELLOW'\n            : color === '🔴'\n              ? 'RED'\n              : 'UNKNOWN',\n\n      // -----------------------------\n      // ข้อความที่เตรียมไว้\n      // -----------------------------\n      facebook_tracking_message: preparedFbMsg,\n      drakside_tracking_message: preparedDsMsg,\n\n      tracking_message_marker: MARKER,\n      tracking_message_marker_text: FINAL_MARKER_TEXT,\n\n      // -----------------------------\n      // lock ก่อนส่ง\n      // -----------------------------\n      pre_send_lock: '📣',\n      pre_send_lock_status: '📣PREPARED',\n      pre_send_lock_at: now,\n      pre_send_state: 'READY_FOR_FACEBOOK',\n\n      // สำคัญ: ยังไม่ใช่ SENT\n      // ห้ามตั้ง parcel_status_emoji เป็น ⚡SENT ตรงนี้\n      facebook_tracking_status: '📣PREPARED',\n\n      // ใช้หลัง Facebook API ตอบสำเร็จ\n      success_update_status: '⚡SENT',\n      success_marker: MARKER,\n      success_sent_at_field: 'facebook_tracking_sent_at',\n\n      // ข้อมูลสำหรับส่ง Facebook\n      send_page_id: pageId,\n      send_recipient_id: recipientId,\n      send_thread_id: text(row.thread_id || row.threadId),\n      send_message_id: messageId,\n      send_text: sendText,\n\n      // debug / audit\n      pre_send_rejected_count: rejected.length,\n      pre_send_batch_key: `${now}:${sourceKey}`,\n    },\n  });\n}\n\n// สรุปจำนวนแต่ละสาย\nconst laneCounts = output.reduce((result, item) => {\n  const lane = item.json.parcel_lane || 'UNKNOWN';\n  result[lane] = (result[lane] || 0) + 1;\n  return result;\n}, {});\n\n// ส่งเฉพาะรายการที่พร้อมไป Facebook\n// รายการที่ถูกสกัดจะไม่หลุดไป node ถัดไป\nreturn output.map((item) => ({\n  ...item,\n  json: {\n    ...item.json,\n    pre_send_lane_counts: laneCounts,\n    pre_send_ready_count: output.length,\n    pre_send_rejected_count: rejected.length,\n  },\n}));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -7168,
+        14080
+      ],
+      "id": "f13c90a5-67d0-4cc7-9410-0db732e73966",
+      "name": "📌📣 PRE-SEND LOCK · PARCEL · ANTI-LEAK"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v22.0/{{ $json.page_id }}/messages",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": []
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $json.access_token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  recipient: {\n    id: String($json.recipient_psid || $json.customer_id)\n  },\n  messaging_type: \"RESPONSE\",\n  message: {\n    text: String($json.facebook_tracking_message || \"\")\n  }\n}) }}\n",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "489afcb1-164e-4184-b4e3-c96c0770f973",
+      "name": "👣facebook_tracking_message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -6944,
+        14080
       ],
       "retryOnFail": false,
       "alwaysOutputData": false,
@@ -798,7 +648,7 @@
         [],
         [
           {
-            "node": "👣LIMBO JUNCTION1",
+            "node": "📌📣 PRE-SEND LOCK · PARCEL · ANTI-LEAK",
             "type": "main",
             "index": 0
           }
@@ -809,29 +659,7 @@
       "main": [
         [
           {
-            "node": "⏰CUTOFF 14:00 YESTERDAY2",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "👣LIMBO JUNCTION1": {
-      "main": [
-        [
-          {
-            "node": "🧧FB_TRACKING_TODAY9",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Wait": {
-      "main": [
-        [
-          {
-            "node": "🧧FB_TRACKING_TODAY10",
+            "node": "⏰CUTOFF_14_00_YESTERDAY2_3DAY_NO_CONTINUE",
             "type": "main",
             "index": 0
           }
@@ -840,46 +668,24 @@
     },
     "⛓️THE DEAD INTERSECTION": {
       "main": [
+        [],
         [
           {
-            "node": "🩸 PSYCHOLOGY1",
+            "node": "Pg_Chat⭐BINARY_xXx_STAR6",
             "type": "main",
             "index": 0
           }
         ],
-        [],
-        [],
+        [
+          {
+            "node": "Pg_Chat⭐BINARY_xXx_STAR",
+            "type": "main",
+            "index": 0
+          }
+        ],
         [
           {
             "node": "🩸 PSYCHOLOGY",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "⏰CUTOFF 14:00 YESTERDAY2": {
-      "main": [
-        [
-          {
-            "node": "Remove Duplicates",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Edit Fields1",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "🩸 PSYCHOLOGY1": {
-      "main": [
-        [],
-        [
-          {
-            "node": "🧧FB_TRACKING_TODAY8",
             "type": "main",
             "index": 0
           }
@@ -908,40 +714,29 @@
         ]
       ]
     },
-    "Edit Fields": {
+    "⏰CUTOFF_14_00_YESTERDAY2_3DAY_NO_CONTINUE": {
       "main": [
         [
           {
-            "node": "🏹HUNTER_xXx_TARGET1",
+            "node": "🧿BB_xXx_ORDERCONTROL",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Edit Fields1": {
+    "🧿BB_xXx_ORDERCONTROL": {
       "main": [
         [
           {
-            "node": "🏹HUNTER_xXx_TARGET",
+            "node": "Remove Duplicates",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "🧧FB_TRACKING_TODAY9": {
-      "main": [
-        [
-          {
-            "node": "Wait",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "🧧FB_TRACKING_TODAY10": {
+    "🧿BB_xXx_ORDERCONTROL4": {
       "main": [
         [
           {
@@ -952,11 +747,66 @@
         ]
       ]
     },
-    "🏹HUNTER_xXx_TARGET1": {
+    "Pg_Chat⭐BINARY_xXx_STAR6": {
       "main": [
         [
           {
-            "node": "No Operation, do nothing",
+            "node": "parcels2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "parcels4": {
+      "main": [
+        [
+          {
+            "node": "Pg_Chat⭐BINARY_xXx_STAR7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pg_Chat⭐BINARY_xXx_STAR": {
+      "main": [
+        [
+          {
+            "node": "parcels",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pg_Chat⭐BINARY_xXx_STAR7": {
+      "main": [
+        [
+          {
+            "node": "🧿BB_xXx_ORDERCONTROL4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📌📣 PRE-SEND LOCK · PARCEL · ANTI-LEAK": {
+      "main": [
+        [
+          {
+            "node": "👣facebook_tracking_message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "👣facebook_tracking_message": {
+      "main": [
+        [
+          {
+            "node": "parcels4",
             "type": "main",
             "index": 0
           }
@@ -966,6 +816,7 @@
   },
   "pinData": {},
   "meta": {
+    "templateCredsSetupCompleted": true,
     "instanceId": "f4fcccb61c84d5d75854e90735e6c1d4dc7f96a459bba4b39bf25fd07d0f4e26"
   }
 }
