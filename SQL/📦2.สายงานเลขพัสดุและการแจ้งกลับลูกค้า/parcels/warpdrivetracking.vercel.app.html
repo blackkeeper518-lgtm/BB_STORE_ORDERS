@@ -133,6 +133,9 @@
         .image-card-url { display: block; margin-top: 5px; overflow: hidden; color: var(--cyan); font: 10px var(--mono); text-overflow: ellipsis; white-space: nowrap; }
         .copy-url { width: 100%; min-height: 32px; margin-top: 8px; padding: 0 9px; border: 1px solid rgba(73,244,255,.3); border-radius: 6px; color: var(--cyan); background: rgba(73,244,255,.06); cursor: pointer; font: 11px var(--thai); }
         .copy-url:hover { border-color: var(--pink); color: white; box-shadow: 0 0 14px rgba(255,66,208,.18); }
+        .image-url-import { display: flex; gap: 9px; margin-top: 14px; padding: 12px; border: 1px solid rgba(255,66,208,.16); border-radius: 10px; background: rgba(255,66,208,.035); }
+        .image-url-import .field-input { min-width: 0; height: 40px; }
+        .image-url-import .btn { flex: 0 0 auto; min-height: 40px; }
         .footer { display: flex; justify-content: space-between; gap: 12px; margin-top: 19px; padding: 0 5px; color: #64758d; font: 11px var(--mono); letter-spacing: .08em; }
         .footer span:last-child { color: rgba(255,66,208,.75); }
         @media (max-width: 700px) {
@@ -214,6 +217,10 @@
                 <div class="drop-badges"><span class="drop-badge">.XLSX</span><span class="drop-badge">.XLS</span><span class="drop-badge">.CSV</span><span class="drop-badge">JPG / PNG / WEBP</span><span class="drop-badge">FLASH EXPORT</span></div>
                 <input type="file" id="file-input" accept=".csv,.xlsx,.xls,image/jpeg,image/png,image/webp,image/gif" multiple>
             </div>
+            <div class="image-url-import">
+                <input id="image-url-input" class="field-input" type="url" placeholder="วาง Public Image URL เพื่อแสดงภาพ เช่น https://.../warp-images/warp/...">
+                <button id="show-image-url" class="btn btn-quiet" type="button">แสดงภาพ + ลิงก์</button>
+            </div>
         </section>
 
         <section id="status-panel" class="hud-panel status-panel hidden" aria-live="polite">
@@ -241,6 +248,8 @@
         const configStatus = document.getElementById('config-status');
         const urlInput = document.getElementById('supabase-url');
         const keyInput = document.getElementById('supabase-key');
+        const imageUrlInput = document.getElementById('image-url-input');
+        const showImageUrlButton = document.getElementById('show-image-url');
 
         function readSavedConfig() {
             try { return JSON.parse(localStorage.getItem(CONFIG_STORAGE_KEY) || 'null'); }
@@ -388,6 +397,20 @@
             card.append(image, body);
             imageResults.prepend(card);
         }
+        showImageUrlButton.onclick = () => {
+            const publicUrl = text(imageUrlInput.value);
+            if (!/^https:\/\//i.test(publicUrl)) {
+                showSetupError(new Error('กรุณาใส่ Public Image URL ที่ขึ้นต้นด้วย https://'));
+                return;
+            }
+            appendImageResult({ name: 'ภาพจาก Public URL' }, publicUrl);
+            imageUrlInput.value = '';
+            statusPanel.classList.remove('hidden');
+            spinner.classList.add('hidden');
+            statusText.textContent = '✓ แสดงภาพพร้อม Public URL แล้ว';
+            statusText.style.color = 'var(--lime)';
+            resultBox.classList.add('hidden');
+        };
         async function uploadImage(file) {
             if (file.size > 15 * 1024 * 1024) throw new Error(`${file.name}: ภาพใหญ่เกิน 15 MB`);
             const sb = getSupabaseClient();
