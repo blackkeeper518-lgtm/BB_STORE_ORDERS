@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#050713">
+    <title>WARP DRIVE // PARCEL DROP</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            color-scheme: dark;
+            --void: #050713;
+            --panel: rgba(10, 16, 39, .84);
+            --line: rgba(73, 244, 255, .25);
+            --cyan: #49f4ff;
+            --pink: #ff42d0;
+            --violet: #8c62ff;
+            --lime: #c5ff5a;
+            --text: #ecf8ff;
+            --muted: #8da2ba;
+            --mono: "Share Tech Mono", ui-monospace, monospace;
+            --thai: "Chakra Petch", system-ui, sans-serif;
+        }
+        * { box-sizing: border-box; }
+        html { min-height: 100%; background: var(--void); }
+        body {
+            margin: 0; min-height: 100vh; overflow-x: hidden; color: var(--text); font-family: var(--thai);
+            background:
+                radial-gradient(ellipse at 12% 12%, rgba(30, 69, 178, .28), transparent 31rem),
+                radial-gradient(ellipse at 85% 24%, rgba(160, 25, 146, .20), transparent 29rem),
+                radial-gradient(ellipse at 50% 100%, rgba(0, 191, 220, .12), transparent 38rem),
+                linear-gradient(145deg, #070a18 0%, #080819 48%, #050713 100%);
+        }
+        body::before, body::after { content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+        body::before {
+            opacity: .65;
+            background-image:
+                radial-gradient(1px 1px at 7% 18%, #fff 99%, transparent),
+                radial-gradient(1px 1px at 18% 71%, var(--cyan) 99%, transparent),
+                radial-gradient(2px 2px at 31% 39%, #fff 99%, transparent),
+                radial-gradient(1px 1px at 48% 12%, #fff 99%, transparent),
+                radial-gradient(1px 1px at 61% 83%, var(--pink) 99%, transparent),
+                radial-gradient(2px 2px at 76% 57%, #fff 99%, transparent),
+                radial-gradient(1px 1px at 89% 22%, var(--cyan) 99%, transparent),
+                radial-gradient(1px 1px at 93% 88%, #fff 99%, transparent);
+            background-size: 410px 330px;
+            animation: star-drift 90s linear infinite;
+        }
+        body::after {
+            opacity: .18;
+            background-image: linear-gradient(rgba(73,244,255,.08) 1px, transparent 1px), linear-gradient(90deg, rgba(73,244,255,.08) 1px, transparent 1px);
+            background-size: 56px 56px;
+            mask-image: linear-gradient(to bottom, transparent 2%, black 32%, black 80%, transparent 100%);
+            transform: perspective(700px) rotateX(58deg) scale(1.8) translateY(25%);
+            transform-origin: bottom center;
+        }
+        @keyframes star-drift { to { background-position: 410px 330px; } }
+        @keyframes pulse-glow { 0%,100% { opacity: .75; filter: drop-shadow(0 0 5px var(--cyan)); } 50% { opacity: 1; filter: drop-shadow(0 0 13px var(--cyan)); } }
+        @keyframes orbit { to { transform: rotate(360deg); } }
+        @keyframes scan { from { transform: translateY(-110%); } to { transform: translateY(230%); } }
+        .hidden { display: none !important; }
+        .page-shell { position: relative; z-index: 1; width: min(1080px, calc(100% - 32px)); margin: 0 auto; padding: 28px 0 54px; }
+        .topbar { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 5px 2px 24px; border-bottom: 1px solid rgba(73,244,255,.15); }
+        .brand-mark { display: flex; align-items: center; gap: 11px; color: var(--cyan); font: 16px var(--mono); letter-spacing: .13em; }
+        .brand-icon { width: 31px; height: 31px; display: grid; place-items: center; border: 1px solid var(--cyan); border-radius: 50%; box-shadow: 0 0 16px rgba(73,244,255,.4), inset 0 0 12px rgba(73,244,255,.14); color: white; animation: pulse-glow 4s ease-in-out infinite; }
+        .system-state { display: flex; gap: 9px; align-items: center; color: #91a9c4; font: 12px var(--mono); letter-spacing: .12em; }
+        .state-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--lime); box-shadow: 0 0 12px var(--lime); }
+        .hero { position: relative; padding: 52px 16px 36px; text-align: center; }
+        .eyebrow { color: var(--pink); font: 12px var(--mono); letter-spacing: .35em; text-transform: uppercase; text-shadow: 0 0 12px rgba(255,66,208,.8); }
+        h1 { margin: 12px 0 5px; line-height: .98; font-family: var(--mono); font-size: clamp(48px, 9vw, 94px); font-weight: 400; letter-spacing: -.045em; text-transform: uppercase; }
+        .title-parcel { color: #f6fdff; text-shadow: 0 0 8px rgba(73,244,255,.9), 0 0 32px rgba(73,244,255,.4); }
+        .title-drop { color: var(--pink); text-shadow: 0 0 10px rgba(255,66,208,.85), 0 0 38px rgba(255,66,208,.35); }
+        .hero-subtitle { margin: 18px auto 0; max-width: 720px; color: #a9bad0; font-size: 17px; }
+        .hero-subtitle strong { color: var(--cyan); font-family: var(--mono); font-weight: 400; }
+        .hero-orbit { position: absolute; top: 49px; left: calc(50% + 245px); width: 56px; height: 56px; border: 1px solid rgba(255,66,208,.4); border-radius: 50%; box-shadow: 0 0 24px rgba(255,66,208,.2); animation: orbit 18s linear infinite; }
+        .hero-orbit::before { content: ""; position: absolute; width: 7px; height: 7px; top: -3px; left: 23px; border-radius: 50%; background: var(--pink); box-shadow: 0 0 12px var(--pink); }
+        .hud-panel { position: relative; overflow: hidden; border: 1px solid var(--line); border-radius: 18px; background: linear-gradient(135deg, rgba(11,20,47,.94), rgba(8,11,28,.91)); box-shadow: 0 18px 80px rgba(0,0,0,.42), 0 0 34px rgba(73,244,255,.07), inset 0 1px rgba(255,255,255,.035); }
+        .hud-panel::before { content: ""; position: absolute; inset: 0 14% auto; height: 1px; background: linear-gradient(90deg, transparent, var(--cyan), var(--pink), transparent); opacity: .9; }
+        .config-panel { padding: 25px clamp(18px, 4vw, 38px) 23px; }
+        .panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 20px; }
+        .panel-title-wrap { display: flex; align-items: center; gap: 13px; }
+        .panel-icon { width: 41px; height: 41px; display: grid; place-items: center; border: 1px solid rgba(73,244,255,.42); border-radius: 11px; color: var(--cyan); background: rgba(73,244,255,.07); font-size: 19px; box-shadow: 0 0 16px rgba(73,244,255,.08); }
+        .panel-heading h2 { margin: 0; color: #f2fbff; font-size: 20px; font-weight: 600; }
+        .panel-heading p { margin: 3px 0 0; color: var(--muted); font: 12px var(--mono); letter-spacing: .03em; }
+        .secure-tag { padding: 6px 10px; border: 1px solid rgba(197,255,90,.22); border-radius: 999px; color: var(--lime); font: 11px var(--mono); letter-spacing: .08em; white-space: nowrap; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1.2fr; gap: 15px; }
+        .field-label { display: block; margin-bottom: 7px; color: #c7d8ed; font-size: 13px; }
+        .field-label code { color: var(--cyan); font: 12px var(--mono); }
+        .field-input { width: 100%; height: 46px; padding: 0 14px; color: #edfaff; border: 1px solid rgba(107,138,174,.3); border-radius: 9px; outline: none; background: rgba(2,6,18,.72); font: 14px var(--mono); transition: border-color .2s, box-shadow .2s; }
+        .field-input::placeholder { color: #536780; }
+        .field-input:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(73,244,255,.1), 0 0 17px rgba(73,244,255,.12); }
+        .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; }
+        .btn { min-height: 42px; padding: 0 16px; border-radius: 8px; cursor: pointer; font: 600 14px var(--thai); transition: transform .15s, box-shadow .2s, background .2s; }
+        .btn:hover { transform: translateY(-1px); }
+        .btn-primary { color: #031017; border: 1px solid var(--cyan); background: var(--cyan); box-shadow: 0 0 20px rgba(73,244,255,.22); }
+        .btn-primary:hover { background: #a1fbff; box-shadow: 0 0 28px rgba(73,244,255,.42); }
+        .btn-quiet { color: #aab9ce; border: 1px solid rgba(130,156,190,.29); background: rgba(255,255,255,.025); }
+        .btn-quiet:hover { color: white; border-color: rgba(255,66,208,.55); }
+        #config-status { min-height: 20px; margin: 12px 0 0; color: #99adc4; font: 12px var(--mono); }
+        .security-note { margin: 8px 0 0; color: #8794aa; font-size: 12px; }
+        .security-note b { color: #ffbd76; font-weight: 500; }
+        .config-warning { margin-top: 16px; padding: 12px 15px; border: 1px solid rgba(255,189,118,.34); border-radius: 10px; background: rgba(91,46,18,.17); color: #ffd5a1; text-align: left; font-size: 14px; }
+        .drop-panel { margin-top: 20px; padding: 13px; }
+        .drop-zone { position: relative; display: grid; place-items: center; min-height: 300px; overflow: hidden; padding: 36px 20px; border: 1px dashed rgba(73,244,255,.48); border-radius: 13px; cursor: pointer; text-align: center; background: radial-gradient(ellipse at 50% 110%, rgba(88,42,172,.2), transparent 48%), radial-gradient(ellipse at 50% -20%, rgba(73,244,255,.09), transparent 50%), rgba(3,8,22,.72); transition: border-color .25s, box-shadow .25s, transform .25s; }
+        .drop-zone::before { content: ""; position: absolute; left: 0; right: 0; top: -60%; height: 34%; background: linear-gradient(transparent, rgba(73,244,255,.07), transparent); animation: scan 7s linear infinite; pointer-events: none; }
+        .drop-zone::after { content: ""; position: absolute; inset: 11px; border: 1px solid rgba(255,66,208,.11); border-radius: 9px; pointer-events: none; }
+        .drop-zone:hover, .drop-zone.dragging { border-color: var(--pink); box-shadow: inset 0 0 50px rgba(128,53,190,.12), 0 0 28px rgba(255,66,208,.12); transform: translateY(-1px); }
+        .drop-orb { position: relative; z-index: 1; display: grid; place-items: center; width: 84px; height: 84px; margin-bottom: 17px; border: 1px solid rgba(73,244,255,.48); border-radius: 50%; background: radial-gradient(circle, rgba(73,244,255,.2), rgba(24,27,66,.4) 67%); box-shadow: 0 0 28px rgba(73,244,255,.2), inset 0 0 20px rgba(73,244,255,.13); color: var(--cyan); font-size: 36px; }
+        .drop-orb::after { content: ""; position: absolute; inset: -7px; border: 1px solid rgba(255,66,208,.3); border-radius: 50%; transform: rotateX(68deg); }
+        .drop-title { position: relative; z-index: 1; margin: 0; color: white; font: 25px var(--mono); letter-spacing: .07em; text-shadow: 0 0 15px rgba(73,244,255,.3); }
+        .drop-caption { position: relative; z-index: 1; margin: 10px 0 0; color: #9caec7; font-size: 14px; }
+        .drop-caption span { color: var(--cyan); font-family: var(--mono); }
+        .drop-badges { position: relative; z-index: 1; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 17px; }
+        .drop-badge { padding: 4px 9px; border: 1px solid rgba(136,157,190,.22); border-radius: 999px; color: #a5b7ce; font: 11px var(--mono); }
+        #file-input { display: none; }
+        .status-panel { margin-top: 20px; padding: 22px; text-align: left; }
+        .status-top { display: flex; align-items: center; gap: 13px; }
+        .spinner { width: 25px; height: 25px; flex: 0 0 auto; border: 2px solid rgba(73,244,255,.16); border-top-color: var(--cyan); border-radius: 50%; animation: orbit .8s linear infinite; box-shadow: 0 0 9px rgba(73,244,255,.3); }
+        .status-text { margin: 0; color: #ffdb76; font-size: 16px; font-weight: 600; }
+        .result-box { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin-top: 17px; }
+        .result-item { padding: 11px 13px; border: 1px solid rgba(73,244,255,.15); border-radius: 8px; background: rgba(2,7,19,.54); }
+        .result-item span { color: #8194ac; font-size: 12px; }
+        .result-item b { display: inline-block; margin-top: 3px; color: var(--lime); font: 14px var(--mono); overflow-wrap: anywhere; }
+        .footer { display: flex; justify-content: space-between; gap: 12px; margin-top: 19px; padding: 0 5px; color: #64758d; font: 11px var(--mono); letter-spacing: .08em; }
+        .footer span:last-child { color: rgba(255,66,208,.75); }
+        @media (max-width: 700px) {
+            .page-shell { width: min(100% - 20px, 600px); padding-top: 15px; }
+            .hero { padding: 42px 8px 27px; }
+            .hero-orbit { left: auto; right: 3%; top: 29px; width: 33px; height: 33px; }
+            .hero-orbit::before { left: 13px; }
+            .hero-subtitle { font-size: 15px; }
+            .form-grid { grid-template-columns: 1fr; gap: 12px; }
+            .panel-heading { align-items: flex-start; }
+            .secure-tag { font-size: 9px; }
+            .drop-zone { min-height: 260px; }
+            .drop-title { font-size: 20px; }
+            .footer { flex-direction: column; text-align: center; }
+        }
+        @media (max-width: 420px) {
+            .brand-mark { font-size: 13px; }
+            .system-state { font-size: 10px; }
+            .config-panel { padding: 19px 15px; }
+            .panel-heading h2 { font-size: 17px; }
+            .secure-tag { display: none; }
+            .result-box { grid-template-columns: 1fr; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
+        }
+    </style>
+</head>
+<body>
+    <main class="page-shell">
+        <header class="topbar">
+            <div class="brand-mark"><span class="brand-icon">✦</span><span>WARP DRIVE / OPS</span></div>
+            <div class="system-state"><span class="state-dot"></span><span>SHIPMENT UPLINK READY</span></div>
+        </header>
+
+        <section class="hero">
+            <div class="hero-orbit" aria-hidden="true"></div>
+            <div class="eyebrow">INTERSTELLAR PARCEL CONTROL</div>
+            <h1><span class="title-parcel">PARCEL</span><br><span class="title-drop">DROP</span></h1>
+            <p class="hero-subtitle">แผงควบคุมรับข้อมูลขนส่งจากวงโคจร ส่งตรงสู่ <strong>public.parcels</strong></p>
+        </section>
+
+        <section class="hud-panel config-panel" aria-labelledby="config-heading">
+            <div class="panel-heading">
+                <div class="panel-title-wrap">
+                    <div class="panel-icon" aria-hidden="true">⌘</div>
+                    <div>
+                        <h2 id="config-heading">เชื่อมต่อฐานข้อมูล</h2>
+                        <p>SUPABASE PROJECT LINK // BROWSER LOCAL CONFIG</p>
+                    </div>
+                </div>
+                <span class="secure-tag">LOCAL STORAGE</span>
+            </div>
+            <div class="form-grid">
+                <label>
+                    <span class="field-label">Supabase Project URL <code>01</code></span>
+                    <input id="supabase-url" class="field-input" type="url" autocomplete="url" placeholder="https://your-project.supabase.co">
+                </label>
+                <label>
+                    <span class="field-label">Publishable / anon key <code>02</code></span>
+                    <input id="supabase-key" class="field-input" type="password" autocomplete="off" placeholder="sb_publishable_... หรือ anon key">
+                </label>
+            </div>
+            <div class="actions">
+                <button id="save-config" class="btn btn-primary" type="button">บันทึกการตั้งค่า ↗</button>
+                <button id="clear-config" class="btn btn-quiet" type="button">ล้างค่าจากเบราว์เซอร์</button>
+            </div>
+            <p id="config-status" aria-live="polite"></p>
+            <p class="security-note"><b>ข้อควรระวัง:</b> ใช้ publishable/anon key เท่านั้น ห้ามใส่ service_role key ในหน้าเว็บ และควรตั้ง RLS ให้เหมาะสม</p>
+        </section>
+
+        <div id="config-warning" class="config-warning hidden">ยังไม่เชื่อมต่อฐานข้อมูล — กรอก URL และ key ด้านบนแล้วกดบันทึกก่อนโยนไฟล์</div>
+
+        <section class="hud-panel drop-panel" aria-label="พื้นที่นำเข้าไฟล์พัสดุ">
+            <div id="drop-zone" class="drop-zone" role="button" tabindex="0" aria-label="เลือกหรือลากไฟล์ Excel หรือ CSV มาวาง">
+                <div class="drop-orb" aria-hidden="true">⇧</div>
+                <h2 class="drop-title">DROP YOUR CARGO</h2>
+                <p class="drop-caption">ลากไฟล์มาวาง หรือ <span>คลิกเพื่อเลือกไฟล์</span></p>
+                <div class="drop-badges"><span class="drop-badge">.XLSX</span><span class="drop-badge">.XLS</span><span class="drop-badge">.CSV</span><span class="drop-badge">FLASH EXPORT</span></div>
+                <input type="file" id="file-input" accept=".csv,.xlsx,.xls">
+            </div>
+        </section>
+
+        <section id="status-panel" class="hud-panel status-panel hidden" aria-live="polite">
+            <div class="status-top">
+                <div id="spinner" class="spinner"></div>
+                <p id="status-text" class="status-text"></p>
+            </div>
+            <div id="result-box" class="result-box hidden"></div>
+        </section>
+
+        <footer class="footer"><span>WARP DRIVE // PARCEL DATA TRANSMISSION</span><span>SECURE UPLINK · NEBULA SECTOR 07</span></footer>
+    </main>
+
+    <script>
+        const CONFIG_STORAGE_KEY = 'parcelDropSupabaseConfig_v1';
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const statusPanel = document.getElementById('status-panel');
+        const statusText = document.getElementById('status-text');
+        const spinner = document.getElementById('spinner');
+        const resultBox = document.getElementById('result-box');
+        const configWarning = document.getElementById('config-warning');
+        const configStatus = document.getElementById('config-status');
+        const urlInput = document.getElementById('supabase-url');
+        const keyInput = document.getElementById('supabase-key');
+
+        function readSavedConfig() {
+            try { return JSON.parse(localStorage.getItem(CONFIG_STORAGE_KEY) || 'null'); }
+            catch { return null; }
+        }
+        function getSupabaseClient() {
+            const config = readSavedConfig();
+            const url = String(config?.url || '').trim();
+            const key = String(config?.key || '').trim();
+            if (!url || !key || !window.supabase?.createClient) {
+                configWarning.classList.remove('hidden');
+                throw new Error('ยังไม่ได้ตั้งค่า Supabase: กรอก URL และ publishable/anon key ก่อน');
+            }
+            configWarning.classList.add('hidden');
+            return window.supabase.createClient(url, key);
+        }
+        function updateConfigStatus() {
+            const config = readSavedConfig();
+            const configured = Boolean(config?.url && config?.key);
+            configWarning.classList.toggle('hidden', configured);
+            configStatus.textContent = configured
+                ? '● UPLINK CONFIGURED — บันทึกไว้ในเบราว์เซอร์นี้แล้ว'
+                : '○ NO UPLINK — ยังไม่มีการตั้งค่าในเบราว์เซอร์นี้';
+            configStatus.style.color = configured ? 'var(--lime)' : 'var(--muted)';
+        }
+        document.getElementById('save-config').onclick = () => {
+            const url = urlInput.value.trim().replace(/\/$/, '');
+            const key = keyInput.value.trim();
+            if (!/^https:\/\/[a-zA-Z0-9.-]+\.supabase\.co$/.test(url)) {
+                configStatus.textContent = 'URL ไม่ถูกต้อง — ใช้รูปแบบ https://<project-ref>.supabase.co';
+                configStatus.style.color = '#ff7d9d';
+                return;
+            }
+            if (!key) {
+                configStatus.textContent = 'กรุณากรอก publishable/anon key';
+                configStatus.style.color = '#ff7d9d';
+                return;
+            }
+            try {
+                localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify({ url, key }));
+                updateConfigStatus();
+            } catch (err) {
+                configStatus.textContent = 'บันทึกในเบราว์เซอร์ไม่สำเร็จ: ' + (err?.message || 'storage unavailable');
+                configStatus.style.color = '#ff7d9d';
+            }
+        };
+        document.getElementById('clear-config').onclick = () => {
+            localStorage.removeItem(CONFIG_STORAGE_KEY);
+            urlInput.value = '';
+            keyInput.value = '';
+            updateConfigStatus();
+        };
+        const savedConfig = readSavedConfig();
+        if (savedConfig) {
+            urlInput.value = savedConfig.url || '';
+            keyInput.value = savedConfig.key || '';
+        }
+        updateConfigStatus();
+
+        dropZone.onclick = () => {
+            try { getSupabaseClient(); fileInput.click(); }
+            catch (err) { showSetupError(err); }
+        };
+        dropZone.onkeydown = (e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); dropZone.click(); }
+        };
+        dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('dragging'); };
+        dropZone.ondragleave = () => dropZone.classList.remove('dragging');
+        dropZone.ondrop = (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragging');
+            try { getSupabaseClient(); handleFile(e.dataTransfer.files[0]); }
+            catch (err) { showSetupError(err); }
+        };
+        fileInput.onchange = (e) => handleFile(e.target.files[0]);
+
+        function showSetupError(err) {
+            statusPanel.classList.remove('hidden');
+            spinner.classList.add('hidden');
+            statusText.textContent = err?.message || 'ตรวจการตั้งค่า Supabase';
+            statusText.style.color = '#ffd18a';
+        }
+        const cleanHeader = (value) => String(value ?? '').trim().toLowerCase().replace(/[\s_\-().（）:：/\\]+/g, '');
+        const valueFrom = (row, names) => {
+            const wanted = names.map(cleanHeader);
+            const key = Object.keys(row).find(k => wanted.includes(cleanHeader(k)));
+            return key == null ? '' : row[key];
+        };
+        const text = (value) => String(value ?? '').trim();
+        const phone = (value) => {
+            const digits = text(value).replace(/\D/g, '');
+            return digits.startsWith('66') && digits.length === 11 ? '0' + digits.slice(2) : digits;
+        };
+        const pickupDate = (value) => value instanceof Date && !Number.isNaN(value.getTime()) ? value.toISOString() : text(value);
+        function mapParcel(row) {
+            return {
+                pickup_date: pickupDate(valueFrom(row, ['Pickup Date', 'pickup_date', 'เวลาสร้าง', 'วันเวลาสร้าง', 'created_at', 'create time', 'วันที่รับพัสดุ', 'วันที่รับ', 'วันที่ส่ง', 'วันที่'])),
+                tracking_number: text(valueFrom(row, ['Tracking number', 'Tracking Number', 'tracking_number', 'เลขพัสดุ', 'เลขที่พัสดุ', 'เลขแทรค', 'เลข Tracking'])),
+                consignee: text(valueFrom(row, ['Consignee', 'consignee', 'ชื่อผู้รับ', 'ชื่อผู้รับพัสดุ', 'ชื่อลูกค้า', 'ผู้รับ'])),
+                phone_number: phone(valueFrom(row, ['Phone number', 'Phone Number', 'phone_number', 'phone', 'เบอร์โทร', 'เบอร์โทรศัพท์', 'เบอร์ผู้รับ', 'โทรศัพท์'])),
+                address: text(valueFrom(row, ['Address', 'address', 'ที่อยู่', 'ที่อยู่จัดส่ง', 'ที่อยู่ผู้รับ', 'ที่อยู่ที่รับ'])),
+                cod_amount: text(valueFrom(row, ['COD Amount(THB)', 'COD Amount (THB)', 'COD Amount', 'cod_amount', 'ยอด COD', 'ยอดCOD', 'ยอดเก็บปลายทาง', 'COD'])) || '0'
+            };
+        }
+        const validParcel = (row) => row.tracking_number && row.consignee && row.phone_number && row.address;
+        function showResult(fileName, rows, skipped) {
+            resultBox.classList.remove('hidden');
+            resultBox.innerHTML = [['FILE', fileName], ['DESTINATION', 'public.parcels'], ['IMPORTED', `${rows} records`], ['SKIPPED', `${skipped} records`]]
+                .map(([label, value]) => `<div class="result-item"><span>${label}</span><br><b>${value}</b></div>`).join('');
+        }
+        async function handleFile(file) {
+            if (!file) return;
+            statusPanel.classList.remove('hidden');
+            resultBox.classList.add('hidden');
+            spinner.classList.remove('hidden');
+            statusText.textContent = `กำลังอ่าน ${file.name}...`;
+            statusText.style.color = '#ffdb76';
+            try {
+                const sb = getSupabaseClient();
+                const workbook = XLSX.read(new Uint8Array(await file.arrayBuffer()), { type: 'array', cellDates: true });
+                const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                const rawRows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+                if (!rawRows.length) throw new Error('ไฟล์ว่างหรืออ่านแถวข้อมูลไม่ได้');
+                const mapped = rawRows.map(mapParcel);
+                const payload = mapped.filter(validParcel);
+                const skipped = mapped.length - payload.length;
+                if (!payload.length) throw new Error('ไม่พบแถวที่มีเลขพัสดุ ชื่อ เบอร์โทร และที่อยู่ครบ');
+                for (let i = 0; i < payload.length; i += 50) {
+                    const chunk = payload.slice(i, i + 50);
+                    statusText.textContent = `กำลังส่งข้อมูลขึ้นวงโคจร ${Math.min(i + chunk.length, payload.length)} / ${payload.length}...`;
+                    const { error } = await sb.from('parcels').insert(chunk);
+                    if (error) throw error;
+                }
+                spinner.classList.add('hidden');
+                statusText.textContent = '✓ นำเข้า public.parcels สำเร็จ';
+                statusText.style.color = 'var(--lime)';
+                showResult(file.name, payload.length, skipped);
+            } catch (err) {
+                console.error('IMPORT ERROR:', err);
+                spinner.classList.add('hidden');
+                statusText.textContent = '✕ นำเข้าไม่สำเร็จ: ' + (err?.message || 'FAILED');
+                statusText.style.color = '#ff7d9d';
+            } finally {
+                fileInput.value = '';
+            }
+        }
+    </script>
+</body>
+</html>
