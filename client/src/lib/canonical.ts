@@ -642,12 +642,12 @@ function normalizeChatReadRows(sourceRows: any[]) {
     );
   }).map(row => {
     const isPage = row._source_table === "Pg_Chat⭐BINARY_xXx_STAR";
-    // ตารางจริงมีทั้งค่า page/customer, inbound/outbound และบางรอบเป็นตัวพิมพ์ใหญ่
-    // ถ้ามี speaker ให้เชื่อ speaker ก่อนเสมอ; ใช้ชื่อตารางเป็น fallback เท่านั้น
+    // สองโต๊ะต้นทางเป็น source of truth: Cust = ลูกค้า, Pg = เพจ
+    // เพราะบางรอบ n8n ใส่ speaker ผิดแถวจนข้อความลูกค้าถูกตีเป็นข้อความเพจ
     const rawSpeaker = asText(row.speaker).trim().toLowerCase();
-    const speaker = rawSpeaker
-      ? (/^(page|เพจ|admin|แอดมิน|outbound|เจ้าหน้าที่)$/i.test(rawSpeaker) ? "page" : "customer")
-      : (isPage ? "page" : "customer");
+    const isCustomer = row._source_table === "Cust_Chat⭐BINARY_xXx_STAR";
+    const speaker = isCustomer ? "customer" : isPage ? "page"
+      : rawSpeaker && /^(page|เพจ|admin|แอดมิน|outbound|เจ้าหน้าที่)$/i.test(rawSpeaker) ? "page" : "customer";
     const isPageSpeaker = speaker === "page";
     // customer_latest_message คือข้อความแรก/ล่าสุดจากลูกค้าในแถวสรุปของ n8n
     // บางแถวไม่มี message_text แต่มีฟิลด์นี้ จึงห้ามปล่อยให้กลายเป็น bubble ว่าง

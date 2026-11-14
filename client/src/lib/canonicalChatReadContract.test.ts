@@ -286,14 +286,14 @@ describe("ChatHub read contract v5", () => {
     expect(message.text).toBe("ลูกค้าทักมาก่อน ขอเช็กค่าส่งหน่อยค่ะ");
   });
 
-  it("trusts the user-defined speaker field when it differs from Matrix source side", () => {
+  it("uses the source table as authority when speaker metadata is wrong", () => {
     const [message] = mapChatRowsToMessages([{
-      _source_table: CHAT_PAGE_TABLE,
+      _source_table: CHAT_CUSTOMER_TABLE,
       source_side: "page",
       page_id: "page-1",
       thread_id: "thread-1",
-      speaker: "customer",
-      message_text: "ข้อความจากเพจ",
+      speaker: "page",
+      message_text: "ข้อความจากลูกค้า",
       occurred_at: "2026-11-09T04:50:06.000Z",
     }]);
 
