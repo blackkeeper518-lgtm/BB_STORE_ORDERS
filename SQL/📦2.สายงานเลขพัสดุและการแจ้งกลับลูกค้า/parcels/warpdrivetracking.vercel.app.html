@@ -213,7 +213,7 @@
             <div id="drop-zone" class="drop-zone" role="button" tabindex="0" aria-label="เลือกหรือลากไฟล์ Excel หรือ CSV มาวาง">
                 <div class="drop-orb" aria-hidden="true">⇧</div>
                 <h2 class="drop-title">DROP YOUR CARGO</h2>
-                <p class="drop-caption">ลากไฟล์พัสดุหรือภาพมาวาง หรือ <span>คลิกเพื่อเลือกไฟล์</span></p>
+                <p class="drop-caption">ลากไฟล์พัสดุหรือภาพมาวาง · <span>คลิกเลือกไฟล์ หรือ Ctrl+V ภาพแคปหน้าจอ</span></p>
                 <div class="drop-badges"><span class="drop-badge">.XLSX</span><span class="drop-badge">.XLS</span><span class="drop-badge">.CSV</span><span class="drop-badge">JPG / PNG / WEBP</span><span class="drop-badge">FLASH EXPORT</span></div>
                 <input type="file" id="file-input" accept=".csv,.xlsx,.xls,image/jpeg,image/png,image/webp,image/gif" multiple>
             </div>
@@ -325,6 +325,15 @@
             catch (err) { showSetupError(err); }
         };
         fileInput.onchange = (e) => handleFiles(e.target.files);
+        document.addEventListener('paste', (event) => {
+            const target = event.target;
+            if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target?.isContentEditable) return;
+            const items = Array.from(event.clipboardData?.items || []);
+            const images = items.map(item => item.kind === 'file' ? item.getAsFile() : null).filter(file => file && isImageFile(file));
+            if (!images.length) return;
+            event.preventDefault();
+            handleFiles(images);
+        });
 
         function showSetupError(err) {
             statusPanel.classList.remove('hidden');
