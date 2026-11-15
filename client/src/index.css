@@ -71,10 +71,12 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .chat-cosmos-composer { position:relative; isolation:isolate; }
 .chat-cosmos-composer::before { content:""; position:absolute; z-index:-1; inset:0; pointer-events:none; background:linear-gradient(90deg,transparent,rgba(75,231,255,.16),rgba(255,86,211,.18),transparent); background-size:220% 100%; animation:chat-running-light 5s linear infinite; }
 .chat-cosmos-tools { min-width:0; }
+.chat-cosmos-tools.chat-cosmos-tools--order-deck { width:min(480px,42vw) !important; }
 @keyframes chat-star-drift { from { transform:translate3d(0,0,0); } to { transform:translate3d(-34px,48px,0); } }
 @keyframes chat-meteor { 0%,58% { opacity:0; transform:translate3d(80px,-20px,0) rotate(-24deg); } 66% { opacity:1; } 82%,100% { opacity:0; transform:translate3d(-430px,170px,0) rotate(-24deg); } }
 @keyframes chat-running-light { from { background-position:0 50%; } to { background-position:220% 50%; } }
 @media (max-width:1439px) { .chat-cosmos-tools { width:280px !important; } }
+@media (max-width:1439px) { .chat-cosmos-tools.chat-cosmos-tools--order-deck { width:min(440px,42vw) !important; } }
 @media (prefers-reduced-motion:reduce) { .chat-cosmos-timeline::before,.chat-cosmos-timeline::after,.chat-cosmos-composer::before { animation:none; } }
 .cosmic-corner { position:absolute; pointer-events:none; border-color:rgba(99,232,255,.55); filter:drop-shadow(0 0 7px rgba(99,232,255,.5)); }
 .cosmic-corner.tl { top:16px; left:16px; width:42px; height:42px; border-top:1px solid; border-left:1px solid; }

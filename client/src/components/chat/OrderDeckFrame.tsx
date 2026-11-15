@@ -9,6 +9,7 @@ type OrderDeckFrameProps = {
   customerName: string;
   customerPhone: string;
   customerMessages: string[];
+  importKey: number;
 };
 
 export function OrderDeckFrame(props: OrderDeckFrameProps) {
@@ -28,6 +29,10 @@ export function OrderDeckFrame(props: OrderDeckFrameProps) {
   useEffect(() => {
     sendContext(false);
   }, [props.pageId, props.pageName, props.threadId, sendContext]);
+
+  useEffect(() => {
+    if (props.importKey > 0) sendContext(true);
+  }, [props.importKey, sendContext]);
 
   return <section className="min-w-0 space-y-2 rounded-xl border border-violet-300/15 bg-black/15 p-2">
     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -51,7 +56,7 @@ export function OrderDeckFrame(props: OrderDeckFrameProps) {
       ref={frameRef}
       src="/order-deck.html?embedded=1"
       title="DRΛKSIDE Order Deck — เครื่องมือสรุปบิล"
-      onLoad={() => sendContext(false)}
+      onLoad={() => sendContext(currentProps.current.importKey > 0)}
       className="h-[66dvh] min-h-[520px] w-full rounded-lg border border-violet-300/15 bg-[#0b0b15]"
     />
     <p className="text-[9px] leading-4 text-cyan-100/40">ดึงเฉพาะข้อความฝั่งลูกค้า · ตรวจข้อมูลก่อนคัดลอก · ไม่บันทึกออเดอร์และไม่ส่งแชทอัตโนมัติ</p>

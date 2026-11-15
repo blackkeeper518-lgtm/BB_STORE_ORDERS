@@ -94,6 +94,7 @@ export default function ChatHub() {
   const [composerOpen, setComposerOpen] = useState(true);
   const [toolsOpen, setToolsOpen] = useState(() => typeof window === "undefined" || window.innerWidth >= 1440);
   const [orderDeckOpen, setOrderDeckOpen] = useState(false);
+  const [orderDeckImportKey, setOrderDeckImportKey] = useState(0);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [pageFilterOpen, setPageFilterOpen] = useState(false);
   const [selectedPages, setSelectedPages] = useState<string[]>(() => {
@@ -279,12 +280,11 @@ export default function ChatHub() {
   const confirmedKeys = new Set((confirmationsQuery.data ?? []).map(row => `${row.pageId}:${row.threadId}`));
   const openOrderSummary = () => {
     if (!selected) return;
-    const linkedSource = selected.orders?.find((order: any) => order.source_text)?.source_text
-      || selected.orders?.find((order: any) => order.source_payload?.source_text)?.source_payload?.source_text;
-    const seed = linkedSource || selected.chatTimeline?.join("\n") || selected.preview || "";
     setSummary(null);
-    setSummaryText(seed);
-    setSummaryOpen(true);
+    setToolsOpen(true);
+    setOrderDeckOpen(true);
+    setOrderDeckImportKey(key => key + 1);
+    setSummaryOpen(false);
   };
   const selectedConfirmed = Boolean(selected && confirmedKeys.has(`${selectedPageId}:${selectedThreadId}`));
   const confirmSelectedOrder = () => { if (!selectedPageId || !selectedThreadId || selectedConfirmed) return; confirmOrder.mutate({ pageId: selectedPageId, threadId: selectedThreadId, customerName: selected?.customerName ?? undefined, customerId: selectedCustomerId || undefined, evidenceText: selected?.preview ?? undefined }); };
@@ -418,7 +418,7 @@ export default function ChatHub() {
       <div className="mt-3 flex flex-wrap gap-1.5">{([ ["all", "ทั้งหมด"], ["ordered", "ออเดอร์"], ["tracking_over_24h", "เลขพัสดุ"] ] as const).map(([value, label]) => <button key={value} type="button" onClick={() => setStatusFilter(value)} className={`chat-tool-action chat-tool-action--filter ${statusFilter === value ? "chat-tool-action--active" : ""}`}>{label}</button>)}</div></CardHeader><CardContent className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 [-webkit-overflow-scrolling:touch]">{threadsQuery.isLoading ? <div className="flex items-center justify-center gap-2 p-12 text-sm text-fuchsia-100/40"><RefreshCw className="h-4 w-4 animate-spin" />กำลังโหลดห้อง…</div> : filteredThreads.length === 0 ? <div className="p-12 text-center text-sm text-fuchsia-100/40"><MessageCircle className="mx-auto mb-3 h-8 w-8 text-fuchsia-100/15" />ยังไม่มีห้องตามตัวกรอง</div> : filteredThreads.map((thread, index) => <button key={thread.key} onClick={() => { setSelectedKey(thread.key); if (isMobile) setMobileOpen(true); }} className={`room-list-card relative mb-1 flex w-full items-start gap-3 rounded-2xl p-3.5 text-left transition ${selected?.key === thread.key ? "room-list-card--selected bg-gradient-to-r from-fuchsia-400/[0.13] via-violet-500/[0.08] to-pink-500/[0.10]" : "hover:bg-cyan-300/[0.06] hover:ring-1 hover:ring-cyan-300/15"}`}><span className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${index % 2 ? "bg-fuchsia-500/20 text-fuchsia-200" : "bg-fuchsia-500/20 text-fuchsia-200"}`}>{(thread.customerName || "ลูกค้า").slice(0, 1)}</span><span className="min-w-0 flex-1"><span className="flex items-center justify-between gap-2"><span className="chat-customer-list-label truncate text-sm font-semibold">{thread.customerName || "ลูกค้าใหม่"}</span><span className="shrink-0 text-xs text-cyan-100/55">{timeLabel(thread.latestAt)}</span></span><span className="mt-1 flex items-center gap-1.5 truncate text-xs text-fuchsia-100/75"><span className={`chat-room-code-label ${isOrderRoom(thread) ? "cod-room-sign" : ""} shrink-0 rounded border px-1.5 py-0.5 font-mono text-[9px] ${isOrderRoom(thread) ? "border-emerald-200/80 bg-emerald-400/20 text-emerald-50 shadow-[0_0_14px_rgba(52,211,153,.65)]" : "border-fuchsia-300/25 bg-fuchsia-400/[0.08] text-fuchsia-100"} ${hasTimeSlotLabel(thread) ? "time-slot-room-sign" : ""}`} title={thread.timeSlotLabel || undefined}>BB.{thread.pageId ? thread.pageId.slice(-4) : "ROOM"}{isOrderRoom(thread) ? " ⚡" : ""}{hasTimeSlotLabel(thread) ? " 🔥" : ""}</span>{thread.unread ? <span className="rounded bg-cyan-400/15 px-1 text-cyan-200">ใหม่</span> : null}{isOrderRoom(thread) ? <span title="ออเดอร์ของวันนี้จากเวลาในข้อมูลห้อง" className="rounded bg-emerald-400/15 px-1 text-emerald-200">ออเดอร์วันนี้</span> : null}{thread.orderCount > 0 ? <span title="แถวออเดอร์ที่ผูกกับห้องได้" className="rounded bg-cyan-400/15 px-1 text-cyan-200">ORD {thread.orderCount}</span> : null}{confirmedKeys.has(`${thread.pageId}:${thread.threadId}`) ? <span className="rounded bg-fuchsia-400/15 px-1 text-cyan-200">ยืนยันแล้ว</span> : null}<span className="truncate">{thread.pageName}</span></span><span className="mt-1 block truncate text-xs text-fuchsia-100/45">{thread.preview}</span></span></button>)}</CardContent></Card>
       <Card className="hidden h-full min-h-0 min-w-[min(560px,85vw)] flex-1 overflow-hidden rounded-3xl border-violet-300/20 bg-[#0b101b]/95 shadow-[0_8px_36px_rgba(168,85,247,.10)] backdrop-blur-xl md:block">{conversation}</Card>
       {!toolsOpen ? <button type="button" onClick={() => setToolsOpen(true)} aria-label="เปิดแผงเครื่องมือ" className="chat-tool-action chat-tool-action--primary absolute right-2 top-2 z-30 px-3">เปิดเครื่องมือ</button> : null}
-      <Card className={`chat-cosmos-tools chat-tools-panel relative flex min-h-0 w-[320px] shrink-0 flex-col overflow-hidden rounded-2xl border backdrop-blur-xl transition-[width] duration-200 ${toolsOpen ? "" : "pointer-events-none"}`} style={{ width: toolsOpen ? "320px" : "0px" }}>
+      <Card className={`chat-cosmos-tools chat-tools-panel relative flex min-h-0 w-[320px] shrink-0 flex-col overflow-hidden rounded-2xl border backdrop-blur-xl transition-[width] duration-300 ${orderDeckOpen ? "chat-cosmos-tools--order-deck" : ""} ${toolsOpen ? "" : "pointer-events-none"}`} style={{ width: toolsOpen ? orderDeckOpen ? "min(480px, 42vw)" : "320px" : "0px" }}>
         <CardHeader className="shrink-0 border-b border-cyan-300/10 px-3 pb-3 pt-3">
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
@@ -457,6 +457,7 @@ export default function ChatHub() {
                 customerName={selected.customerName ?? ""}
                 customerPhone={String(selected.phone ?? selected.customerPhone ?? selected.extracted_phone ?? "")}
                 customerMessages={orderDeckCustomerMessages}
+                importKey={orderDeckImportKey}
               /> : null}
             </section>
             {availableToolValues.length ? <section className="space-y-1.5">
