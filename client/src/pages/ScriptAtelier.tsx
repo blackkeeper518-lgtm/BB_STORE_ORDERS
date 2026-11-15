@@ -497,7 +497,7 @@ export default function ScriptAtelier() {
                     </div>
                     <span className="shrink-0 rounded-full border border-fuchsia-300/15 px-2 py-1 text-[10px] text-fuchsia-100/55">v{card.version}</span>
                   </div>
-                  <p className="mt-4 line-clamp-5 whitespace-pre-wrap text-left text-sm leading-6 text-slate-200/75">
+                  <p className="mt-4 whitespace-pre-wrap break-words text-left text-sm leading-6 text-slate-200/75">
                     {card.script_text || "ยังไม่มีเนื้อหาสคริปต์"}
                   </p>
                 </button>
