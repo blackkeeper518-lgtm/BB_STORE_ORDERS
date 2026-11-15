@@ -430,7 +430,7 @@ body.visual-theme .parcel-panel .postal-state.loading:before{color:var(--visual-
     <div class="postal-box">
       <div id="postalState" class="postal-state">RADAR READY · รอที่อยู่หรือชื่อจังหวัด</div>
       <div id="postalResults" class="postal-results"><div class="postal-empty"><strong>NO SCAN YET</strong><br>วางที่อยู่จากหน้าแชท แล้วกดสแกน<br>ระบบจะแสดงรหัสและพื้นที่ที่จับคู่ได้</div></div>
-      <div class="postal-source"><span>QUERY TARGET</span><span>thailand_address_master · SELECT ONLY</span></div>
+      <div class="postal-source"><span>QUERY TARGET</span><span>efieodrwkmpcxftnlaqx · thailand_address_master · SELECT ONLY</span></div>
     </div>
   </div>
 </section>
@@ -537,10 +537,14 @@ renderScripts();renderFiles();$('code').value='-- เขียน SQL, Java, Mar
   const searchButton=document.getElementById('postalSearch');
   const clearButton=document.getElementById('postalClear');
   if(!input||!results||!state||!searchButton)return;
-  const API_ROOT='https://yyqptukudsuizpklfrdd.supabase.co';
-  const ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl5cXB0dWt1ZHN1aXpwa2xmcmRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE5MzU5ODAsImV4cCI6MjA5NzUxMTk4MH0.6z_NdqgTBfVKTUVssv_MOnyhGAWViv72PikgW5EuIxQ';
+  const ADDRESS_PROJECT_REF='efieodrwkmpcxftnlaqx';
   let activeRequest=0;
-  if(!window.DARKSIDE_SUPABASE_READ?.url){window.DARKSIDE_SUPABASE_READ=Object.freeze({url:API_ROOT,anonKey:ANON_KEY});}
+  function getAddressProject(){
+    const projects=Array.isArray(window.DARKSIDE_SUPABASE_PROJECTS)?window.DARKSIDE_SUPABASE_PROJECTS:[];
+    return projects.find(project=>{
+      try{return new URL(String(project.url||'')).hostname===`${ADDRESS_PROJECT_REF}.supabase.co`&&String(project.anonKey||'').trim().length>0}catch{return false}
+    })||null;
+  }
   const cleanText=value=>String(value||'').normalize('NFC').replace(/[\u200B-\u200F\uFEFF]/g,' ').replace(/[\r\n]+/g,' ').replace(/\s+/g,' ').trim();
   const cleanPlace=value=>cleanText(value).replace(/\d{5}/g,' ').replace(/[^\p{L}\p{M}\s.-]/gu,' ').replace(/\s+/g,' ').trim().replace(/^[.-]+|[.-]+$/g,'');
   function capture(text,re){const m=text.match(re);return m?cleanPlace(m[1]):''}
@@ -619,9 +623,11 @@ renderScripts();renderFiles();$('code').value='-- เขียน SQL, Java, Mar
     return scored.filter(entry=>entry.score===bestScore).map(entry=>entry.row);
   }
   async function queryPostal(plan){
+    const project=getAddressProject();
+    if(!project)throw new Error('ADDRESS_PROJECT_NOT_CONFIGURED');
     const params=new URLSearchParams({select:'district,amphoe,province,zipcode',limit:String(plan.limit)});
     for(const [key,value] of Object.entries(plan.filters))params.set(key,value);
-    const response=await fetch(`${API_ROOT}/rest/v1/thailand_address_master?${params.toString()}`,{method:'GET',headers:{apikey:ANON_KEY,Authorization:`Bearer ${ANON_KEY}`,Accept:'application/json'}});
+    const response=await fetch(`${String(project.url).replace(/\/+$/,'')}/rest/v1/thailand_address_master?${params.toString()}`,{method:'GET',cache:'no-store',headers:darksideSupabaseHeaders(project.anonKey)});
     if(!response.ok)throw new Error(`HTTP ${response.status}`);
     return await response.json();
   }
@@ -678,8 +684,9 @@ renderScripts();renderFiles();$('code').value='-- เขียน SQL, Java, Mar
       renderResults(uniqueRows(rows),mode,parsed);
     }catch(error){
       if(requestId!==activeRequest)return;
-      state.className='postal-state bad';state.textContent='RADAR OFFLINE · เชื่อมฐาน ปณ. ไม่สำเร็จ';
-      results.innerHTML='<div class="postal-empty"><strong>CONNECTION ERROR</strong><br>ตรวจอินเทอร์เน็ต แล้วลองสแกนอีกครั้ง</div>';
+      const projectMissing=error?.message==='ADDRESS_PROJECT_NOT_CONFIGURED';
+      state.className='postal-state bad';state.textContent=projectMissing?'PROJECT CONFIG NEEDED · ยังไม่ได้ตั้งค่าโปรเจกต์ฐาน ปณ.':'RADAR OFFLINE · เชื่อมฐาน ปณ. ไม่สำเร็จ';
+      results.innerHTML=projectMissing?'<div class="postal-empty"><strong>เลือกโปรเจกต์ฐาน ปณ.</strong><br>ไปที่ตั้งค่า Supabase ใน Order Deck แล้วใส่ Project URL และ anon key ของ<br><code>efieodrwkmpcxftnlaqx</code><br>จากนั้นกดบันทึกการตั้งค่า แล้วกลับมาค้นหาใหม่</div>':'<div class="postal-empty"><strong>CONNECTION ERROR</strong><br>ตรวจ URL / anon key / สิทธิ์ SELECT ของตารางในโปรเจกต์ <code>efieodrwkmpcxftnlaqx</code> แล้วลองอีกครั้ง</div>';
     }
   }
   searchButton.addEventListener('click',runSearch);
