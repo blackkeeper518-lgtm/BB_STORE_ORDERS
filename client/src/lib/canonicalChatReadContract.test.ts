@@ -328,6 +328,18 @@ describe("ChatHub read contract v5", () => {
     ]);
   });
 
+  it("deduplicates by message_id even when dedupe_key differs, preserving same text with distinct IDs", () => {
+    const [first, duplicate, repeatedText] = [
+      { _source_table: CHAT_CUSTOMER_TABLE, page_id: "page-1", thread_id: "thread-1", speaker: "customer", message_id: "message-1", dedupe_key: "page-1|thread-1|message-1", message_text: "ครับ", occurred_at: "2026-11-14T04:00:00.000Z" },
+      { _source_table: CHAT_CUSTOMER_TABLE, page_id: "page-1", thread_id: "thread-1", speaker: "customer", message_id: "message-1", dedupe_key: "different-dedupe-key", message_text: "ครับ", occurred_at: "2026-11-14T04:00:00.000Z" },
+      { _source_table: CHAT_CUSTOMER_TABLE, page_id: "page-1", thread_id: "thread-1", speaker: "customer", message_id: "message-2", dedupe_key: "page-1|thread-1|message-2", message_text: "ครับ", occurred_at: "2026-11-14T04:01:00.000Z" },
+    ];
+
+    const messages = mapChatRowsToMessages([first, duplicate, repeatedText]);
+    expect(messages).toHaveLength(2);
+    expect(messages.map(message => message.messageId)).toEqual(["message-1", "message-2"]);
+  });
+
   it("uses the source table as authority when speaker metadata is wrong", () => {
     const [message] = mapChatRowsToMessages([{
       _source_table: CHAT_CUSTOMER_TABLE,
