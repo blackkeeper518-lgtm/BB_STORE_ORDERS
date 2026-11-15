@@ -260,7 +260,13 @@ for (const item of $input.all()) {
       const rawMsgId = message.message_id || message.id || `msg_test_${Date.now()}_${index}`;
       const dedupeKey = `${pageConfig.page_id}|${recipientId}|${rawMsgId}`;
       const conversationKey = `${pageConfig.page_id}|${recipientId}`;
-      const chatLinkKey = `${pageConfig.page_id}:${conv.id}`;
+      
+   const normalizedPageId = String(pageConfig.page_id || "").trim();
+  const normalizedThreadId = String(String(conv.id) || "").trim();
+  const chatLinkKey =
+  normalizedPageId && normalizedThreadId
+    ? `${normalizedPageId}_${normalizedThreadId}`
+    : "";
 
       const timeThai = formatThaiDateTime(msgMs);
 
@@ -282,9 +288,10 @@ for (const item of $input.all()) {
           threadId: String(conv.id),
           thread_id: String(conv.id),
           customer_id: recipientId,
-          customer_name: recipientName,
+          customer_name : recipientName,
           recipient_id: recipientId,
           recipient_name: recipientName,
+          facebook_name : recipientName,
           customer_latest_message: latestCustomerText,
           customer_message_time_th: latestCustomerTime,
           page_latest_message: latestPageText,
@@ -320,7 +327,7 @@ for (const item of $input.all()) {
           messaging_tag_required: is24hValid ? "NONE" : "POST_PURCHASE_UPDATE",
           
           message_text : finalText,
-          parcel_status_emoji: parcelStatusEmoji,
+           source_lane: '🌌BB_CHAT',
           sync_status: "READY_TO_SAVE"
         }
       });
