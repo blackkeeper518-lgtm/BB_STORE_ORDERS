@@ -3,7 +3,7 @@ import { adminProcedure, protectedProcedure, publicProcedure, router } from "./_
 import { COOKIE_NAME } from "../shared/const";
 import { sendMetaMessage } from "./meta";
 import { storagePut } from "./storage";
-import { checkChatConnection, fetchChatMessageRows, fetchChatThreadRows, fetchParcelMappingQueue, purgeOldParcels, recordOutgoingChatMessage, supabaseGet, supabasePost } from "./supabase";
+import { checkChatConnection, fetchChatMessageRows, fetchChatNotificationRows, fetchChatThreadRows, fetchParcelMappingQueue, purgeOldParcels, recordOutgoingChatMessage, supabaseGet, supabasePost } from "./supabase";
 import * as db from "./db";
 
 const ownerId = (ctx: { user: { id: number } | null }) => ctx.user?.id ?? 0;
@@ -38,6 +38,7 @@ export const appRouter = router({
   chat: router({
     connection: protectedProcedure.query(({ ctx }) => checkChatConnection(requireBrowserChatConfig(ctx))),
     threads: protectedProcedure.query(({ ctx }) => fetchChatThreadRows(requireBrowserChatConfig(ctx))),
+    pollNotifications: protectedProcedure.input(z.object({ afterRowId: z.string().regex(/^\d+$/).nullable() })).mutation(({ input, ctx }) => fetchChatNotificationRows(input.afterRowId, requireBrowserChatConfig(ctx))),
     messages: protectedProcedure.input(z.object({ pageId: z.string().min(1), threadId: z.string().min(1) })).query(({ input, ctx }) => fetchChatMessageRows(input, requireBrowserChatConfig(ctx))),
     sendReply: publicProcedure.input(z.object({ pageId: z.string(), pageName: z.string().optional(), portalKey: z.string().optional(), chatLinkKey: z.string().optional(), threadId: z.string(), recipientId: z.string(), text: z.string().optional(), imageUrl: z.string().optional(), stickerId: z.string().optional() })).mutation(async ({ input, ctx }) => {
       const credentials = requireBrowserChatConfig(ctx);

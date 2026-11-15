@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useIsMobile } from "@/hooks/useMobile";
 import { mapChatRowsToMessages, mapChatRowsToThreads, reconcileOptimisticMessages } from "@/lib/canonical";
 import { buildMetaConversationUrl } from "@/lib/meta-inbox";
-import { readBrowserChatConfig } from "@/lib/chat-config";
+import { CHAT_BROWSER_CONFIG_EVENT, readBrowserChatConfig } from "@/lib/chat-config";
 import { trpc } from "@/lib/trpc";
 import { Check, CheckCircle2, ChevronDown, CircleUserRound, Clipboard, ExternalLink, ImagePlus, LoaderCircle, MessageCircle, RefreshCw, Search, Send, Sparkles, Users, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -56,32 +56,8 @@ function hasTrackingOver24Hours(thread: Record<string, any>) {
 }
 
 
-const CHAT_SOUND_KEY = "nightops-chat-sound-v1";
 const CHAT_PAGE_FILTER_KEY = "bb-orders-chat-page-filter-v1";
 const CHAT_SELECTED_ROOM_KEY = "bb-orders-chat-selected-room-v1";
-function playChatNotificationSound() {
-  try {
-    const settings = JSON.parse(localStorage.getItem(CHAT_SOUND_KEY) || "{}");
-    if (settings.enabled === false) return;
-    const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AudioContextClass) return;
-    const context = new AudioContextClass();
-    const oscillator = context.createOscillator();
-    const gain = context.createGain();
-    const tone = settings.tone === "bell" ? 880 : settings.tone === "pop" ? 520 : 660;
-    const duration = settings.tone === "bell" ? 0.42 : 0.18;
-    oscillator.type = settings.tone === "pop" ? "square" : "sine";
-    oscillator.frequency.value = tone;
-    gain.gain.setValueAtTime(0.0001, context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(Math.max(0.01, Number(settings.volume) || 0.35), context.currentTime + 0.01);
-    gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + duration);
-    oscillator.connect(gain).connect(context.destination);
-    oscillator.start();
-    oscillator.stop(context.currentTime + duration + 0.03);
-    window.setTimeout(() => void context.close(), 700);
-  } catch { /* Browser may block audio until a user gesture. */ }
-}
-
 const quickReplies = [
   "สวัสดีค่ะ สนใจรับกี่คอตดีคะ?",
   "มีบริการเก็บเงินปลายทางค่ะ",
@@ -142,11 +118,16 @@ export default function ChatHub() {
   const [showNewMessages, setShowNewMessages] = useState(false);
   const nearBottomRef = useRef(true);
   const lastSelectedKeyRef = useRef<string | null>(null);
+  const lastLatestMessageKeyRef = useRef<string | null>(null);
   const routeSelectionPendingRef = useRef<string | null>(null);
   useEffect(() => {
     const refreshConfig = () => setBrowserChatConfig(readBrowserChatConfig());
     window.addEventListener("storage", refreshConfig);
-    return () => window.removeEventListener("storage", refreshConfig);
+    window.addEventListener(CHAT_BROWSER_CONFIG_EVENT, refreshConfig);
+    return () => {
+      window.removeEventListener("storage", refreshConfig);
+      window.removeEventListener(CHAT_BROWSER_CONFIG_EVENT, refreshConfig);
+    };
   }, []);
   useEffect(() => { localStorage.setItem(CHAT_PAGE_FILTER_KEY, JSON.stringify(selectedPages)); }, [selectedPages]);
   useEffect(() => { if (selectedKey) localStorage.setItem(CHAT_SELECTED_ROOM_KEY, selectedKey); }, [selectedKey]);
@@ -222,20 +203,6 @@ export default function ChatHub() {
       setHandoffTracking(null);
     }
   }, [selectedPageId, selectedThreadId]);
-  const soundSnapshotRef = useRef({ room: "", count: 0 });
-  useEffect(() => {
-    const room = `${selectedPageId}:${selectedThreadId}`;
-    const messages = messagesQuery.data ?? [];
-    if (soundSnapshotRef.current.room !== room) {
-      soundSnapshotRef.current = { room, count: messages.length };
-      return;
-    }
-    if (messages.length > soundSnapshotRef.current.count) {
-      const newest = messages[messages.length - 1];
-      if (newest?.direction === "inbound" || newest?.senderType === "customer") playChatNotificationSound();
-    }
-    soundSnapshotRef.current.count = messages.length;
-  }, [messagesQuery.data, selectedPageId, selectedThreadId]);
   const linkedOrders = selected?.orders ?? [];
   const selectedTrackingRows = useMemo(() => {
     if (!selected) return [];
@@ -343,8 +310,17 @@ export default function ChatHub() {
   useEffect(() => {
     const element = chatTimelineRef.current;
     if (!element) return;
+    const latestMessage = messagesQuery.data?.[messagesQuery.data.length - 1];
+    const latestMessageKey = latestMessage
+      ? `${latestMessage.occurredAt ?? ""}|${latestMessage.messageId ?? latestMessage.id ?? ""}`
+      : "";
+    const latestMessageChanged = lastLatestMessageKeyRef.current !== latestMessageKey;
+    lastLatestMessageKeyRef.current = latestMessageKey;
     const selectedChanged = lastSelectedKeyRef.current !== selectedKey;
     lastSelectedKeyRef.current = selectedKey;
+    // ถ้ามีแถวเก่าถูกบันทึกเข้ามาทีหลัง แต่ newest ของห้องเดิมไม่เปลี่ยน
+    // ให้เก็บไว้ใน timeline ตามเวลาเดิม โดยไม่แสดงเป็นข้อความใหม่/เลื่อนห้อง
+    if (!selectedChanged && !latestMessageChanged) return;
     if (!selectedChanged && !nearBottomRef.current) {
       setShowNewMessages(true);
       return;

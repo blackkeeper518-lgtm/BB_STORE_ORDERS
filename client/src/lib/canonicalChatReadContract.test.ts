@@ -214,6 +214,34 @@ describe("ChatHub read contract v5", () => {
     expect(thread.parcel_status_emoji).toBe("🔴");
   });
 
+  it("sorts rooms by the latest speaker-specific Thai message time and counts customer messages", () => {
+    const threads = mapChatRowsToThreads([
+      {
+        page_id: "page-1", thread_id: "thread-old-activity", speaker: "customer",
+        facebook_name: "ลูกค้าเก่า", message_text: "ทักมา", customer_message_time_th: "15/11/2569 08:01:00",
+        occurred_at: "2026-11-15T01:01:00.000Z",
+      },
+      {
+        page_id: "page-1", thread_id: "thread-old-activity", speaker: "page",
+        facebook_name: "ลูกค้าเก่า", message_text: "ตอบกลับ", page_message_time_th: "15/11/2569 08:06:00",
+        occurred_at: "2026-11-15T01:06:00.000Z",
+      },
+      {
+        page_id: "page-1", thread_id: "thread-new-customer", speaker: "customer",
+        facebook_name: "ลูกค้าใหม่", message_text: "มีข้อความใหม่", customer_message_time_th: "15/11/2569 08:05:00",
+        occurred_at: "2026-11-15T01:05:00.000Z",
+      },
+    ]);
+
+    expect(threads.map(thread => thread.key)).toEqual([
+      "page-1:thread-old-activity",
+      "page-1:thread-new-customer",
+    ]);
+    expect(threads[0].latestAt).toBe("2026-11-15T01:06:00.000Z");
+    expect(threads[0].customerMessageCount).toBe(1);
+    expect(threads[1].customerMessageCount).toBe(1);
+  });
+
   it("keeps search tokens from every order row in the same room", () => {
     const [thread] = mapChatRowsToThreads([
       { page_id: "page-1", thread_id: "thread-1", speaker: "customer", facebook_name: "ลูกค้า", message_text: "สั่งรอบแรก", phone: "0811111111", order_number: "ORD-OLD-001" },
@@ -233,7 +261,7 @@ describe("ChatHub read contract v5", () => {
     expect(reconcileOptimisticMessages(optimistic, persistedSameMessage)).toEqual([]);
   });
 
-  it("uses message_text for bubbles and preserves latest customer/page text independently", () => {
+  it("uses the per-message text and time for bubbles instead of room snapshots", () => {
     const row = {
       _source_table: CHAT_CUSTOMER_TABLE,
       id: 41,
@@ -270,14 +298,14 @@ describe("ChatHub read contract v5", () => {
     expect(message.text).toBe("ส่งของยังคัย");
     expect(message.message_text).toBe("ส่งของยังคัย");
     expect(message.customerLatestMessage).toBe("ส่งของยังคัย");
-    expect(message.pageLatestMessage).toBe("Your AI agent transferred this chat to you.");
+    expect(message.pageLatestMessage).toBeNull();
     expect(message.customerMessageTimeTh).toBe("09/11/2569 11:50:06");
-    expect(message.pageMessageTimeTh).toBe("09/11/2569 11:50:27");
+    expect(message.pageMessageTimeTh).toBeNull();
 
     const [thread] = mapChatRowsToThreads([row]);
     expect(thread.preview).toBe("ส่งของยังคัย");
     expect(thread.customerLatestMessage).toBe("ส่งของยังคัย");
-    expect(thread.pageLatestMessage).toBe("Your AI agent transferred this chat to you.");
+    expect(thread.pageLatestMessage).toBeNull();
     expect(thread.customerPhone).toBe("0812345678");
     expect(thread.upsert_key).toBe("BB_06_ORD-081126-192451_0615107528_22180");
     expect(thread.order_number).toBe("ORD-081126-192451");
@@ -325,6 +353,52 @@ describe("ChatHub read contract v5", () => {
     expect(messages.map(message => message.timeTh)).toEqual([
       "14/11/2569 11:17:37",
       "14/11/2569 11:17:38",
+    ]);
+  });
+
+  it("maps customer_message_text/page_message_text to separate per-message bubbles", () => {
+    const messages = mapChatRowsToMessages([
+      {
+        _source_table: CHAT_CUSTOMER_TABLE,
+        id: 101, page_id: "page-1", thread_id: "thread-1", speaker: "customer",
+        customer_message_text: "ลูกค้าทักสด", page_message_text: null,
+        occurred_at: "2026-11-15T10:04:18.000Z", time_th: "15/11/2569 17:04:18", message_id: "customer-101",
+      },
+      {
+        _source_table: CHAT_PAGE_TABLE,
+        id: 102, page_id: "page-1", thread_id: "thread-1", speaker: "page",
+        customer_message_text: null, page_message_text: "เพจตอบสด",
+        occurred_at: "2026-11-15T10:06:46.000Z", time_th: "15/11/2569 17:06:46", message_id: "page-102",
+      },
+    ]);
+
+    expect(messages.map(message => [message.senderType, message.text, message.message_text, message.timeTh])).toEqual([
+      ["customer", "ลูกค้าทักสด", "ลูกค้าทักสด", "15/11/2569 17:04:18"],
+      ["page", "เพจตอบสด", "เพจตอบสด", "15/11/2569 17:06:46"],
+    ]);
+  });
+
+  it("keeps a late-arriving old-time message in history but never replaces the room's newest preview", () => {
+    const threads = mapChatRowsToThreads([
+      {
+        _source_table: CHAT_CUSTOMER_TABLE, id: 900,
+        page_id: "page-1", thread_id: "thread-1", speaker: "customer", facebook_name: "ลูกค้าทดสอบ",
+        customer_message_text: "ข้อความล่าสุดจริง", occurred_at: "2026-11-15T10:22:29.000Z", time_th: "15/11/2569 17:22:29", message_id: "newest-message",
+      },
+      {
+        _source_table: CHAT_CUSTOMER_TABLE, id: 901,
+        page_id: "page-1", thread_id: "thread-1", speaker: "customer", facebook_name: "ลูกค้าทดสอบ",
+        customer_message_text: "ข้อความเก่าที่เพิ่งไหลมาช้า", occurred_at: "2026-11-15T10:04:18.000Z", time_th: "15/11/2569 17:04:18", message_id: "late-old-message",
+      },
+    ]);
+
+    expect(threads).toHaveLength(1);
+    expect(threads[0].latestAt).toBe("2026-11-15T10:22:29.000Z");
+    expect(threads[0].preview).toBe("ข้อความล่าสุดจริง");
+    expect(threads[0].latestCustomerMessage).toBe("ข้อความล่าสุดจริง");
+    expect(threads[0].chatTimeline).toEqual([
+      "[ลูกค้า] ข้อความเก่าที่เพิ่งไหลมาช้า",
+      "[ลูกค้า] ข้อความล่าสุดจริง",
     ]);
   });
 

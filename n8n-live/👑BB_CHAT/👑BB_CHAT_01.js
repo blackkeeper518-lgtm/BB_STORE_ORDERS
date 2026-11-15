@@ -292,10 +292,6 @@ for (const item of $input.all()) {
           recipient_id: recipientId,
           recipient_name: recipientName,
           facebook_name : recipientName,
-          customer_latest_message: latestCustomerText,
-          customer_message_time_th: latestCustomerTime,
-          page_latest_message: latestPageText,
-          page_message_time_th: latestPageEntry ? formatThaiDateTime(latestPageEntry.ms).full : '',
           
           message_id: rawMsgId,
           dedupe_key: dedupeKey,
@@ -326,7 +322,9 @@ for (const item of $input.all()) {
           chat_age_hours: chatAgeHours,
           messaging_tag_required: is24hValid ? "NONE" : "POST_PURCHASE_UPDATE",
           
-          message_text : finalText,
+          ...(isPage
+            ? { page_message_text: finalText, page_message_time_th: timeThai.full }
+            : { customer_message_text: finalText, customer_message_time_th: timeThai.full }),
            source_lane: '🌌BB_CHAT',
           sync_status: "READY_TO_SAVE"
         }

@@ -4,6 +4,7 @@ export type BrowserChatConfig = {
 };
 
 export const CHAT_BROWSER_CONFIG_KEY = "binary-star-chat-config-v1";
+export const CHAT_BROWSER_CONFIG_EVENT = "binary-star-chat-config-updated";
 
 export function readBrowserChatConfig(): BrowserChatConfig | null {
   if (typeof window === "undefined") return null;
@@ -35,9 +36,11 @@ export function saveBrowserChatConfig(config: BrowserChatConfig) {
   }
   if (typeof window === "undefined") throw new Error("บันทึกค่า Chat ได้จาก browser เท่านั้น");
   window.localStorage.setItem(CHAT_BROWSER_CONFIG_KEY, JSON.stringify({ url, serviceRoleKey }));
+  window.dispatchEvent(new Event(CHAT_BROWSER_CONFIG_EVENT));
 }
 
 export function clearBrowserChatConfig() {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(CHAT_BROWSER_CONFIG_KEY);
+  window.dispatchEvent(new Event(CHAT_BROWSER_CONFIG_EVENT));
 }
