@@ -9,6 +9,7 @@ import {
   Loader2,
   PanelRight,
   Plus,
+  RefreshCw,
   Save,
   Search,
   Sparkles,
@@ -149,6 +150,11 @@ export default function ScriptAtelier() {
 
   useEffect(() => {
     void load();
+    const refreshFromCloudImport = (event: StorageEvent) => {
+      if (event.key === "drak-sales-script-cards-updated") void load();
+    };
+    window.addEventListener("storage", refreshFromCloudImport);
+    return () => window.removeEventListener("storage", refreshFromCloudImport);
   }, []);
 
   const visible = useMemo(() => {
@@ -210,8 +216,12 @@ export default function ScriptAtelier() {
       setError("ยังไม่ได้ตั้งค่า Supabase โปรเจกต์ Tracking");
       return;
     }
-    if (!draft.title.trim() || !draft.script_text.trim()) {
-      setError("ใส่ชื่อและเนื้อหาสคริปต์ก่อนบันทึก");
+    if (!draft.title.trim()) {
+      setError("ใส่ชื่อรายการก่อนบันทึก");
+      return;
+    }
+    if (!draft.script_text.trim() && draft.blocks_json.length === 0) {
+      setError("เพิ่มภาพหรือใส่เนื้อหาสคริปต์ก่อนบันทึก");
       return;
     }
 
@@ -423,18 +433,28 @@ export default function ScriptAtelier() {
 
   return (
     <div className="script-atelier min-h-full rounded-[2rem] p-4 text-white sm:p-6">
-      <header className="script-atelier-hero mb-5 overflow-hidden rounded-[2rem] border p-5 sm:p-7">
-        <div className="relative z-10 flex flex-wrap items-end justify-between gap-5">
+      <header className="script-atelier-hero mb-5 overflow-hidden rounded-[1.5rem] border p-4 sm:p-5">
+        <div className="relative z-10 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="script-kicker"><Sparkles className="h-3.5 w-3.5" /> PRIVATE ADMIN VAULT · RESPONSE ASSETS</p>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-5xl">คลังภาพและสคริปต์ส่วนตัว</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-fuchsia-100/65">
+            <p className="script-kicker"><Sparkles className="h-3.5 w-3.5" /> #NEXT MODE SERIES 2</p>
+            <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
+              <span className="block">🍁🎱™DARKSIDE MAKETING LV.5</span>
+              <span className="mt-2 block max-w-4xl text-sm font-normal leading-6 text-fuchsia-100/75 sm:text-base">
+                “<strong>ข้อความไม่เคยอธิบายภาพ</strong> ข้อความจะทำให้คน <strong>กลับไปมองภาพอีกครั้ง</strong> เพื่อค้นหาความหมาย”
+              </span>
+            </h1>
+            <p className="mt-2 max-w-2xl text-xs leading-5 text-fuchsia-100/55">
               จิ้มภาพเพื่อเปิดและคัดลอก · จิ้มสคริปต์เพื่อคัดลอกทั้งก้อน · วางตอบลูกค้าใน ChatHub ได้ทันที
             </p>
           </div>
-          <Button onClick={() => openEditor()} className="script-primary">
-            <Plus className="h-4 w-4" /> สร้างสคริปต์
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="outline" onClick={() => void load()} disabled={loading} className="border-cyan-300/25 text-cyan-100">
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />} อัปเดตคลัง
+            </Button>
+            <Button type="button" onClick={() => openEditor()} className="script-primary">
+              <Plus className="h-4 w-4" /> สร้างสคริปต์
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -578,7 +598,7 @@ export default function ScriptAtelier() {
               <div className="mb-2 flex items-center justify-between gap-3">
                 <div>
                   <p className="script-kicker">IMAGE LIBRARY</p>
-                  <p className="mt-1 text-xs text-fuchsia-100/45">ภาพตัวอย่างขึ้นทันทีเมื่อเลือก · อัปโหลดเสร็จแล้วกดบันทึกการ์ดเพื่อผูกภาพไว้กับสคริปต์</p>
+                  <p className="mt-1 text-xs text-fuchsia-100/45">ภาพขึ้นทันที · บันทึกการ์ดภาพลงโต๊ะก่อนได้ แล้วค่อยเติมหรือแก้สคริปต์ภายหลัง</p>
                 </div>
                 <span className="text-xs text-fuchsia-100/45">{draft.blocks_json.length} ภาพ</span>
               </div>
@@ -627,9 +647,9 @@ export default function ScriptAtelier() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2 border-t border-fuchsia-300/15 px-5 py-4 sm:px-7">
-            <Button onClick={() => void save()} disabled={saving} className="script-primary">
+            <Button onClick={() => void save()} disabled={saving || !draft.title.trim() || (!draft.script_text.trim() && draft.blocks_json.length === 0)} className="script-primary">
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              {saving ? "กำลังบันทึก" : "บันทึกสคริปต์"}
+              {saving ? "กำลังบันทึก" : draft.script_text.trim() ? "บันทึกสคริปต์" : "บันทึกลงโต๊ะ"}
             </Button>
             <Button onClick={() => void copyScript()} disabled={!draft.script_text} variant="outline" className="border-fuchsia-300/20 text-fuchsia-100">
               <Copy className="h-4 w-4" /> คัดลอกสคริปต์
