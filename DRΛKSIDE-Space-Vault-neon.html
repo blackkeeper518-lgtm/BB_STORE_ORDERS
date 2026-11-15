@@ -813,6 +813,31 @@ renderScripts();renderFiles();$('code').value='-- เขียน SQL, Java, Mar
     $('orderPageValue').textContent=fields.page.value.trim()||'เลือกเพจ';
     $('orderCarrierValue').textContent=fields.carrier.value.trim()||'เลือกขนส่ง';
   }
+  function receiveChatContext(event){
+    if(window.parent===window||event.source!==window.parent||event.origin!==window.location.origin)return;
+    const message=event.data;
+    if(!message||message.type!=='BB_ORDER_DECK_CONTEXT')return;
+    const requestedPage=typeof message.pageName==='string'?message.pageName.trim().replace(/[\r\n]+/g,' '):'';
+    if(requestedPage){
+      const matchedPage=pageOptions.find(value=>normalizeProductText(value)===normalizeProductText(requestedPage));
+      fields.page.value=matchedPage||requestedPage;
+      syncChoices();
+      refreshPreview();
+    }
+    if(message.importCustomerMessages!==true)return;
+    const customerName=typeof message.customerName==='string'?message.customerName.trim().slice(0,160):'';
+    const customerPhone=typeof message.customerPhone==='string'?message.customerPhone.trim().slice(0,32):'';
+    const customerMessages=Array.isArray(message.customerMessages)
+      ?message.customerMessages.filter(value=>typeof value==='string').map(value=>value.trim().slice(0,2400)).filter(Boolean).slice(-20)
+      :[];
+    const lines=[requestedPage?`ชื่อเพจ: ${requestedPage}`:'',customerName?`ชื่อผู้รับ: ${customerName}`:'',customerPhone?`เบอร์โทร: ${customerPhone}`:'',...customerMessages].filter(Boolean);
+    if(!lines.length)return;
+    raw.readOnly=false;
+    raw.value=lines.join('\n');
+    document.querySelector('.bottom-tab[data-tab="tab-order"]')?.click();
+    raw.dispatchEvent(new Event('input',{bubbles:true}));
+  }
+  window.addEventListener('message',receiveChatContext);
   function closeChoiceMenus(){for(const [menuId,toggleId] of [['orderPageChoices','orderPageToggle'],['orderCarrierChoices','orderCarrierToggle']]){$(menuId).hidden=true;$(toggleId).setAttribute('aria-expanded','false');}}
   function toggleChoiceMenu(menuId,toggleId){const menu=$(menuId),shouldOpen=menu.hidden;closeChoiceMenus();if(shouldOpen){menu.hidden=false;$(toggleId).setAttribute('aria-expanded','true');}}
   const normalizeProductText=value=>String(value||'').normalize('NFC').toLocaleLowerCase('th-TH').replace(/[\u200B-\u200F\uFEFF]/g,'').replace(/[^\p{L}\p{N}]/gu,'');

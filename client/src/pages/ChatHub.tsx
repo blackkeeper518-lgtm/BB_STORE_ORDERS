@@ -11,6 +11,8 @@ import { trpc } from "@/lib/trpc";
 import { Check, CheckCircle2, ChevronDown, CircleUserRound, Clipboard, ExternalLink, ImagePlus, LoaderCircle, MessageCircle, RefreshCw, Search, Send, Sparkles, Users, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
+import { OrderDeckFrame } from "@/components/chat/OrderDeckFrame";
+import { selectLatestCustomerMessageTexts } from "@/lib/order-deck-context";
 
 function timeLabel(value: string | null | undefined) {
   if (!value) return "—";
@@ -91,6 +93,7 @@ export default function ChatHub() {
   const [selectedKey, setSelectedKey] = useState<string | null>(() => typeof window === "undefined" ? null : localStorage.getItem(CHAT_SELECTED_ROOM_KEY));
   const [composerOpen, setComposerOpen] = useState(true);
   const [toolsOpen, setToolsOpen] = useState(() => typeof window === "undefined" || window.innerWidth >= 1440);
+  const [orderDeckOpen, setOrderDeckOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [pageFilterOpen, setPageFilterOpen] = useState(false);
   const [selectedPages, setSelectedPages] = useState<string[]>(() => {
@@ -171,6 +174,10 @@ export default function ChatHub() {
     refetchOnReconnect: true,
     select: mapChatRowsToMessages,
   });
+  const orderDeckCustomerMessages = useMemo(
+    () => selectLatestCustomerMessageTexts(messagesQuery.data ?? []),
+    [messagesQuery.data],
+  );
   useEffect(() => {
     setOptimisticMessages([]);
     optimisticMessageIdRef.current = null;
@@ -433,6 +440,25 @@ export default function ChatHub() {
         </CardHeader>
         <CardContent className="min-h-0 space-y-3 overflow-y-auto p-3">
           {selected ? <>
+            <section className="space-y-2 rounded-xl border border-violet-300/15 bg-black/15 p-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="chat-tools-section-title">DRΛKSIDE · ORDER DECK</p>
+                  <p className="mt-1 truncate text-[9px] text-cyan-100/45">ใช้ข้อมูลจาก {selected.pageName || "เพจที่เลือก"} · {selected.customerName || "ลูกค้า"}</p>
+                </div>
+                <Button type="button" size="sm" variant="outline" onClick={() => setOrderDeckOpen(value => !value)} className="chat-tool-action h-8 shrink-0 px-2">
+                  {orderDeckOpen ? "ซ่อน" : "เปิดเครื่องมือ"}
+                </Button>
+              </div>
+              {orderDeckOpen ? <OrderDeckFrame
+                pageId={selectedPageId}
+                pageName={selected.pageName ?? ""}
+                threadId={selectedThreadId}
+                customerName={selected.customerName ?? ""}
+                customerPhone={String(selected.phone ?? selected.customerPhone ?? selected.extracted_phone ?? "")}
+                customerMessages={orderDeckCustomerMessages}
+              /> : null}
+            </section>
             {availableToolValues.length ? <section className="space-y-1.5">
               <div className="flex items-center justify-between gap-2"><p className="chat-tools-section-title">ข้อมูลสำหรับคัดลอก</p><span className="text-[9px] text-cyan-100/35">แตะแถวเพื่อคัดลอก</span></div>
               <div className="space-y-1.5">{availableToolValues.map(item => <CopyValueCard key={item.key} label={item.label} value={item.value} copied={copiedToolField === item.key} onCopy={() => void copyToolValue(item.key, item.value)} />)}</div>
