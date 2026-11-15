@@ -585,10 +585,10 @@ renderScripts();renderFiles();$('code').value='-- เขียน SQL, Java, Mar
   }
   function parseAddress(raw){
     const text=cleanText(raw);
-    const stop='หมู่ที่?|ม\\.|อ\\.|อำเภอ|เขต|จ\\.|จังหวัด|ต\\.|ตำบล|แขวง|รหัสไปรษณีย์|รหัสปณ|กรุงเทพมหานคร|กรุงเทพฯ?|ก\\.?\\s*ท\\.?\\s*ม\\.?';
-    const district=capture(text,new RegExp('(?:ตำบล|ต\\.|แขวง)\\s*([^,;|]*?)(?=(?:'+stop+')|\\d{5}|$)','i'));
-    const amphoe=capture(text,new RegExp('(?:อำเภอ|อ\\.|เขต)\\s*([^,;|]*?)(?=(?:'+stop+')|\\d{5}|$)','i'));
-    let province=capture(text,new RegExp('(?:จังหวัด|จ\\.)\\s*([^,;|]*?)(?=(?:รหัสไปรษณีย์|รหัสปณ)|\\d{5}|$)','i'));
+    const stop='หมู่ที่?|ม\\.|(?:อำเภอ|อ\\.|อ(?=\\s))|เขต|(?:จ\\.|จังหวัด|จ(?=\\s))|(?:ต\\.|ตำบล|ต(?=\\s)|แขวง)|รหัสไปรษณีย์|รหัสปณ|กรุงเทพมหานคร|กรุงเทพฯ?|ก\\.?\\s*ท\\.?\\s*ม\\.?';
+    const district=capture(text,new RegExp('(?:ตำบล|ต\\.|ต(?=\\s)|แขวง)\\s*([^,;|]*?)(?=(?:'+stop+')|\\d{5}|$)','i'));
+    const amphoe=capture(text,new RegExp('(?:อำเภอ|อ\\.|อ(?=\\s)|เขต)\\s*([^,;|]*?)(?=(?:'+stop+')|\\d{5}|$)','i'));
+    let province=capture(text,new RegExp('(?:จังหวัด|จ\\.|จ(?=\\s))\\s*([^,;|]*?)(?=(?:'+stop+')|\\d{5}|$)','i'));
     if(!province){const bare=text.match(/(?:กรุงเทพมหานคร|กรุงเทพฯ?|ก\.?\s*ท\.?\s*ม\.?)/i);if(bare)province=bare[0]}
     province=canonicalProvince(province);
     const zipcode=(text.match(/(?:รหัส(?:ไปรษณีย์|ปณ)?\s*[:：-]?\s*)?(\d{5})(?!\d)/)||[])[1]||'';
@@ -624,12 +624,10 @@ renderScripts();renderFiles();$('code').value='-- เขียน SQL, Java, Mar
     }
     if(!plans.length){
       const term=safeFilter(raw);
-      if(/^\d{5}$/.test(term)) add({zipcode:'eq.'+term},'zipcode',30);
-      else if(term){
-        add({province:exactFilter(term)},'province-exact',100);
-        const pattern=fuzzyFilter(term);
-        add({or:`(district.${pattern},amphoe.${pattern},province.${pattern})`},'broad',100);
-      }
+      const zipcode=parsed.zipcode||(/^\d{5}$/.test(term)?term:'');
+      if(zipcode)add({zipcode:'eq.'+zipcode},'zipcode',30);
+      // For an unlabelled full address, do not send the entire house/street text as a place name.
+      // runSearch will use queryBarePlaceNames() to match extracted place tokens against all 3 fields.
     }
     return plans;
   }
@@ -650,7 +648,7 @@ renderScripts();renderFiles();$('code').value='-- เขียน SQL, Java, Mar
     if(!rows.length)return [];
     const scored=rows.map(row=>({row,score:['district','amphoe','province'].filter(field=>tokens.includes(cleanPlace(row[field]))).length}));
     const bestScore=Math.max(...scored.map(entry=>entry.score));
-    return scored.filter(entry=>entry.score===bestScore).map(entry=>entry.row);
+    return scored.filter(entry=>entry.score===bestScore&&bestScore>0).map(entry=>entry.row);
   }
   async function queryPostal(plan){
     const project=getAddressProject();
@@ -666,6 +664,7 @@ renderScripts();renderFiles();$('code').value='-- เขียน SQL, Java, Mar
     return rows.filter(row=>{const key=[row.district,row.amphoe,row.province,row.zipcode].join('|');if(seen.has(key))return false;seen.add(key);return true});
   }
   function renderResults(rows,mode,parsed){
+    if(parsed){for(const [field,value] of [['district',parsed.district],['amphoe',parsed.amphoe],['province',parsed.province]]){if(!value)continue;const exact=rows.filter(row=>cleanPlace(row[field])===cleanPlace(value));if(exact.length)rows=exact}}
     results.innerHTML='';
     if(!rows.length){
       state.className='postal-state bad';state.textContent='NO MATCH · ไม่พบพื้นที่ตรง ลองเพิ่มตำบลหรืออำเภอ';
@@ -706,9 +705,11 @@ renderScripts();renderFiles();$('code').value='-- เขียน SQL, Java, Mar
         if(requestId!==activeRequest)return;
         if(Array.isArray(next)&&next.length){rows=next;mode=plan.mode;break}
       }
-      if(!rows.length){
-        rows=await queryBarePlaceNames(raw);
-        mode=rows.length?'bare-name':'';
+      const placeTokens=barePlaceTokens(raw);
+      if(!rows.length||(rows.length>1&&placeTokens.length>=2)){
+        const bareRows=await queryBarePlaceNames(raw);
+        if(requestId!==activeRequest)return;
+        if(bareRows.length&&(!rows.length||bareRows.length<rows.length)){rows=bareRows;mode='bare-name'}
       }
       if(requestId!==activeRequest)return;
       renderResults(uniqueRows(rows),mode,parsed);
