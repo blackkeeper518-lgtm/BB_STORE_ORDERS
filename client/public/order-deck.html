@@ -266,8 +266,11 @@ body.theme-ember .code-block-highlight .token-key{color:#ff9acb} body.theme-embe
 .postal-sub{margin-top:3px;color:#939dbb;font-size:9px;line-height:1.5}
 .postal-code-wrap{text-align:right;min-width:103px}
 .postal-zip{color:#ffe09a;font:700 23px/1 Orbitron,'JetBrains Mono',monospace;letter-spacing:.08em;text-shadow:0 0 10px rgba(255,200,87,.4)}
-.postal-copy{margin-top:7px;border:1px solid rgba(255,200,87,.32);border-radius:7px;background:rgba(255,200,87,.1);color:#ffe6b3;padding:6px 8px;font:10px 'Noto Sans Thai';cursor:pointer;white-space:nowrap}
+.postal-copy-actions{display:grid;gap:5px;margin-top:7px}
+.postal-copy{border:1px solid rgba(255,200,87,.32);border-radius:7px;background:rgba(255,200,87,.1);color:#ffe6b3;padding:6px 8px;font:10px 'Noto Sans Thai';cursor:pointer;white-space:nowrap}
+.postal-copy-address{border-color:rgba(115,230,190,.35);background:rgba(115,230,190,.09);color:#b9f8dc}
 .postal-copy:hover{background:rgba(255,200,87,.2);box-shadow:0 0 13px rgba(255,200,87,.16)}
+.postal-copy-address:hover{background:rgba(115,230,190,.18);box-shadow:0 0 13px rgba(115,230,190,.14)}
 .postal-warning{margin:9px 0 0;padding:8px 10px;border:1px solid rgba(255,200,87,.22);border-radius:8px;background:rgba(255,200,87,.055);color:#ffdf9a;font-size:10px;line-height:1.7}
 .postal-source{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;color:#74809e;font:9px 'JetBrains Mono',monospace}
 .postal-source span:last-child{color:#61ffb4}
@@ -647,8 +650,11 @@ renderScripts();renderFiles();$('code').value='-- เขียน SQL, Java, Mar
       place.append(location,sub);
       const codeWrap=document.createElement('div');codeWrap.className='postal-code-wrap';
       const zip=document.createElement('div');zip.className='postal-zip';zip.textContent=row.zipcode||'—';
-      const copy=document.createElement('button');copy.type='button';copy.className='postal-copy';copy.textContent='คัดลอกรหัส';copy.disabled=!row.zipcode;copy.addEventListener('click',()=>copyText(String(row.zipcode||''),`คัดลอกรหัส ปณ. ${row.zipcode||''} แล้ว`));
-      codeWrap.append(zip,copy);card.append(place,codeWrap);results.append(card);
+      const actions=document.createElement('div');actions.className='postal-copy-actions';
+      const copy=document.createElement('button');copy.type='button';copy.className='postal-copy';copy.textContent='คัดลอกรหัส ปณ.';copy.disabled=!row.zipcode;copy.addEventListener('click',()=>copyText(String(row.zipcode||''),`คัดลอกรหัส ปณ. ${row.zipcode||''} แล้ว`));
+      const fullAddress=[row.district,row.amphoe,row.province,row.zipcode].map(value=>cleanText(value)).filter(Boolean).join(' · ');
+      const copyAddress=document.createElement('button');copyAddress.type='button';copyAddress.className='postal-copy postal-copy-address';copyAddress.textContent='คัดลอกที่อยู่';copyAddress.disabled=!fullAddress;copyAddress.addEventListener('click',()=>copyText(fullAddress,`คัดลอกที่อยู่ ${fullAddress} แล้ว`));
+      actions.append(copy,copyAddress);codeWrap.append(zip,actions);card.append(place,codeWrap);results.append(card);
     }
   }
   async function runSearch(){
