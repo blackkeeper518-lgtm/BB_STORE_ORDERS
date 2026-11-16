@@ -841,7 +841,7 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .chat-tool-action--primary { border-color:rgba(0,229,255,.42) !important; background:rgba(0,140,255,.14) !important; }
 .chat-tool-action--active { border-color:rgba(255,56,232,.58) !important; background:rgba(255,0,217,.14) !important; box-shadow:inset 0 0 10px rgba(255,0,217,.08),0 0 10px rgba(255,0,217,.12); color:#fff !important; }
 .chat-tool-action--filter { min-height:30px; padding:0 10px !important; }
-.chat-tool-action--icon { width:32px; height:32px; min-height:32px; padding:0 !important; flex:0 0 32px; }
+.chat-tool-action--icon { width:32px; height:32px; min-height:32px; padding:0 !important; }
 .chat-tool-action:disabled { cursor:not-allowed; opacity:.38 !important; }
 .chat-tool-action:focus-visible,.chat-tool-copy-row:focus-visible { outline:2px solid #FF38E8; outline-offset:2px; }
 .chat-conversation-actions { display:flex; max-width:100%; flex-wrap:wrap; align-items:center; gap:5px; border:1px solid rgba(0,229,255,.12); border-radius:12px; background:rgba(8,13,29,.38); padding:3px; }

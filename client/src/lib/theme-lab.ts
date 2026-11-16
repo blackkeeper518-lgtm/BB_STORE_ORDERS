@@ -37,7 +37,7 @@ export function saveThemeLab(settings: ThemeLabSettings) {
 
 export function prepareThemeCss(css: string) {
   const source = String(css || "");
-  const cardSelector = '[data-theme-lab-room] :is([data-slot="card"], .neon-card, .project-room-card, .order-list-panel, .order-list-card, .order-detail-card, .order-parcel-result, .order-chat-match, .order-dna-card, .room-list-card, .script-card, .data-pair-panel, .bb-clock-panel, .chat-cosmos-tools)';
+  const cardSelector = ":is(.neon-card, .order-list-card, .order-detail-card, .order-parcel-result, .order-chat-match)";
   // The lab accepts standalone frame recipes copied from the Cyber Frame page.
   // Those recipes usually target .frame/.f35, while the real app cards use several room-specific classes.
   // Translate only these two known compatibility selectors; all other user CSS stays intact.

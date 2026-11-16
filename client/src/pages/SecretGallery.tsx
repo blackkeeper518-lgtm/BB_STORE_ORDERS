@@ -673,7 +673,7 @@ export default function SecretGallery() {
           <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full border border-cyan-300/15 shadow-[0_0_70px_rgba(34,211,238,.2)]" />
           <CardHeader className="relative">
             <CardTitle className="flex items-center gap-2 text-sm text-white"><Sparkles className="h-4 w-4 text-cyan-300" /> CYBER FRAME LAB · ทดลองขอบการ์ด</CardTitle>
-            <p className="text-xs text-cyan-100/55">กดแล้วเห็นผลทันที · บันทึกเฉพาะเครื่องนี้ · ใช้เป็นต้นแบบสำหรับ Theme Lab ด้านล่าง</p>
+            <p className="text-xs text-cyan-100/55">กดแล้วเห็นผลทันที · บันทึกเฉพาะเครื่องนี้ · ยังไม่เปลี่ยนหน้าห้องหลัก</p>
           </CardHeader>
           <CardContent className="relative grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(300px,420px)]">
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
