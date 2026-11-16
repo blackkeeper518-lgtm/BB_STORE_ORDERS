@@ -972,3 +972,12 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
   .chat-mobile-conversation-overlay .chat-message-bubble { max-width:82%; box-shadow:0 1px 3px rgba(15,45,51,.08); }
   .chat-mobile-conversation-overlay .chat-cosmos-composer textarea { color:#15232c; }
 }
+
+
+@media (max-width:767px) {
+  .chat-mobile-conversation-overlay .chat-conversation-actions { display:none; }
+  .chat-mobile-conversation-overlay .chat-cosmos-composer .chat-tool-action { display:none; }
+  .chat-mobile-conversation-overlay .chat-cosmos-composer .chat-cosmos-composer--open { min-height:0; }
+  .chat-mobile-conversation-overlay .chat-cosmos-composer textarea { min-height:56px; height:56px; max-height:96px; font-size:16px; }
+  .chat-mobile-conversation-overlay .chat-cosmos-composer > div:last-child { padding-bottom:env(safe-area-inset-bottom); }
+}
