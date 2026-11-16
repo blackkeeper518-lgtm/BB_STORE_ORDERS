@@ -23,6 +23,7 @@ import CloseJobHistory from "./pages/CloseJobHistory";
 import TelegramSentHistory from "./pages/TelegramSentHistory";
 import OrderEditor from "./pages/OrderEditor";
 import ScriptAtelier from "./pages/ScriptAtelier";
+import MobileInbox from "./pages/MobileInbox";
 
 function Shell({ children }: { children: React.ReactNode }) { return <DashboardLayout>{children}</DashboardLayout>; }
 function Router() {
@@ -31,6 +32,7 @@ function Router() {
     <Route path="/secret-gallery/connect"><SecretGallery /></Route>
     <Route path="/secret-gallery/images"><SecretGallery /></Route>
     <Route path="/secret-gallery"><SecretGallery /></Route>
+    <Route path="/mobile-inbox"><MobileInbox /></Route>
     <Route path="/orders"><Shell><OrderControl /></Shell></Route>
     <Route path="/order-editor"><Shell><OrderEditor /></Shell></Route>
     <Route path="/script-atelier"><Shell><ScriptAtelier /></Shell></Route>
