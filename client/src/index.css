@@ -1108,3 +1108,7 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .parcel-status-chip--yellow { border-color:rgba(255,221,91,.72); background:rgba(150,112,0,.20); color:#fff1a8; box-shadow:0 0 7px rgba(255,221,91,.28); }
 .parcel-status-chip--red { border-color:rgba(255,92,92,.72); background:rgba(145,22,35,.22); color:#ffd2d2; box-shadow:0 0 7px rgba(255,80,80,.3); }
 .parcel-status-chip--fire { border-color:rgba(255,139,54,.78); background:rgba(180,65,16,.22); color:#ffe0bd; box-shadow:0 0 8px rgba(255,112,35,.38); }
+
+/* Parcel is intentionally pink by default; only an order turns its light green. */
+.parcel-status-chip { border-color:rgba(255,156,225,.62); background:rgba(121,15,81,.34); color:#ffe7f7; text-shadow:0 0 3px #fff,0 0 7px rgba(255,128,218,.75); box-shadow:0 0 7px rgba(255,60,190,.38),inset 0 0 8px rgba(255,78,195,.12); }
+.parcel-status-chip--order { border-color:#8CFF00; background:rgba(140,255,0,.22); color:#E8FFD0; text-shadow:0 0 3px #fff,0 0 9px rgba(140,255,0,.98); box-shadow:0 0 4px rgba(255,255,255,.72),0 0 11px rgba(140,255,0,.96),0 0 22px rgba(140,255,0,.62),inset 0 0 8px rgba(140,255,0,.25); }
