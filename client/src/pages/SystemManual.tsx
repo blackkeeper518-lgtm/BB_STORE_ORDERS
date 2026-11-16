@@ -653,6 +653,81 @@ export default function SystemManual() {
             </div>
           </div>
 
+          <div className="mt-5 rounded-[1.75rem] border border-sky-300/15 bg-sky-400/[0.045] p-5 sm:p-6">
+            <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-sky-300/70">
+                  BILL CONSTRUCTION · CHANGE AUDIT
+                </p>
+                <h3 className="mt-2 text-xl font-semibold text-white">หัวใจความเท่ของระบบ: สร้างบิลและเห็นการเปลี่ยนแปลง</h3>
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300/70">
+                  สายบนประกอบข้อความบิลสำหรับกลุ่มแพ็ก แล้วบันทึกผลลงโต๊ะหลักและโต๊ะแชท ส่วนสายล่างดูแลคู่จริงและหลักฐานการเปลี่ยนข้อมูล
+                  โดยไม่ลบประวัติเดิม
+                </p>
+              </div>
+              <ToneBadge tone="cyan"><Archive className="mr-1.5 h-3.5 w-3.5" /> เก็บหลักฐานครบ</ToneBadge>
+            </div>
+
+            <div className="mt-5 grid gap-4 lg:grid-cols-3">
+              <div className="rounded-2xl border border-sky-300/15 bg-black/20 p-5">
+                <p className="font-mono text-sm font-semibold text-white">💫 BILL_HEADER_INJECTOR1 · สายบน</p>
+                <p className="mt-2 text-xs leading-5 text-slate-300/65">
+                  ประกอบและจัดรูปฟิวด์ <code className="rounded bg-black/30 px-1 text-sky-100">telegram_message</code>
+                  ให้พร้อมส่งเข้ากลุ่มแพ็ก เช่น เวลา เลขออเดอร์ เพจ Facebook COD ที่อยู่ สินค้า และขนส่ง
+                </p>
+                <code className="mt-3 block rounded-xl bg-black/30 p-3 text-[11px] text-sky-100/80">
+                  telegram_message → กลุ่มแพ็ก
+                  <br />
+                  main table + chat table
+                </code>
+              </div>
+              <div className="rounded-2xl border border-pink-300/15 bg-pink-400/[0.045] p-5">
+                <p className="font-mono text-sm font-semibold text-white">💞 PAIRED · สายล่าง</p>
+                <p className="mt-2 text-xs leading-5 text-slate-300/65">
+                  ดูแลกลุ่มคนมีคู่ตาม marker ที่ Gatekeeper ทำไว้ ไม่ได้เดาคู่จากหน้าเว็บเอง
+                  ใบเดียวและใบที่มีคู่จึงถูกส่งไปคนละเส้นทางตามผลของ n8n
+                </p>
+                <code className="mt-3 block rounded-xl bg-black/30 p-3 text-[11px] text-pink-100/80">
+                  pair marker → lower lane
+                </code>
+              </div>
+              <div className="rounded-2xl border border-violet-300/15 bg-violet-400/[0.045] p-5">
+                <p className="font-mono text-sm font-semibold text-white">🪐 BILL BUILDER</p>
+                <p className="mt-2 text-xs leading-5 text-slate-300/65">
+                  รุ่น Clean Audit เปรียบเทียบครั้งเดียว สร้างบิลครั้งเดียว และตัดสินสีครั้งเดียว
+                  พร้อมตัดข้อความ Audit เก่าท้ายบิล เพื่อไม่ให้ข้อมูลเก่าปะปนกับบิลปัจจุบัน
+                </p>
+                <code className="mt-3 block rounded-xl bg-black/30 p-3 text-[11px] text-violet-100/80">
+                  compare once → build once → color once
+                </code>
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              <div className="rounded-2xl border border-amber-300/15 bg-amber-400/[0.045] p-5">
+                <p className="font-mono text-sm font-semibold text-white">📌 PRE-SAVE CHANGE AUDIT1</p>
+                <ul className="mt-3 space-y-2 text-xs leading-5 text-slate-300/70">
+                  <li>• จัดกลุ่มตาม threadId และรักษาทุกแถวไว้เป็นหลักฐาน</li>
+                  <li>• ตรวจคู่จริงจากที่อยู่และสินค้า และใช้ winner จากโหนดโฟร์หลักเมื่อมี</li>
+                  <li>• เปรียบเทียบสินค้า/ที่อยู่/เบอร์/ชื่อ/COD ระหว่างใบก่อนหน้าและปัจจุบัน</li>
+                  <li>• สร้างฟิวด์ Audit โดยไม่ลบแถว และไม่ทับ switch3_route, target_room หรือ four1_decision</li>
+                  <li>• ไม่อ่าน chat_timeline เพื่อประกอบที่อยู่หรือเบอร์</li>
+                </ul>
+              </div>
+              <div className="rounded-2xl border border-fuchsia-300/15 bg-fuchsia-400/[0.045] p-5">
+                <p className="font-mono text-sm font-semibold text-white">💟 CUSTOMER CHANGE AUDIT FOOTER</p>
+                <ul className="mt-3 space-y-2 text-xs leading-5 text-slate-300/70">
+                  <li>• จับเฉพาะ threadId เดียวกัน แล้วเทียบใบก่อนหน้ากับใบปัจจุบัน</li>
+                  <li>• ตรวจสินค้า/จำนวน/COD/เบอร์/ชื่อ/ที่อยู่/ขนส่ง และบอกเวลาเปลี่ยน</li>
+                  <li>• ลำดับที่อยู่: telegram_primary_address → rescue_address → ค่าเดิม</li>
+                  <li>• เก็บ raw source line และ source field พร้อมสร้างข้อความท้ายบิลสำหรับแอดมิน</li>
+                  <li>• ใช้ marker จริงและ chat_timeline เป็นหลักฐานเลือก candidate โดยไม่เติม debug fields ลง JSON root</li>
+                  <li>• ไม่ลบข้อมูลเก่า และคืนทุกแถวกลับครบ</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
           <div className="mt-5 rounded-2xl border border-violet-300/15 bg-violet-400/[0.045] p-5">
             <div className="flex items-center gap-3">
               <RadioTower className="h-5 w-5 text-violet-300" />
