@@ -599,7 +599,7 @@ export default function SystemManual() {
               <p className="font-mono text-sm font-semibold text-white">🛡️ THE GOD GATEKEEPER V.1</p>
               <p className="mt-2 text-xs leading-5 text-slate-300/65">
                 จาก Switch แรกมีเพียง ⚪ ที่ผ่านไปยังด่านถัดไป ส่วนสถานะ 🔴/🟥/⚫/👻 ถูก n8n แยกเหตุผลและเส้นทางไว้แล้ว
-                จากนั้นจึงตรวจวันที่ รอบส่ง และการจับคู่ของออเดอร์สีขาว; ใบที่ไม่มีคู่ยังผ่านได้ และคู่จะถูกทำเครื่องหมายลำดับไว้
+                จากนั้นจึงตรวจวันที่และรอบส่งของออเดอร์สีขาว ส่วน marker ว่ามีคู่และลำดับคู่จะถูกเตรียมไว้ให้ Switch 2 แยกต่อ
               </p>
               <code className="mt-3 block rounded-xl bg-black/30 p-3 text-[11px] text-cyan-100/80">
                 Switch 1: ⚪ เท่านั้นที่ผ่านต่อ
@@ -616,6 +616,39 @@ export default function SystemManual() {
               </p>
               <code className="mt-3 block rounded-xl bg-black/30 p-3 text-[11px] text-amber-100/80">
                 tracking sent / customer asks tracking
+              </code>
+            </div>
+          </div>
+
+          <div className="mt-5 grid gap-4 lg:grid-cols-3">
+            <div className="rounded-2xl border border-emerald-300/15 bg-emerald-400/[0.045] p-5">
+              <p className="font-mono text-sm font-semibold text-white">👑 MASTER ADDRESS CASCADE 3 SYSTEMS</p>
+              <p className="mt-2 text-xs leading-5 text-slate-300/65">
+                โหนดคัดฟิวด์ที่อยู่ด้วยคะแนนฟิโบ โดยผ่าฟิวด์ที่อยู่แต่ละส่วนออกมากางให้เห็นอย่างโปร่งใส
+                แล้วให้คะแนนตามข้อมูลที่พบ ไม่ใช่การตัดสินจากข้อความรวมก้อนเดียว
+              </p>
+              <code className="mt-3 block rounded-xl bg-black/30 p-3 text-[11px] text-emerald-100/80">
+                address fields → แยกส่วน → FIBO score
+              </code>
+            </div>
+            <div className="rounded-2xl border border-yellow-300/15 bg-yellow-400/[0.045] p-5">
+              <p className="font-mono text-sm font-semibold text-white">✨🌟 TELEGRAM_GOLDEN_TOP1</p>
+              <p className="mt-2 text-xs leading-5 text-slate-300/65">
+                โหนดตัดฟิวด์สินค้าและทำแมปสินค้าตั้งแต่ต้นทาง แม้ข้อมูลจะมาหลายรูปแบบก็ผ่าข้อความเป็นบรรทัด
+                พลิกซ้าย พลิกขวา และจัดรูปใหม่จนหาแมปสินค้าได้ โดยไม่ผูกกับสินค้าชนิดใดชนิดหนึ่ง
+              </p>
+              <code className="mt-3 block rounded-xl bg-black/30 p-3 text-[11px] text-yellow-100/80">
+                product fields → หั่นบรรทัด → map ทุกชนิด
+              </code>
+            </div>
+            <div className="rounded-2xl border border-pink-300/15 bg-pink-400/[0.045] p-5">
+              <p className="font-mono text-sm font-semibold text-white">🔀 SWITCH 2 · PAIR ROUTE</p>
+              <p className="mt-2 text-xs leading-5 text-slate-300/65">
+                แยกออเดอร์ใบเดียวกับออเดอร์ที่มีคู่จาก marker ที่ THE GOD GATEKEEPER V.1 เตรียมไว้ให้
+                หน้าที่ของ Switch 2 คือแยกเส้นทางตาม marker ไม่ใช่คำนวณคู่ใหม่ในหน้าเว็บ
+              </p>
+              <code className="mt-3 block rounded-xl bg-black/30 p-3 text-[11px] text-pink-100/80">
+                pair marker → 💞 PAIRED / 💔 SINGLE
               </code>
             </div>
           </div>
