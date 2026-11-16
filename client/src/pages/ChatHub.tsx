@@ -248,7 +248,7 @@ export default function ChatHub() {
   const totalMessages = useMemo(() => threads.reduce((total, thread) => total + thread.messageCount, 0), [threads]);
   const uploadImage = trpc.chat.uploadImage.useMutation({
     onSuccess: (result, variables) => {
-      setReplyImageUrl(`${window.location.origin}${result.url}`);
+      setReplyImageUrl(/^https?:\/\//i.test(result.url) ? result.url : `${window.location.origin}${result.url}`);
       setReplyImageSendUrl(result.sendUrl);
       setReplyImageFileName(variables.fileName);
     },

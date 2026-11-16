@@ -3,6 +3,7 @@
 // Downloads return /manus-storage/{key} paths served via 307 redirect.
 
 import { ENV } from "./_core/env";
+import { getChatSupabaseConfig, type ChatSupabaseCredentials } from "./supabase";
 
 function getForgeConfig() {
   const forgeUrl = ENV.forgeApiUrl;
@@ -94,4 +95,53 @@ export async function storageGetSignedUrl(relKey: string): Promise<string> {
 
   const { url } = (await resp.json()) as { url: string };
   return url;
+}
+
+function encodeStoragePath(value: string) {
+  return value.split("/").map(segment => encodeURIComponent(segment)).join("/");
+}
+
+export async function storagePutSupabaseImage(
+  relKey: string,
+  data: Buffer | Uint8Array,
+  contentType: string,
+  credentials?: ChatSupabaseCredentials,
+): Promise<{ key: string; url: string; sendUrl: string }> {
+  const { baseUrl, key: apiKey } = getChatSupabaseConfig(credentials);
+  const objectKey = normalizeKey(relKey);
+  const encodedKey = encodeStoragePath(objectKey);
+  const bucket = "warp-images";
+  const headers = {
+    apikey: apiKey,
+    Authorization: `Bearer ${apiKey}`,
+    "Content-Type": contentType,
+    "cache-control": "3600",
+    "x-upsert": "false",
+  };
+  const upload = await fetch(`${baseUrl}/storage/v1/object/${bucket}/${encodedKey}`, {
+    method: "POST",
+    headers,
+    body: new Uint8Array(data),
+  });
+  if (!upload.ok) {
+    const detail = (await upload.text().catch(() => upload.statusText)).replace(/\s+/g, " ").slice(0, 300);
+    throw new Error(`Supabase Storage upload failed (${upload.status})${detail ? `: ${detail}` : ""}`);
+  }
+
+  const signedResponse = await fetch(`${baseUrl}/storage/v1/object/sign/${bucket}/${encodedKey}`, {
+    method: "POST",
+    headers: { apikey: apiKey, Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ expiresIn: 3600 }),
+  });
+  if (!signedResponse.ok) {
+    const detail = (await signedResponse.text().catch(() => signedResponse.statusText)).replace(/\s+/g, " ").slice(0, 300);
+    throw new Error(`Supabase signed URL failed (${signedResponse.status})${detail ? `: ${detail}` : ""}`);
+  }
+  const { signedURL } = await signedResponse.json() as { signedURL?: string };
+  if (!signedURL) throw new Error("Supabase returned an empty signed image URL");
+  const sendUrl = /^https?:\/\//i.test(signedURL)
+    ? signedURL
+    : `${baseUrl}/storage/v1${signedURL.startsWith("/") ? signedURL : `/${signedURL}`}`;
+  const url = `${baseUrl}/storage/v1/object/public/${bucket}/${encodedKey}`;
+  return { key: objectKey, url, sendUrl };
 }
