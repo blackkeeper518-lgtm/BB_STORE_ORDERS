@@ -785,8 +785,8 @@ export function mapChatRowsToThreads(sourceRows: any[]) {
       upsert_key: row.upsert_key || null, order_number: row.order_number || null,
       _searchTokens: "",
       is_sent: row.is_sent === true || row.is_sent === "true",
-      order_number_display: row.order_number_display || null, order_time: row.order_time || null,
-      order_time_display: row.order_time_display || null, cod_amount: row.cod_amount ?? null,
+      order_number_display: row.order_number_display || null, currentThreadTotalBills: row.currentThreadTotalBills ?? null,
+      order_time: row.order_time || null, order_time_display: row.order_time_display || null, cod_amount: row.cod_amount ?? null,
       facebook_name: row.facebook_name || null, manus_for_packer: row.manus_for_packer || null,
       parcel_status_emoji: row.parcel_status_emoji || null,
       delivery_status: row.delivery_status || null,
@@ -811,7 +811,7 @@ export function mapChatRowsToThreads(sourceRows: any[]) {
     current.is_sent ||= row.is_sent === true || row.is_sent === "true";
     for (const [source, target] of [
       ["pager_message_time_th", "pagerMessageTimeTh"], ["upsert_key", "upsert_key"], ["order_number", "order_number"],
-      ["order_number_display", "order_number_display"], ["order_time", "order_time"], ["order_time_display", "order_time_display"],
+      ["order_number_display", "order_number_display"], ["currentThreadTotalBills", "currentThreadTotalBills"], ["order_time", "order_time"], ["order_time_display", "order_time_display"],
       ["cod_amount", "cod_amount"], ["facebook_name", "facebook_name"], ["manus_for_packer", "manus_for_packer"],
       ["parcel_status_emoji", "parcel_status_emoji"], ["phone", "phone"],
     ]) {
