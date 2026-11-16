@@ -816,14 +816,7 @@ export function mapChatRowsToThreads(sourceRows: any[]) {
       ["parcel_status_emoji", "parcel_status_emoji"], ["phone", "phone"],
     ]) {
       const value = row[source];
-      if (value != null && String(value).trim()) {
-        // Parcel status is authoritative from the Page-side chat row; customer rows never overwrite it.
-        if (source === "parcel_status_emoji") {
-          if (row._speaker === "page" || !String(current[target] ?? "").trim()) current[target] = value;
-        } else {
-          current[target] = value;
-        }
-      }
+      if (value != null && String(value).trim()) current[target] = value;
     }
     current.messageCount += 1;
     if (row._speaker === "customer" && (row._text || row._hasAttachment)) {

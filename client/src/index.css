@@ -1116,7 +1116,3 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 /* The single room badge is Parcel; BB is no longer printed on the card. */
 .chat-room-code-label.cyber-frame-picker-trigger.parcel-status-chip { border-color:rgba(255,156,225,.62) !important; background:rgba(121,15,81,.34) !important; color:#ffe7f7 !important; text-shadow:0 0 3px #fff,0 0 7px rgba(255,128,218,.75) !important; box-shadow:0 0 7px rgba(255,60,190,.38),inset 0 0 8px rgba(255,78,195,.12) !important; }
 .chat-room-code-label.cyber-frame-picker-trigger.parcel-status-chip.parcel-status-chip--order { border-color:#8CFF00 !important; background:rgba(140,255,0,.22) !important; color:#E8FFD0 !important; text-shadow:0 0 3px #fff,0 0 9px rgba(140,255,0,.98) !important; box-shadow:0 0 4px rgba(255,255,255,.72),0 0 11px rgba(140,255,0,.96),0 0 22px rgba(140,255,0,.62),inset 0 0 8px rgba(140,255,0,.25) !important; }
-
-/* Delivery sent signal stays outside the Parcel badge and sits before the page name. */
-.delivery-sent-flash { display:inline-flex; flex:0 0 auto; color:#ffe66d; font-size:11px; line-height:1; text-shadow:0 0 4px #fff,0 0 9px rgba(255,213,68,.95),0 0 16px rgba(255,150,0,.75); animation:delivery-flash-pulse 1.6s ease-in-out infinite; }
-@keyframes delivery-flash-pulse { 0%,100% { filter:brightness(.9); transform:scale(.96); } 50% { filter:brightness(1.35); transform:scale(1.08); } }
