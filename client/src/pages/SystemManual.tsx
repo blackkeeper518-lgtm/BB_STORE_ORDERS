@@ -703,6 +703,47 @@ export default function SystemManual() {
               </div>
             </div>
 
+            <div className="mt-4 rounded-2xl border border-emerald-300/15 bg-emerald-400/[0.045] p-5">
+              <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-300/70">
+                    DYNAMIC PRODUCT TABLE · BILL HEADER
+                  </p>
+                  <h3 className="mt-2 text-lg font-semibold text-white">หัวบิลไดนามิกจากโต๊ะสินค้า</h3>
+                  <p className="mt-2 max-w-3xl text-xs leading-5 text-slate-300/70">
+                    หัวบิลไม่ได้เขียนตายตัวในเว็บ แต่ดึงตรงจากฟิวด์และลิงก์ของโต๊ะสินค้า
+                    จึงเปลี่ยนได้ตามสินค้า แคมเปญ หรือสถานะสต็อกโดยไม่ต้องแก้โค้ดหน้าเว็บ
+                  </p>
+                </div>
+                <ToneBadge tone="cyan">SOURCE OF TRUTH · PRODUCT TABLE</ToneBadge>
+              </div>
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                  <p className="font-semibold text-emerald-100">สิ่งที่สายบิลอ่านตรง ๆ</p>
+                  <ul className="mt-2 space-y-1.5 text-xs leading-5 text-slate-300/70">
+                    <li>• หัวบิลสินค้าและข้อความประกอบ เช่น 🐧 / 🗯️</li>
+                    <li>• <code className="rounded bg-black/30 px-1 text-emerald-100">telegram_message</code> สำหรับรายละเอียดออเดอร์ส่งกลุ่มแพ็ก</li>
+                    <li>• ข้อความสินค้าหมด เช่น ❌ / 💬 เมื่อโต๊ะสินค้าส่งสัญญาณมา</li>
+                    <li>• ลิงก์หรือภาพจากโต๊ะสินค้าโดยตรง</li>
+                  </ul>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                  <p className="font-semibold text-emerald-100">หลักการแสดงผล</p>
+                  <ul className="mt-2 space-y-1.5 text-xs leading-5 text-slate-300/70">
+                    <li>• เว็บอ่านและแสดงฟิวด์ไดนามิกตรง ๆ</li>
+                    <li>• ไม่ hardcode หัวบิลหรือข้อความสินค้าหมด</li>
+                    <li>• ไม่ตัดสินเองว่าสินค้าหมดหรือพร้อมแพ็ก</li>
+                    <li>• เปลี่ยนหัวบิลได้โดยแก้ที่โต๊ะสินค้า/n8n เท่านั้น</li>
+                  </ul>
+                </div>
+              </div>
+              <code className="mt-4 block rounded-xl bg-black/30 p-3 text-[11px] leading-5 text-emerald-100/80">
+                product table → dynamic header / stock message / link
+                <br />
+                order fields → telegram_message → packing room
+              </code>
+            </div>
+
             <div className="mt-4 grid gap-4 lg:grid-cols-2">
               <div className="rounded-2xl border border-amber-300/15 bg-amber-400/[0.045] p-5">
                 <p className="font-mono text-sm font-semibold text-white">📌 PRE-SAVE CHANGE AUDIT1</p>
