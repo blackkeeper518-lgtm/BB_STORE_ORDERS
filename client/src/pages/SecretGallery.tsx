@@ -144,17 +144,19 @@ export default function SecretGallery() {
         : next === "connect"
           ? "/secret-gallery/connect"
           : next === "cyber"
-            ? "/secret-gallery/cyber-frames"
+            ? "/secret-gallery?tab=cyber-frames"
             : "/secret-gallery"
     );
   };
   useEffect(() => {
     setView(
-      location === "/secret-gallery/images"
-        ? "images"
+        location === "/secret-gallery/images"
+          ? "images"
         : location === "/secret-gallery/connect"
           ? "connect"
-          : "vault"
+          : location.includes("tab=cyber-frames")
+            ? "cyber"
+            : "vault"
     );
   }, [location]);
   const activeDoc = docs.find(doc => doc.id === activeId) ?? null;
