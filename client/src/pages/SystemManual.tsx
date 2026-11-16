@@ -726,6 +726,34 @@ export default function SystemManual() {
                 </ul>
               </div>
             </div>
+
+            <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-5">
+              <div className="flex items-center justify-between gap-3">
+                <p className="font-mono text-sm font-semibold text-white">🎨 CHANGE / GROUP DECISION SIGNALS</p>
+                <span className="text-[10px] uppercase tracking-[0.18em] text-slate-400/60">audit layer</span>
+              </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                {[
+                  ["🟠", "ใบเปลี่ยนข้อมูลเก่า", "บันทึกเก็บไว้เป็นหลักฐาน"],
+                  ["🟨", "ใบเปลี่ยนข้อมูลล่าสุด", "เข้าแพ็ก"],
+                  ["🟦", "ใบชนะในกลุ่ม Facebook", "winner ของกลุ่มนั้น"],
+                  ["⚪", "ผ่านตลอด", "เส้นทางที่ผ่านได้เสมอ"],
+                  ["⬛", "ใบที่แพ้ในกลุ่ม", "เก็บไว้เป็นหลักฐาน ไม่ใช่ใบชนะ"],
+                ].map(([emoji, title, detail]) => (
+                  <div key={title} className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl leading-none">{emoji}</span>
+                      <p className="text-xs font-semibold text-white">{title}</p>
+                    </div>
+                    <p className="mt-1.5 text-[11px] leading-4 text-slate-300/60">{detail}</p>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-3 text-[11px] leading-5 text-slate-400/65">
+                หมายเหตุ: ชุดสีนี้เป็นสัญญาณชั้น Change Audit/การตัดสินภายในกลุ่ม Facebook
+                แยกจาก <code className="rounded bg-black/30 px-1 text-slate-200">⚫</code> ของ Switch แรกที่หมายถึงบอททวนหรือบิลไม่สมบูรณ์
+              </p>
+            </div>
           </div>
 
           <div className="mt-5 rounded-2xl border border-violet-300/15 bg-violet-400/[0.045] p-5">
