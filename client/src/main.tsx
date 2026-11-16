@@ -44,7 +44,6 @@ const chatProcedures = new Set([
   "chat.pollNotifications",
   "chat.messages",
   "chat.sendReply",
-  "chat.uploadImage",
   "parcels.sendTracking",
 ]);
 

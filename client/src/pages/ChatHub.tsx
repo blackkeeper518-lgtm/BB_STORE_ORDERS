@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useIsMobile } from "@/hooks/useMobile";
-import { mapChatRowsToMessages, mapChatRowsToThreads, reconcileOptimisticMessages } from "@/lib/canonical";
+import { getSupabase, mapChatRowsToMessages, mapChatRowsToThreads, reconcileOptimisticMessages } from "@/lib/canonical";
+import { uploadChatImageToVault } from "@/lib/chat-image-upload";
 import { buildMetaConversationUrl } from "@/lib/meta-inbox";
 import { CHAT_BROWSER_CONFIG_EVENT, readBrowserChatConfig } from "@/lib/chat-config";
 import { trpc } from "@/lib/trpc";
@@ -99,6 +100,7 @@ export default function ChatHub() {
   const [replyImageUrl, setReplyImageUrl] = useState("");
   const [replyImageSendUrl, setReplyImageSendUrl] = useState("");
   const [replyImageFileName, setReplyImageFileName] = useState("");
+  const [imageUploading, setImageUploading] = useState(false);
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [stickerId, setStickerId] = useState("");
   const [optimisticMessages, setOptimisticMessages] = useState<any[]>([]);
@@ -106,7 +108,6 @@ export default function ChatHub() {
   const [deliveryStatus, setDeliveryStatus] = useState<"idle" | "sending" | "sent" | "failed">("idle");
   const [replyNotice, setReplyNotice] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const replyTextareaRef = useRef<HTMLTextAreaElement>(null);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [summaryText, setSummaryText] = useState("");
   const [summary, setSummary] = useState<{ orderNumber: string; customerName: string; phone: string; address: string; product: string; cod: string; copyText: string; unitPrice?: number | null; timingMs?: { total: number; parse: number; dataLookup: number; audit: number } } | null>(null);
@@ -131,16 +132,6 @@ export default function ChatHub() {
     };
   }, []);
   useEffect(() => { localStorage.setItem(CHAT_PAGE_FILTER_KEY, JSON.stringify(selectedPages)); }, [selectedPages]);
-  useEffect(() => {
-    const field = replyTextareaRef.current;
-    if (!field) return;
-    const maxHeight = Math.min(160, Math.max(96, Math.floor(window.innerHeight * 0.24)));
-    const minHeight = Math.min(112, maxHeight);
-    field.style.height = "auto";
-    const contentHeight = field.scrollHeight;
-    field.style.height = `${Math.min(maxHeight, Math.max(minHeight, contentHeight))}px`;
-    field.style.overflowY = contentHeight > maxHeight ? "auto" : "hidden";
-  }, [replyText, composerOpen, selectedKey]);
   useEffect(() => { if (selectedKey) localStorage.setItem(CHAT_SELECTED_ROOM_KEY, selectedKey); }, [selectedKey]);
   const threadsQuery = trpc.chat.threads.useQuery(undefined, {
     enabled: hasBrowserChatConfig,
@@ -257,14 +248,6 @@ export default function ChatHub() {
   const availableToolValues = toolValues.filter(item => String(item.value ?? "").trim());
   const chatEvidenceQuery = trpc.orders.chatEvidence.useQuery({ pageId: selectedPageId, threadId: selectedThreadId }, { enabled: Boolean(selectedPageId && selectedThreadId && orderDetailOpen), refetchInterval: 60_000 });
   const totalMessages = useMemo(() => threads.reduce((total, thread) => total + thread.messageCount, 0), [threads]);
-  const uploadImage = trpc.chat.uploadImage.useMutation({
-    onSuccess: (result, variables) => {
-      setReplyImageUrl(/^https?:\/\//i.test(result.url) ? result.url : `${window.location.origin}${result.url}`);
-      setReplyImageSendUrl(result.sendUrl);
-      setReplyImageFileName(variables.fileName);
-    },
-    onError: error => setReplyNotice(`อัปโหลดภาพไม่สำเร็จ: ${error.message}`),
-  });
   const sendReply = trpc.chat.sendReply.useMutation({
     onMutate: () => { setDeliveryStatus("sending"); setReplyNotice("กำลังส่งไปยัง Facebook…"); },
     onSuccess: result => {
@@ -307,16 +290,6 @@ export default function ChatHub() {
   const confirmSelectedOrder = () => { if (!selectedPageId || !selectedThreadId || selectedConfirmed) return; confirmOrder.mutate({ pageId: selectedPageId, threadId: selectedThreadId, customerName: selected?.customerName ?? undefined, customerId: selectedCustomerId || undefined, evidenceText: selected?.preview ?? undefined }); };
 
   useEffect(() => { if (!selectedKey && filteredThreads[0]) setSelectedKey(filteredThreads[0].key); }, [filteredThreads, selectedKey]);
-  useEffect(() => {
-    const field = replyTextareaRef.current;
-    if (!field) return;
-    const maxHeight = Math.min(220, Math.max(96, Math.floor(window.innerHeight * 0.32)));
-    const minHeight = Math.min(160, maxHeight);
-    field.style.height = "auto";
-    const contentHeight = field.scrollHeight;
-    field.style.height = `${Math.min(maxHeight, Math.max(minHeight, contentHeight))}px`;
-    field.style.overflowY = contentHeight > maxHeight ? "auto" : "hidden";
-  }, [replyText, composerOpen, selectedKey]);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const pageId = params.get("page_id");
@@ -399,16 +372,31 @@ export default function ChatHub() {
       imageSendUrl: replyImageSendUrl || undefined,
     });
   };
-  const handleImageUpload = (file?: File) => {
+  const handleImageUpload = async (file?: File) => {
     if (!file) return;
     const supportedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"] as const;
     if (!supportedTypes.includes(file.type as typeof supportedTypes[number]) || file.size > 6_000_000) {
       setReplyNotice("รองรับ JPG, PNG, GIF หรือ WebP ขนาดไม่เกิน 6 MB");
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => uploadImage.mutate({ fileName: file.name, contentType: file.type as typeof supportedTypes[number], base64: String(reader.result) });
-    reader.readAsDataURL(file);
+    const vaultClient = getSupabase("vault");
+    if (!vaultClient) {
+      setReplyNotice("อัปโหลดภาพไม่สำเร็จ: ไม่พบ ROOM 04 · PRIVATE VAULT · กรอก Supabase URL กับ Anon/Publishable Key ก่อน");
+      return;
+    }
+    setImageUploading(true);
+    setReplyNotice("กำลังอัปโหลดภาพเข้า ROOM 04 · PRIVATE VAULT…");
+    try {
+      const result = await uploadChatImageToVault(vaultClient, file);
+      setReplyImageUrl(result.url);
+      setReplyImageSendUrl(result.url);
+      setReplyImageFileName(file.name);
+      setReplyNotice("อัปโหลดภาพสำเร็จ · พร้อมส่งให้ลูกค้า");
+    } catch (error) {
+      setReplyNotice(`อัปโหลดภาพไม่สำเร็จ: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setImageUploading(false);
+    }
   };
   const addEmoji = (emoji: string) => setReplyText(current => `${current}${current ? " " : ""}${emoji}`);
   const copySummary = async () => {
@@ -423,14 +411,14 @@ export default function ChatHub() {
   const composer = <div className="flex min-h-0 flex-1 flex-col overflow-hidden border-t border-cyan-300/20 pt-2">
     <div className="mb-2 flex shrink-0 items-center gap-2">
       <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" className="hidden" onChange={event => { handleImageUpload(event.target.files?.[0]); event.currentTarget.value = ""; }} />
-      {replyImageUrl ? <div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-cyan-300/20 bg-[#0a111b] px-3 py-2 text-xs text-cyan-50" aria-live="polite"><Paperclip className="h-4 w-4 shrink-0 text-cyan-200/70" /><span className="min-w-0 flex-1 truncate" title={replyImageFileName}>{replyImageFileName || "ไฟล์ภาพ"}</span><span className="hidden shrink-0 text-[10px] text-emerald-300 sm:inline">อัปโหลดแล้ว</span><button type="button" aria-label="เอาภาพออก" onClick={() => { setReplyImageUrl(""); setReplyImageSendUrl(""); setReplyImageFileName(""); }} className="rounded p-1 text-cyan-100/55 hover:bg-white/10 hover:text-white"><X className="h-4 w-4" /></button></div> : uploadImage.isPending ? <div className="flex min-h-9 flex-1 items-center gap-2 px-2 text-xs text-cyan-100/65"><LoaderCircle className="h-4 w-4 animate-spin" />กำลังอัปโหลดภาพเข้าแชท…</div> : null}
+      {replyImageUrl ? <div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-cyan-300/20 bg-[#0a111b] px-3 py-2 text-xs text-cyan-50" aria-live="polite"><Paperclip className="h-4 w-4 shrink-0 text-cyan-200/70" /><span className="min-w-0 flex-1 truncate" title={replyImageFileName}>{replyImageFileName || "ไฟล์ภาพ"}</span><span className="hidden shrink-0 text-[10px] text-emerald-300 sm:inline">อัปโหลดแล้ว</span><button type="button" aria-label="เอาภาพออก" onClick={() => { setReplyImageUrl(""); setReplyImageSendUrl(""); setReplyImageFileName(""); }} className="rounded p-1 text-cyan-100/55 hover:bg-white/10 hover:text-white"><X className="h-4 w-4" /></button></div> : imageUploading ? <div className="flex min-h-9 flex-1 items-center gap-2 px-2 text-xs text-cyan-100/65"><LoaderCircle className="h-4 w-4 animate-spin" />กำลังอัปโหลดภาพเข้าแชท…</div> : null}
     </div>
     {emojiPickerOpen ? <div role="group" aria-label="เลือกอีโมจิ" className="mb-2 flex flex-wrap gap-1 rounded-xl border border-cyan-300/15 bg-[#0a111b] p-2">{["😊", "😂", "😍", "🥰", "👍", "🙏", "❤️", "🎉", "📦", "✨"].map(emoji => <button key={emoji} type="button" onClick={() => { addEmoji(emoji); setEmojiPickerOpen(false); }} className="flex h-9 w-9 items-center justify-center rounded-lg text-xl hover:bg-cyan-300/10" aria-label={`เพิ่มอีโมจิ ${emoji}`}>{emoji}</button>)}</div> : null}
     <div className="flex min-w-0 items-end gap-1.5 rounded-xl border border-cyan-300/20 bg-[#0a111b] p-1.5 sm:gap-2 sm:p-2">
-      <Button type="button" aria-label="แนบรูปภาพ" title={uploadImage.isPending ? "กำลังอัปโหลด…" : "แนบรูปภาพ"} variant="ghost" onClick={() => fileInputRef.current?.click()} disabled={uploadImage.isPending || sendReply.isPending} className="h-10 w-10 shrink-0 rounded-lg p-0 text-cyan-100/75 hover:bg-cyan-300/10 hover:text-cyan-100"><Paperclip className="h-5 w-5" /></Button>
-      <Textarea ref={replyTextareaRef} value={replyText} onChange={event => setReplyText(event.target.value)} placeholder={selectedCustomerId ? "พิมพ์ข้อความ…" : "ไม่พบ Customer PSID ของห้องนี้"} disabled={!selectedCustomerId} className="h-auto max-h-[160px] min-h-24 min-w-0 flex-1 resize-none overflow-y-hidden border-0 bg-transparent px-2 py-2 text-sm leading-6 text-white placeholder:text-cyan-100/35 focus-visible:ring-0 focus-visible:ring-offset-0" onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing && event.nativeEvent.keyCode !== 229) { event.preventDefault(); sendCurrentReply(); } }} />
+      <Button type="button" aria-label="แนบรูปภาพ" title={imageUploading ? "กำลังอัปโหลด…" : "แนบรูปภาพ"} variant="ghost" onClick={() => fileInputRef.current?.click()} disabled={imageUploading || sendReply.isPending} className="h-10 w-10 shrink-0 rounded-lg p-0 text-cyan-100/75 hover:bg-cyan-300/10 hover:text-cyan-100"><Paperclip className="h-5 w-5" /></Button>
+      <Textarea value={replyText} onChange={event => setReplyText(event.target.value)} placeholder={selectedCustomerId ? "พิมพ์ข้อความ…" : "ไม่พบ Customer PSID ของห้องนี้"} disabled={!selectedCustomerId} className="field-sizing-fixed h-24 max-h-24 min-h-24 min-w-0 flex-1 resize-none overflow-y-auto border-0 bg-transparent px-2 py-2 text-sm leading-6 text-white placeholder:text-cyan-100/35 focus-visible:ring-0 focus-visible:ring-offset-0" onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing && event.nativeEvent.keyCode !== 229) { event.preventDefault(); sendCurrentReply(); } }} />
       <Button type="button" aria-label="เลือกอีโมจิ" title="เลือกอีโมจิ" variant="ghost" aria-expanded={emojiPickerOpen} onClick={() => setEmojiPickerOpen(value => !value)} className="h-10 w-10 shrink-0 rounded-lg p-0 text-cyan-100/75 hover:bg-cyan-300/10 hover:text-cyan-100"><Smile className="h-5 w-5" /></Button>
-      <Button aria-label="ส่งข้อความ" title="ส่งข้อความ" disabled={sendReply.isPending || uploadImage.isPending || !selectedCustomerId || (!replyText.trim() && !replyImageUrl.trim())} onClick={sendCurrentReply} className="h-10 min-w-10 shrink-0 rounded-lg bg-gradient-to-br from-cyan-300 to-violet-400 px-3 text-[#07101a] shadow-[0_0_14px_rgba(34,211,238,.22)] transition hover:brightness-110">{sendReply.isPending ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}</Button>
+      <Button aria-label="ส่งข้อความ" title="ส่งข้อความ" disabled={sendReply.isPending || imageUploading || !selectedCustomerId || (!replyText.trim() && !replyImageUrl.trim())} onClick={sendCurrentReply} className="h-10 min-w-10 shrink-0 rounded-lg bg-gradient-to-br from-cyan-300 to-violet-400 px-3 text-[#07101a] shadow-[0_0_14px_rgba(34,211,238,.22)] transition hover:brightness-110">{sendReply.isPending ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}</Button>
     </div>
   </div>;
 

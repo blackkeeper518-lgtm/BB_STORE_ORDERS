@@ -1,9 +1,7 @@
 import { z } from "zod";
-import { randomUUID } from "node:crypto";
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { COOKIE_NAME } from "../shared/const";
 import { sendMetaMessage } from "./meta";
-import { storagePutSupabaseImage } from "./storage";
 import { checkChatConnection, fetchChatMessageRows, fetchChatNotificationRows, fetchChatThreadRows, fetchParcelMappingQueue, purgeOldParcels, recordOutgoingChatMessage, supabaseGet, supabasePost } from "./supabase";
 import * as db from "./db";
 
@@ -71,12 +69,6 @@ export const appRouter = router({
       }
       if (!finalResult) throw new Error("ไม่มีข้อความหรือรูปภาพสำหรับส่ง");
       return finalResult;
-    }),
-    uploadImage: publicProcedure.input(z.object({ fileName: z.string().min(1).max(180), contentType: z.enum(["image/jpeg", "image/png", "image/gif", "image/webp"]), base64: z.string().max(8_500_000) })).mutation(async ({ input, ctx }) => {
-      const comma = input.base64.indexOf(",");
-      const raw = comma >= 0 ? input.base64.slice(comma + 1) : input.base64;
-      const safeName = input.fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
-      return storagePutSupabaseImage(`chat/${randomUUID()}-${safeName}`, Buffer.from(raw, "base64"), input.contentType, requireBrowserChatConfig(ctx));
     }),
   }),
 
