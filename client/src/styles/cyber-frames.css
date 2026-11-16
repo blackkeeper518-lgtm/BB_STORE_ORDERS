@@ -125,3 +125,8 @@
 .cyber-frame-room-select:focus { border-color:rgba(255,90,203,.75); box-shadow:0 0 10px rgba(255,90,203,.2); }
 @keyframes cyber-room-active-pulse { 0%,100% { filter:brightness(1); box-shadow:0 0 0 rgba(88,238,255,0); } 50% { filter:brightness(1.14); box-shadow:0 0 20px rgba(88,238,255,.28),0 0 34px rgba(255,78,199,.12); } }
 @media (prefers-reduced-motion:reduce) { .room-list-card.cyber-frame-active { animation:none; } }
+
+/* Tiny per-card frame control: keep the customer card geometry unchanged. */
+.cyber-frame-avatar-wrap { z-index: 8; }
+.cyber-frame-room-select { position:absolute; right:-7px; bottom:-4px; width:34px; max-width:34px; height:16px; border:1px solid rgba(255,90,203,.72); border-radius:5px; padding:0 1px; background:rgba(12,8,28,.96); color:rgba(255,214,246,.92); font:700 7px 'IBM Plex Mono',monospace; line-height:14px; outline:none; cursor:pointer; box-shadow:0 0 8px rgba(255,66,199,.2); }
+.cyber-frame-room-select:focus { border-color:rgba(93,233,255,.9); box-shadow:0 0 10px rgba(93,233,255,.35); }
