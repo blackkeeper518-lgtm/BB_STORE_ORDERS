@@ -1,0 +1,83 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "useCustomSchema": true,
+        "operation": "update",
+        "tableId": "🗝️HERMES_ARCHIVE",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "upsert_key",
+              "condition": "eq",
+              "keyValue": "={{ $('⭐⭐👑⭐⭐1').item.json.upsert_key }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "telegram_sent",
+              "fieldValue": "true"
+            },
+            {
+              "fieldId": "telegram_status",
+              "fieldValue": "🔥SENT"
+            },
+            {
+              "fieldId": "delivery_state",
+              "fieldValue": "😈 Red Devil (Ghost)"
+            },
+            {
+              "fieldId": "sent_at",
+              "fieldValue": "={{ $now.toISO() }}"
+            },
+            {
+              "fieldId": "delivery_status",
+              "fieldValue": "🔥SENT"
+            },
+            {
+              "fieldId": "telegram_sent_at",
+              "fieldValue": "={{ $now.toISO() }}"
+            },
+            {
+              "fieldId": "target_room",
+              "fieldValue": "🌟GENESIS_xXx_HISTORY"
+            },
+            {
+              "fieldId": "chat_link_key",
+              "fieldValue": "={{ $('⭐⭐👑⭐⭐1').item.json.chat_link_key }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -14784,
+        5584
+      ],
+      "id": "0133ed0d-5762-497e-914a-4cd06c0812cf",
+      "name": "🗝️HERMES_ARCHIVE9",
+      "alwaysOutputData": false,
+      "credentials": {
+        "supabaseApi": {
+          "id": "fUL1nUoNWuBjchp1",
+          "name": "🌌BB_ORDERS2"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "🗝️HERMES_ARCHIVE9": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "f4fcccb61c84d5d75854e90735e6c1d4dc7f96a459bba4b39bf25fd07d0f4e26"
+  }
+}

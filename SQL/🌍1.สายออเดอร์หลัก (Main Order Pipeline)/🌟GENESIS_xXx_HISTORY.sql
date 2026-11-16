@@ -1,0 +1,189 @@
+create view public."🌟GENESIS_xXx_HISTORY"
+with
+  (security_invoker = true) as
+select
+  upsert_key,
+  chat_link_key,
+  bb_express_send_route,
+  "currentThreadTotalBills",
+  duplicate_count_th,
+  "balloonNotice",
+  "sniperAuthorClass",
+  facebook_name,
+  "threadId",
+  time_th,
+  customer_id,
+  tracking_request_same_thai_date,
+  tracking_request_route_hint,
+  order_date,
+  order_time,
+  order_time_display,
+  time_slot_label,
+  day_of_week,
+  order_time_source,
+  page_id,
+  page_name,
+  order_number,
+  cod_amount,
+  customer_name,
+  phone,
+  extracted_phone,
+  phone_type,
+  phone_status,
+  phone_candidates,
+  rejected_phone_candidates,
+  address_display_packer,
+  addressclean,
+  "finalAddress",
+  full_address,
+  short_address,
+  district,
+  amphoe,
+  province,
+  zipcode,
+  order_source_type,
+  audit_flags,
+  chat_timeline,
+  cod_check_status,
+  shipping_carrier,
+  assigned_agent,
+  assigned_hashtag,
+  original,
+  "orderItems",
+  for_packer_st_display,
+  sku,
+  google_for_packer,
+  manus_for_packer,
+  final_order_qty,
+  extracted_text_qty,
+  qty_display_th,
+  "darksideBillDataComplete",
+  bill_data_complete,
+  darkside_completeness_status,
+  darkside_missing_reasons,
+  bill_data_reason,
+  bill_signal_source,
+  bill_quantity_is_blocker,
+  route_reason_emoji,
+  route_reason_color,
+  route_reason_label,
+  packer_obj,
+  extracted_text_price,
+  is_salty_gold,
+  fibo_score,
+  fibo_tier,
+  fibo_badge,
+  mathematically_price,
+  final_order_price,
+  is_vip,
+  vip_tag,
+  order_time_ms_reference,
+  order_time_bkk_iso,
+  order_time_thai_date,
+  order_time_thai_clock,
+  order_time_thai_label,
+  order_time_contract_locked,
+  tracking_request_48h,
+  tracking_request_48h_event,
+  node2_tracking_request_detected,
+  node2_tracking_request_48h,
+  node2_tracking_request_event,
+  node2_tracking_request_route_hint,
+  product_items_v5,
+  product_map_sku_list,
+  product_map_master_sku_list,
+  order_fibo_product,
+  packer_tag_display,
+  final_product,
+  final_display_for_packer,
+  telegram_product_display,
+  telegram_message,
+  telegram_main_bill,
+  telegram_copy_text,
+  telegram_body,
+  telegram_change_alert,
+  customer_change_diff_json,
+  customer_change_admin_footer,
+  customer_change_admin_footer_text,
+  customer_change_audit_group_key,
+  customer_change_audit_is_current,
+  customer_change_current_time,
+  customer_change_current_upsert_key,
+  customer_change_previous_time,
+  customer_change_previous_upsert_key,
+  pre_save_change_group_key,
+  pre_save_change_selected,
+  customer_address_current,
+  customer_address_previous,
+  customer_name_current,
+  customer_name_previous,
+  customer_phone_current,
+  customer_phone_previous,
+  customer_product_current,
+  customer_product_previous,
+  source_table,
+  stock_notice,
+  order_number_display,
+  final_address_for_bill,
+  address_fibo_selected_clean,
+  is_ready_to_pack,
+  send_eligible,
+  telegram_bill_send_eligible,
+  telegram_status,
+  delivery_state,
+  delivery_status,
+  telegram_sent,
+  telegram_sent_at,
+  sent_at,
+  life_status,
+  status_color,
+  routing_tag,
+  product_mapping_status,
+  mapping_status,
+  telegram_message_for_send_final,
+  customer_change_summary,
+  raw_text,
+  recipient_id,
+  expected_cod,
+  telegram_bill_header
+from
+  "🌌MULTIVERSE_xXx_NEXUS" c
+where
+  (
+    (
+      lower(btrim(COALESCE(telegram_sent, ''::text))) = any (
+        array['true'::text, 't'::text, '1'::text, 'yes'::text]
+      )
+    )
+    or (
+      upper(btrim(COALESCE(telegram_status, ''::text))) = any (
+        array[
+          'SENT'::text,
+          'DELIVERED'::text,
+          'SENT_TO_TELEGRAM'::text
+        ]
+      )
+    )
+    or (
+      upper(btrim(COALESCE(delivery_status, ''::text))) = any (
+        array[
+          'SENT'::text,
+          'DELIVERED'::text,
+          'SENT_TO_TELEGRAM'::text
+        ]
+      )
+    )
+    or (
+      upper(btrim(COALESCE(delivery_state, ''::text))) = any (
+        array[
+          'SENT'::text,
+          'DELIVERED'::text,
+          'SENT_TO_TELEGRAM'::text
+        ]
+      )
+    )
+  )
+  and not (
+    btrim(COALESCE(source_table, ''::text)) = '🌀SINGULARITY_xXx_EXCHANGE'::text
+    and btrim(COALESCE(bb_express_send_route, ''::text)) = '🟠'::text
+  );

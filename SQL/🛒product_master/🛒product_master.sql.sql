@@ -44,3 +44,5 @@ out_of_stock_joke,
 th_name,
 normal_header_variants on "🛒product_master" for EACH row
 execute FUNCTION fn_auto_link_product_stock ();
+
+
