@@ -1097,3 +1097,14 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .mobile-inbox-filters select { flex:none; height:34px; max-width:150px; border:1px solid rgba(91,210,255,.24); border-radius:10px; padding:0 26px 0 12px; background:#152438; color:#a9eefa; font:600 13px 'Space Grotesk',sans-serif; color-scheme:dark; outline:none; }
 .mobile-inbox-filters select:focus { border-color:#57d9ff; box-shadow:0 0 12px rgba(87,217,255,.16); }
 .mobile-inbox-bottom-nav { justify-content:center; gap:44px; }
+
+/* ChatHub room labels: BB is the discreet frame picker; Parcel carries the work status. */
+.chat-room-code-label.cyber-frame-picker-trigger { cursor:pointer; }
+.chat-room-code-label.cyber-frame-picker-trigger:not(.cod-room-sign):not(.time-slot-room-sign) { border-color:rgba(104,224,255,.38) !important; background:rgba(14,54,76,.34) !important; color:#d8f7ff !important; text-shadow:0 0 5px rgba(104,224,255,.65); box-shadow:0 0 7px rgba(40,190,255,.2), inset 0 0 8px rgba(40,190,255,.08); }
+.chat-room-code-label.cyber-frame-picker-trigger:hover { border-color:#8cffff !important; box-shadow:0 0 10px rgba(108,240,255,.55), inset 0 0 8px rgba(108,240,255,.14); }
+.cyber-frame-inline-picker { width:74px; height:19px; border:1px solid rgba(255,90,203,.72); border-radius:5px; padding:0 2px; background:rgba(12,8,28,.96); color:#ffe4f8; font:700 8px 'IBM Plex Mono',monospace; outline:none; cursor:pointer; }
+.parcel-status-chip { display:inline-flex; align-items:center; gap:3px; border:1px solid rgba(170,190,205,.35); border-radius:5px; padding:2px 5px; background:rgba(120,140,160,.10); color:rgba(225,239,246,.78); font:700 8px/1 'IBM Plex Mono',monospace; letter-spacing:.02em; white-space:nowrap; }
+.parcel-status-chip--green { border-color:rgba(140,255,0,.78); background:rgba(91,150,0,.22); color:#e8ffd0; box-shadow:0 0 7px rgba(140,255,0,.46); }
+.parcel-status-chip--yellow { border-color:rgba(255,221,91,.72); background:rgba(150,112,0,.20); color:#fff1a8; box-shadow:0 0 7px rgba(255,221,91,.28); }
+.parcel-status-chip--red { border-color:rgba(255,92,92,.72); background:rgba(145,22,35,.22); color:#ffd2d2; box-shadow:0 0 7px rgba(255,80,80,.3); }
+.parcel-status-chip--fire { border-color:rgba(255,139,54,.78); background:rgba(180,65,16,.22); color:#ffe0bd; box-shadow:0 0 8px rgba(255,112,35,.38); }
