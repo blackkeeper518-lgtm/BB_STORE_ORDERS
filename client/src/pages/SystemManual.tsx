@@ -546,6 +546,111 @@ export default function SystemManual() {
           </div>
         </section>
 
+        <section className="mt-8 rounded-[2rem] border border-fuchsia-300/15 bg-[#100d1b]/90 p-5 shadow-xl shadow-fuchsia-950/10 sm:p-7">
+          <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-fuchsia-300/70">
+                DARKSIDE SIGNAL MANUAL · N8N DECIDES
+              </p>
+              <h2 className="mt-2 text-2xl font-semibold text-white">
+                ระบบบ้าน ๆ แต่ทรงพลัง · คู่มืออีโมจิและฟิวด์ไดนามิก
+              </h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300/70">
+                n8n เป็นผู้คัดและคำนวณสถานะทั้งหมด ส่วนหน้าเว็บทำหน้าที่อ่านค่าที่คำนวณเสร็จแล้วมาแสดงผลเท่านั้น
+                ห้ามสร้างสถานะซ้ำจากเวลา ชื่อออเดอร์ หรือการเดาในหน้าเว็บ
+              </p>
+            </div>
+            <ToneBadge tone="pink">
+              <Sparkles className="mr-1.5 h-3.5 w-3.5" /> อ่านฟิวด์ตรง ๆ
+            </ToneBadge>
+          </div>
+
+          <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {[
+              ["⚪", "WHITE · ออเดอร์ใหม่", "(13 items) กลุ่มที่ผ่าน Switch แรกและไปต่อได้"],
+              ["🔴", "RED · ขอเลขเกิน 48 ชม.", "(14 items) ลูกค้าขอเลขเกิน 48 ชั่วโมง เป็นสถานะที่ n8n คัดไว้"],
+              ["🟥", "DARK RED · ขอเลขใน 48 ชม.", "ส่งสัญญาณให้ยิงเลขหาลูกค้าทันที"],
+              ["⚫", "BLACK · บอททวน/ไม่สมบูรณ์", "(4 items) packer_obj ขาดข้อมูล จึงเป็นออเดอร์บอททวน"],
+              ["👻", "GHOST · วันเก่า", "(6 items) ออเดอร์จากวันเก่าที่ไม่ผ่าน Switch แรก"],
+              ["💌", "TRACKING_REQUEST1", "ดักเลขพัสดุที่ส่งแล้วและคำขอเลข เพื่อกันการส่งซ้ำ"],
+            ].map(([emoji, title, detail]) => (
+              <div key={title} className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl leading-none">{emoji}</span>
+                  <p className="text-sm font-semibold text-white">{title}</p>
+                </div>
+                <p className="mt-2 text-xs leading-5 text-slate-300/65">{detail}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-5 grid gap-4 lg:grid-cols-3">
+            <div className="rounded-2xl border border-red-300/15 bg-red-400/[0.045] p-5">
+              <p className="font-mono text-sm font-semibold text-white">🔺 DARKSIDE LV7 · คัดบิล</p>
+              <p className="mt-2 text-xs leading-5 text-slate-300/65">
+                ตรวจว่า packer_obj สมบูรณ์หรือไม่ ออเดอร์ที่ดึงขึ้นมาทุกใบยังเป็นออเดอร์ ไม่มีการทิ้งเป็นขยะ
+                เพียงแต่บริบทของใบสมบูรณ์กับใบที่ต้องทวนต่างกัน
+              </p>
+              <code className="mt-3 block rounded-xl bg-black/30 p-3 text-[11px] text-red-100/80">
+                packer_obj → ⚪ / ⚫
+              </code>
+            </div>
+            <div className="rounded-2xl border border-cyan-300/15 bg-cyan-400/[0.045] p-5">
+              <p className="font-mono text-sm font-semibold text-white">🛡️ THE GOD GATEKEEPER V.1</p>
+              <p className="mt-2 text-xs leading-5 text-slate-300/65">
+                จาก Switch แรกมีเพียง ⚪ ที่ผ่านไปยังด่านถัดไป ส่วนสถานะ 🔴/🟥/⚫/👻 ถูก n8n แยกเหตุผลและเส้นทางไว้แล้ว
+                จากนั้นจึงตรวจวันที่ รอบส่ง และการจับคู่ของออเดอร์สีขาว; ใบที่ไม่มีคู่ยังผ่านได้ และคู่จะถูกทำเครื่องหมายลำดับไว้
+              </p>
+              <code className="mt-3 block rounded-xl bg-black/30 p-3 text-[11px] text-cyan-100/80">
+                Switch 1: ⚪ เท่านั้นที่ผ่านต่อ
+                <br />
+                1/2 · 2/2 · 1/3 · 2/3 · 3/3 = 💞 PAIRED
+                <br />
+                ใบเดียวจริง = 💔 SINGLE
+              </code>
+            </div>
+            <div className="rounded-2xl border border-amber-300/15 bg-amber-400/[0.045] p-5">
+              <p className="font-mono text-sm font-semibold text-white">💌 TRACKING_REQUEST1</p>
+              <p className="mt-2 text-xs leading-5 text-slate-300/65">
+                ดักทั้งเลขพัสดุที่ส่งไปแล้วและคำขอเลขจากลูกค้า ถ้าไม่สกัดสัญญาณนี้ออก อาจถูกมองเป็นก้อนออเดอร์และส่งเลขซ้ำ
+              </p>
+              <code className="mt-3 block rounded-xl bg-black/30 p-3 text-[11px] text-amber-100/80">
+                tracking sent / customer asks tracking
+              </code>
+            </div>
+          </div>
+
+          <div className="mt-5 rounded-2xl border border-violet-300/15 bg-violet-400/[0.045] p-5">
+            <div className="flex items-center gap-3">
+              <RadioTower className="h-5 w-5 text-violet-300" />
+              <p className="font-semibold text-white">🧬 FIBO · คะแนนความสมบูรณ์ของข้อมูล</p>
+            </div>
+            <p className="mt-2 text-xs leading-5 text-slate-300/65">
+              หลังผ่านด่านคัดบิล ระบบใช้คะแนนและระดับฟิโบช่วยตัดสินความพร้อมของข้อมูลตั้งแต่ที่อยู่ไปจนถึงสินค้า
+              เช่น <code className="rounded bg-black/30 px-1.5 py-0.5 text-violet-100">fibo_score</code>,
+              <code className="ml-1 rounded bg-black/30 px-1.5 py-0.5 text-violet-100">fibo_tier</code> และ
+              <code className="ml-1 rounded bg-black/30 px-1.5 py-0.5 text-violet-100">fibo_badge</code>
+              เป็นผลจาก n8n ไม่ใช่ค่าที่หน้าเว็บควรคำนวณใหม่
+            </p>
+          </div>
+
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+              <p className="font-mono text-xs font-semibold text-fuchsia-100">bb_express_send_route</p>
+              <p className="mt-1 text-xs leading-5 text-slate-300/65">
+                ฟิวด์เส้นทางที่ n8n คัดจาก packer_obj เช่น ⚪/⚫ ห้ามหน้าเว็บเปลี่ยนความหมายเอง
+              </p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+              <p className="font-mono text-xs font-semibold text-fuchsia-100">packer_obj</p>
+              <p className="mt-1 text-xs leading-5 text-slate-300/65">
+                วัตถุข้อมูลต้นทางสำหรับตรวจความครบถ้วน เช่น COD สินค้า จำนวน ลูกค้า ที่อยู่ และสถานะบิล
+                ขาดฟิวด์เดียวก็เปลี่ยนสัญญาณความสมบูรณ์ได้
+              </p>
+            </div>
+          </div>
+        </section>
+
         <section className="mt-8 grid gap-4 lg:grid-cols-2">
           <div className="rounded-[2rem] border border-red-300/15 bg-red-400/[0.035] p-6">
             <div className="flex items-center gap-3">
