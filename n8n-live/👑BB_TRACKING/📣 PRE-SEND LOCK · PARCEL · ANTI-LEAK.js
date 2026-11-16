@@ -2,15 +2,17 @@
 // วางก่อน 👣 LIMBO JUNCTION1 · Facebook API
 //
 // หน้าที่:
-// 1. ตรวจเฉพาะ facebook_tracking_message: มี 📌📣 แล้วให้หยุดส่งซ้ำ
-// 2. ไม่มี marker ให้ปั๊มหัวข้อความแล้วส่งต่อ โดยไม่คัดด้วยฟิลด์อื่น
-// 3. ไม่ตรวจสถานะ, ฟิลด์บังคับ, duplicate ใน batch หรือข้อความว่าง
+// 1. คัดรายการที่ลง Facebook แล้วออกจากคิว
+// 2. กันรายการซ้ำที่มาจาก ROGUE สองฝั่ง
+// 3. แยกสี 🟢 🟡 🔴 ให้ไหลต่อไปพร้อมกัน
+// 4. ปั๊ม ⚡SENT ลง 🧿BB_xXx_ORDERCONTROL ก่อน Facebook API
+// 5. ให้ Rogue ตัดออกจากคิวทันที และ Dead Note รับไปแสดงประวัติ
 //
 // สถานะ:
 // 📌       = มีข้อความแจ้งเลข แต่ยังไม่ส่ง Facebook
 // 📣       = เตรียมส่ง / ถูกล็อกในรอบนี้
-// 📌📣     = ส่ง Facebook สำเร็จแล้ว
-// ⚡SENT    = ส่งเลขให้ลูกค้าสำเร็จแล้ว
+// 📌📣     = marker ข้อความแจ้งเลขที่ใช้กันซ้ำ
+// ⚡SENT    = สัญญาณตัดคิว ซึ่งปั๊มก่อน Facebook API ตามลำดับ Flow
 
 const MARKER = '📌📣';
 const BASE_MARKER = '📌 แจ้งเลขพัสดุจัดส่ง';
@@ -52,9 +54,35 @@ function getColor(row) {
   return '⚪';
 }
 
-function alreadyFacebookMarked(fbMsg) {
-  // ช่องเดียวที่ใช้สกัดรายการ: marker ส่งแล้วในข้อความ Facebook เท่านั้น
-  return normalizeMessage(fbMsg).includes(MARKER);
+function alreadyFacebookMarked(row, fbMsg, dsMsg) {
+  const statusValues = [
+    row.facebook_tracking_status,
+    row.parcel_status_emoji,
+    row.tracking_message_marker,
+    row.pre_send_lock_status,
+  ].map(text);
+
+  // มีสัญญาณ SENT/marker แล้ว ให้ตัดออกจากคิว
+  if (
+    hasValue(row.facebook_tracking_sent_at) ||
+    statusValues.includes('⚡SENT') ||
+    statusValues.includes('📌📣') ||
+    statusValues.includes('FACEBOOK_SENT')
+  ) {
+    return true;
+  }
+
+  // มีหัวข้อความสำเร็จอยู่แล้วในข้อมูลที่ถูกดึงกลับมา
+  if (
+    fbMsg.includes(MARKER) ||
+    dsMsg.includes(MARKER) ||
+    fbMsg.includes(FINAL_MARKER_TEXT) ||
+    dsMsg.includes(FINAL_MARKER_TEXT)
+  ) {
+    return true;
+  }
+
+  return false;
 }
 
 function addMarker(message) {
@@ -87,7 +115,7 @@ function buildSourceKey(row) {
   const tracking = normalizeTracking(row.tracking_number);
   const parcelId = text(row.parcel_row_id || row.id);
   const upsertKey = text(row.upsert_key);
-  const recipientId = text(row.recipient_id);
+  const recipientId = text(row.recipient_id || row.recipient_psid || row.customer_id);
   const pageId = text(row.page_id);
 
   // ใช้ parcel_row_id ก่อน เพราะเป็นตัวแทนแถว parcels โดยตรง
@@ -104,14 +132,15 @@ function buildSourceKey(row) {
 
 function buildLockKey(row) {
   const sourceKey = buildSourceKey(row);
-  const recipientId = text(row.recipient_id);
+  const recipientId = text(row.recipient_id || row.recipient_psid || row.customer_id);
   const pageId = text(row.page_id);
 
   return `PRE_SEND:${sourceKey}:${pageId}:${recipientId}`;
 }
 
+const seen = new Set();
 const output = [];
-let markerSkippedCount = 0;
+const rejected = [];
 
 for (const item of $input.all()) {
   const row = item.json ?? {};
@@ -127,20 +156,83 @@ for (const item of $input.all()) {
   const sourceKey = buildSourceKey(row);
   const lockKey = buildLockKey(row);
 
-  // ตัวกรองเพียงข้อเดียว: ถ้าฟิลด์ facebook_tracking_message มี 📌📣 อยู่แล้ว ให้กันส่งซ้ำ
-  if (alreadyFacebookMarked(fbMsg)) {
-    markerSkippedCount += 1;
+  // ------------------------------------------------------------
+  // 1. ข้อมูลขั้นต่ำต้องครบก่อนส่ง
+  // ------------------------------------------------------------
+  const missing = [];
+
+  if (!tracking) missing.push('tracking_number');
+  if (!hasValue(row.upsert_key)) missing.push('upsert_key');
+  if (!pageId) missing.push('page_id');
+  if (!recipientId) missing.push('recipient_id');
+  if (!messageId) missing.push('message_id');
+  if (!fbMsg && !dsMsg) missing.push('tracking_message');
+
+  if (missing.length) {
+    rejected.push({
+      reason: 'MISSING_REQUIRED_FIELDS',
+      missing,
+      source_key: sourceKey,
+      tracking_number: tracking,
+      page_id: pageId,
+      recipient_id: recipientId,
+      message_id: messageId,
+    });
     continue;
   }
 
-  // ไม่มี required-field checks, status checks, batch dedupe หรือ empty-message filter
+  // ------------------------------------------------------------
+  // 2. เคยลง Facebook แล้ว ห้ามหลุดไปส่งซ้ำ
+  // ------------------------------------------------------------
+  if (alreadyFacebookMarked(row, fbMsg, dsMsg)) {
+    rejected.push({
+      reason: 'ALREADY_FACEBOOK_MARKED',
+      source_key: sourceKey,
+      tracking_number: tracking,
+      page_id: pageId,
+      recipient_id: recipientId,
+      message_id: messageId,
+    });
+    continue;
+  }
+
+  // ------------------------------------------------------------
+  // 3. กันรายการซ้ำภายในรอบเดียวกัน
+  // ------------------------------------------------------------
+  if (seen.has(sourceKey)) {
+    rejected.push({
+      reason: 'DUPLICATE_IN_SAME_BATCH',
+      source_key: sourceKey,
+      tracking_number: tracking,
+      page_id: pageId,
+      recipient_id: recipientId,
+      message_id: messageId,
+    });
+    continue;
+  }
+
+  seen.add(sourceKey);
+
   // ------------------------------------------------------------
   // 4. เติมหัว 📌📣 แบบ idempotent
   // ------------------------------------------------------------
   const preparedFbMsg = addMarker(fbMsg);
   const preparedDsMsg = addMarker(dsMsg);
 
+  // ต้องมีข้อความที่พร้อมส่งจริง
   const sendText = preparedFbMsg || preparedDsMsg;
+
+  if (!sendText) {
+    rejected.push({
+      reason: 'EMPTY_PREPARED_MESSAGE',
+      source_key: sourceKey,
+      tracking_number: tracking,
+      page_id: pageId,
+      recipient_id: recipientId,
+      message_id: messageId,
+    });
+    continue;
+  }
 
   const color = getColor(row);
   const now = new Date().toISOString();
@@ -148,6 +240,8 @@ for (const item of $input.all()) {
   output.push({
     json: {
       ...row,
+      // ใช้ customer_id เป็น PSID สำรอง เมื่อ recipient_id ว่าง
+      recipient_id: recipientId,
 
       // -----------------------------
       // identity สำหรับจับห้อง/กันซ้ำ
@@ -183,15 +277,16 @@ for (const item of $input.all()) {
       // lock ก่อนส่ง
       // -----------------------------
       pre_send_lock: '📣',
-      pre_send_lock_status: '📣PREPARED',
+      pre_send_lock_status: '⚡SENT',
       pre_send_lock_at: now,
-      pre_send_state: 'READY_FOR_FACEBOOK',
+      pre_send_state: 'SENT_STAMPED_BEFORE_FACEBOOK',
 
-      // สำคัญ: ยังไม่ใช่ SENT
-      // ห้ามตั้ง parcel_status_emoji เป็น ⚡SENT ตรงนี้
-      facebook_tracking_status: '📣PREPARED',
+      // ค่าเหล่านี้ถูก PATCH ลง ORDERCONTROL โดย node ถัดไปก่อนเข้า Facebook API
+      facebook_tracking_status: '⚡SENT',
+      facebook_tracking_sent_at: now,
+      parcel_status_emoji: '⚡SENT',
 
-      // ใช้หลัง Facebook API ตอบสำเร็จ
+      // ใช้ตรวจสอบซ้ำใน success path เดิม
       success_update_status: '⚡SENT',
       success_marker: MARKER,
       success_sent_at_field: 'facebook_tracking_sent_at',
@@ -204,7 +299,7 @@ for (const item of $input.all()) {
       send_text: sendText,
 
       // debug / audit
-      pre_send_filtered_count: markerSkippedCount,
+      pre_send_rejected_count: rejected.length,
       pre_send_batch_key: `${now}:${sourceKey}`,
     },
   });
@@ -225,6 +320,6 @@ return output.map((item) => ({
     ...item.json,
     pre_send_lane_counts: laneCounts,
     pre_send_ready_count: output.length,
-    pre_send_filtered_count: markerSkippedCount,
+    pre_send_rejected_count: rejected.length,
   },
 }));
