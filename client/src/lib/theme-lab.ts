@@ -47,8 +47,7 @@ export function prepareThemeCss(css: string) {
     .replace(/\.f\d+\b/g, token)
     .replace(/\.frame\b/g, token)
     .replace(/\.neon-card\b/g, token)
-    .replace(/__THEME_LAB_CARD__/g, cardSelector)
-    .replace(/\.content\b/g, `${cardSelector} > *`);
+    .replace(/__THEME_LAB_CARD__/g, cardSelector);
 }
 
 export function themeRoomFromPath(path: string): ThemeLabRoom | null {
