@@ -134,8 +134,8 @@ export default function ChatHub() {
   useEffect(() => {
     const field = replyTextareaRef.current;
     if (!field) return;
-    const maxHeight = Math.min(280, Math.max(120, Math.floor(window.innerHeight * 0.32)));
-    const minHeight = Math.min(240, maxHeight);
+    const maxHeight = Math.min(160, Math.max(96, Math.floor(window.innerHeight * 0.24)));
+    const minHeight = Math.min(112, maxHeight);
     field.style.height = "auto";
     const contentHeight = field.scrollHeight;
     field.style.height = `${Math.min(maxHeight, Math.max(minHeight, contentHeight))}px`;
@@ -428,7 +428,7 @@ export default function ChatHub() {
     {emojiPickerOpen ? <div role="group" aria-label="เลือกอีโมจิ" className="mb-2 flex flex-wrap gap-1 rounded-xl border border-cyan-300/15 bg-[#0a111b] p-2">{["😊", "😂", "😍", "🥰", "👍", "🙏", "❤️", "🎉", "📦", "✨"].map(emoji => <button key={emoji} type="button" onClick={() => { addEmoji(emoji); setEmojiPickerOpen(false); }} className="flex h-9 w-9 items-center justify-center rounded-lg text-xl hover:bg-cyan-300/10" aria-label={`เพิ่มอีโมจิ ${emoji}`}>{emoji}</button>)}</div> : null}
     <div className="flex min-w-0 items-end gap-1.5 rounded-xl border border-cyan-300/20 bg-[#0a111b] p-1.5 sm:gap-2 sm:p-2">
       <Button type="button" aria-label="แนบรูปภาพ" title={uploadImage.isPending ? "กำลังอัปโหลด…" : "แนบรูปภาพ"} variant="ghost" onClick={() => fileInputRef.current?.click()} disabled={uploadImage.isPending || sendReply.isPending} className="h-10 w-10 shrink-0 rounded-lg p-0 text-cyan-100/75 hover:bg-cyan-300/10 hover:text-cyan-100"><Paperclip className="h-5 w-5" /></Button>
-      <Textarea ref={replyTextareaRef} value={replyText} onChange={event => setReplyText(event.target.value)} placeholder={selectedCustomerId ? "พิมพ์ข้อความ…" : "ไม่พบ Customer PSID ของห้องนี้"} disabled={!selectedCustomerId} className="h-auto max-h-[280px] min-h-24 min-w-0 flex-1 resize-none overflow-y-hidden border-0 bg-transparent px-2 py-2 text-sm leading-6 text-white placeholder:text-cyan-100/35 focus-visible:ring-0 focus-visible:ring-offset-0" onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing && event.nativeEvent.keyCode !== 229) { event.preventDefault(); sendCurrentReply(); } }} />
+      <Textarea ref={replyTextareaRef} value={replyText} onChange={event => setReplyText(event.target.value)} placeholder={selectedCustomerId ? "พิมพ์ข้อความ…" : "ไม่พบ Customer PSID ของห้องนี้"} disabled={!selectedCustomerId} className="h-auto max-h-[160px] min-h-24 min-w-0 flex-1 resize-none overflow-y-hidden border-0 bg-transparent px-2 py-2 text-sm leading-6 text-white placeholder:text-cyan-100/35 focus-visible:ring-0 focus-visible:ring-offset-0" onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing && event.nativeEvent.keyCode !== 229) { event.preventDefault(); sendCurrentReply(); } }} />
       <Button type="button" aria-label="เลือกอีโมจิ" title="เลือกอีโมจิ" variant="ghost" aria-expanded={emojiPickerOpen} onClick={() => setEmojiPickerOpen(value => !value)} className="h-10 w-10 shrink-0 rounded-lg p-0 text-cyan-100/75 hover:bg-cyan-300/10 hover:text-cyan-100"><Smile className="h-5 w-5" /></Button>
       <Button aria-label="ส่งข้อความ" title="ส่งข้อความ" disabled={sendReply.isPending || uploadImage.isPending || !selectedCustomerId || (!replyText.trim() && !replyImageUrl.trim())} onClick={sendCurrentReply} className="h-10 min-w-10 shrink-0 rounded-lg bg-gradient-to-br from-cyan-300 to-violet-400 px-3 text-[#07101a] shadow-[0_0_14px_rgba(34,211,238,.22)] transition hover:brightness-110">{sendReply.isPending ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}</Button>
     </div>

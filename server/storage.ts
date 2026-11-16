@@ -110,7 +110,7 @@ export async function storagePutSupabaseImage(
   const { baseUrl, key: apiKey } = getChatSupabaseConfig(credentials);
   const objectKey = normalizeKey(relKey);
   const encodedKey = encodeStoragePath(objectKey);
-  const bucket = "warp-images";
+  const bucket = "sales-script-images";
   const headers = {
     apikey: apiKey,
     Authorization: `Bearer ${apiKey}`,
