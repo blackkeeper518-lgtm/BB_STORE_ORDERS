@@ -419,7 +419,7 @@ export default function ChatHub() {
   const visibleTimeline = (selected?.chatTimeline ?? []).filter((line: string) => stripSpeakerPrefix(line).trim() && (messageFilter === "all" || (messageFilter === "page" ? isPageTimelineLine(line) : isCustomerTimelineLine(line))));
   const visibleStoredMessages = [...(messagesQuery.data ?? []), ...optimisticMessages].filter(message => { const hasContent = String(message.text ?? "").trim().length > 0 || imageUrls(message.attachmentsJson).length > 0; const matchesFilter = messageFilter === "all" || (messageFilter === "page" ? message.direction === "outbound" : message.direction === "inbound"); return hasContent && matchesFilter; });
 
-  const composer = <div className="flex min-h-0 flex-1 flex-col overflow-hidden border-t border-cyan-300/20 pt-2">
+  const composer = <div className="flex min-h-0 flex-1 flex-col justify-end overflow-hidden border-t border-cyan-300/20 pt-2">
     <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" className="hidden" onChange={event => { handleImageUpload(event.target.files?.[0]); event.currentTarget.value = ""; }} />
     {emojiPickerOpen ? <div role="group" aria-label="เลือกอีโมจิ" className="mb-2 flex flex-wrap gap-1 rounded-xl border border-cyan-300/15 bg-[#0a111b] p-2">{["😊", "😂", "😍", "🥰", "👍", "🙏", "❤️", "🎉", "📦", "✨"].map(emoji => <button key={emoji} type="button" onClick={() => { addEmoji(emoji); setEmojiPickerOpen(false); }} className="flex h-9 w-9 items-center justify-center rounded-lg text-xl hover:bg-cyan-300/10" aria-label={`เพิ่มอีโมจิ ${emoji}`}>{emoji}</button>)}</div> : null}
     <div className="flex min-w-0 items-end gap-1.5 rounded-xl border border-cyan-300/20 bg-[#0a111b] p-1.5 sm:gap-2 sm:p-2">
