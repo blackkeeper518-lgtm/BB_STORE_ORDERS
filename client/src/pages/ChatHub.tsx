@@ -104,6 +104,7 @@ export default function ChatHub() {
   const [statusFilter, setStatusFilter] = useState<"all" | "ordered" | "tracking_over_24h">("all");
   const [replyText, setReplyText] = useState("");
   const [replyImageUrl, setReplyImageUrl] = useState("");
+  const [replyImageSendUrl, setReplyImageSendUrl] = useState("");
   const [stickerId, setStickerId] = useState("");
   const [optimisticMessages, setOptimisticMessages] = useState<any[]>([]);
   const optimisticMessageIdRef = useRef<string | null>(null);
@@ -250,7 +251,7 @@ export default function ChatHub() {
   const availableToolValues = toolValues.filter(item => String(item.value ?? "").trim());
   const chatEvidenceQuery = trpc.orders.chatEvidence.useQuery({ pageId: selectedPageId, threadId: selectedThreadId }, { enabled: Boolean(selectedPageId && selectedThreadId && orderDetailOpen), refetchInterval: 60_000 });
   const totalMessages = useMemo(() => threads.reduce((total, thread) => total + thread.messageCount, 0), [threads]);
-  const uploadImage = trpc.chat.uploadImage.useMutation({ onSuccess: result => setReplyImageUrl(`${window.location.origin}${result.url}`) });
+  const uploadImage = trpc.chat.uploadImage.useMutation({ onSuccess: result => { setReplyImageUrl(`${window.location.origin}${result.url}`); setReplyImageSendUrl(result.sendUrl); } });
   const sendReply = trpc.chat.sendReply.useMutation({
     onMutate: () => { setDeliveryStatus("sending"); setReplyNotice("กำลังส่งไปยัง Facebook…"); },
     onSuccess: result => {
@@ -261,6 +262,7 @@ export default function ChatHub() {
       }
       setReplyText("");
       setReplyImageUrl("");
+      setReplyImageSendUrl("");
       setStickerId("");
       void Promise.all([messagesQuery.refetch(), threadsQuery.refetch()]);
     },
@@ -270,6 +272,7 @@ export default function ChatHub() {
       const failedId = optimisticMessageIdRef.current;
       if (failedId) setOptimisticMessages(current => current.filter(message => message.id !== failedId));
       optimisticMessageIdRef.current = null;
+      void Promise.all([messagesQuery.refetch(), threadsQuery.refetch()]);
     },
   });
   const generateSummary = trpc.orders.generateSummary.useMutation({ onSuccess: result => { setSummary(result); setSummaryText(""); setReplyText(result.copyText); } });
@@ -368,13 +371,18 @@ export default function ChatHub() {
       recipientId: selectedCustomerId,
       text: text || undefined,
       imageUrl: imageUrl || undefined,
+      imageSendUrl: replyImageSendUrl || undefined,
     });
   };
   const handleImageUpload = (file?: File) => {
     if (!file) return;
-    if (!file.type.startsWith("image/") || file.size > 6_000_000) return;
+    const supportedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"] as const;
+    if (!supportedTypes.includes(file.type as typeof supportedTypes[number]) || file.size > 6_000_000) {
+      setReplyNotice("รองรับ JPG, PNG, GIF หรือ WebP ขนาดไม่เกิน 6 MB");
+      return;
+    }
     const reader = new FileReader();
-    reader.onload = () => uploadImage.mutate({ fileName: file.name, contentType: file.type as "image/jpeg", base64: String(reader.result) });
+    reader.onload = () => uploadImage.mutate({ fileName: file.name, contentType: file.type as typeof supportedTypes[number], base64: String(reader.result) });
     reader.readAsDataURL(file);
   };
   const addEmoji = (emoji: string) => setReplyText(current => `${current}${current ? " " : ""}${emoji}`);
@@ -388,7 +396,7 @@ export default function ChatHub() {
   const visibleStoredMessages = [...(messagesQuery.data ?? []), ...optimisticMessages].filter(message => { const hasContent = String(message.text ?? "").trim().length > 0 || imageUrls(message.attachmentsJson).length > 0; const matchesFilter = messageFilter === "all" || (messageFilter === "page" ? message.direction === "outbound" : message.direction === "inbound"); return hasContent && matchesFilter; });
 
   const composer = <div className="min-h-0 overflow-hidden border-t border-cyan-300/20 pt-2">
-    <div className="mb-2 flex shrink-0 flex-wrap items-center gap-2"><input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" className="hidden" onChange={event => { handleImageUpload(event.target.files?.[0]); event.currentTarget.value = ""; }} /><Button type="button" size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploadImage.isPending} className="h-8 border-cyan-300/25 bg-cyan-300/[0.06] text-xs text-cyan-100 shadow-[0_0_12px_rgba(34,211,238,.08)]"><ImagePlus className="mr-1 h-3.5 w-3.5" />{uploadImage.isPending ? "กำลังอัปโหลด…" : "แนบรูป"}</Button>{replyImageUrl ? <span className="max-w-40 truncate text-[10px] text-emerald-300">รูปพร้อมส่ง</span> : null}</div>
+    <div className="mb-2 flex shrink-0 flex-wrap items-center gap-2"><input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" className="hidden" onChange={event => { handleImageUpload(event.target.files?.[0]); event.currentTarget.value = ""; }} /><Button type="button" size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploadImage.isPending} className="h-8 border-cyan-300/25 bg-cyan-300/[0.06] text-xs text-cyan-100 shadow-[0_0_12px_rgba(34,211,238,.08)]"><ImagePlus className="mr-1 h-3.5 w-3.5" />{uploadImage.isPending ? "กำลังอัปโหลด…" : "แนบรูป"}</Button>{replyImageUrl ? <span className="inline-flex items-center gap-2 rounded-lg border border-emerald-300/20 bg-emerald-300/[0.06] p-1.5 text-[10px] text-emerald-200"><img src={replyImageUrl} alt="ภาพที่เตรียมส่ง" className="h-10 w-10 rounded object-cover" /><span>รูปพร้อมส่ง</span><button type="button" aria-label="เอารูปออก" onClick={() => { setReplyImageUrl(""); setReplyImageSendUrl(""); }} className="rounded px-1.5 py-1 text-emerald-100 hover:bg-white/10">เอาออก</button></span> : null}</div>
     <div className="mb-2 flex flex-nowrap gap-1.5 overflow-x-auto whitespace-nowrap pb-1">{quickReplies.map(reply => <button key={reply} type="button" onClick={() => setReplyText(reply)} className="shrink-0 rounded-lg border border-violet-300/20 bg-gradient-to-r from-violet-500/[0.10] to-fuchsia-500/[0.08] px-2.5 py-1.5 text-xs text-fuchsia-100/85 transition hover:border-cyan-300/40 hover:bg-cyan-400/10 hover:text-white">{reply}</button>)}{["😊", "👍", "❤️", "🙏", "📦"].map(emoji => <button key={emoji} type="button" onClick={() => addEmoji(emoji)} className="shrink-0 rounded-lg border border-cyan-300/20 bg-cyan-400/[0.06] px-2.5 py-1.5 text-base transition hover:border-fuchsia-300/40 hover:bg-fuchsia-500/15">{emoji}</button>)}</div>
     <div className="flex items-end gap-2"><Textarea value={replyText} onChange={event => setReplyText(event.target.value)} placeholder={selectedCustomerId ? "พิมพ์ตอบลูกค้า…" : "ไม่พบ Customer PSID ของห้องนี้"} disabled={!selectedCustomerId} className="h-20 max-h-24 min-h-20 min-w-0 flex-1 resize-none overflow-y-auto rounded-xl border-fuchsia-300/25 bg-[#0a111b] text-sm leading-6 text-white placeholder:text-cyan-100/35 focus-visible:ring-fuchsia-300/40" onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing && event.nativeEvent.keyCode !== 229) { event.preventDefault(); sendCurrentReply(); } }} /><Button aria-label="ส่งข้อความ" disabled={sendReply.isPending || !selectedCustomerId || (!replyText.trim() && !replyImageUrl.trim())} onClick={sendCurrentReply} className="h-11 shrink-0 rounded-xl bg-gradient-to-br from-cyan-300 to-violet-400 text-[#07101a] shadow-[0_0_18px_rgba(34,211,238,.32)] transition hover:brightness-110"><Send className="h-4 w-4" /></Button></div>
 

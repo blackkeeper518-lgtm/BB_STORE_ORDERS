@@ -62,6 +62,35 @@ describe("sendMetaMessage", () => {
     });
   });
 
+  it("sends an image URL as a Messenger image attachment", async () => {
+    vi.stubEnv("CHAT_SUPABASE_URL", "https://chat-project.supabase.co");
+    vi.stubEnv("CHAT_SUPABASE_SERVICE_ROLE_KEY", "test-service-role-key");
+    for (const name of ["MAIN_ORDER_SUPABASE_URL", "MAIN_ORDER_SUPABASE_SERVICE_ROLE_KEY", "ORDER_SUPABASE_URL", "ORDER_SUPABASE_SERVICE_ROLE_KEY", "TRACKING_SUPABASE_URL", "TRACKING_SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "META_PAGES_JSON", "META_PAGE_ID", "META_PAGE_ACCESS_TOKEN"]) vi.stubEnv(name, "");
+
+    const requests: Array<{ url: string; init?: RequestInit }> = [];
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      requests.push({ url, init });
+      if (url.startsWith(`https://chat-project.supabase.co/rest/v1/${tokenTablePath}?`)) {
+        return new Response(JSON.stringify([{ page_id: "page-123", access_token: "test-page-token" }]), { status: 200 });
+      }
+      return new Response(JSON.stringify({ recipient_id: "customer-456", message_id: "mid.image-789" }), { status: 200 });
+    });
+
+    const result = await sendMetaMessage({
+      pageId: "page-123",
+      recipientId: "customer-456",
+      imageUrl: "https://storage.example.com/signed/image.jpg?token=test",
+    });
+
+    expect(result.message_id).toBe("mid.image-789");
+    expect(JSON.parse(String(requests[1].init?.body))).toEqual({
+      recipient: { id: "customer-456" },
+      messaging_type: "RESPONSE",
+      message: { attachment: { type: "image", payload: { url: "https://storage.example.com/signed/image.jpg?token=test", is_reusable: false } } },
+    });
+  });
+
   it("uses the browser Chat credentials for token lookup when supplied", async () => {
     vi.stubEnv("CHAT_SUPABASE_URL", "https://server-chat.supabase.co");
     vi.stubEnv("CHAT_SUPABASE_SERVICE_ROLE_KEY", "server-chat-key");

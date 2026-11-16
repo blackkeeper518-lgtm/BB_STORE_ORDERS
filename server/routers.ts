@@ -1,8 +1,9 @@
 import { z } from "zod";
+import { randomUUID } from "node:crypto";
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { COOKIE_NAME } from "../shared/const";
 import { sendMetaMessage } from "./meta";
-import { storagePut } from "./storage";
+import { storageGetSignedUrl, storagePut } from "./storage";
 import { checkChatConnection, fetchChatMessageRows, fetchChatNotificationRows, fetchChatThreadRows, fetchParcelMappingQueue, purgeOldParcels, recordOutgoingChatMessage, supabaseGet, supabasePost } from "./supabase";
 import * as db from "./db";
 
@@ -40,17 +41,43 @@ export const appRouter = router({
     threads: protectedProcedure.query(({ ctx }) => fetchChatThreadRows(requireBrowserChatConfig(ctx))),
     pollNotifications: protectedProcedure.input(z.object({ afterRowId: z.string().regex(/^\d+$/).nullable() })).mutation(({ input, ctx }) => fetchChatNotificationRows(input.afterRowId, requireBrowserChatConfig(ctx))),
     messages: protectedProcedure.input(z.object({ pageId: z.string().min(1), threadId: z.string().min(1) })).query(({ input, ctx }) => fetchChatMessageRows(input, requireBrowserChatConfig(ctx))),
-    sendReply: publicProcedure.input(z.object({ pageId: z.string(), pageName: z.string().optional(), portalKey: z.string().optional(), chatLinkKey: z.string().optional(), threadId: z.string(), recipientId: z.string(), text: z.string().optional(), imageUrl: z.string().optional(), stickerId: z.string().optional() })).mutation(async ({ input, ctx }) => {
+    sendReply: publicProcedure.input(z.object({ pageId: z.string(), pageName: z.string().optional(), portalKey: z.string().optional(), chatLinkKey: z.string().optional(), threadId: z.string(), recipientId: z.string(), text: z.string().optional(), imageUrl: z.string().optional(), imageSendUrl: z.string().optional(), stickerId: z.string().optional() })).mutation(async ({ input, ctx }) => {
       const credentials = requireBrowserChatConfig(ctx);
-      const result = await sendMetaMessage(input, credentials);
-      void persistOutgoingChatBestEffort({ portalKey: input.portalKey, chatLinkKey: input.chatLinkKey, pageId: input.pageId, pageName: input.pageName, threadId: input.threadId, recipientId: input.recipientId, messageId: result.message_id, text: input.text }, credentials);
-      void persistLocalChatBestEffort({ pageId: input.pageId, threadId: input.threadId, senderId: input.pageId, senderType: "page", direction: "outbound", text: input.text, attachments: input.imageUrl ? [{ url: input.imageUrl }] : undefined, adminUserId: ctx.user?.id, providerMessageId: result.message_id });
-      return result;
+      const text = input.text?.trim() || "";
+      const imageUrl = input.imageUrl?.trim() || "";
+      const imageSendUrl = input.imageSendUrl?.trim() || imageUrl;
+      const outgoing: Array<{ text?: string; imageUrl?: string; stickerId?: string; result?: Awaited<ReturnType<typeof sendMetaMessage>> }> = [];
+      if (text && imageUrl) {
+        outgoing.push({ text }, { imageUrl: imageSendUrl });
+      } else {
+        outgoing.push({ text: text || undefined, imageUrl: imageSendUrl || undefined, stickerId: input.stickerId });
+      }
+      let finalResult: Awaited<ReturnType<typeof sendMetaMessage>> | undefined;
+      for (const item of outgoing) {
+        try {
+          const result = await sendMetaMessage({ pageId: input.pageId, recipientId: input.recipientId, text: item.text, imageUrl: item.imageUrl, stickerId: item.stickerId }, credentials);
+          item.result = result;
+          finalResult = result;
+        } catch (error) {
+          if (outgoing.some(sent => sent.result)) {
+            throw new Error(`ส่งข้อความแล้ว แต่ส่งรูปไม่สำเร็จ: ${error instanceof Error ? error.message : String(error)}`);
+          }
+          throw error;
+        }
+        const result = finalResult;
+        if (!result) throw new Error("Meta did not return a message result");
+        void persistOutgoingChatBestEffort({ portalKey: input.portalKey, chatLinkKey: input.chatLinkKey, pageId: input.pageId, pageName: input.pageName, threadId: input.threadId, recipientId: input.recipientId, messageId: result.message_id, text: item.text || (item.imageUrl ? "📷 ส่งรูปภาพ" : undefined) }, credentials);
+        void persistLocalChatBestEffort({ pageId: input.pageId, threadId: input.threadId, senderId: input.pageId, senderType: "page", direction: "outbound", text: item.text, attachments: item.imageUrl ? [{ url: imageUrl || item.imageUrl }] : undefined, adminUserId: ctx.user?.id, providerMessageId: result.message_id });
+      }
+      if (!finalResult) throw new Error("ไม่มีข้อความหรือรูปภาพสำหรับส่ง");
+      return finalResult;
     }),
-    uploadImage: publicProcedure.input(z.object({ fileName: z.string(), contentType: z.string(), base64: z.string() })).mutation(async ({ input }) => {
+    uploadImage: publicProcedure.input(z.object({ fileName: z.string().min(1).max(180), contentType: z.enum(["image/jpeg", "image/png", "image/gif", "image/webp"]), base64: z.string().max(8_500_000) })).mutation(async ({ input }) => {
       const comma = input.base64.indexOf(",");
       const raw = comma >= 0 ? input.base64.slice(comma + 1) : input.base64;
-      return storagePut(`chat/${input.fileName}`, Buffer.from(raw, "base64"), input.contentType);
+      const safeName = input.fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const uploaded = await storagePut(`chat/${randomUUID()}-${safeName}`, Buffer.from(raw, "base64"), input.contentType);
+      return { ...uploaded, sendUrl: await storageGetSignedUrl(uploaded.key) };
     }),
   }),
 
