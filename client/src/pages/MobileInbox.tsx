@@ -5,7 +5,7 @@ import { getSupabase, mapChatRowsToMessages, mapChatRowsToThreads } from "@/lib/
 import { uploadChatImageToVault } from "@/lib/chat-image-upload";
 import { CHAT_BROWSER_CONFIG_EVENT, readBrowserChatConfig } from "@/lib/chat-config";
 import { trpc } from "@/lib/trpc";
-import { Check, LoaderCircle, MessageCircle, MessagesSquare, Paperclip, Search, Send, Smile, UserRound, X } from "lucide-react";
+import { Check, LoaderCircle, MessageCircle, MessagesSquare, Paperclip, Search, Send, Smile, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 
@@ -41,6 +41,7 @@ export default function MobileInbox() {
   const hasConfig = Boolean(browserChatConfig?.url && browserChatConfig.serviceRoleKey);
   const [search, setSearch] = useState("");
   const [selectedKey, setSelectedKey] = useState<string | null>(() => typeof window === "undefined" ? null : localStorage.getItem(SELECTED_ROOM_KEY));
+  const [pageFilter, setPageFilter] = useState("all");
   const [filter, setFilter] = useState<"all" | "ordered" | "tracking">("all");
   const [openRoom, setOpenRoom] = useState(false);
   const [replyText, setReplyText] = useState("");
@@ -60,15 +61,16 @@ export default function MobileInbox() {
   }, []);
   const threadsQuery = trpc.chat.threads.useQuery(undefined, { enabled: hasConfig, staleTime: 0, refetchInterval: hasConfig ? 8_000 : false, refetchOnWindowFocus: true, select: mapChatRowsToThreads });
   const threads = threadsQuery.data ?? [];
+  const availablePages = useMemo(() => Array.from(new Map(threads.filter(thread => thread.pageId && thread.pageName && thread.pageName !== "ไม่ระบุเพจ").map(thread => [thread.pageId, thread.pageName])).entries()), [threads]);
   const filteredThreads = useMemo(() => {
     const query = search.trim().toLowerCase();
     return threads.filter(thread => {
       const text = [thread.customerName, thread.pageName, thread.preview, thread.searchText, thread.latestOrderNumber].join(" ").toLowerCase();
       const isOrdered = Boolean(thread.timeSlotLabel || thread.orderTodayActive);
       const hasTracking = Boolean(String(thread.tracking_number ?? "").trim());
-      return (!query || text.includes(query)) && (filter === "all" || (filter === "ordered" ? isOrdered : hasTracking));
+      return (pageFilter === "all" || thread.pageId === pageFilter) && (!query || text.includes(query)) && (filter === "all" || (filter === "ordered" ? isOrdered : hasTracking));
     });
-  }, [threads, search, filter]);
+  }, [threads, search, filter, pageFilter]);
   const selected = filteredThreads.find(thread => thread.key === selectedKey) ?? filteredThreads[0];
   const selectedPageId = selected?.pageId ?? "";
   const selectedThreadId = selected?.threadId ?? "";
@@ -101,10 +103,10 @@ export default function MobileInbox() {
     <div className="mobile-inbox-tabs"><button type="button" className="is-active"><MessagesSquare /> ข้อความ</button><span className="mobile-inbox-tab-count">{filteredThreads.length}</span></div>
     <section className="mobile-inbox-list-panel">
       <div className="mobile-inbox-search"><Search /><Input value={search} onChange={event => setSearch(event.target.value)} placeholder="ค้นหาชื่อลูกค้าหรือข้อความ…" /></div>
-      <div className="mobile-inbox-filters">{([ ["all", "ทั้งหมด"], ["ordered", "ออเดอร์"], ["tracking", "เลขพัสดุ"] ] as const).map(([value, label]) => <button key={value} type="button" className={filter === value ? "is-active" : ""} onClick={() => setFilter(value)}>{label}</button>)}</div>
+      <div className="mobile-inbox-filters"><select aria-label="เลือกเพจ" value={pageFilter} onChange={event => setPageFilter(event.target.value)}><option value="all">ทุกเพจ</option>{availablePages.map(([pageId, pageName]) => <option key={pageId} value={pageId}>{pageName}</option>)}</select>{([ ["all", "ทั้งหมด"], ["ordered", "ออเดอร์"], ["tracking", "เลขพัสดุ"] ] as const).map(([value, label]) => <button key={value} type="button" className={filter === value ? "is-active" : ""} onClick={() => setFilter(value)}>{label}</button>)}</div>
       {!hasConfig ? <div className="mobile-inbox-empty"><MessageCircle /><p>ยังไม่ได้ตั้งค่า Chat ใน ROOM 02</p><button type="button" onClick={() => setLocation("/secret-gallery")}>ไปตั้งค่า</button></div> : threadsQuery.isLoading ? <div className="mobile-inbox-empty"><LoaderCircle className="animate-spin" /><p>กำลังโหลดข้อความ…</p></div> : filteredThreads.length === 0 ? <div className="mobile-inbox-empty"><MessageCircle /><p>ไม่พบห้องแชท</p></div> : <div className="mobile-inbox-threads">{filteredThreads.map(thread => <button type="button" key={thread.key} onClick={() => selectRoom(thread)} className={`mobile-inbox-thread ${selected?.key === thread.key ? "is-selected" : ""}`}><span className="mobile-inbox-avatar">{(thread.customerName || "ลูกค้า").slice(0, 1)}</span><span className="mobile-inbox-thread-body"><span className="mobile-inbox-thread-top"><strong>{thread.customerName || "ลูกค้าใหม่"}</strong><time>{timeLabel(thread.latestAt)}</time></span><span className="mobile-inbox-thread-preview">{thread.preview || "ยังไม่มีข้อความ"}</span><span className="mobile-inbox-thread-tags"><span>{thread.pageName || "ไม่ระบุเพจ"}</span>{thread.unread ? <b>ใหม่</b> : null}{thread.orderCount > 0 ? <b>ออเดอร์</b> : null}</span></span></button>)}</div>}
     </section>
-    <nav className="mobile-inbox-bottom-nav"><button type="button" className="is-active"><MessagesSquare /><span>ข้อความ</span></button><button type="button" onClick={() => document.querySelector<HTMLInputElement>(".mobile-inbox-search input")?.focus()}><Search /><span>ค้นหา</span></button><button type="button" onClick={() => setLocation("/secret-gallery")}><UserRound /><span>เมนู</span></button></nav>
+    <nav className="mobile-inbox-bottom-nav"><button type="button" className="is-active"><MessagesSquare /><span>ข้อความ</span></button><button type="button" onClick={() => document.querySelector<HTMLInputElement>(".mobile-inbox-search input")?.focus()}><Search /><span>ค้นหา</span></button></nav>
     {openRoom && selected ? <div className="mobile-inbox-conversation"><div className="mobile-inbox-conversation-shell"><header className="mobile-inbox-conversation-header"><button type="button" aria-label="กลับไปรายการข้อความ" onClick={() => setOpenRoom(false)}><X /></button><span className="mobile-inbox-avatar">{(selected.customerName || "ลูกค้า").slice(0, 1)}</span><div><strong>{selected.customerName || "ลูกค้าใหม่"}</strong><small>{selected.pageName || "ไม่ระบุเพจ"}</small></div></header><div ref={timelineRef} className="mobile-inbox-timeline">{messages.length ? messages.map(message => { const outgoing = message.direction === "outbound" || message.senderType === "page"; return <div key={message.id} className={`mobile-inbox-message-row ${outgoing ? "is-outgoing" : ""}`}><div className="mobile-inbox-message"><p>{messageText(message)}</p>{imageUrls(message.attachmentsJson).map(url => <img key={url} src={url} alt="รูปภาพจากแชท" />)}<time>{timeLabel(message.occurredAt)}</time></div></div>; }) : <div className="mobile-inbox-empty"><MessageCircle /><p>{selected.preview || "ยังไม่มีข้อความ"}</p></div>}</div><div className="mobile-inbox-composer">{emojiOpen ? <div className="mobile-inbox-emoji">{["😊", "👍", "🙏", "❤️", "📦"].map(emoji => <button type="button" key={emoji} onClick={() => { addEmoji(emoji); setEmojiOpen(false); }}>{emoji}</button>)}</div> : null}{replyImageUrl ? <div className="mobile-inbox-attachment"><Paperclip />{replyImageName}<button type="button" onClick={() => { setReplyImageUrl(""); setReplyImageSendUrl(""); setReplyImageName(""); }}><X /></button></div> : null}{notice ? <div className="mobile-inbox-notice">{notice}</div> : null}<div className="mobile-inbox-compose-row"><input ref={fileRef} hidden type="file" accept="image/jpeg,image/png,image/gif,image/webp" onChange={event => { void handleUpload(event.target.files?.[0]); event.currentTarget.value = ""; }} /><button type="button" aria-label="แนบภาพ" onClick={() => fileRef.current?.click()} disabled={uploading}><Paperclip /></button><Textarea value={replyText} onChange={event => setReplyText(event.target.value)} placeholder="พิมพ์ข้อความ…" disabled={!selectedCustomerId} onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); send(); } }} /><button type="button" aria-label="อีโมจิ" onClick={() => setEmojiOpen(value => !value)}><Smile /></button><Button type="button" aria-label="ส่งข้อความ" onClick={send} disabled={sendReply.isPending || uploading || !selectedCustomerId || (!replyText.trim() && !replyImageUrl)}>{sendReply.isPending ? <LoaderCircle className="animate-spin" /> : <Send />}</Button></div></div></div></div> : null}
   </main>;
 }

@@ -1093,3 +1093,7 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .mobile-inbox-attachment,.mobile-inbox-notice { color:#76dce9; }
 .mobile-inbox-emoji button { background:#182435; }
 @media (min-width:768px) { .mobile-inbox-page { border-color:rgba(113,174,255,.16); } }
+
+.mobile-inbox-filters select { flex:none; height:34px; max-width:150px; border:1px solid rgba(91,210,255,.24); border-radius:10px; padding:0 26px 0 12px; background:#152438; color:#a9eefa; font:600 13px 'Space Grotesk',sans-serif; color-scheme:dark; outline:none; }
+.mobile-inbox-filters select:focus { border-color:#57d9ff; box-shadow:0 0 12px rgba(87,217,255,.16); }
+.mobile-inbox-bottom-nav { justify-content:center; gap:44px; }
