@@ -11,7 +11,7 @@ import { CHAT_BROWSER_CONFIG_EVENT, readBrowserChatConfig } from "@/lib/chat-con
 import { CYBER_FRAME_EVENT, readCyberFrame } from "@/lib/cyber-frame";
 import { trpc } from "@/lib/trpc";
 import "@/styles/cyber-frames.css";
-import { Check, CheckCircle2, ChevronDown, CircleUserRound, Clipboard, ExternalLink, LoaderCircle, Megaphone, MessageCircle, MessagesSquare, Paperclip, RefreshCw, Search, Send, Smile, Sparkles, UserRound, Users, Wrench, X } from "lucide-react";
+import { Check, CheckCircle2, ChevronDown, CircleUserRound, Clipboard, ExternalLink, LoaderCircle, Megaphone, MessageCircle, MessagesSquare, PanelLeft, Paperclip, RefreshCw, Search, Send, Smile, Sparkles, UserRound, Users, Wrench, X } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { OrderDeckFrame } from "@/components/chat/OrderDeckFrame";
