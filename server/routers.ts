@@ -2,7 +2,7 @@ import { z } from "zod";
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { COOKIE_NAME } from "../shared/const";
 import { sendMetaMessage } from "./meta";
-import { checkChatConnection, fetchChatMessageRows, fetchChatNotificationRows, fetchChatThreadRows, fetchParcelMappingQueue, purgeOldParcels, recordOutgoingChatMessage, supabaseGet, supabasePost } from "./supabase";
+import { assertChatPageEnabled, checkChatConnection, fetchChatMessageRows, fetchChatNotificationRows, fetchChatThreadRows, fetchParcelMappingQueue, purgeOldParcels, recordOutgoingChatMessage, supabaseGet, supabasePost } from "./supabase";
 import * as db from "./db";
 
 const ownerId = (ctx: { user: { id: number } | null }) => ctx.user?.id ?? 0;
@@ -43,8 +43,9 @@ export const appRouter = router({
     threads: protectedProcedure.query(({ ctx }) => fetchChatThreadRows(requireBrowserChatConfig(ctx))),
     pollNotifications: protectedProcedure.input(z.object({ afterRowId: z.string().regex(/^\d+$/).nullable() })).mutation(({ input, ctx }) => fetchChatNotificationRows(input.afterRowId, requireBrowserChatConfig(ctx))),
     messages: protectedProcedure.input(z.object({ pageId: z.string().min(1), threadId: z.string().min(1) })).query(({ input, ctx }) => fetchChatMessageRows(input, requireBrowserChatConfig(ctx))),
-    sendReply: publicProcedure.input(z.object({ pageId: z.string(), pageName: z.string().optional(), portalKey: z.string().optional(), chatLinkKey: z.string().optional(), threadId: z.string(), recipientId: z.string(), text: z.string().optional(), imageUrl: z.string().optional(), imageSendUrl: z.string().optional(), imageUrls: z.array(z.string().url()).max(4).optional(), stickerId: z.string().optional() })).mutation(async ({ input, ctx }) => {
+    sendReply: protectedProcedure.input(z.object({ pageId: z.string(), pageName: z.string().optional(), portalKey: z.string().optional(), chatLinkKey: z.string().optional(), threadId: z.string(), recipientId: z.string(), text: z.string().optional(), imageUrl: z.string().optional(), imageSendUrl: z.string().optional(), imageUrls: z.array(z.string().url()).max(4).optional(), stickerId: z.string().optional() })).mutation(async ({ input, ctx }) => {
       const credentials = requireBrowserChatConfig(ctx);
+      await assertChatPageEnabled(input.pageId, credentials);
       const text = input.text?.trim() || "";
       const imageUrl = input.imageUrl?.trim() || "";
       const imageSendUrl = input.imageSendUrl?.trim() || imageUrl;
@@ -70,6 +71,7 @@ export const appRouter = router({
         if (!result) throw new Error("Meta did not return a message result");
         void persistOutgoingChatBestEffort({ portalKey: input.portalKey, chatLinkKey: input.chatLinkKey, pageId: input.pageId, pageName: input.pageName, threadId: input.threadId, recipientId: input.recipientId, messageId: result.message_id, text: item.text || (item.imageUrl ? "📷 ส่งรูปภาพ" : undefined) }, credentials);
         void persistLocalChatBestEffort({ pageId: input.pageId, threadId: input.threadId, senderId: input.pageId, senderType: "page", direction: "outbound", text: item.text, attachments: item.imageUrl ? [{ url: item.imageUrl }] : undefined, adminUserId: ctx.user?.id, providerMessageId: result.message_id });
+        void db.createAuditLog({ actorUserId: ctx.user.id, actorName: ctx.user.name, action: "CHAT_REPLY_SENT", entityType: "chat_message", entityId: result.message_id, pageId: input.pageId, threadId: input.threadId, metadata: { deviceId: ctx.adminDeviceId || null, userAgent: ctx.userAgent || null, hasText: Boolean(item.text), hasImage: Boolean(item.imageUrl) } });
       }
       if (!finalResult) throw new Error("ไม่มีข้อความหรือรูปภาพสำหรับส่ง");
       return finalResult;

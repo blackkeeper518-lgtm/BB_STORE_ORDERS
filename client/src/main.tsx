@@ -9,6 +9,17 @@ import { startLogin } from "./const";
 import "./index.css";
 
 const queryClient = new QueryClient();
+const ADMIN_DEVICE_STORAGE_KEY = "bb-admin-device-id";
+function getAdminDeviceId() {
+  if (typeof window === "undefined") return "";
+  try {
+    const existing = window.localStorage.getItem(ADMIN_DEVICE_STORAGE_KEY);
+    if (existing) return existing;
+    const id = globalThis.crypto?.randomUUID?.() ?? `device-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    window.localStorage.setItem(ADMIN_DEVICE_STORAGE_KEY, id);
+    return id;
+  } catch { return ""; }
+}
 
 const redirectToLoginIfUnauthorized = (error: unknown) => {
   if (!(error instanceof TRPCClientError)) return;
@@ -47,7 +58,7 @@ const chatProcedures = new Set([
 ]);
 
 function requestHeaders(includeChatConfig: boolean) {
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = { "x-admin-device-id": getAdminDeviceId() };
   try {
     // ส่ง session ของ Preview เมื่อ browser แบบฝังไม่ยอมแนบ cookie
     const raw = sessionStorage.getItem("manus-cookie");

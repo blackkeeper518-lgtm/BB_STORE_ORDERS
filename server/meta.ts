@@ -24,11 +24,13 @@ async function pageToken(pageId: string, credentials?: ChatSupabaseCredentials) 
   const headers = { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` };
   try {
     // The Chat page-token vault is keyed by page_id and belongs to the Chat project only.
-    const params = new URLSearchParams({ select: "page_id,page_name,access_token", page_id: `eq.${pageId}`, limit: "1" });
+    const params = new URLSearchParams({ select: "page_id,page_name,access_token,status", page_id: `eq.${pageId}`, limit: "1" });
     const response = await fetch(`${supabaseUrl}/rest/v1/${encodeURIComponent(CHAT_PAGE_TOKEN_TABLE)}?${params}`, { headers });
     if (!response.ok) throw new Error(`HTTP ${response.status}: ${(await response.text()).slice(0, 240)}`);
     const rows = await response.json() as Array<Record<string, unknown>>;
     const row = rows[0];
+    const status = String(row?.status ?? "ON").trim().toUpperCase();
+    if (!["ON", "TRUE", "1", "ACTIVE"].includes(status)) throw new Error(`Meta page ${pageId} is disabled (status=${status})`);
     const token = row?.access_token;
     return typeof token === "string" && token.trim() ? token.trim() : undefined;
   } catch (error) {

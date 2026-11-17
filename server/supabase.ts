@@ -98,8 +98,19 @@ async function fetchChatRows(filter: ChatReadFilter = {}, credentials?: ChatSupa
     ...pageRows.map(row => ({ ...row, _source_table: CHAT_PAGE_TABLE })),
   ];
 }
+async function getActiveChatPageIds(credentials?: ChatSupabaseCredentials) {
+  const query = new URLSearchParams({ select: "page_id,status", limit: "5000" });
+  const rows = await supabaseGet<Array<Record<string, unknown>>>(`${encodeURIComponent(CHAT_PAGE_TOKEN_TABLE)}?${query.toString()}`, "chat", credentials);
+  if (!rows.some(row => Object.prototype.hasOwnProperty.call(row, "status"))) return null;
+  return new Set(rows.filter(row => ["ON", "TRUE", "1", "ACTIVE"].includes(String(row.status ?? "").trim().toUpperCase())).map(row => String(row.page_id ?? "").trim()).filter(Boolean));
+}
+export async function assertChatPageEnabled(pageId: string, credentials?: ChatSupabaseCredentials) {
+  const activeIds = await getActiveChatPageIds(credentials);
+  if (activeIds && !activeIds.has(pageId.trim())) throw new Error("เพจนี้ถูกปิดใช้งานโดยผู้ดูแลระบบ");
+}
 export async function fetchChatThreadRows(credentials?: ChatSupabaseCredentials) {
-  return fetchChatRows({}, credentials);
+  const [rows, activeIds] = await Promise.all([fetchChatRows({}, credentials), getActiveChatPageIds(credentials)]);
+  return activeIds ? rows.filter(row => activeIds.has(String(row.page_id ?? "").trim())) : rows;
 }
 export async function fetchChatNotificationRows(afterRowId: string | null, credentials?: ChatSupabaseCredentials) {
   const relation = encodeURIComponent(CHAT_CUSTOMER_TABLE);
@@ -135,6 +146,7 @@ export async function fetchChatNotificationRows(afterRowId: string | null, crede
   return { rows, cursorRowId };
 }
 export async function fetchChatMessageRows(input: { pageId: string; threadId: string }, credentials?: ChatSupabaseCredentials) {
+  await assertChatPageEnabled(input.pageId, credentials);
   return fetchChatRows({ pageId: input.pageId, threadId: input.threadId }, credentials, true);
 }
 const CHAT_CONNECTION_CHECKS = [

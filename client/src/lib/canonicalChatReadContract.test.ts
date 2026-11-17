@@ -30,12 +30,13 @@ describe("ChatHub read contract v5", () => {
     });
 
     const rows = await fetchChatThreadRows();
-    expect(requests).toHaveLength(2);
+    expect(requests).toHaveLength(3);
     expect(requests.map(url => url.url)).toEqual(expect.arrayContaining([
       expect.stringContaining(`/rest/v1/${encodeURIComponent(CHAT_CUSTOMER_TABLE)}?`),
       expect.stringContaining(`/rest/v1/${encodeURIComponent(CHAT_PAGE_TABLE)}?`),
     ]));
-    expect(requests.every(({ url }) => new URL(url).searchParams.get("select") === "*")).toBe(true);
+    expect(requests.filter(({ url }) => new URL(url).searchParams.get("select") === "*")).toHaveLength(2);
+    expect(requests.some(({ url }) => url.includes(encodeURIComponent(CHAT_PAGE_TOKEN_TABLE)) && new URL(url).searchParams.get("select") === "page_id,status")).toBe(true);
     expect(rows.map(row => row._source_table)).toEqual([CHAT_CUSTOMER_TABLE, CHAT_PAGE_TABLE]);
     expect(requests.every(({ init }) => (init?.headers as Record<string, string>).Authorization === "Bearer test-chat-service-role-key")).toBe(true);
   });
@@ -54,7 +55,7 @@ describe("ChatHub read contract v5", () => {
       serviceRoleKey: "browser-chat-key",
     });
 
-    expect(requests).toHaveLength(2);
+    expect(requests).toHaveLength(3);
     expect(requests.every(({ url }) => url.startsWith("https://browser-chat.supabase.co/rest/v1/"))).toBe(true);
     expect(requests.every(({ init }) => (init?.headers as Record<string, string>).Authorization === "Bearer browser-chat-key")).toBe(true);
   });
@@ -69,8 +70,8 @@ describe("ChatHub read contract v5", () => {
     });
 
     await expect(fetchChatMessageRows({ pageId: "page-1", threadId: "thread-1" })).resolves.toEqual([]);
-    expect(requests).toHaveLength(2);
-    for (const request of requests) {
+    expect(requests).toHaveLength(3);
+    for (const request of requests.filter(request => !request.includes(encodeURIComponent(CHAT_PAGE_TOKEN_TABLE)))) {
       const url = new URL(request);
       expect(url.pathname).toContain("/rest/v1/");
       expect(url.searchParams.get("page_id")).toBe("eq.page-1");
