@@ -6,6 +6,7 @@ import { createRoot } from "react-dom/client";
 import superjson from "superjson";
 import App from "./App";
 import { startLogin } from "./const";
+import { readBrowserChatConfig } from "./lib/chat-config";
 import "./index.css";
 
 const queryClient = new QueryClient();
@@ -71,7 +72,15 @@ function requestHeaders(includeChatConfig: boolean) {
   } catch {
     // บางโหมดส่วนตัวอาจปิด sessionStorage
   }
-  // Chat credentials stay on the server/Render environment; never send service-role keys from a browser.
+  // Prefer the server/Render environment. Keep the existing Secret Gallery form as a
+  // compatibility fallback for deployments whose Render variables are not available yet.
+  if (includeChatConfig) {
+    const browserChat = readBrowserChatConfig();
+    if (browserChat) {
+      headers["x-chat-supabase-url"] = browserChat.url;
+      headers["x-chat-supabase-service-role-key"] = browserChat.serviceRoleKey;
+    }
+  }
   return headers;
 }
 
