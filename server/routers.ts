@@ -39,7 +39,10 @@ export const appRouter = router({
 
   chat: router({
     configured: publicProcedure.query(({ ctx }) => ({ configured: Boolean(ctx.chatSupabaseCredentials?.url && ctx.chatSupabaseCredentials.serviceRoleKey) })),
-    connection: protectedProcedure.query(({ ctx }) => checkChatConnection(requireBrowserChatConfig(ctx))),
+    // Connection test only verifies the configured Supabase objects. Reading rooms
+    // and sending replies remain protected below, but saving/testing config must not
+    // redirect an admin away when an auth session has expired.
+    connection: publicProcedure.query(({ ctx }) => checkChatConnection(requireBrowserChatConfig(ctx))),
     threads: protectedProcedure.query(({ ctx }) => fetchChatThreadRows(requireBrowserChatConfig(ctx))),
     pollNotifications: protectedProcedure.input(z.object({ afterRowId: z.string().regex(/^\d+$/).nullable() })).mutation(({ input, ctx }) => fetchChatNotificationRows(input.afterRowId, requireBrowserChatConfig(ctx))),
     messages: protectedProcedure.input(z.object({ pageId: z.string().min(1), threadId: z.string().min(1) })).query(({ input, ctx }) => fetchChatMessageRows(input, requireBrowserChatConfig(ctx))),
