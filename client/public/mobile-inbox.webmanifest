@@ -1,0 +1,16 @@
+{
+  "name": "BB Store Inbox",
+  "short_name": "BB Inbox",
+  "description": "กล่องข้อความแอดมินสำหรับตอบแชทลูกค้า BB Store",
+  "lang": "th",
+  "start_url": "/mobile-inbox",
+  "scope": "/mobile-inbox",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#080b14",
+  "theme_color": "#080b14",
+  "categories": ["business", "communication"],
+  "icons": [
+    { "src": "/mobile-inbox-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

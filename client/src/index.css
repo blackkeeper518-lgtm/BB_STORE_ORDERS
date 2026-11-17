@@ -1166,3 +1166,6 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .mobile-inbox-themed .mobile-inbox-compose-row > button { background:color-mix(in srgb,var(--mobile-primary) 13%,var(--mobile-surface)); color:var(--mobile-primary); }
 .mobile-inbox-themed .mobile-inbox-compose-row > button:last-child { background:linear-gradient(135deg,var(--mobile-primary),var(--mobile-accent)); color:#07121c; }
 .mobile-inbox-themed .mobile-inbox-compose-row textarea { border-color:color-mix(in srgb,var(--mobile-primary) 22%,transparent); background:color-mix(in srgb,var(--mobile-bg) 80%,var(--mobile-surface)); color:var(--mobile-text); }
+
+.mobile-inbox-install-button { display:inline-flex; align-items:center; gap:5px; height:34px; border:1px solid color-mix(in srgb,var(--mobile-primary) 48%,transparent); border-radius:10px; padding:0 9px; background:color-mix(in srgb,var(--mobile-primary) 16%,var(--mobile-surface)); color:var(--mobile-text); font-size:10px; font-weight:700; white-space:nowrap; }
+.mobile-inbox-install-button svg { width:15px; height:15px; color:var(--mobile-primary); }
