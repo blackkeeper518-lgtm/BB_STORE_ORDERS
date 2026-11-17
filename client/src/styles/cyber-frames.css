@@ -1,4 +1,4 @@
-/* Extracted from CYBER FRAME EXPERIMENTS V2.html. Visual frame rules only. */
+/* BB STORE cyber frame visual rules. */
 .cyber-frame-card {
   position: relative;
   isolation: isolate;
@@ -116,3 +116,17 @@
 @keyframes rail{0%,100%{opacity:.5;transform:scaleY(.65)}50%{opacity:1;transform:scaleY(1)}}
 @keyframes echo{0%,100%{box-shadow:0 0 0 3px #00e5ff14,0 0 0 7px #ff00d90d,0 0 0 11px #00e5ff05}50%{box-shadow:0 0 0 5px #00e5ff1c,0 0 0 10px #ff00d914,0 0 0 15px #00e5ff08}}
 @keyframes reveal{from{opacity:0;transform:translateY(15px)}to{opacity:1;transform:none}}
+
+/* ChatHub customer cards: keep the original compact desktop geometry. */
+.room-list-card.cyber-frame-card { min-height:0; padding:0.875rem; width:100%; border-radius:1rem; }
+.room-list-card.cyber-frame-card:hover { transform:none; }
+.room-list-card.cyber-frame-active { animation: cyber-room-active-pulse 1.8s ease-in-out infinite; }
+.cyber-frame-room-select { max-width:82px; height:20px; border:1px solid rgba(93,233,255,.28); border-radius:6px; padding:0 3px; background:rgba(7,13,25,.88); color:rgba(170,242,255,.72); font:500 8px 'IBM Plex Mono',monospace; outline:none; }
+.cyber-frame-room-select:focus { border-color:rgba(255,90,203,.75); box-shadow:0 0 10px rgba(255,90,203,.2); }
+@keyframes cyber-room-active-pulse { 0%,100% { filter:brightness(1); box-shadow:0 0 0 rgba(88,238,255,0); } 50% { filter:brightness(1.14); box-shadow:0 0 20px rgba(88,238,255,.28),0 0 34px rgba(255,78,199,.12); } }
+@media (prefers-reduced-motion:reduce) { .room-list-card.cyber-frame-active { animation:none; } }
+
+/* Tiny per-card frame control: keep the customer card geometry unchanged. */
+.cyber-frame-avatar-wrap { z-index: 8; }
+.cyber-frame-room-select { position:absolute; right:-7px; bottom:-4px; width:34px; max-width:34px; height:16px; border:1px solid rgba(255,90,203,.72); border-radius:5px; padding:0 1px; background:rgba(12,8,28,.96); color:rgba(255,214,246,.92); font:700 7px 'IBM Plex Mono',monospace; line-height:14px; outline:none; cursor:pointer; box-shadow:0 0 8px rgba(255,66,199,.2); }
+.cyber-frame-room-select:focus { border-color:rgba(93,233,255,.9); box-shadow:0 0 10px rgba(93,233,255,.35); }

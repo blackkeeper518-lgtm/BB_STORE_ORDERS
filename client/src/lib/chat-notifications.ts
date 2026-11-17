@@ -156,7 +156,7 @@ export function reconcileChatNotificationRows(
       pageId,
       threadId,
       pageName: String(row.page_name ?? "ไม่ระบุเพจ"),
-      customerName: String(row.facebook_name ?? row.customer_name ?? row.recipient_name ?? "ลูกค้าใหม่"),
+      customerName: String(row.facebook_name ?? "").trim(),
       message: text || "ส่งไฟล์แนบ",
       messageId,
       messageAt: String(row.occurred_at ?? row.time ?? row.customer_message_time_th ?? "").trim() || null,

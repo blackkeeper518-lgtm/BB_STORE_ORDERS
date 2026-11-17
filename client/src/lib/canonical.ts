@@ -755,6 +755,19 @@ function chatCustomerNameCandidate(row: any) {
   const value = String(row.facebook_name ?? "").trim();
   return value ? { value, priority: 1 } : null;
 }
+function chatOrderKey(row: any) {
+  return String(row.upsert_key ?? row.order_number_display ?? row.order_number ?? "").trim();
+}
+function chatOrderRow(row: any) {
+  return {
+    ...row,
+    order_number: row.order_number_display || row.order_number || chatOrderKey(row),
+    customer_name: row.customer_name || row.facebook_name || "",
+    phone: row.phone || row.extracted_phone || "",
+    full_address: row.full_address || row.final_address_for_bill || row.address_display_packer || "",
+    lab_product_display_text: row.final_display_for_packer || row.final_product || row.manus_for_packer || row.telegram_product_display || "",
+  };
+}
 export function mapChatRowsToThreads(sourceRows: any[]) {
   const rows = normalizeChatReadRows(sourceRows);
   const map = new Map<string, any>();
@@ -783,10 +796,11 @@ export function mapChatRowsToThreads(sourceRows: any[]) {
       pageLatestMessage: null, pageMessageTimeTh: null,
       pagerMessageTimeTh: row.pager_message_time_th || null,
       upsert_key: row.upsert_key || null, order_number: row.order_number || null,
+      orderCount: 0, orders: [],
       _searchTokens: "",
       is_sent: row.is_sent === true || row.is_sent === "true",
-      order_number_display: row.order_number_display || null, order_time: row.order_time || null,
-      order_time_display: row.order_time_display || null, cod_amount: row.cod_amount ?? null,
+      order_number_display: row.order_number_display || null, currentThreadTotalBills: row.currentThreadTotalBills ?? null,
+      order_time: row.order_time || null, order_time_display: row.order_time_display || null, cod_amount: row.cod_amount ?? null,
       facebook_name: row.facebook_name || null, manus_for_packer: row.manus_for_packer || null,
       parcel_status_emoji: row.parcel_status_emoji || null,
       delivery_status: row.delivery_status || null,
@@ -809,9 +823,14 @@ export function mapChatRowsToThreads(sourceRows: any[]) {
       current._customerNamePriority = nameCandidate.priority;
     }
     current.is_sent ||= row.is_sent === true || row.is_sent === "true";
+    const rowOrderKey = chatOrderKey(row);
+    const rowBillCount = Number(row.currentThreadTotalBills ?? 0);
+    if (Number.isFinite(rowBillCount) && rowBillCount > 0) current.orderCount = Math.max(current.orderCount ?? 0, rowBillCount);
+    const hasOrderPayload = rowBillCount > 0 || Boolean(String(row.order_number_display ?? row.order_number ?? "").trim());
+    if (hasOrderPayload && rowOrderKey && !current.orders.some((order: any) => chatOrderKey(order) === rowOrderKey)) current.orders.push(chatOrderRow(row));
     for (const [source, target] of [
       ["pager_message_time_th", "pagerMessageTimeTh"], ["upsert_key", "upsert_key"], ["order_number", "order_number"],
-      ["order_number_display", "order_number_display"], ["order_time", "order_time"], ["order_time_display", "order_time_display"],
+      ["order_number_display", "order_number_display"], ["currentThreadTotalBills", "currentThreadTotalBills"], ["order_time", "order_time"], ["order_time_display", "order_time_display"],
       ["cod_amount", "cod_amount"], ["facebook_name", "facebook_name"], ["manus_for_packer", "manus_for_packer"],
       ["parcel_status_emoji", "parcel_status_emoji"], ["phone", "phone"],
     ]) {

@@ -46,6 +46,7 @@ export const CYBER_FRAME_OPTIONS = [
 export type CyberFrameOption = (typeof CYBER_FRAME_OPTIONS)[number];
 export const CYBER_FRAME_SELECTION_KEY = "nightops-cyber-frame-selection-v1";
 export const CYBER_FRAME_EVENT = "nightops-cyber-frame-change";
+export const CYBER_FRAME_ROOM_SELECTION_KEY = "nightops-cyber-frame-room-selection-v1";
 
 export function readCyberFrame(): string {
   if (typeof window === "undefined") return "";
@@ -55,4 +56,18 @@ export function readCyberFrame(): string {
 export function saveCyberFrame(id: string) {
   localStorage.setItem(CYBER_FRAME_SELECTION_KEY, id);
   window.dispatchEvent(new CustomEvent(CYBER_FRAME_EVENT, { detail: { id } }));
+}
+
+export function readCyberFrameRooms(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  try {
+    const value = JSON.parse(localStorage.getItem(CYBER_FRAME_ROOM_SELECTION_KEY) || "{}");
+    return value && typeof value === "object" ? value as Record<string, string> : {};
+  } catch { return {}; }
+}
+
+export function saveCyberFrameRoom(roomKey: string, id: string) {
+  const next = { ...readCyberFrameRooms(), [roomKey]: id };
+  localStorage.setItem(CYBER_FRAME_ROOM_SELECTION_KEY, JSON.stringify(next));
+  window.dispatchEvent(new CustomEvent(CYBER_FRAME_EVENT, { detail: { roomKey, id } }));
 }

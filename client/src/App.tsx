@@ -1,7 +1,7 @@
 import { Toaster } from "@/components/ui/sonner.tsx";
 import { TooltipProvider } from "@/components/ui/tooltip.tsx";
 import NotFound from "@/pages/NotFound";
-import { Redirect, Route, Switch } from "wouter";
+import { Redirect, Route, Switch, useLocation } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import DashboardLayout from "./components/DashboardLayout";
 import { ThemeProvider } from "./contexts/ThemeContext";
@@ -24,8 +24,18 @@ import TelegramSentHistory from "./pages/TelegramSentHistory";
 import OrderEditor from "./pages/OrderEditor";
 import ScriptAtelier from "./pages/ScriptAtelier";
 import MobileInbox from "./pages/MobileInbox";
+import { useEffect } from "react";
 
 function Shell({ children }: { children: React.ReactNode }) { return <DashboardLayout>{children}</DashboardLayout>; }
+function HomeRoute() {
+  const [, setLocation] = useLocation();
+  useEffect(() => {
+    const userAgent = typeof navigator === "undefined" ? "" : navigator.userAgent;
+    const isPhone = /Android|iPhone|iPad|iPod|Mobile/i.test(userAgent) || (typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches);
+    setLocation(isPhone ? "/mobile-inbox" : "/orders");
+  }, [setLocation]);
+  return null;
+}
 function Router() {
   return <Switch>
     <Route path="/connect"><Redirect to="/secret-gallery/connect" /></Route>
@@ -51,7 +61,7 @@ function Router() {
     <Route path="/order-buckets"><Shell><OrderBuckets /></Shell></Route>
     <Route path="/daily-chat-summary"><Shell><DailyChatSummary /></Shell></Route>
     <Route path="/order-history"><Shell><OrderHistory /></Shell></Route>
-    <Route path="/"><Redirect to="/orders" /></Route>
+    <Route path="/"><HomeRoute /></Route>
     <Route path="/404" component={NotFound} />
     <Route component={NotFound} />
   </Switch>;

@@ -39,17 +39,17 @@ export const appRouter = router({
     threads: protectedProcedure.query(({ ctx }) => fetchChatThreadRows(requireBrowserChatConfig(ctx))),
     pollNotifications: protectedProcedure.input(z.object({ afterRowId: z.string().regex(/^\d+$/).nullable() })).mutation(({ input, ctx }) => fetchChatNotificationRows(input.afterRowId, requireBrowserChatConfig(ctx))),
     messages: protectedProcedure.input(z.object({ pageId: z.string().min(1), threadId: z.string().min(1) })).query(({ input, ctx }) => fetchChatMessageRows(input, requireBrowserChatConfig(ctx))),
-    sendReply: publicProcedure.input(z.object({ pageId: z.string(), pageName: z.string().optional(), portalKey: z.string().optional(), chatLinkKey: z.string().optional(), threadId: z.string(), recipientId: z.string(), text: z.string().optional(), imageUrl: z.string().optional(), imageSendUrl: z.string().optional(), stickerId: z.string().optional() })).mutation(async ({ input, ctx }) => {
+    sendReply: publicProcedure.input(z.object({ pageId: z.string(), pageName: z.string().optional(), portalKey: z.string().optional(), chatLinkKey: z.string().optional(), threadId: z.string(), recipientId: z.string(), text: z.string().optional(), imageUrl: z.string().optional(), imageSendUrl: z.string().optional(), imageUrls: z.array(z.string().url()).max(4).optional(), stickerId: z.string().optional() })).mutation(async ({ input, ctx }) => {
       const credentials = requireBrowserChatConfig(ctx);
       const text = input.text?.trim() || "";
       const imageUrl = input.imageUrl?.trim() || "";
       const imageSendUrl = input.imageSendUrl?.trim() || imageUrl;
+      const imageUrls = (input.imageUrls ?? []).map(url => url.trim()).filter(Boolean).slice(0, 4);
+      const imagesToSend = imageUrls.length ? imageUrls : (imageSendUrl ? [imageSendUrl] : []);
       const outgoing: Array<{ text?: string; imageUrl?: string; stickerId?: string; result?: Awaited<ReturnType<typeof sendMetaMessage>> }> = [];
-      if (text && imageUrl) {
-        outgoing.push({ text }, { imageUrl: imageSendUrl });
-      } else {
-        outgoing.push({ text: text || undefined, imageUrl: imageSendUrl || undefined, stickerId: input.stickerId });
-      }
+      if (text) outgoing.push({ text });
+      imagesToSend.forEach(url => outgoing.push({ imageUrl: url }));
+      if (!outgoing.length) outgoing.push({ stickerId: input.stickerId });
       let finalResult: Awaited<ReturnType<typeof sendMetaMessage>> | undefined;
       for (const item of outgoing) {
         try {
@@ -65,7 +65,7 @@ export const appRouter = router({
         const result = finalResult;
         if (!result) throw new Error("Meta did not return a message result");
         void persistOutgoingChatBestEffort({ portalKey: input.portalKey, chatLinkKey: input.chatLinkKey, pageId: input.pageId, pageName: input.pageName, threadId: input.threadId, recipientId: input.recipientId, messageId: result.message_id, text: item.text || (item.imageUrl ? "📷 ส่งรูปภาพ" : undefined) }, credentials);
-        void persistLocalChatBestEffort({ pageId: input.pageId, threadId: input.threadId, senderId: input.pageId, senderType: "page", direction: "outbound", text: item.text, attachments: item.imageUrl ? [{ url: imageUrl || item.imageUrl }] : undefined, adminUserId: ctx.user?.id, providerMessageId: result.message_id });
+        void persistLocalChatBestEffort({ pageId: input.pageId, threadId: input.threadId, senderId: input.pageId, senderType: "page", direction: "outbound", text: item.text, attachments: item.imageUrl ? [{ url: item.imageUrl }] : undefined, adminUserId: ctx.user?.id, providerMessageId: result.message_id });
       }
       if (!finalResult) throw new Error("ไม่มีข้อความหรือรูปภาพสำหรับส่ง");
       return finalResult;
