@@ -102,7 +102,13 @@ async function getActiveChatPageIds(credentials?: ChatSupabaseCredentials) {
   const query = new URLSearchParams({ select: "page_id,status", limit: "5000" });
   const rows = await supabaseGet<Array<Record<string, unknown>>>(`${encodeURIComponent(CHAT_PAGE_TOKEN_TABLE)}?${query.toString()}`, "chat", credentials);
   if (!rows.some(row => Object.prototype.hasOwnProperty.call(row, "status"))) return null;
-  return new Set(rows.filter(row => ["ON", "TRUE", "1", "ACTIVE"].includes(String(row.status ?? "").trim().toUpperCase())).map(row => String(row.page_id ?? "").trim()).filter(Boolean));
+  const isEnabled = (value: unknown) => {
+    const status = String(value ?? "").trim().toUpperCase();
+    if (!status) return false;
+    if (["OFF", "FALSE", "0", "INACTIVE", "DISABLED", "CLOSED", "ปิด", "ปิดใช้งาน"].some(disabled => status === disabled || status.includes(disabled))) return false;
+    return ["ON", "TRUE", "1", "ACTIVE", "เปิด", "เปิดใช้งาน", "ใช้งาน", "✅", "🟢"].some(enabled => status === enabled || status.includes(enabled));
+  };
+  return new Set(rows.filter(row => isEnabled(row.status)).map(row => String(row.page_id ?? "").trim()).filter(Boolean));
 }
 export async function assertChatPageEnabled(pageId: string, credentials?: ChatSupabaseCredentials) {
   const activeIds = await getActiveChatPageIds(credentials);
