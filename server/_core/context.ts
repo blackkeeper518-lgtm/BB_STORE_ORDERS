@@ -28,13 +28,15 @@ export async function createContext(
 
   const chatUrl = headerValue(opts.req.headers["x-chat-supabase-url"]);
   const chatServiceRoleKey = headerValue(opts.req.headers["x-chat-supabase-service-role-key"]);
+  const configuredChatUrl = chatUrl || process.env.CHAT_SUPABASE_URL?.trim() || "";
+  const configuredChatServiceRoleKey = chatServiceRoleKey || process.env.CHAT_SUPABASE_SERVICE_ROLE_KEY?.trim() || "";
 
   return {
     req: opts.req,
     res: opts.res,
     user: user ?? (PRESENTATION_MODE ? (PRESENTATION_USER as User) : null),
-    chatSupabaseCredentials: chatUrl || chatServiceRoleKey
-      ? { url: chatUrl, serviceRoleKey: chatServiceRoleKey }
+    chatSupabaseCredentials: configuredChatUrl || configuredChatServiceRoleKey
+      ? { url: configuredChatUrl, serviceRoleKey: configuredChatServiceRoleKey }
       : undefined,
   };
 }

@@ -84,7 +84,9 @@ export default function ChatHub() {
   const [, setLocation] = useLocation();
   const isMobile = useIsMobile();
   const [browserChatConfig, setBrowserChatConfig] = useState(() => readBrowserChatConfig());
-  const hasBrowserChatConfig = Boolean(browserChatConfig?.url && browserChatConfig.serviceRoleKey);
+  const hasBrowserConfig = Boolean(browserChatConfig?.url && browserChatConfig.serviceRoleKey);
+  const chatConfiguredQuery = trpc.chat.configured.useQuery(undefined, { enabled: !hasBrowserConfig, staleTime: 60_000, retry: false });
+  const hasBrowserChatConfig = hasBrowserConfig || Boolean(chatConfiguredQuery.data?.configured);
   const [search, setSearch] = useState("");
   const [selectedKey, setSelectedKey] = useState<string | null>(() => typeof window === "undefined" ? null : localStorage.getItem(CHAT_SELECTED_ROOM_KEY));
   const [composerOpen, setComposerOpen] = useState(true);

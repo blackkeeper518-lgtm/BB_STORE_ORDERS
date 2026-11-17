@@ -8,7 +8,10 @@ import * as db from "./db";
 const ownerId = (ctx: { user: { id: number } | null }) => ctx.user?.id ?? 0;
 const kind = z.enum(["code", "sql", "workflow", "document", "config", "other"]);
 function requireBrowserChatConfig(ctx: { chatSupabaseCredentials?: { url: string; serviceRoleKey: string } }) {
-  const credentials = ctx.chatSupabaseCredentials;
+  const credentials = ctx.chatSupabaseCredentials ?? {
+    url: process.env.CHAT_SUPABASE_URL?.trim() ?? "",
+    serviceRoleKey: process.env.CHAT_SUPABASE_SERVICE_ROLE_KEY?.trim() ?? "",
+  };
   if (!credentials?.url || !credentials.serviceRoleKey) {
     throw new Error("กรอก Chat Supabase URL และ service-role key ใน ROOM 02 ก่อนใช้งานแชท");
   }
@@ -35,6 +38,7 @@ export const appRouter = router({
   }),
 
   chat: router({
+    configured: publicProcedure.query(({ ctx }) => ({ configured: Boolean(ctx.chatSupabaseCredentials?.url && ctx.chatSupabaseCredentials.serviceRoleKey) })),
     connection: protectedProcedure.query(({ ctx }) => checkChatConnection(requireBrowserChatConfig(ctx))),
     threads: protectedProcedure.query(({ ctx }) => fetchChatThreadRows(requireBrowserChatConfig(ctx))),
     pollNotifications: protectedProcedure.input(z.object({ afterRowId: z.string().regex(/^\d+$/).nullable() })).mutation(({ input, ctx }) => fetchChatNotificationRows(input.afterRowId, requireBrowserChatConfig(ctx))),

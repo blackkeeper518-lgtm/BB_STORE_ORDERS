@@ -41,7 +41,7 @@ function profileAvatar(thread: Thread) { return thread.profilePictureUrl ? <img 
 export default function MobileInbox() {
   const [, setLocation] = useLocation();
   const [browserChatConfig, setBrowserChatConfig] = useState(() => readBrowserChatConfig());
-  const hasConfig = Boolean(browserChatConfig?.url && browserChatConfig.serviceRoleKey);
+  const hasBrowserConfig = Boolean(browserChatConfig?.url && browserChatConfig.serviceRoleKey);
   const [search, setSearch] = useState("");
   const [selectedKey, setSelectedKey] = useState<string | null>(() => typeof window === "undefined" ? null : localStorage.getItem(SELECTED_ROOM_KEY));
   const [pageFilter, setPageFilter] = useState("all");
@@ -93,6 +93,8 @@ export default function MobileInbox() {
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
+  const chatConfiguredQuery = trpc.chat.configured.useQuery(undefined, { enabled: !hasBrowserConfig, staleTime: 60_000, retry: false });
+  const hasConfig = hasBrowserConfig || Boolean(chatConfiguredQuery.data?.configured);
   const threadsQuery = trpc.chat.threads.useQuery(undefined, { enabled: hasConfig, staleTime: 0, refetchInterval: hasConfig ? 8_000 : false, refetchOnWindowFocus: true, select: mapChatRowsToThreads });
   const threads = threadsQuery.data ?? [];
   const availablePages = useMemo(() => Array.from(new Map(threads.filter(thread => thread.pageId && thread.pageName && thread.pageName !== "ไม่ระบุเพจ").map(thread => [thread.pageId, thread.pageName])).entries()), [threads]);

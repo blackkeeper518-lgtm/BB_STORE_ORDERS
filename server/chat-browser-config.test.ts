@@ -17,15 +17,16 @@ afterEach(() => {
 });
 
 describe("Chat browser credentials", () => {
-  it("does not query Supabase or use server env when this browser has no Chat config", async () => {
+  it("uses server Render config when this browser has no Chat config", async () => {
     vi.stubEnv("CHAT_SUPABASE_URL", "https://server-chat.supabase.co");
     vi.stubEnv("CHAT_SUPABASE_SERVICE_ROLE_KEY", "server-chat-key");
-    const fetchMock = vi.fn();
+    const fetchMock = vi.fn(async () => new Response("[]", { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(appRouter.createCaller(context()).chat.threads())
-      .rejects.toThrow("กรอก Chat Supabase URL และ service-role key ใน ROOM 02 ก่อนใช้งานแชท");
-    expect(fetchMock).not.toHaveBeenCalled();
+    await appRouter.createCaller(context()).chat.threads();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(String(fetchMock.mock.calls[0][0])).toContain("https://server-chat.supabase.co/rest/v1/");
+    expect((fetchMock.mock.calls[0][1]?.headers as Record<string, string>).Authorization).toBe("Bearer server-chat-key");
   });
 
   it("uses the latest message_row_id as the initial baseline without replaying history", async () => {

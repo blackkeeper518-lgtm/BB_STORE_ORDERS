@@ -1,5 +1,4 @@
 import { trpc } from "@/lib/trpc";
-import { readBrowserChatConfig } from "@/lib/chat-config";
 import { COOKIE_NAME, UNAUTHED_ERR_MSG } from '@shared/const';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { httpBatchLink, splitLink, TRPCClientError } from "@trpc/client";
@@ -61,13 +60,7 @@ function requestHeaders(includeChatConfig: boolean) {
   } catch {
     // บางโหมดส่วนตัวอาจปิด sessionStorage
   }
-  if (includeChatConfig) {
-    const config = readBrowserChatConfig();
-    if (config) {
-      headers["x-chat-supabase-url"] = config.url;
-      headers["x-chat-supabase-service-role-key"] = config.serviceRoleKey;
-    }
-  }
+  // Chat credentials stay on the server/Render environment; never send service-role keys from a browser.
   return headers;
 }
 
