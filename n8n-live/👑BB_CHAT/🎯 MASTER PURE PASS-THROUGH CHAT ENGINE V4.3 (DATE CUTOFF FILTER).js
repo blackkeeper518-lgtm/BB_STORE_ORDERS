@@ -60,6 +60,20 @@ function firstExisting(row, keys) {
   return '';
 }
 
+function profileUrl(source) {
+  if (!source || typeof source !== 'object') return '';
+  const row = source;
+  const direct = [row.profile_picture_url, row.profile_pic, row.avatar_url, row.picture_url]
+    .find(candidate => /^https?:\/\//i.test(String(candidate ?? '').trim()));
+  if (direct) return String(direct).trim();
+  const picture = row.picture;
+  if (picture && typeof picture === 'object') {
+    const nested = picture.data?.url || picture.url;
+    if (/^https?:\/\//i.test(String(nested ?? '').trim())) return String(nested).trim();
+  }
+  return '';
+}
+
 function parseCustomerMessageTime(raw) {
   if (raw instanceof Date) {
     const ms = raw.getTime();
@@ -257,7 +271,7 @@ for (const item of $input.all()) {
 
       const recipientId = String(customerParticipant.id || message?.from?.id || 'NO_CUST');
       const recipientName = clean(customerParticipant.name) || clean(message?.from?.name) || 'ไม่ระบุชื่อ';
-      const profilePictureUrl = participantPicture || message?.from?.picture?.data?.url || message?.from?.picture?.url || message?.from?.profile_pic || '';
+      const profilePictureUrl = profileUrl(payload) || participantPicture || message?.from?.picture?.data?.url || message?.from?.picture?.url || message?.from?.profile_pic || '';
 
       const rawMsgId = message.message_id || message.id || `msg_test_${Date.now()}_${index}`;
       const dedupeKey = `${pageConfig.page_id}|${recipientId}|${rawMsgId}`;
