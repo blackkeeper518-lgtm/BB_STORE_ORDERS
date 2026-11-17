@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { getSupabase, mapChatRowsToMessages, mapChatRowsToThreads } from "@/lib/canonical";
+import { getSupabase, mapChatRowsToMessages, mapChatRowsToThreads, reconcileOptimisticMessages } from "@/lib/canonical";
 import { uploadChatImageToVault } from "@/lib/chat-image-upload";
 import { CHAT_BROWSER_CONFIG_EVENT, readBrowserChatConfig } from "@/lib/chat-config";
 import { CYBER_THEME_PRESETS, readCyberTheme, saveCyberTheme, type CyberTheme } from "@/lib/theme-lab";
@@ -51,6 +51,7 @@ export default function MobileInbox() {
   const [replyImages, setReplyImages] = useState<Array<{ url: string; sendUrl: string; name: string }>>([]);
   const [uploading, setUploading] = useState(false);
   const [notice, setNotice] = useState("");
+  const [optimisticMessages, setOptimisticMessages] = useState<any[]>([]);
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [themeOpen, setThemeOpen] = useState(false);
   const [cyberTheme, setCyberTheme] = useState<CyberTheme>(() => readCyberTheme());
@@ -91,9 +92,28 @@ export default function MobileInbox() {
   const selectedThreadId = selected?.threadId ?? "";
   const selectedCustomerId = selected?.customerId ?? "";
   const messagesQuery = trpc.chat.messages.useQuery({ pageId: selectedPageId, threadId: selectedThreadId }, { enabled: hasConfig && Boolean(selectedPageId && selectedThreadId), staleTime: 0, refetchInterval: hasConfig ? 2_000 : false, select: mapChatRowsToMessages });
-  const sendReply = trpc.chat.sendReply.useMutation({ onSuccess: () => { setReplyText(""); setReplyImages([]); setNotice("ส่งแล้ว"); void Promise.all([messagesQuery.refetch(), threadsQuery.refetch()]); }, onError: error => setNotice(error.message || "ส่งไม่สำเร็จ") });
+  const optimisticMessageIdRef = useRef<string | null>(null);
+  const sendReply = trpc.chat.sendReply.useMutation({
+    onMutate: () => setNotice("กำลังส่งไปยัง Facebook…"),
+    onSuccess: result => {
+      setOptimisticMessages(current => current.map(message => message.id === optimisticMessageIdRef.current ? { ...message, messageId: result.message_id } : message));
+      setReplyText("");
+      setReplyImages([]);
+      setNotice("ส่งแล้ว");
+      void Promise.all([messagesQuery.refetch(), threadsQuery.refetch()]);
+    },
+    onError: error => {
+      const failedId = optimisticMessageIdRef.current;
+      if (failedId) setOptimisticMessages(current => current.filter(message => message.id !== failedId));
+      optimisticMessageIdRef.current = null;
+      setNotice(error.message || "ส่งไม่สำเร็จ");
+      void Promise.all([messagesQuery.refetch(), threadsQuery.refetch()]);
+    },
+  });
   useEffect(() => { if (!selectedKey && filteredThreads[0]) setSelectedKey(filteredThreads[0].key); }, [filteredThreads, selectedKey]);
   useEffect(() => { if (selectedKey) localStorage.setItem(SELECTED_ROOM_KEY, selectedKey); }, [selectedKey]);
+  useEffect(() => { setOptimisticMessages([]); optimisticMessageIdRef.current = null; }, [selectedPageId, selectedThreadId]);
+  useEffect(() => { setOptimisticMessages(current => reconcileOptimisticMessages(current, messagesQuery.data ?? [])); }, [messagesQuery.data, optimisticMessages]);
   useEffect(() => { if (!openRoom || !timelineRef.current) return; timelineRef.current.scrollTop = timelineRef.current.scrollHeight; }, [openRoom, selectedKey, messagesQuery.data?.length]);
   const selectRoom = (thread: Thread) => { setSelectedKey(thread.key); setOpenRoom(true); setNotice(""); };
   const handleComposerPaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
@@ -130,6 +150,9 @@ export default function MobileInbox() {
     const text = replyText.trim();
     if (sendReply.isPending || !selectedPageId || !selectedThreadId || (!text && replyImages.length === 0)) return;
     if (!selectedCustomerId) { setNotice("ห้องนี้ยังไม่มี Customer PSID"); return; }
+    const optimisticId = `optimistic-${Date.now()}`;
+    optimisticMessageIdRef.current = optimisticId;
+    setOptimisticMessages(current => [...current, { id: optimisticId, text: text || "ส่งรูปภาพ", message_text: text, direction: "outbound", senderType: "page", side: "right", occurredAt: new Date().toISOString(), attachmentsJson: replyImages.length ? JSON.stringify(replyImages.map(image => ({ url: image.url }))) : "[]" }]);
     sendReply.mutate({ pageId: selectedPageId, pageName: selected?.pageName ?? undefined, portalKey: selected?.portalKey ?? undefined, chatLinkKey: selected?.chatLinkKey ?? undefined, threadId: selectedThreadId, recipientId: selectedCustomerId, text: text || undefined, imageUrls: replyImages.map(image => image.sendUrl || image.url) });
   };
   const chooseTheme = (preset: CyberTheme) => {
@@ -142,7 +165,7 @@ export default function MobileInbox() {
     await installPrompt.prompt();
     setInstallPrompt(null);
   };
-  const messages = (messagesQuery.data ?? []).filter(message => messageText(message).trim());
+  const messages = [...(messagesQuery.data ?? []), ...optimisticMessages].filter(message => messageText(message).trim());
 
   return <main className="mobile-inbox-page mobile-inbox-themed" style={{ "--mobile-bg": cyberTheme.bg, "--mobile-surface": cyberTheme.surface, "--mobile-primary": cyberTheme.primary, "--mobile-accent": cyberTheme.accent, "--mobile-radius": `${cyberTheme.radius}px`, "--mobile-glow": `${cyberTheme.glow}px` } as React.CSSProperties}>
     <header className="mobile-inbox-header"><div><p className="mobile-inbox-kicker">BB STORE</p><h1>กล่องข้อความ</h1><small className="mobile-inbox-theme-name">ธีม · {cyberTheme.name}</small></div><div className="mobile-inbox-header-actions">{installPrompt ? <button type="button" aria-label="ติดตั้งแอป BB Store Inbox" onClick={() => void installApp()} className="mobile-inbox-install-button"><Download /><span>ติดตั้งแอป</span></button> : null}<button type="button" aria-label="เปลี่ยนธีม" onClick={() => setThemeOpen(value => !value)} className="mobile-inbox-theme-button"><Palette /></button><button type="button" aria-label="รีเฟรช" onClick={() => void threadsQuery.refetch()} className="mobile-inbox-refresh"><LoaderCircle className={threadsQuery.isFetching ? "animate-spin" : ""} /></button></div></header>
