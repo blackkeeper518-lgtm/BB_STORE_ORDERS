@@ -14,11 +14,13 @@ import {
   LogOut,
   MessageCircle,
   PackageOpen,
+  Palette,
   Pencil,
   Search,
   Save,
   Sparkles,
   Trash2,
+  Volume2,
   X,
 } from "lucide-react";
 import {
@@ -45,6 +47,7 @@ import {
 import { trpc } from "@/lib/trpc";
 import { clearBrowserChatConfig, readBrowserChatConfig, saveBrowserChatConfig } from "@/lib/chat-config";
 import { CyberFrameVault } from "@/components/CyberFrameVault";
+import { CYBER_THEME_PRESETS, readCyberTheme, saveCyberTheme, type CyberTheme } from "@/lib/theme-lab";
 
 type CodeLanguage = "sql" | "java" | "md";
 type VaultDoc = {
@@ -128,7 +131,8 @@ export default function SecretGallery() {
   );
   const [draggedDocId, setDraggedDocId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [view, setView] = useState<"vault" | "images" | "connect" | "cyber">("vault");
+  const [view, setView] = useState<"vault" | "images" | "connect" | "cyber" | "theme" | "sound">("vault");
+  const [cyberTheme, setCyberTheme] = useState<CyberTheme>(() => readCyberTheme());
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
   const [preview, setPreview] = useState<GalleryItem | null>(null);
@@ -136,7 +140,7 @@ export default function SecretGallery() {
   const editorRef = useRef<HTMLTextAreaElement>(null);
   const highlightRef = useRef<HTMLPreElement>(null);
   const [imageMessage, setImageMessage] = useState("");
-  const setGalleryView = (next: "vault" | "images" | "connect" | "cyber") => {
+  const setGalleryView = (next: "vault" | "images" | "connect" | "cyber" | "theme" | "sound") => {
     setView(next);
     setLocation(
       next === "images"
@@ -145,7 +149,11 @@ export default function SecretGallery() {
           ? "/secret-gallery/connect"
           : next === "cyber"
             ? "/secret-gallery?tab=cyber-frames"
-            : "/secret-gallery"
+            : next === "theme"
+              ? "/secret-gallery?tab=theme"
+              : next === "sound"
+                ? "/secret-gallery?tab=sound"
+                : "/secret-gallery"
     );
   };
   useEffect(() => {
@@ -156,7 +164,11 @@ export default function SecretGallery() {
           ? "connect"
           : location.includes("tab=cyber-frames")
             ? "cyber"
-            : "vault"
+            : location.includes("tab=theme")
+              ? "theme"
+              : location.includes("tab=sound")
+                ? "sound"
+                : "vault"
     );
   }, [location]);
   const activeDoc = docs.find(doc => doc.id === activeId) ?? null;
@@ -631,19 +643,6 @@ export default function SecretGallery() {
             <p className="text-[10px] leading-4 text-emerald-100/45 md:col-span-2">ใส่เฉพาะ Anon/Publishable Key · ห้ามใส่ service-role · ตารางของภาพ สคริปต์ และบทความจะกำหนดแยกในแต่ละฟีเจอร์</p>
           </CardContent>
         </Card>
-        <Card className="neon-card rounded-3xl border-fuchsia-400/20 bg-black/20">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-sm text-white"><span className="text-lg">🔔</span> LOCAL VAULT · AUTOSAVE · เสียงแจ้งเตือนแชท</CardTitle>
-            <p className="text-xs text-fuchsia-100/50">ตั้งค่าเก็บไว้ในเครื่องนี้เท่านั้น ไม่ส่งไป Supabase</p>
-          </CardHeader>
-          <CardContent className="grid gap-3 md:grid-cols-[auto_1fr_1fr_auto] md:items-center">
-            <label className="flex items-center gap-2 text-sm text-white"><input type="checkbox" checked={soundSettings.enabled} onChange={event => setSoundSettings(current => ({ ...current, enabled: event.target.checked }))} className="h-4 w-4 accent-fuchsia-500" /> เปิดเสียง</label>
-            <label className="grid gap-1 text-xs text-fuchsia-100/60">โทนเสียง<select value={soundSettings.tone} onChange={event => setSoundSettings(current => ({ ...current, tone: event.target.value as ChatSoundSettings["tone"] }))} className="h-9 rounded-lg border border-fuchsia-400/20 bg-[#160d22] px-2 text-sm text-white"><option value="ping">Ping · ใส</option><option value="bell">Bell · กังวาน</option><option value="pop">Pop · สั้น</option></select></label>
-            <label className="grid gap-1 text-xs text-fuchsia-100/60">ระดับเสียง · {Math.round(soundSettings.volume * 100)}%<input type="range" min="0.05" max="1" step="0.05" value={soundSettings.volume} onChange={event => setSoundSettings(current => ({ ...current, volume: Number(event.target.value) }))} className="accent-cyan-400" /></label>
-            <Button type="button" variant="outline" onClick={previewSound} className="border-cyan-400/25 text-cyan-200">ทดสอบเสียง</Button>
-          </CardContent>
-        </Card>
-
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
             <Button
@@ -669,6 +668,22 @@ export default function SecretGallery() {
             >
               <Sparkles className="mr-2 h-4 w-4" />
               CYBER FRAME · 40 แบบ
+            </Button>
+            <Button
+              onClick={() => setGalleryView("theme")}
+              variant="outline"
+              className={view === "theme" ? "border-violet-400/50 bg-violet-500/15 text-violet-200" : "border-white/10 bg-transparent text-white/60"}
+            >
+              <Palette className="mr-2 h-4 w-4" />
+              ธีมแอป
+            </Button>
+            <Button
+              onClick={() => setGalleryView("sound")}
+              variant="outline"
+              className={view === "sound" ? "border-amber-400/50 bg-amber-500/15 text-amber-200" : "border-white/10 bg-transparent text-white/60"}
+            >
+              <Volume2 className="mr-2 h-4 w-4" />
+              เสียงแชท
             </Button>
             <Button
               onClick={() => setGalleryView("images")}
@@ -700,7 +715,14 @@ export default function SecretGallery() {
             LOCAL VAULT · AUTOSAVE
           </div>
         </div>
-        {view === "cyber" ? (
+        {view === "theme" ? (
+          <Card className="neon-card overflow-hidden rounded-3xl border-violet-400/25 bg-[#100c20]">
+            <CardHeader className="border-b border-violet-300/10"><CardTitle className="flex items-center gap-2 text-base text-white"><Palette className="h-5 w-5 text-violet-300" /> APPEARANCE THEME STUDIO · 20 แบบ</CardTitle><p className="text-xs leading-5 text-violet-100/60">เลือกธีมศูนย์กลางจากเว็บ แล้ว Mobile Inbox จะอ่านค่าชุดเดียวกันอัตโนมัติ</p></CardHeader>
+            <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">{CYBER_THEME_PRESETS.map(preset => <button type="button" key={preset.name} onClick={() => { setCyberTheme(preset); saveCyberTheme(preset); }} className={`rounded-2xl border p-3 text-left transition ${cyberTheme.name === preset.name ? "border-violet-300 bg-violet-400/15 shadow-[0_0_22px_rgba(167,139,250,.22)]" : "border-white/10 bg-black/20 hover:border-cyan-300/40"}`} style={{ background: `linear-gradient(135deg, ${preset.bg}, ${preset.surface})` }}><span className="mb-3 block h-2 rounded-full" style={{ background: `linear-gradient(90deg, ${preset.primary}, ${preset.accent})` }} /><strong className="block truncate text-xs text-white">{preset.name}</strong><small className="mt-1 block text-[10px] text-white/50">{preset.border} · glow {preset.glow}</small>{cyberTheme.name === preset.name ? <Check className="mt-2 h-4 w-4 text-emerald-300" /> : null}</button>)}</CardContent>
+          </Card>
+        ) : view === "sound" ? (
+          <Card className="neon-card rounded-3xl border-amber-400/20 bg-[#171208]"><CardHeader><CardTitle className="flex items-center gap-2 text-base text-white"><Volume2 className="h-5 w-5 text-amber-300" /> SOUND LAB · เสียงแจ้งเตือนแชท</CardTitle><p className="text-xs leading-5 text-amber-100/60">ตั้งค่าเก็บไว้ในเครื่องนี้ และใช้เป็นค่าเสียงกลางของหน้าแชท</p></CardHeader><CardContent className="grid gap-4 md:grid-cols-[auto_1fr_1fr_auto] md:items-center"><label className="flex items-center gap-2 text-sm text-white"><input type="checkbox" checked={soundSettings.enabled} onChange={event => setSoundSettings(current => ({ ...current, enabled: event.target.checked }))} className="h-4 w-4 accent-amber-500" /> เปิดเสียง</label><label className="grid gap-1 text-xs text-amber-100/60">โทนเสียง<select value={soundSettings.tone} onChange={event => setSoundSettings(current => ({ ...current, tone: event.target.value as ChatSoundSettings["tone"] }))} className="h-9 rounded-lg border border-amber-400/20 bg-[#21170a] px-2 text-sm text-white"><option value="ping">Ping · ใส</option><option value="bell">Bell · กังวาน</option><option value="pop">Pop · สั้น</option></select></label><label className="grid gap-1 text-xs text-amber-100/60">ระดับเสียง · {Math.round(soundSettings.volume * 100)}%<input type="range" min="0.05" max="1" step="0.05" value={soundSettings.volume} onChange={event => setSoundSettings(current => ({ ...current, volume: Number(event.target.value) }))} className="accent-amber-400" /></label><Button type="button" variant="outline" onClick={previewSound} className="border-amber-400/30 text-amber-200"><Volume2 className="mr-2 h-4 w-4" /> ทดสอบเสียง</Button></CardContent></Card>
+        ) : view === "cyber" ? (
           <CyberFrameVault />
         ) : view === "connect" ? (
           <ConnectSupabase />
