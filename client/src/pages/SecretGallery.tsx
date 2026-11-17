@@ -588,10 +588,10 @@ export default function SecretGallery() {
                 <label className="grid gap-1 text-[11px] text-cyan-100/70">CHAT SUPABASE URL<Input value={chatUrl} onChange={event => setChatUrl(event.target.value)} placeholder="https://zxmczmgmtbnammtljdls.supabase.co" className="border-cyan-300/25 bg-black/35 text-white placeholder:text-cyan-100/30" /></label>
                 <label className="grid gap-1 text-[11px] text-cyan-100/70">CHAT SERVICE-ROLE KEY<Input type="password" autoComplete="new-password" value={chatServiceRoleKey} onChange={event => setChatServiceRoleKey(event.target.value)} placeholder="วาง service-role key ของโปรเจกต์ Chat" className="border-cyan-300/25 bg-black/35 font-mono text-white placeholder:text-cyan-100/30" /></label>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Button type="button" onClick={() => void saveAndCheckChatConnection()} disabled={chatBusy} className="bg-gradient-to-r from-cyan-400 via-blue-500 to-violet-600 text-[#06101e] shadow-[0_0_22px_rgba(34,211,238,.3)] hover:brightness-110">{chatBusy ? "กำลังตรวจ…" : "บันทึกและตรวจ Chat"}</Button>
+              <div className="flex min-h-10 flex-wrap items-center gap-2">
+                <Button type="button" onClick={() => void saveAndCheckChatConnection()} disabled={chatBusy} className="w-56 justify-center bg-gradient-to-r from-cyan-400 via-blue-500 to-violet-600 text-[#06101e] shadow-[0_0_22px_rgba(34,211,238,.3)] hover:brightness-110">{chatBusy ? "กำลังตรวจ…" : "บันทึกและตรวจ Chat"}</Button>
                 <Button type="button" variant="outline" onClick={clearChatBrowserConnection} className="border-cyan-300/25 bg-black/20 text-cyan-100 hover:bg-cyan-300/10">ล้างค่า</Button>
-                <span className="text-xs text-cyan-100/70">{chatMessage}</span>
+                <span className="min-h-5 text-xs text-cyan-100/70" aria-live="polite">{chatMessage}</span>
               </div>
               <p className="text-[10px] leading-4 text-cyan-100/45">เก็บเฉพาะ browser นี้ · ถ้าไม่กรอก ระบบจะไม่เรียกฐานข้อมูลแชท · ไม่ fallback ไป Main/Tracking หรือ table/token column อื่น</p>
             </CardContent>
