@@ -2,7 +2,7 @@
   "nodes": [
     {
       "parameters": {
-        "url": "=https://graph.facebook.com/v26.0/{{ $json.page_id }}/conversations?fields=id,updated_time,message_count,unread_count,participants,can_reply,messages.limit(5){id,message,created_time,from{id,name},is_echo,attachments{id,mime_type,name,file_url,image_data{url,preview_url,image_type,render_as_sticker},video_data{url,preview_url}},shares{name,link},sticker}",
+        "url": "=https://graph.facebook.com/v26.0/{{ $json.page_id }}/conversations?fields=id,updated_time,message_count,unread_count,participants{id,name},can_reply,messages.limit(5){id,message,created_time,from{id,name,profile_pic},is_echo,attachments{id,mime_type,name,file_url,image_data{url,preview_url,image_type,render_as_sticker},video_data{url,preview_url}},shares{name,link},sticker}",
         "sendQuery": true,
         "queryParameters": {
           "parameters": [

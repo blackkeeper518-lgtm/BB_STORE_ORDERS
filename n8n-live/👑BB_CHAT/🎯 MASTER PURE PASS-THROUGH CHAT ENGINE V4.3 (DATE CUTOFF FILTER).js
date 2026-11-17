@@ -186,6 +186,7 @@ for (const item of $input.all()) {
     if (!pageConfig) continue;
 
     const customerParticipant = participants.find(person => person?.id && String(person.id) !== String(pageConfig.page_id)) || {};
+    const participantPicture = customerParticipant.picture?.data?.url || customerParticipant.picture?.url || customerParticipant.profile_pic || '';
     const messages = Array.isArray(conv.messages?.data) ? conv.messages.data : (Array.isArray(conv.messages) ? conv.messages : []);
 
     // Find the latest actual customer message (exclude page replies and echoes).
@@ -256,6 +257,7 @@ for (const item of $input.all()) {
 
       const recipientId = String(customerParticipant.id || message?.from?.id || 'NO_CUST');
       const recipientName = clean(customerParticipant.name) || clean(message?.from?.name) || 'ไม่ระบุชื่อ';
+      const profilePictureUrl = participantPicture || message?.from?.picture?.data?.url || message?.from?.picture?.url || message?.from?.profile_pic || '';
 
       const rawMsgId = message.message_id || message.id || `msg_test_${Date.now()}_${index}`;
       const dedupeKey = `${pageConfig.page_id}|${recipientId}|${rawMsgId}`;
@@ -292,6 +294,7 @@ for (const item of $input.all()) {
           recipient_id: recipientId,
           recipient_name: recipientName,
           facebook_name : recipientName,
+          profile_picture_url: profilePictureUrl || null,
           
           message_id: rawMsgId,
           dedupe_key: dedupeKey,

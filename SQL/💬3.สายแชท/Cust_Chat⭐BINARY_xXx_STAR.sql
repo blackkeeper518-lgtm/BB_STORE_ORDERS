@@ -56,6 +56,7 @@ create table public."Cust_Chat⭐BINARY_xXx_STAR" (
   pager_message_time_th text null,
   manus_for_packer text null,
   facebook_name text null,
+  profile_picture_url text null,
   shipping_carrier text null
 ) TABLESPACE pg_default;
 

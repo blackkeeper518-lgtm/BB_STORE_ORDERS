@@ -785,7 +785,7 @@ export function mapChatRowsToThreads(sourceRows: any[]) {
       key, pageId, threadId, portalKey: row.portal_key || null, chatLinkKey: row.chat_link_key || null,
       timeSlotLabel: String(row.time_slot_label ?? "").trim() || null,
       customerId: row.customer_id || row.recipient_id || null, customerPhone: row.phone || null, pageName: row.page_name || "ไม่ระบุเพจ",
-      customerName: nameCandidate?.value || "", _customerNamePriority: nameCandidate?.priority ?? -1,
+      customerName: nameCandidate?.value || "", profilePictureUrl: row.profile_picture_url || null, _customerNamePriority: nameCandidate?.priority ?? -1,
       latestAt: row._occurred || row.occurred_at || null,
       _latestSortAtMs: chatDateMs(row._occurred),
       _latestSortRowId: chatRowSequence(row),
@@ -815,6 +815,7 @@ export function mapChatRowsToThreads(sourceRows: any[]) {
     }
     if (String(row.time_slot_label ?? "").trim()) current.timeSlotLabel = String(row.time_slot_label).trim();
     current.customerId ||= row.customer_id || row.recipient_id || null;
+    current.profilePictureUrl ||= row.profile_picture_url || row.profile_pic || row.picture || null;
     current.customerPhone ||= row.phone || null;
     current.portalKey ||= row.portal_key || null;
     current.chatLinkKey ||= row.chat_link_key || null;
