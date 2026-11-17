@@ -1116,3 +1116,53 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 /* The single room badge is Parcel; BB is no longer printed on the card. */
 .chat-room-code-label.cyber-frame-picker-trigger.parcel-status-chip { border-color:rgba(255,156,225,.62) !important; background:rgba(121,15,81,.34) !important; color:#ffe7f7 !important; text-shadow:0 0 3px #fff,0 0 7px rgba(255,128,218,.75) !important; box-shadow:0 0 7px rgba(255,60,190,.38),inset 0 0 8px rgba(255,78,195,.12) !important; }
 .chat-room-code-label.cyber-frame-picker-trigger.parcel-status-chip.parcel-status-chip--order { border-color:#8CFF00 !important; background:rgba(140,255,0,.22) !important; color:#E8FFD0 !important; text-shadow:0 0 3px #fff,0 0 9px rgba(140,255,0,.98) !important; box-shadow:0 0 4px rgba(255,255,255,.72),0 0 11px rgba(140,255,0,.96),0 0 22px rgba(140,255,0,.62),inset 0 0 8px rgba(140,255,0,.25) !important; }
+
+/* Mobile Inbox: Appearance Theme Studio bridge */
+.mobile-inbox-themed { --mobile-text:#edf6ff; --mobile-muted:#a8b5ca; background:var(--mobile-bg)!important; color:var(--mobile-text)!important; }
+.mobile-inbox-themed .mobile-inbox-header,.mobile-inbox-themed .mobile-inbox-tabs,.mobile-inbox-themed .mobile-inbox-list-panel { background:var(--mobile-bg)!important; }
+.mobile-inbox-themed .mobile-inbox-kicker { color:var(--mobile-muted); }
+.mobile-inbox-themed .mobile-inbox-header h1 { color:var(--mobile-text); text-shadow:0 0 var(--mobile-glow) color-mix(in srgb,var(--mobile-primary) 35%,transparent); }
+.mobile-inbox-theme-name { display:block; margin-top:4px; color:var(--mobile-primary); font-size:10px; }
+.mobile-inbox-header-actions { display:flex; align-items:center; gap:7px; }
+.mobile-inbox-theme-button,.mobile-inbox-themed .mobile-inbox-refresh { display:grid; place-items:center; width:42px; height:42px; border:1px solid color-mix(in srgb,var(--mobile-primary) 35%,transparent); border-radius:50%; background:color-mix(in srgb,var(--mobile-surface) 88%,transparent); color:var(--mobile-primary); }
+.mobile-inbox-theme-button svg { width:19px; height:19px; }
+.mobile-inbox-theme-panel { position:absolute; z-index:70; top:82px; right:14px; left:14px; padding:13px; border:1px solid color-mix(in srgb,var(--mobile-primary) 38%,transparent); border-radius:var(--mobile-radius); background:color-mix(in srgb,var(--mobile-surface) 96%,#000); box-shadow:0 12px 35px rgba(0,0,0,.45),0 0 var(--mobile-glow) color-mix(in srgb,var(--mobile-primary) 18%,transparent); }
+.mobile-inbox-theme-panel-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; color:var(--mobile-text); }
+.mobile-inbox-theme-panel-head strong,.mobile-inbox-theme-panel-head small { display:block; }
+.mobile-inbox-theme-panel-head strong { font-size:14px; }
+.mobile-inbox-theme-panel-head small { margin-top:3px; color:var(--mobile-muted); font-size:10px; }
+.mobile-inbox-theme-panel-head > button { display:grid; place-items:center; width:30px; height:30px; border:0; border-radius:9px; background:rgba(255,255,255,.06); color:var(--mobile-muted); }
+.mobile-inbox-theme-panel-head svg { width:16px; height:16px; }
+.mobile-inbox-theme-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; max-height:54vh; overflow-y:auto; }
+.mobile-inbox-theme-swatch { display:flex; min-width:0; align-items:center; gap:7px; padding:8px 7px; border:1px solid rgba(255,255,255,.10); border-radius:10px; background:color-mix(in srgb,var(--swatch-bg) 90%,#000); color:#dce8ff; font-size:10px; text-align:left; }
+.mobile-inbox-theme-swatch.is-active { border-color:var(--swatch-primary); box-shadow:0 0 12px color-mix(in srgb,var(--swatch-primary) 25%,transparent); }
+.mobile-inbox-theme-swatch-light { width:13px; height:13px; flex:none; border-radius:50%; background:linear-gradient(135deg,var(--swatch-primary),var(--swatch-accent)); box-shadow:0 0 8px var(--swatch-primary); }
+.mobile-inbox-theme-swatch span:nth-child(2) { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.mobile-inbox-theme-swatch svg { width:13px; height:13px; margin-left:auto; flex:none; color:var(--swatch-primary); }
+.mobile-inbox-themed .mobile-inbox-tabs { border-color:color-mix(in srgb,var(--mobile-primary) 20%,transparent); }
+.mobile-inbox-themed .mobile-inbox-tabs button { border-color:var(--mobile-primary); color:var(--mobile-primary); }
+.mobile-inbox-themed .mobile-inbox-tab-count { background:color-mix(in srgb,var(--mobile-primary) 16%,transparent); color:var(--mobile-text); }
+.mobile-inbox-themed .mobile-inbox-search { border-color:color-mix(in srgb,var(--mobile-primary) 24%,transparent); background:color-mix(in srgb,var(--mobile-surface) 90%,transparent); }
+.mobile-inbox-themed .mobile-inbox-search input { color:var(--mobile-text); }
+.mobile-inbox-themed .mobile-inbox-filters button { background:color-mix(in srgb,var(--mobile-surface) 90%,transparent); color:var(--mobile-muted); }
+.mobile-inbox-themed .mobile-inbox-filters button.is-active { background:linear-gradient(135deg,color-mix(in srgb,var(--mobile-primary) 40%,var(--mobile-surface)),color-mix(in srgb,var(--mobile-accent) 32%,var(--mobile-surface))); color:var(--mobile-text); }
+.mobile-inbox-themed .mobile-inbox-thread { border-color:rgba(255,255,255,.12); color:var(--mobile-text); }
+.mobile-inbox-themed .mobile-inbox-thread.is-selected,.mobile-inbox-themed .mobile-inbox-thread:hover { background:color-mix(in srgb,var(--mobile-primary) 10%,transparent); }
+.mobile-inbox-themed .mobile-inbox-avatar { background:linear-gradient(135deg,color-mix(in srgb,var(--mobile-primary) 28%,var(--mobile-surface)),color-mix(in srgb,var(--mobile-accent) 24%,var(--mobile-surface))); color:var(--mobile-primary); box-shadow:0 0 0 1px color-mix(in srgb,var(--mobile-primary) 30%,transparent); }
+.mobile-inbox-themed .mobile-inbox-thread-top strong { color:var(--mobile-text); }
+.mobile-inbox-themed .mobile-inbox-thread-preview,.mobile-inbox-themed .mobile-inbox-thread-tags { color:var(--mobile-muted); }
+.mobile-inbox-themed .mobile-inbox-thread-tags b { background:color-mix(in srgb,var(--mobile-primary) 15%,transparent); color:var(--mobile-primary); }
+.mobile-inbox-themed .mobile-inbox-bottom-nav { border-color:color-mix(in srgb,var(--mobile-primary) 20%,transparent); background:color-mix(in srgb,var(--mobile-bg) 96%,#000); }
+.mobile-inbox-themed .mobile-inbox-bottom-nav button.is-active { color:var(--mobile-primary); }
+.mobile-inbox-themed .mobile-inbox-conversation,.mobile-inbox-themed .mobile-inbox-conversation-shell { background:var(--mobile-bg); }
+.mobile-inbox-themed .mobile-inbox-conversation-header { border-color:color-mix(in srgb,var(--mobile-primary) 20%,transparent); background:var(--mobile-surface); }
+.mobile-inbox-themed .mobile-inbox-conversation-header > button { background:color-mix(in srgb,var(--mobile-primary) 14%,var(--mobile-surface)); color:var(--mobile-primary); }
+.mobile-inbox-themed .mobile-inbox-conversation-header strong { color:var(--mobile-text); }
+.mobile-inbox-themed .mobile-inbox-conversation-header small { color:var(--mobile-muted); }
+.mobile-inbox-themed .mobile-inbox-timeline { background:radial-gradient(circle at 90% 5%,color-mix(in srgb,var(--mobile-primary) 16%,transparent),transparent 35%),radial-gradient(circle at 10% 90%,color-mix(in srgb,var(--mobile-accent) 12%,transparent),transparent 36%),var(--mobile-bg); }
+.mobile-inbox-themed .mobile-inbox-message { background:var(--mobile-surface); color:var(--mobile-text); border-radius:var(--mobile-radius); }
+.mobile-inbox-themed .mobile-inbox-message-row.is-outgoing .mobile-inbox-message { background:linear-gradient(135deg,color-mix(in srgb,var(--mobile-primary) 38%,var(--mobile-surface)),color-mix(in srgb,var(--mobile-accent) 38%,var(--mobile-surface))); }
+.mobile-inbox-themed .mobile-inbox-composer { border-color:color-mix(in srgb,var(--mobile-primary) 20%,transparent); background:var(--mobile-surface); }
+.mobile-inbox-themed .mobile-inbox-compose-row > button { background:color-mix(in srgb,var(--mobile-primary) 13%,var(--mobile-surface)); color:var(--mobile-primary); }
+.mobile-inbox-themed .mobile-inbox-compose-row > button:last-child { background:linear-gradient(135deg,var(--mobile-primary),var(--mobile-accent)); color:#07121c; }
+.mobile-inbox-themed .mobile-inbox-compose-row textarea { border-color:color-mix(in srgb,var(--mobile-primary) 22%,transparent); background:color-mix(in srgb,var(--mobile-bg) 80%,var(--mobile-surface)); color:var(--mobile-text); }
