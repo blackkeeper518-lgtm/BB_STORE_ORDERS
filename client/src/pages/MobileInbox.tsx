@@ -71,10 +71,18 @@ export default function MobileInbox() {
     return () => window.removeEventListener("storage", refreshTheme);
   }, []);
   useEffect(() => {
-    void navigator.serviceWorker?.register("/mobile-inbox-sw.js", { scope: "/mobile-inbox" }).catch(() => undefined);
+    if (!navigator.serviceWorker) return;
+    const hadController = Boolean(navigator.serviceWorker.controller);
+    const registrationPromise = navigator.serviceWorker.register("/mobile-inbox-sw.js", { scope: "/mobile-inbox" });
+    const refreshAfterUpdate = () => { if (hadController) window.location.reload(); };
+    navigator.serviceWorker.addEventListener("controllerchange", refreshAfterUpdate);
+    void registrationPromise.then(registration => registration.update()).catch(() => undefined);
     const captureInstall = (event: Event) => { event.preventDefault(); setInstallPrompt(event as BeforeInstallPromptEvent); };
     window.addEventListener("beforeinstallprompt", captureInstall);
-    return () => window.removeEventListener("beforeinstallprompt", captureInstall);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", captureInstall);
+      navigator.serviceWorker.removeEventListener("controllerchange", refreshAfterUpdate);
+    };
   }, []);
   useEffect(() => {
     const handlePopState = () => {

@@ -1,4 +1,4 @@
-const CACHE_NAME = "bb-store-inbox-shell-v1";
+const CACHE_NAME = "bb-store-inbox-shell-v2";
 const APP_SHELL = "/mobile-inbox";
 
 self.addEventListener("install", event => {
@@ -6,7 +6,11 @@ self.addEventListener("install", event => {
 });
 
 self.addEventListener("activate", event => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(key => key.startsWith("bb-store-inbox-shell-") && key !== CACHE_NAME).map(key => caches.delete(key))))
+      .then(() => self.clients.claim()),
+  );
 });
 
 self.addEventListener("fetch", event => {
