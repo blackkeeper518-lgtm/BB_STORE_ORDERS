@@ -126,13 +126,15 @@
         .result-item span { color: #8194ac; font-size: 12px; }
         .result-item b { display: inline-block; margin-top: 3px; color: var(--lime); font: 14px var(--mono); overflow-wrap: anywhere; }
         .image-results { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; margin-top: 17px; }
-        .image-card { min-width: 0; overflow: hidden; border: 1px solid rgba(255,66,208,.25); border-radius: 12px; background: rgba(2,7,19,.72); box-shadow: 0 0 20px rgba(255,66,208,.08); }
+        .image-card { position: relative; min-width: 0; overflow: hidden; border: 1px solid rgba(255,66,208,.25); border-radius: 12px; background: rgba(2,7,19,.72); box-shadow: 0 0 20px rgba(255,66,208,.08); }
         .image-card img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; background: #030611; }
         .image-card-body { padding: 10px; }
         .image-card-name { display: block; overflow: hidden; color: #e8f7ff; font: 11px var(--mono); text-overflow: ellipsis; white-space: nowrap; }
         .image-card-url { display: block; margin-top: 5px; overflow: hidden; color: var(--cyan); font: 10px var(--mono); text-overflow: ellipsis; white-space: nowrap; }
         .copy-url { width: 100%; min-height: 32px; margin-top: 8px; padding: 0 9px; border: 1px solid rgba(73,244,255,.3); border-radius: 6px; color: var(--cyan); background: rgba(73,244,255,.06); cursor: pointer; font: 11px var(--thai); }
         .copy-url:hover { border-color: var(--pink); color: white; box-shadow: 0 0 14px rgba(255,66,208,.18); }
+        .remove-image { position: absolute; z-index: 2; top: 7px; right: 7px; width: 28px; height: 28px; border: 1px solid rgba(255,125,157,.65); border-radius: 50%; color: #fff; background: rgba(87,10,44,.88); cursor: pointer; font: 700 16px/1 var(--mono); box-shadow: 0 0 14px rgba(255,66,208,.35); }
+        .remove-image:hover { border-color: #fff; background: #d52f78; transform: scale(1.08); }
         .image-url-import { display: flex; gap: 9px; margin-top: 14px; padding: 12px; border: 1px solid rgba(255,66,208,.16); border-radius: 10px; background: rgba(255,66,208,.035); }
         .image-url-import .field-input { min-width: 0; height: 40px; }
         .image-url-import .btn { flex: 0 0 auto; min-height: 40px; }
@@ -382,6 +384,35 @@
             imageResults.classList.remove('hidden');
             const card = document.createElement('article');
             card.className = 'image-card';
+            const remove = document.createElement('button');
+            remove.type = 'button';
+            remove.className = 'remove-image';
+            remove.title = 'ลบภาพนี้';
+            remove.setAttribute('aria-label', 'ลบภาพนี้');
+            remove.textContent = '×';
+            remove.onclick = async () => {
+                remove.disabled = true;
+                remove.textContent = '…';
+                try {
+                    const marker = '/storage/v1/object/public/warp-images/';
+                    const markerIndex = publicUrl.indexOf(marker);
+                    if (markerIndex >= 0) {
+                        const path = decodeURIComponent(publicUrl.slice(markerIndex + marker.length));
+                        const { error } = await getSupabaseClient().storage.from('warp-images').remove([path]);
+                        if (error) throw error;
+                    }
+                    card.remove();
+                    if (!imageResults.querySelector('.image-card')) imageResults.classList.add('hidden');
+                    statusPanel.classList.remove('hidden');
+                    spinner.classList.add('hidden');
+                    statusText.textContent = '✓ ลบภาพออกแล้ว';
+                    statusText.style.color = 'var(--lime)';
+                } catch (err) {
+                    remove.disabled = false;
+                    remove.textContent = '×';
+                    showSetupError(new Error(`ลบภาพไม่สำเร็จ: ${err?.message || 'ตรวจ Storage policy'}`));
+                }
+            };
             const image = document.createElement('img');
             image.src = publicUrl;
             image.alt = file.name;
@@ -403,7 +434,7 @@
                 window.setTimeout(() => { copy.textContent = 'คัดลอก Public URL'; }, 1600);
             };
             body.append(name, url, copy);
-            card.append(image, body);
+            card.append(remove, image, body);
             imageResults.prepend(card);
         }
         showImageUrlButton.onclick = () => {

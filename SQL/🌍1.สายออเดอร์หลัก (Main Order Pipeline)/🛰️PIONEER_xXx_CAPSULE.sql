@@ -148,6 +148,7 @@ select
   recipient_id,
   expected_cod,
   telegram_bill_header
+  
 from
   "🌌MULTIVERSE_xXx_NEXUS" c
 where
