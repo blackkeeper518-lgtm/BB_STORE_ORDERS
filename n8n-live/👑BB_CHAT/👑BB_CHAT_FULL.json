@@ -665,7 +665,7 @@
     "🌌MERGE_PAGE_CONFIG": [
       [
         {
-          "node": "🌌PREPARE_PROFILE_LOOKUP",
+          "node": "🌌PREPARE_PROFILE_LOOKUP1",
           "type": "main",
           "index": 0
         }
