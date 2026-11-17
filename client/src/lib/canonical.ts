@@ -805,6 +805,7 @@ export function mapChatRowsToThreads(sourceRows: any[]) {
       parcel_status_emoji: row.parcel_status_emoji || null,
       delivery_status: row.delivery_status || null,
       orderTodayActive: false,
+      codSignalCount: 0, codTodaySignalCount: 0, codTodayActive: false,
       trackingAgeMs: null,
     };
     if (isChatRowNewer(row, current._latestSortAtMs, current._latestSortRowId)) {
@@ -828,7 +829,13 @@ export function mapChatRowsToThreads(sourceRows: any[]) {
     if (Number.isFinite(rowBillCount) && rowBillCount > 0) current.orderCount = Math.max(current.orderCount ?? 0, rowBillCount);
     const hasOrderPayload = rowBillCount > 0 || Boolean(String(row.order_number_display ?? row.order_number ?? "").trim());
     if (hasOrderPayload && rowOrderKey && !current.orders.some((order: any) => chatOrderKey(order) === rowOrderKey)) current.orders.push(chatOrderRow(row));
-    current.orderSignals = current.orderCount ?? 0;
+    const isPageCodSignal = row._speaker === "page" && /(?:^|[^A-Z0-9])COD(?:[^A-Z0-9]|$)/i.test(String(row._text ?? ""));
+    if (isPageCodSignal) {
+      current.codSignalCount = (current.codSignalCount ?? 0) + 1;
+      if (isBangkokToday(row._occurred)) current.codTodaySignalCount = (current.codTodaySignalCount ?? 0) + 1;
+      current.codTodayActive = (current.codTodaySignalCount ?? 0) > 0;
+    }
+    current.orderSignals = current.codSignalCount ?? 0;
     for (const [source, target] of [
       ["pager_message_time_th", "pagerMessageTimeTh"], ["upsert_key", "upsert_key"], ["order_number", "order_number"],
       ["order_number_display", "order_number_display"], ["currentThreadTotalBills", "currentThreadTotalBills"], ["order_time", "order_time"], ["order_time_display", "order_time_display"],
