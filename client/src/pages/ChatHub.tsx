@@ -99,9 +99,7 @@ export default function ChatHub() {
   });
   const [statusFilter, setStatusFilter] = useState<"all" | "ordered" | "tracking_over_24h">("all");
   const [replyText, setReplyText] = useState("");
-  const [replyImageUrl, setReplyImageUrl] = useState("");
-  const [replyImageSendUrl, setReplyImageSendUrl] = useState("");
-  const [replyImageFileName, setReplyImageFileName] = useState("");
+  const [replyImages, setReplyImages] = useState<Array<{ url: string; sendUrl: string; name: string }>>([]);
   const [imageUploading, setImageUploading] = useState(false);
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [stickerId, setStickerId] = useState("");
@@ -283,9 +281,7 @@ export default function ChatHub() {
         setOptimisticMessages(current => current.map(message => message.id === optimisticMessageIdRef.current ? { ...message, messageId: result.message_id } : message));
       }
       setReplyText("");
-      setReplyImageUrl("");
-      setReplyImageSendUrl("");
-      setReplyImageFileName("");
+      setReplyImages([]);
       setEmojiPickerOpen(false);
       setStickerId("");
       void Promise.all([messagesQuery.refetch(), threadsQuery.refetch()]);
@@ -380,12 +376,11 @@ export default function ChatHub() {
 
   const sendCurrentReply = () => {
     const text = replyText.trim();
-    const imageUrl = replyImageUrl.trim();
-    if (sendReply.isPending || !selectedPageId || !selectedThreadId || (!text && !imageUrl)) return;
+    if (sendReply.isPending || !selectedPageId || !selectedThreadId || (!text && replyImages.length === 0)) return;
     if (!selectedCustomerId) { setDeliveryStatus("failed"); setReplyNotice("ห้องนี้ยังไม่มี Customer PSID จึงยังส่งข้อความไม่ได้"); return; }
     const optimisticId = `optimistic-${Date.now()}`;
     optimisticMessageIdRef.current = optimisticId;
-    setOptimisticMessages(current => [...current, { id: optimisticId, text: text || "ส่งรูปภาพ", message_text: text, direction: "outbound", senderType: "page", side: "right", occurredAt: new Date().toISOString(), attachmentsJson: imageUrl ? JSON.stringify([{ url: imageUrl }]) : "[]" }]);
+    setOptimisticMessages(current => [...current, { id: optimisticId, text: text || "ส่งรูปภาพ", message_text: text, direction: "outbound", senderType: "page", side: "right", occurredAt: new Date().toISOString(), attachmentsJson: replyImages.length ? JSON.stringify(replyImages.map(image => ({ url: image.url }))) : "[]" }]);
     sendReply.mutate({
       pageId: selectedPageId,
       pageName: selected?.pageName ?? undefined,
@@ -394,32 +389,31 @@ export default function ChatHub() {
       threadId: selectedThreadId,
       recipientId: selectedCustomerId,
       text: text || undefined,
-      imageUrl: imageUrl || undefined,
-      imageSendUrl: replyImageSendUrl || undefined,
+      imageUrls: replyImages.map(image => image.sendUrl || image.url),
     });
   };
-  const handleImageUpload = async (file?: File) => {
-    if (!file) return;
-    const extension = file.type.split("/")[1] || "png";
-    const normalizedFile = file.name ? file : new File([file], `pasted-image-${Date.now()}.${extension}`, { type: file.type });
+  const handleImageUpload = async (input?: File | File[]) => {
+    const files = (Array.isArray(input) ? input : input ? [input] : []).slice(0, 4 - replyImages.length);
+    if (!files.length) { setReplyNotice("แนบภาพได้สูงสุด 4 ภาพต่อข้อความ"); return; }
     const supportedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"] as const;
-    if (!supportedTypes.includes(normalizedFile.type as typeof supportedTypes[number]) || normalizedFile.size > 6_000_000) {
-      setReplyNotice("รองรับ JPG, PNG, GIF หรือ WebP ขนาดไม่เกิน 6 MB");
-      return;
-    }
     const vaultClient = getSupabase("vault");
-    if (!vaultClient) {
-      setReplyNotice("อัปโหลดภาพไม่สำเร็จ: ไม่พบ ROOM 04 · PRIVATE VAULT · กรอก Supabase URL กับ Anon/Publishable Key ก่อน");
-      return;
-    }
+    if (!vaultClient) { setReplyNotice("อัปโหลดภาพไม่สำเร็จ: ไม่พบ ROOM 04 · PRIVATE VAULT · กรอก Supabase URL กับ Anon/Publishable Key ก่อน"); return; }
     setImageUploading(true);
-    setReplyNotice("กำลังอัปโหลดภาพเข้า ROOM 04 · PRIVATE VAULT…");
+    setReplyNotice(`กำลังอัปโหลด ${files.length} ภาพเข้า ROOM 04 · PRIVATE VAULT…`);
+    const uploaded: Array<{ url: string; sendUrl: string; name: string }> = [];
     try {
-      const result = await uploadChatImageToVault(vaultClient, normalizedFile);
-      setReplyImageUrl(result.url);
-      setReplyImageSendUrl(result.url);
-      setReplyImageFileName(normalizedFile.name);
-      setReplyNotice("อัปโหลดภาพสำเร็จ · พร้อมส่งให้ลูกค้า");
+      for (const file of files) {
+        const extension = file.type.split("/")[1] || "png";
+        const normalizedFile = file.name ? file : new File([file], `pasted-image-${Date.now()}-${uploaded.length + 1}.${extension}`, { type: file.type });
+        if (!supportedTypes.includes(normalizedFile.type as typeof supportedTypes[number]) || normalizedFile.size > 6_000_000) {
+          setReplyNotice("รองรับ JPG, PNG, GIF หรือ WebP ขนาดไม่เกิน 6 MB ต่อภาพ");
+          continue;
+        }
+        const result = await uploadChatImageToVault(vaultClient, normalizedFile);
+        uploaded.push({ url: result.url, sendUrl: result.url, name: normalizedFile.name });
+      }
+      setReplyImages(current => [...current, ...uploaded].slice(0, 4));
+      if (uploaded.length) setReplyNotice(`${uploaded.length} ภาพพร้อมส่ง · สูงสุด 4 ภาพต่อข้อความ`);
     } catch (error) {
       setReplyNotice(`อัปโหลดภาพไม่สำเร็จ: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
@@ -427,12 +421,13 @@ export default function ChatHub() {
     }
   };
   const handleComposerPaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
-    const imageItem = Array.from(event.clipboardData.items).find(item => item.kind === "file" && item.type.startsWith("image/"));
-    if (!imageItem) return;
-    const file = imageItem.getAsFile();
-    if (!file) return;
+    const files = Array.from(event.clipboardData.items)
+      .filter(item => item.kind === "file" && item.type.startsWith("image/"))
+      .map(item => item.getAsFile())
+      .filter((file): file is File => Boolean(file));
+    if (!files.length) return;
     event.preventDefault();
-    void handleImageUpload(file);
+    void handleImageUpload(files);
   };
   const addEmoji = (emoji: string) => setReplyText(current => `${current}${current ? " " : ""}${emoji}`);
   const copySummary = async () => {
@@ -445,13 +440,13 @@ export default function ChatHub() {
   const visibleStoredMessages = [...(messagesQuery.data ?? []), ...optimisticMessages].filter(message => { const hasContent = String(message.text ?? "").trim().length > 0 || imageUrls(message.attachmentsJson).length > 0; const matchesFilter = messageFilter === "all" || (messageFilter === "page" ? message.direction === "outbound" : message.direction === "inbound"); return hasContent && matchesFilter; });
 
   const composer = <div className="flex min-h-0 flex-1 flex-col justify-end overflow-hidden border-t border-cyan-300/20 pt-2">
-    <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" className="hidden" onChange={event => { handleImageUpload(event.target.files?.[0]); event.currentTarget.value = ""; }} />
+    <input ref={fileInputRef} type="file" multiple accept="image/jpeg,image/png,image/gif,image/webp" className="hidden" onChange={event => { handleImageUpload(Array.from(event.target.files ?? [])); event.currentTarget.value = ""; }} />
     {emojiPickerOpen ? <div role="group" aria-label="เลือกอีโมจิ" className="mb-2 flex flex-wrap gap-1 rounded-xl border border-cyan-300/15 bg-[#0a111b] p-2">{["😊", "😂", "😍", "🥰", "👍", "🙏", "❤️", "🎉", "📦", "✨"].map(emoji => <button key={emoji} type="button" onClick={() => { addEmoji(emoji); setEmojiPickerOpen(false); }} className="flex h-9 w-9 items-center justify-center rounded-lg text-xl hover:bg-cyan-300/10" aria-label={`เพิ่มอีโมจิ ${emoji}`}>{emoji}</button>)}</div> : null}
     <div className="flex min-w-0 items-end gap-1.5 rounded-xl border border-cyan-300/20 bg-[#0a111b] p-1.5 sm:gap-2 sm:p-2">
-      <Button type="button" aria-label="แนบรูปภาพ" title={imageUploading ? "กำลังอัปโหลด…" : "แนบรูปภาพ"} variant="ghost" onClick={() => fileInputRef.current?.click()} disabled={imageUploading || sendReply.isPending} className="h-10 w-10 shrink-0 rounded-lg p-0 text-cyan-100/75 hover:bg-cyan-300/10 hover:text-cyan-100"><Paperclip className="h-5 w-5" /></Button>
+      <Button type="button" aria-label="แนบรูปภาพ" title={imageUploading ? "กำลังอัปโหลด…" : "แนบรูปภาพ"} variant="ghost" onClick={() => fileInputRef.current?.click()} disabled={imageUploading || sendReply.isPending || replyImages.length >= 4} className="h-10 w-10 shrink-0 rounded-lg p-0 text-cyan-100/75 hover:bg-cyan-300/10 hover:text-cyan-100"><Paperclip className="h-5 w-5" /></Button>
       <Textarea ref={replyTextareaRef} value={replyText} onChange={event => setReplyText(event.target.value)} placeholder={selectedCustomerId ? "พิมพ์ข้อความ…" : "ไม่พบ Customer PSID ของห้องนี้"} disabled={!selectedCustomerId} className="field-sizing-fixed h-20 max-h-[136px] min-h-20 min-w-0 flex-1 resize-none overflow-y-auto border-0 bg-transparent px-2 py-2 text-sm leading-6 text-white placeholder:text-cyan-100/35 focus-visible:ring-0 focus-visible:ring-offset-0" onPaste={handleComposerPaste} onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing && event.nativeEvent.keyCode !== 229) { event.preventDefault(); sendCurrentReply(); } }} />
       <Button type="button" aria-label="เลือกอีโมจิ" title="เลือกอีโมจิ" variant="ghost" aria-expanded={emojiPickerOpen} onClick={() => setEmojiPickerOpen(value => !value)} className="h-10 w-10 shrink-0 rounded-lg p-0 text-cyan-100/75 hover:bg-cyan-300/10 hover:text-cyan-100"><Smile className="h-5 w-5" /></Button>
-      <Button aria-label="ส่งข้อความ" title="ส่งข้อความ" disabled={sendReply.isPending || imageUploading || !selectedCustomerId || (!replyText.trim() && !replyImageUrl.trim())} onClick={sendCurrentReply} className="h-10 min-w-10 shrink-0 rounded-lg bg-gradient-to-br from-cyan-300 to-violet-400 px-3 text-[#07101a] shadow-[0_0_14px_rgba(34,211,238,.22)] transition hover:brightness-110">{sendReply.isPending ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}</Button>
+      <Button aria-label="ส่งข้อความ" title="ส่งข้อความ" disabled={sendReply.isPending || imageUploading || !selectedCustomerId || (!replyText.trim() && replyImages.length === 0)} onClick={sendCurrentReply} className="h-10 min-w-10 shrink-0 rounded-lg bg-gradient-to-br from-cyan-300 to-violet-400 px-3 text-[#07101a] shadow-[0_0_14px_rgba(34,211,238,.22)] transition hover:brightness-110">{sendReply.isPending ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}</Button>
     </div>
   </div>;
 
@@ -465,8 +460,8 @@ export default function ChatHub() {
     </div>
     <div className={`chat-cosmos-composer mt-auto flex shrink-0 flex-col overflow-hidden border-t border-cyan-300/20 bg-gradient-to-b from-[#111326] to-[#090c14] p-3 shadow-[0_-8px_28px_rgba(34,211,238,.05)] sm:p-4 transition-[height] duration-300 ${composerOpen ? "chat-cosmos-composer--open" : "h-12 min-h-12"}`}><div className="mb-2 flex shrink-0 items-center justify-between gap-2 border-b border-fuchsia-500/10 pb-2">
       <div className="flex min-w-0 flex-1 items-center gap-1.5" aria-live="polite">
-        {imageUploading ? <span className="inline-flex min-w-0 items-center gap-1.5 truncate text-[10px] text-cyan-200"><LoaderCircle className="h-3.5 w-3.5 shrink-0 animate-spin" />กำลังอัปโหลดภาพ…</span> : replyImageUrl ? <div className="inline-flex w-fit min-w-0 max-w-[42vw] items-center gap-1 rounded-md border border-cyan-300/20 bg-[#0a111b] px-2 py-1 text-[10px] text-cyan-50 sm:max-w-[320px]"><Paperclip className="h-3.5 w-3.5 shrink-0 text-cyan-200/70" /><span className="min-w-0 max-w-[80px] truncate sm:max-w-[190px]" title={replyImageFileName}>{replyImageFileName || "ไฟล์ภาพ"}</span><span className="shrink-0 whitespace-nowrap text-[9px] text-emerald-300">อัปโหลดแล้ว</span><button type="button" aria-label="เอาภาพออก" onClick={() => { setReplyImageUrl(""); setReplyImageSendUrl(""); setReplyImageFileName(""); }} className="rounded p-0.5 text-cyan-100/55 hover:bg-white/10 hover:text-white"><X className="h-3.5 w-3.5" /></button></div> : <span className="truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-fuchsia-100/45">กล่องตอบแชท</span>}
-        {replyNotice && ((!replyImageUrl && !imageUploading) || deliveryStatus === "failed") ? <span className={`min-w-0 truncate text-[10px] ${deliveryStatus === "sent" ? "text-emerald-300" : deliveryStatus === "failed" ? "text-rose-300" : "text-cyan-200"}`}>{replyNotice}</span> : null}
+        {imageUploading ? <span className="inline-flex min-w-0 items-center gap-1.5 truncate text-[10px] text-cyan-200"><LoaderCircle className="h-3.5 w-3.5 shrink-0 animate-spin" />กำลังอัปโหลดภาพ…</span> : replyImages.length ? <div className="flex min-w-0 max-w-[48vw] items-center gap-1.5 overflow-x-auto sm:max-w-[360px]">{replyImages.map((image, index) => <div key={image.url} className="relative shrink-0"><img src={image.url} alt={`ภาพแนบ ${index + 1}`} className="h-9 w-9 rounded-md border border-cyan-300/25 object-cover" /><button type="button" aria-label={`เอาภาพที่ ${index + 1} ออก`} onClick={() => setReplyImages(current => current.filter((_, imageIndex) => imageIndex !== index))} className="absolute -right-1 -top-1 rounded-full bg-rose-500 px-1 text-[9px] leading-4 text-white">×</button></div>)}<span className="text-[9px] text-emerald-300">{replyImages.length}/4</span></div> : <span className="truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-fuchsia-100/45">กล่องตอบแชท</span>}
+        {replyNotice && ((!replyImages.length && !imageUploading) || deliveryStatus === "failed") ? <span className={`min-w-0 truncate text-[10px] ${deliveryStatus === "sent" ? "text-emerald-300" : deliveryStatus === "failed" ? "text-rose-300" : "text-cyan-200"}`}>{replyNotice}</span> : null}
       </div>
       <div className="flex shrink-0 items-center gap-1">
         {([ ["all", "ทั้งหมด", MessagesSquare], ["customer", "ลูกค้า", UserRound], ["page", "เพจ", Megaphone] ] as const).map(([value, label, Icon]) => <button key={value} type="button" title={label} aria-label={`กรองข้อความ: ${label}`} aria-pressed={messageFilter === value} onClick={() => setMessageFilter(value)} className={`chat-tool-action chat-tool-action--icon ${messageFilter === value ? "chat-tool-action--active" : ""}`}><Icon className="h-4 w-4" /></button>)}

@@ -45,9 +45,7 @@ export default function MobileInbox() {
   const [filter, setFilter] = useState<"all" | "ordered" | "tracking">("all");
   const [openRoom, setOpenRoom] = useState(false);
   const [replyText, setReplyText] = useState("");
-  const [replyImageUrl, setReplyImageUrl] = useState("");
-  const [replyImageSendUrl, setReplyImageSendUrl] = useState("");
-  const [replyImageName, setReplyImageName] = useState("");
+  const [replyImages, setReplyImages] = useState<Array<{ url: string; sendUrl: string; name: string }>>([]);
   const [uploading, setUploading] = useState(false);
   const [notice, setNotice] = useState("");
   const [emojiOpen, setEmojiOpen] = useState(false);
@@ -76,35 +74,46 @@ export default function MobileInbox() {
   const selectedThreadId = selected?.threadId ?? "";
   const selectedCustomerId = selected?.customerId ?? "";
   const messagesQuery = trpc.chat.messages.useQuery({ pageId: selectedPageId, threadId: selectedThreadId }, { enabled: hasConfig && Boolean(selectedPageId && selectedThreadId), staleTime: 0, refetchInterval: hasConfig ? 2_000 : false, select: mapChatRowsToMessages });
-  const sendReply = trpc.chat.sendReply.useMutation({ onSuccess: () => { setReplyText(""); setReplyImageUrl(""); setReplyImageSendUrl(""); setReplyImageName(""); setNotice("ส่งแล้ว"); void Promise.all([messagesQuery.refetch(), threadsQuery.refetch()]); }, onError: error => setNotice(error.message || "ส่งไม่สำเร็จ") });
+  const sendReply = trpc.chat.sendReply.useMutation({ onSuccess: () => { setReplyText(""); setReplyImages([]); setNotice("ส่งแล้ว"); void Promise.all([messagesQuery.refetch(), threadsQuery.refetch()]); }, onError: error => setNotice(error.message || "ส่งไม่สำเร็จ") });
   useEffect(() => { if (!selectedKey && filteredThreads[0]) setSelectedKey(filteredThreads[0].key); }, [filteredThreads, selectedKey]);
   useEffect(() => { if (selectedKey) localStorage.setItem(SELECTED_ROOM_KEY, selectedKey); }, [selectedKey]);
   useEffect(() => { if (!openRoom || !timelineRef.current) return; timelineRef.current.scrollTop = timelineRef.current.scrollHeight; }, [openRoom, selectedKey, messagesQuery.data?.length]);
   const selectRoom = (thread: Thread) => { setSelectedKey(thread.key); setOpenRoom(true); setNotice(""); };
   const handleComposerPaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
-    const imageItem = Array.from(event.clipboardData.items).find(item => item.kind === "file" && item.type.startsWith("image/"));
-    if (!imageItem) return;
-    const file = imageItem.getAsFile();
-    if (!file) return;
+    const files = Array.from(event.clipboardData.items)
+      .filter(item => item.kind === "file" && item.type.startsWith("image/"))
+      .map(item => item.getAsFile())
+      .filter((file): file is File => Boolean(file));
+    if (!files.length) return;
     event.preventDefault();
-    void handleUpload(file);
+    void handleUpload(files);
   };
   const addEmoji = (emoji: string) => setReplyText(value => `${value}${value ? " " : ""}${emoji}`);
-  const handleUpload = async (file?: File) => {
-    if (!file) return;
-    const extension = file.type.split("/")[1] || "png";
-    const normalizedFile = file.name ? file : new File([file], `pasted-image-${Date.now()}.${extension}`, { type: file.type });
-    if (!["image/jpeg", "image/png", "image/gif", "image/webp"].includes(normalizedFile.type) || normalizedFile.size > 6_000_000) { setNotice("รองรับ JPG, PNG, GIF หรือ WebP ไม่เกิน 6 MB"); return; }
+  const handleUpload = async (input?: File | File[]) => {
+    const files = (Array.isArray(input) ? input : input ? [input] : []).slice(0, 4 - replyImages.length);
+    if (!files.length) { setNotice("แนบภาพได้สูงสุด 4 ภาพต่อข้อความ"); return; }
     const vault = getSupabase("vault");
     if (!vault) { setNotice("ยังไม่ได้ตั้งค่า PRIVATE VAULT สำหรับอัปโหลดภาพ"); return; }
-    setUploading(true); setNotice("กำลังอัปโหลดภาพ…");
-    try { const result = await uploadChatImageToVault(vault, normalizedFile); setReplyImageUrl(result.url); setReplyImageSendUrl(result.url); setReplyImageName(normalizedFile.name); setNotice("ภาพพร้อมส่ง"); } catch (error) { setNotice(`อัปโหลดไม่สำเร็จ: ${error instanceof Error ? error.message : String(error)}`); } finally { setUploading(false); }
+    setUploading(true); setNotice(`กำลังอัปโหลด ${files.length} ภาพ…`);
+    const uploaded: Array<{ url: string; sendUrl: string; name: string }> = [];
+    try {
+      for (const file of files) {
+        const extension = file.type.split("/")[1] || "png";
+        const normalizedFile = file.name ? file : new File([file], `pasted-image-${Date.now()}-${uploaded.length + 1}.${extension}`, { type: file.type });
+        if (!["image/jpeg", "image/png", "image/gif", "image/webp"].includes(normalizedFile.type) || normalizedFile.size > 6_000_000) continue;
+        const result = await uploadChatImageToVault(vault, normalizedFile);
+        uploaded.push({ url: result.url, sendUrl: result.url, name: normalizedFile.name });
+      }
+      setReplyImages(current => [...current, ...uploaded].slice(0, 4));
+      if (uploaded.length) setNotice(`${uploaded.length} ภาพพร้อมส่ง · สูงสุด 4 ภาพต่อข้อความ`);
+      else setNotice("รองรับ JPG, PNG, GIF หรือ WebP ขนาดไม่เกิน 6 MB ต่อภาพ");
+    } catch (error) { setNotice(`อัปโหลดไม่สำเร็จ: ${error instanceof Error ? error.message : String(error)}`); } finally { setUploading(false); }
   };
   const send = () => {
     const text = replyText.trim();
-    if (sendReply.isPending || !selectedPageId || !selectedThreadId || (!text && !replyImageUrl)) return;
+    if (sendReply.isPending || !selectedPageId || !selectedThreadId || (!text && replyImages.length === 0)) return;
     if (!selectedCustomerId) { setNotice("ห้องนี้ยังไม่มี Customer PSID"); return; }
-    sendReply.mutate({ pageId: selectedPageId, pageName: selected?.pageName ?? undefined, portalKey: selected?.portalKey ?? undefined, chatLinkKey: selected?.chatLinkKey ?? undefined, threadId: selectedThreadId, recipientId: selectedCustomerId, text: text || undefined, imageUrl: replyImageUrl || undefined, imageSendUrl: replyImageSendUrl || undefined });
+    sendReply.mutate({ pageId: selectedPageId, pageName: selected?.pageName ?? undefined, portalKey: selected?.portalKey ?? undefined, chatLinkKey: selected?.chatLinkKey ?? undefined, threadId: selectedThreadId, recipientId: selectedCustomerId, text: text || undefined, imageUrls: replyImages.map(image => image.sendUrl || image.url) });
   };
   const messages = (messagesQuery.data ?? []).filter(message => messageText(message).trim());
 
@@ -117,6 +126,6 @@ export default function MobileInbox() {
       {!hasConfig ? <div className="mobile-inbox-empty"><MessageCircle /><p>ยังไม่ได้ตั้งค่า Chat ใน ROOM 02</p><button type="button" onClick={() => setLocation("/secret-gallery")}>ไปตั้งค่า</button></div> : threadsQuery.isLoading ? <div className="mobile-inbox-empty"><LoaderCircle className="animate-spin" /><p>กำลังโหลดข้อความ…</p></div> : filteredThreads.length === 0 ? <div className="mobile-inbox-empty"><MessageCircle /><p>ไม่พบห้องแชท</p></div> : <div className="mobile-inbox-threads">{filteredThreads.map(thread => <button type="button" key={thread.key} onClick={() => selectRoom(thread)} className={`mobile-inbox-thread ${selected?.key === thread.key ? "is-selected" : ""}`}><span className="mobile-inbox-avatar">{(thread.customerName || "ลูกค้า").slice(0, 1)}</span><span className="mobile-inbox-thread-body"><span className="mobile-inbox-thread-top"><strong>{thread.customerName || "ลูกค้าใหม่"}</strong><time>{timeLabel(thread.latestAt)}</time></span><span className="mobile-inbox-thread-preview">{thread.preview || "ยังไม่มีข้อความ"}</span><span className="mobile-inbox-thread-tags"><span>{thread.pageName || "ไม่ระบุเพจ"}</span>{thread.unread ? <b>ใหม่</b> : null}{thread.orderCount > 0 ? <b>ออเดอร์</b> : null}</span></span></button>)}</div>}
     </section>
     <nav className="mobile-inbox-bottom-nav"><button type="button" className="is-active"><MessagesSquare /><span>ข้อความ</span></button><button type="button" onClick={() => document.querySelector<HTMLInputElement>(".mobile-inbox-search input")?.focus()}><Search /><span>ค้นหา</span></button></nav>
-    {openRoom && selected ? <div className="mobile-inbox-conversation"><div className="mobile-inbox-conversation-shell"><header className="mobile-inbox-conversation-header"><button type="button" aria-label="กลับไปรายการข้อความ" onClick={() => setOpenRoom(false)}><X /></button><span className="mobile-inbox-avatar">{(selected.customerName || "ลูกค้า").slice(0, 1)}</span><div><strong>{selected.customerName || "ลูกค้าใหม่"}</strong><small>{selected.pageName || "ไม่ระบุเพจ"}</small></div></header><div ref={timelineRef} className="mobile-inbox-timeline">{messages.length ? messages.map(message => { const outgoing = message.direction === "outbound" || message.senderType === "page"; return <div key={message.id} className={`mobile-inbox-message-row ${outgoing ? "is-outgoing" : ""}`}><div className="mobile-inbox-message"><p>{messageText(message)}</p>{imageUrls(message.attachmentsJson).map(url => <img key={url} src={url} alt="รูปภาพจากแชท" />)}<time>{timeLabel(message.occurredAt)}</time></div></div>; }) : <div className="mobile-inbox-empty"><MessageCircle /><p>{selected.preview || "ยังไม่มีข้อความ"}</p></div>}</div><div className="mobile-inbox-composer">{emojiOpen ? <div className="mobile-inbox-emoji">{["😊", "👍", "🙏", "❤️", "📦"].map(emoji => <button type="button" key={emoji} onClick={() => { addEmoji(emoji); setEmojiOpen(false); }}>{emoji}</button>)}</div> : null}{replyImageUrl ? <div className="mobile-inbox-attachment"><Paperclip />{replyImageName}<button type="button" onClick={() => { setReplyImageUrl(""); setReplyImageSendUrl(""); setReplyImageName(""); }}><X /></button></div> : null}{notice ? <div className="mobile-inbox-notice">{notice}</div> : null}<div className="mobile-inbox-compose-row"><input ref={fileRef} hidden type="file" accept="image/jpeg,image/png,image/gif,image/webp" onChange={event => { void handleUpload(event.target.files?.[0]); event.currentTarget.value = ""; }} /><button type="button" aria-label="แนบภาพ" onClick={() => fileRef.current?.click()} disabled={uploading}><Paperclip /></button><Textarea value={replyText} onChange={event => setReplyText(event.target.value)} placeholder="พิมพ์ข้อความ…" disabled={!selectedCustomerId} onPaste={handleComposerPaste} onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); send(); } }} /><button type="button" aria-label="อีโมจิ" onClick={() => setEmojiOpen(value => !value)}><Smile /></button><Button type="button" aria-label="ส่งข้อความ" onClick={send} disabled={sendReply.isPending || uploading || !selectedCustomerId || (!replyText.trim() && !replyImageUrl)}>{sendReply.isPending ? <LoaderCircle className="animate-spin" /> : <Send />}</Button></div></div></div></div> : null}
+    {openRoom && selected ? <div className="mobile-inbox-conversation"><div className="mobile-inbox-conversation-shell"><header className="mobile-inbox-conversation-header"><button type="button" aria-label="กลับไปรายการข้อความ" onClick={() => setOpenRoom(false)}><X /></button><span className="mobile-inbox-avatar">{(selected.customerName || "ลูกค้า").slice(0, 1)}</span><div><strong>{selected.customerName || "ลูกค้าใหม่"}</strong><small>{selected.pageName || "ไม่ระบุเพจ"}</small></div></header><div ref={timelineRef} className="mobile-inbox-timeline">{messages.length ? messages.map(message => { const outgoing = message.direction === "outbound" || message.senderType === "page"; return <div key={message.id} className={`mobile-inbox-message-row ${outgoing ? "is-outgoing" : ""}`}><div className="mobile-inbox-message"><p>{messageText(message)}</p>{imageUrls(message.attachmentsJson).map(url => <img key={url} src={url} alt="รูปภาพจากแชท" />)}<time>{timeLabel(message.occurredAt)}</time></div></div>; }) : <div className="mobile-inbox-empty"><MessageCircle /><p>{selected.preview || "ยังไม่มีข้อความ"}</p></div>}</div><div className="mobile-inbox-composer">{emojiOpen ? <div className="mobile-inbox-emoji">{["😊", "👍", "🙏", "❤️", "📦"].map(emoji => <button type="button" key={emoji} onClick={() => { addEmoji(emoji); setEmojiOpen(false); }}>{emoji}</button>)}</div> : null}{replyImages.length ? <div className="mobile-inbox-attachment">{replyImages.map((image, index) => <span key={image.url} className="relative inline-flex items-center gap-1"><img src={image.url} alt={`ภาพแนบ ${index + 1}`} className="h-10 w-10 rounded-md object-cover" /><button type="button" aria-label={`เอาภาพที่ ${index + 1} ออก`} onClick={() => setReplyImages(current => current.filter((_, imageIndex) => imageIndex !== index))}><X /></button></span>)}<small>{replyImages.length}/4</small></div> : null}{notice ? <div className="mobile-inbox-notice">{notice}</div> : null}<div className="mobile-inbox-compose-row"><input ref={fileRef} hidden multiple type="file" accept="image/jpeg,image/png,image/gif,image/webp" onChange={event => { void handleUpload(Array.from(event.target.files ?? [])); event.currentTarget.value = ""; }} /><button type="button" aria-label="แนบภาพ" onClick={() => fileRef.current?.click()} disabled={uploading || replyImages.length >= 4}><Paperclip /></button><Textarea value={replyText} onChange={event => setReplyText(event.target.value)} placeholder="พิมพ์ข้อความ…" disabled={!selectedCustomerId} onPaste={handleComposerPaste} onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); send(); } }} /><button type="button" aria-label="อีโมจิ" onClick={() => setEmojiOpen(value => !value)}><Smile /></button><Button type="button" aria-label="ส่งข้อความ" onClick={send} disabled={sendReply.isPending || uploading || !selectedCustomerId || (!replyText.trim() && replyImages.length === 0)}>{sendReply.isPending ? <LoaderCircle className="animate-spin" /> : <Send />}</Button></div></div></div></div> : null}
   </main>;
 }
