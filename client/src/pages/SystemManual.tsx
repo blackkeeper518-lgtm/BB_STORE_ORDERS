@@ -7,6 +7,7 @@ import {
   ChevronRight,
   CircleDot,
   Database,
+  Download,
   FileUp,
   KeyRound,
   MessageCircle,
