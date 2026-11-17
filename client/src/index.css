@@ -1221,3 +1221,8 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
   .mobile-inbox-compose-row textarea { min-height:38px; height:38px; padding:8px 9px; border-radius:11px; font-size:15px; }
   .mobile-inbox-compose-row svg { width:17px; height:17px; }
 }
+
+/* Page selector: compact control for the real mobile inbox workflow */
+@media (max-width:767px) {
+  .mobile-inbox-filters select { width:112px; max-width:112px; min-width:112px; padding:0 20px 0 9px; font-size:11px; text-overflow:ellipsis; white-space:nowrap; }
+}
