@@ -133,8 +133,16 @@
         .image-card-url { display: block; margin-top: 5px; overflow: hidden; color: var(--cyan); font: 10px var(--mono); text-overflow: ellipsis; white-space: nowrap; }
         .copy-url { width: 100%; min-height: 32px; margin-top: 8px; padding: 0 9px; border: 1px solid rgba(73,244,255,.3); border-radius: 6px; color: var(--cyan); background: rgba(73,244,255,.06); cursor: pointer; font: 11px var(--thai); }
         .copy-url:hover { border-color: var(--pink); color: white; box-shadow: 0 0 14px rgba(255,66,208,.18); }
-        .remove-image { position: absolute; z-index: 2; top: 7px; right: 7px; width: 28px; height: 28px; border: 1px solid rgba(255,125,157,.65); border-radius: 50%; color: #fff; background: rgba(87,10,44,.88); cursor: pointer; font: 700 16px/1 var(--mono); box-shadow: 0 0 14px rgba(255,66,208,.35); }
+        .image-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+        .image-actions .copy-url { margin-top: 0; }
+        .remove-image { position: absolute; z-index: 2; top: 7px; right: 7px; width: 30px; height: 30px; border: 1px solid rgba(255,125,157,.65); border-radius: 50%; color: #fff; background: rgba(87,10,44,.88); cursor: pointer; font: 700 18px/1 var(--mono); box-shadow: 0 0 14px rgba(255,66,208,.35); }
         .remove-image:hover { border-color: #fff; background: #d52f78; transform: scale(1.08); }
+        .sound-panel { margin-top: 20px; padding: 22px; }
+        .sound-grid { display: grid; grid-template-columns: 1.1fr 1fr 1.2fr; gap: 12px; align-items: end; }
+        .sound-file { display: grid; gap: 7px; }
+        .sound-file input[type=file] { width: 100%; min-height: 42px; padding: 9px; border: 1px dashed rgba(73,244,255,.35); border-radius: 8px; color: #aab9ce; background: rgba(2,6,18,.72); font: 12px var(--mono); }
+        .sound-actions { display: flex; gap: 9px; flex-wrap: wrap; margin-top: 13px; }
+        .sound-note { margin: 11px 0 0; color: #8da2ba; font: 11px var(--mono); }
         .image-url-import { display: flex; gap: 9px; margin-top: 14px; padding: 12px; border: 1px solid rgba(255,66,208,.16); border-radius: 10px; background: rgba(255,66,208,.035); }
         .image-url-import .field-input { min-width: 0; height: 40px; }
         .image-url-import .btn { flex: 0 0 auto; min-height: 40px; }
@@ -151,6 +159,7 @@
             .secure-tag { font-size: 9px; }
             .drop-zone { min-height: 260px; }
             .drop-title { font-size: 20px; }
+            .sound-grid { grid-template-columns: 1fr; }
             .footer { flex-direction: column; text-align: center; }
         }
         @media (max-width: 420px) {
@@ -234,6 +243,44 @@
             <div id="image-results" class="image-results hidden"></div>
         </section>
 
+        <section class="hud-panel sound-panel" aria-labelledby="sound-heading">
+            <div class="panel-heading">
+                <div class="panel-title-wrap">
+                    <div class="panel-icon" aria-hidden="true">♫</div>
+                    <div>
+                        <h2 id="sound-heading">โยนเสียงเข้า SOUND VAULT</h2>
+                        <p>FIXED TABLE // app_sounds · FIXED STORAGE // chat-sounds</p>
+                    </div>
+                </div>
+                <span class="secure-tag">AUDIO DROP</span>
+            </div>
+            <div class="sound-grid">
+                <label>
+                    <span class="field-label">ชื่อเสียง <code>01</code></span>
+                    <input id="sound-name" class="field-input" type="text" maxlength="120" placeholder="เช่น Ragnarok · ปิดยอดสำเร็จ">
+                </label>
+                <label>
+                    <span class="field-label">เหตุการณ์ <code>02</code></span>
+                    <select id="sound-event" class="field-input">
+                        <option value="custom">กำหนดเอง</option>
+                        <option value="new_message">ข้อความใหม่</option>
+                        <option value="message_sent">ส่งสำเร็จ</option>
+                        <option value="message_failed">ส่งไม่สำเร็จ</option>
+                        <option value="new_order">ออเดอร์ใหม่</option>
+                    </select>
+                </label>
+                <label class="sound-file">
+                    <span class="field-label">ไฟล์เสียง <code>03</code></span>
+                    <input id="sound-file" type="file" accept="audio/*">
+                </label>
+            </div>
+            <div class="sound-actions">
+                <button id="save-sound" class="btn btn-primary" type="button">♫ บันทึกเสียงลงโต๊ะ</button>
+                <button id="clear-sound" class="btn btn-quiet" type="button">ล้างไฟล์</button>
+            </div>
+            <p id="sound-status" class="sound-note" aria-live="polite">เลือกไฟล์เสียงไม่เกิน 20 MB แล้วกดบันทึก ระบบจะใช้โต๊ะ app_sounds เท่านั้น</p>
+        </section>
+
         <footer class="footer"><span>WARP DRIVE // PARCEL DATA TRANSMISSION</span><span>SECURE UPLINK · NEBULA SECTOR 07</span></footer>
     </main>
 
@@ -252,6 +299,12 @@
         const keyInput = document.getElementById('supabase-key');
         const imageUrlInput = document.getElementById('image-url-input');
         const showImageUrlButton = document.getElementById('show-image-url');
+        const soundNameInput = document.getElementById('sound-name');
+        const soundEventInput = document.getElementById('sound-event');
+        const soundFileInput = document.getElementById('sound-file');
+        const saveSoundButton = document.getElementById('save-sound');
+        const clearSoundButton = document.getElementById('clear-sound');
+        const soundStatus = document.getElementById('sound-status');
 
         function readSavedConfig() {
             try { return JSON.parse(localStorage.getItem(CONFIG_STORAGE_KEY) || 'null'); }
@@ -380,6 +433,10 @@
         function safeFileName(name) {
             return text(name).normalize('NFKC').replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 120) || 'image';
         }
+        function safeSoundKey(name) {
+            const base = text(name).toLowerCase().normalize('NFKC').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 70);
+            return `warp-${base || 'sound'}-${Date.now()}`;
+        }
         function appendImageResult(file, publicUrl) {
             imageResults.classList.remove('hidden');
             const card = document.createElement('article');
@@ -387,8 +444,8 @@
             const remove = document.createElement('button');
             remove.type = 'button';
             remove.className = 'remove-image';
-            remove.title = 'ลบภาพนี้';
-            remove.setAttribute('aria-label', 'ลบภาพนี้');
+            remove.title = 'ลบภาพนี้จากคลัง';
+            remove.setAttribute('aria-label', 'ลบภาพนี้จากคลัง');
             remove.textContent = '×';
             remove.onclick = async () => {
                 remove.disabled = true;
@@ -405,7 +462,7 @@
                     if (!imageResults.querySelector('.image-card')) imageResults.classList.add('hidden');
                     statusPanel.classList.remove('hidden');
                     spinner.classList.add('hidden');
-                    statusText.textContent = '✓ ลบภาพออกแล้ว';
+                    statusText.textContent = '✓ ลบภาพออกจากคลังแล้ว';
                     statusText.style.color = 'var(--lime)';
                 } catch (err) {
                     remove.disabled = false;
@@ -433,7 +490,21 @@
                 catch { copy.textContent = 'คัดลอกไม่สำเร็จ'; }
                 window.setTimeout(() => { copy.textContent = 'คัดลอก Public URL'; }, 1600);
             };
-            body.append(name, url, copy);
+            const save = document.createElement('button');
+            save.type = 'button';
+            save.className = 'copy-url';
+            save.textContent = 'บันทึก URL ภาพ';
+            save.onclick = async () => {
+                try {
+                    await navigator.clipboard.writeText(publicUrl);
+                    save.textContent = 'บันทึก URL แล้ว ✓';
+                } catch { save.textContent = 'บันทึกไม่สำเร็จ'; }
+                window.setTimeout(() => { save.textContent = 'บันทึก URL ภาพ'; }, 1600);
+            };
+            const actions = document.createElement('div');
+            actions.className = 'image-actions';
+            actions.append(copy, save);
+            body.append(name, url, actions);
             card.append(remove, image, body);
             imageResults.prepend(card);
         }
@@ -462,6 +533,40 @@
             appendImageResult(file, data.publicUrl);
             return data.publicUrl;
         }
+        clearSoundButton.onclick = () => {
+            soundFileInput.value = '';
+            soundNameInput.value = '';
+            soundStatus.textContent = 'ล้างไฟล์แล้ว';
+            soundStatus.style.color = 'var(--muted)';
+        };
+        saveSoundButton.onclick = async () => {
+            const file = soundFileInput.files?.[0];
+            const name = text(soundNameInput.value) || text(file?.name).replace(/\.[^.]+$/, '');
+            if (!file) { soundStatus.textContent = 'กรุณาเลือกไฟล์เสียงก่อนบันทึก'; soundStatus.style.color = '#ff7d9d'; return; }
+            if (!file.type.startsWith('audio/')) { soundStatus.textContent = 'ไฟล์นี้ไม่ใช่ไฟล์เสียง'; soundStatus.style.color = '#ff7d9d'; return; }
+            if (file.size > 20 * 1024 * 1024) { soundStatus.textContent = 'ไฟล์เสียงใหญ่เกิน 20 MB'; soundStatus.style.color = '#ff7d9d'; return; }
+            saveSoundButton.disabled = true;
+            soundStatus.textContent = `กำลังอัปโหลด ${file.name}…`;
+            soundStatus.style.color = '#ffdb76';
+            try {
+                const sb = getSupabaseClient();
+                const path = `warp/${Date.now()}-${crypto.randomUUID?.() || Math.random().toString(36).slice(2)}-${safeFileName(file.name)}`;
+                const { error: uploadError } = await sb.storage.from('chat-sounds').upload(path, file, { upsert: false, contentType: file.type, cacheControl: '3600' });
+                if (uploadError) throw uploadError;
+                const { data: urlData } = sb.storage.from('chat-sounds').getPublicUrl(path);
+                const { error: rowError } = await sb.from('app_sounds').insert({ sound_key: safeSoundKey(name), name, event_type: soundEventInput.value, storage_bucket: 'chat-sounds', storage_path: path, public_url: urlData?.publicUrl || null, mime_type: file.type, is_enabled: true, sort_order: 100 });
+                if (rowError) {
+                    await sb.storage.from('chat-sounds').remove([path]);
+                    throw rowError;
+                }
+                soundStatus.textContent = `✓ บันทึก ${name} ลงโต๊ะ app_sounds สำเร็จ`;
+                soundStatus.style.color = 'var(--lime)';
+                soundFileInput.value = '';
+            } catch (err) {
+                soundStatus.textContent = '✕ บันทึกเสียงไม่สำเร็จ: ' + (err?.message || 'ตรวจ RLS/สิทธิ์ app_sounds');
+                soundStatus.style.color = '#ff7d9d';
+            } finally { saveSoundButton.disabled = false; }
+        };
         async function handleFile(file) {
             if (!file) return;
             statusPanel.classList.remove('hidden');
