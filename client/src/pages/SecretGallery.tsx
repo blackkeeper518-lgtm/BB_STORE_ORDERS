@@ -33,6 +33,7 @@ import {
 } from "react";
 import { useLocation } from "wouter";
 import Prism from "prismjs";
+import { createClient } from "@supabase/supabase-js";
 import "prismjs/components/prism-sql";
 import "prismjs/components/prism-java";
 import "prismjs/components/prism-markdown";
@@ -126,6 +127,11 @@ export default function SecretGallery() {
   const [soundSettings, setSoundSettings] = useState<ChatSoundSettings>(() =>
     readLocal(SOUND_KEY, DEFAULT_SOUND_SETTINGS)
   );
+  const [soundFile, setSoundFile] = useState<File | null>(null);
+  const [soundName, setSoundName] = useState("");
+  const [soundEvent, setSoundEvent] = useState<"new_message" | "message_sent" | "message_failed" | "new_order" | "custom">("custom");
+  const [soundUploadMessage, setSoundUploadMessage] = useState("");
+  const soundFileRef = useRef<HTMLInputElement>(null);
   const [activeId, setActiveId] = useState<string | null>(
     () => readLocal<VaultDoc[]>(DOCS_KEY, [])[0]?.id ?? null
   );
@@ -206,6 +212,32 @@ export default function SecretGallery() {
   useEffect(() => {
     localStorage.setItem(SOUND_KEY, JSON.stringify(soundSettings));
   }, [soundSettings]);
+  const uploadSoundFile = async () => {
+    const file = soundFile;
+    if (!file) { setSoundUploadMessage("เลือกไฟล์เสียงก่อนครับ"); return; }
+    if (!file.type.startsWith("audio/")) { setSoundUploadMessage("รองรับเฉพาะไฟล์เสียงเท่านั้น"); return; }
+    if (file.size > 20_000_000) { setSoundUploadMessage("ไฟล์เสียงต้องไม่เกิน 20 MB"); return; }
+    const browserChat = readBrowserChatConfig();
+    if (!browserChat) { setSoundUploadMessage("กรุณาตั้งค่า Chat URL และ service-role key ใน ROOM 02 ก่อน"); return; }
+    const name = soundName.trim() || file.name.replace(/\.[^.]+$/, "");
+    const safeName = name.toLowerCase().replace(/[^a-z0-9ก-๙]+/gi, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "custom-sound";
+    const extension = file.name.split(".").pop()?.toLowerCase() || "audio";
+    const storagePath = `sounds/${Date.now()}-${safeName}.${extension}`;
+    setSoundUploadMessage("กำลังโยนไฟล์เสียง…");
+    try {
+      const api = createClient(browserChat.url, browserChat.serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
+      const upload = await api.storage.from("chat-sounds").upload(storagePath, file, { contentType: file.type, upsert: false });
+      if (upload.error) throw upload.error;
+      const soundKey = `sound-${safeName}-${Date.now()}`;
+      const insert = await api.from("app_sounds").insert({ sound_key: soundKey, name, description: `อัปโหลดจาก Secret Gallery · ${file.name}`, event_type: soundEvent, storage_bucket: "chat-sounds", storage_path: storagePath, mime_type: file.type, volume: soundSettings.volume, is_enabled: true, sort_order: 100 });
+      if (insert.error) { await api.storage.from("chat-sounds").remove([storagePath]); throw insert.error; }
+      setSoundUploadMessage(`บันทึกแล้ว · ${name}`);
+      setSoundFile(null); setSoundName("");
+      if (soundFileRef.current) soundFileRef.current.value = "";
+    } catch (error) {
+      setSoundUploadMessage(`โยนไฟล์ไม่สำเร็จ: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
   const previewSound = () => {
     if (typeof window === "undefined") return;
     const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
@@ -721,7 +753,7 @@ export default function SecretGallery() {
             <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">{CYBER_THEME_PRESETS.map(preset => <button type="button" key={preset.name} onClick={() => { setCyberTheme(preset); saveCyberTheme(preset); }} className={`rounded-2xl border p-3 text-left transition ${cyberTheme.name === preset.name ? "border-violet-300 bg-violet-400/15 shadow-[0_0_22px_rgba(167,139,250,.22)]" : "border-white/10 bg-black/20 hover:border-cyan-300/40"}`} style={{ background: `linear-gradient(135deg, ${preset.bg}, ${preset.surface})` }}><span className="mb-3 block h-2 rounded-full" style={{ background: `linear-gradient(90deg, ${preset.primary}, ${preset.accent})` }} /><strong className="block truncate text-xs text-white">{preset.name}</strong><small className="mt-1 block text-[10px] text-white/50">{preset.border} · glow {preset.glow}</small>{cyberTheme.name === preset.name ? <Check className="mt-2 h-4 w-4 text-emerald-300" /> : null}</button>)}</CardContent>
           </Card>
         ) : view === "sound" ? (
-          <Card className="neon-card rounded-3xl border-amber-400/20 bg-[#171208]"><CardHeader><CardTitle className="flex items-center gap-2 text-base text-white"><Volume2 className="h-5 w-5 text-amber-300" /> SOUND LAB · เสียงแจ้งเตือนแชท</CardTitle><p className="text-xs leading-5 text-amber-100/60">ตั้งค่าเก็บไว้ในเครื่องนี้ และใช้เป็นค่าเสียงกลางของหน้าแชท</p></CardHeader><CardContent className="grid gap-4 md:grid-cols-[auto_1fr_1fr_auto] md:items-center"><label className="flex items-center gap-2 text-sm text-white"><input type="checkbox" checked={soundSettings.enabled} onChange={event => setSoundSettings(current => ({ ...current, enabled: event.target.checked }))} className="h-4 w-4 accent-amber-500" /> เปิดเสียง</label><label className="grid gap-1 text-xs text-amber-100/60">โทนเสียง<select value={soundSettings.tone} onChange={event => setSoundSettings(current => ({ ...current, tone: event.target.value as ChatSoundSettings["tone"] }))} className="h-9 rounded-lg border border-amber-400/20 bg-[#21170a] px-2 text-sm text-white"><option value="ping">Ping · ใส</option><option value="bell">Bell · กังวาน</option><option value="pop">Pop · สั้น</option></select></label><label className="grid gap-1 text-xs text-amber-100/60">ระดับเสียง · {Math.round(soundSettings.volume * 100)}%<input type="range" min="0.05" max="1" step="0.05" value={soundSettings.volume} onChange={event => setSoundSettings(current => ({ ...current, volume: Number(event.target.value) }))} className="accent-amber-400" /></label><Button type="button" variant="outline" onClick={previewSound} className="border-amber-400/30 text-amber-200"><Volume2 className="mr-2 h-4 w-4" /> ทดสอบเสียง</Button></CardContent></Card>
+          <Card className="neon-card rounded-3xl border-amber-400/20 bg-[#171208]"><CardHeader><CardTitle className="flex items-center gap-2 text-base text-white"><Volume2 className="h-5 w-5 text-amber-300" /> SOUND LAB · เสียงแจ้งเตือนแชท</CardTitle><p className="text-xs leading-5 text-amber-100/60">ตั้งค่าเสียง และโยนไฟล์เสียงจริงเข้า chat-sounds พร้อมสร้างแถว app_sounds อัตโนมัติ</p></CardHeader><CardContent className="grid gap-4"><div className="grid gap-3 md:grid-cols-[auto_1fr_1fr_auto]"><label className="flex items-center gap-2 text-sm text-white"><input type="checkbox" checked={soundSettings.enabled} onChange={event => setSoundSettings(current => ({ ...current, enabled: event.target.checked }))} className="h-4 w-4 accent-amber-500" /> เปิดเสียง</label><label className="grid gap-1 text-xs text-amber-100/60">โทนเสียง<select value={soundSettings.tone} onChange={event => setSoundSettings(current => ({ ...current, tone: event.target.value as ChatSoundSettings["tone"] }))} className="h-9 rounded-lg border border-amber-400/20 bg-[#21170a] px-2 text-sm text-white"><option value="ping">Ping · ใส</option><option value="bell">Bell · กังวาน</option><option value="pop">Pop · สั้น</option></select></label><label className="grid gap-1 text-xs text-amber-100/60">ระดับเสียง · {Math.round(soundSettings.volume * 100)}%<input type="range" min="0.05" max="1" step="0.05" value={soundSettings.volume} onChange={event => setSoundSettings(current => ({ ...current, volume: Number(event.target.value) }))} className="accent-amber-400" /></label><Button type="button" variant="outline" onClick={previewSound} className="border-amber-400/30 text-amber-200"><Volume2 className="mr-2 h-4 w-4" /> ทดสอบเสียง</Button></div><div className="grid gap-3 rounded-2xl border border-amber-300/15 bg-black/20 p-3 md:grid-cols-[1fr_1fr_auto]"><label className="grid gap-1 text-xs text-amber-100/60">ชื่อเสียง<Input value={soundName} onChange={event => setSoundName(event.target.value)} placeholder="เช่น Ragnarok · ปิดยอดสำเร็จ" /></label><label className="grid gap-1 text-xs text-amber-100/60">เหตุการณ์<select value={soundEvent} onChange={event => setSoundEvent(event.target.value as typeof soundEvent)} className="h-10 rounded-lg border border-amber-400/20 bg-[#21170a] px-2 text-sm text-white"><option value="custom">กำหนดเอง</option><option value="new_message">ข้อความใหม่</option><option value="message_sent">ส่งสำเร็จ</option><option value="message_failed">ส่งไม่สำเร็จ</option><option value="new_order">ออเดอร์ใหม่</option></select></label><div className="flex items-end gap-2"><input ref={soundFileRef} hidden type="file" accept="audio/*" onChange={event => setSoundFile(event.target.files?.[0] ?? null)} /><Button type="button" variant="outline" onClick={() => soundFileRef.current?.click()} className="border-cyan-400/30 text-cyan-200">เลือกไฟล์</Button><Button type="button" onClick={() => void uploadSoundFile()} disabled={!soundFile} className="bg-gradient-to-r from-amber-400 to-orange-500 text-black">โยนและบันทึก</Button></div><p className="text-[11px] text-amber-100/60 md:col-span-3">{soundFile ? `ไฟล์ที่เลือก: ${soundFile.name}` : "รองรับไฟล์เสียงไม่เกิน 20 MB"} · {soundUploadMessage}</p></div></CardContent></Card>
         ) : view === "cyber" ? (
           <CyberFrameVault />
         ) : view === "connect" ? (
