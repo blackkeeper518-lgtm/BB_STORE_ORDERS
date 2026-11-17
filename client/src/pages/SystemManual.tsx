@@ -865,6 +865,45 @@ export default function SystemManual() {
           </div>
         </section>
 
+        <section className="mt-8 rounded-[2rem] border border-cyan-300/15 bg-cyan-400/[0.035] p-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <div className="flex items-center gap-3">
+                <Download className="h-5 w-5 text-cyan-300" />
+                <h2 className="text-lg font-semibold text-white">คู่มือแอดมิน · ติดตั้ง BB STORE Inbox เป็นแอป</h2>
+              </div>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300/70">
+                เปิด Mobile Inbox ผ่าน Chrome บน Android หรือ Safari บน iPhone แล้วเพิ่มไว้ที่หน้าจอหลัก
+                ไม่ต้องติดตั้งจาก Play Store หรือ App Store
+              </p>
+            </div>
+            <ToneBadge tone="cyan">PWA · MOBILE INBOX</ToneBadge>
+          </div>
+          <div className="mt-5 grid gap-4 md:grid-cols-3">
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+              <p className="font-semibold text-white">Android · Chrome</p>
+              <p className="mt-2 text-xs leading-5 text-slate-300/65">
+                เปิดลิงก์ → กด “ติดตั้งแอป” หากมีปุ่ม หรือเมนู ⋮ → “ติดตั้งแอป” / “เพิ่มไปยังหน้าจอหลัก”
+              </p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+              <p className="font-semibold text-white">iPhone · Safari</p>
+              <p className="mt-2 text-xs leading-5 text-slate-300/65">
+                เปิดด้วย Safari → Share → “เพิ่มไปยังหน้าจอโฮม” → “เพิ่ม”
+              </p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+              <p className="font-semibold text-white">การใช้งาน</p>
+              <p className="mt-2 text-xs leading-5 text-slate-300/65">
+                เลือกเพจ แตะห้อง ตอบข้อความ ส่งภาพได้สูงสุด 4 ภาพ และใช้ปุ่มย้อนกลับเพื่อกลับหน้ารวม
+              </p>
+            </div>
+          </div>
+          <p className="mt-4 rounded-xl border border-amber-300/15 bg-amber-400/[0.05] p-3 text-xs leading-5 text-amber-100/75">
+            หากไม่เห็นรูปโปรไฟล์ ระบบจะแสดงอักษรแรกของ facebook_name แทนตามข้อมูลจริง ไม่ต้องอัปโหลดรูปแทนลูกค้าเอง
+          </p>
+        </section>
+
         <footer className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 py-5 text-xs text-slate-400/60">
           <span className="flex items-center gap-2">
             <Sparkles className="h-3.5 w-3.5 text-cyan-300" /> DARKSIDE
