@@ -12,7 +12,7 @@ import { CYBER_FRAME_EVENT, CYBER_FRAME_OPTIONS, readCyberFrame, readCyberFrameR
 import { trpc } from "@/lib/trpc";
 import "@/styles/cyber-frames.css";
 import { Check, CheckCircle2, ChevronDown, CircleUserRound, Clipboard, ExternalLink, LoaderCircle, Megaphone, MessageCircle, MessagesSquare, PanelLeft, Paperclip, RefreshCw, Search, Send, Smile, Sparkles, UserRound, Users, Wrench, X } from "lucide-react";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { type ClipboardEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { OrderDeckFrame } from "@/components/chat/OrderDeckFrame";
 import { selectLatestCustomerMessageTexts } from "@/lib/order-deck-context";
@@ -400,8 +400,10 @@ export default function ChatHub() {
   };
   const handleImageUpload = async (file?: File) => {
     if (!file) return;
+    const extension = file.type.split("/")[1] || "png";
+    const normalizedFile = file.name ? file : new File([file], `pasted-image-${Date.now()}.${extension}`, { type: file.type });
     const supportedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"] as const;
-    if (!supportedTypes.includes(file.type as typeof supportedTypes[number]) || file.size > 6_000_000) {
+    if (!supportedTypes.includes(normalizedFile.type as typeof supportedTypes[number]) || normalizedFile.size > 6_000_000) {
       setReplyNotice("รองรับ JPG, PNG, GIF หรือ WebP ขนาดไม่เกิน 6 MB");
       return;
     }
@@ -413,16 +415,24 @@ export default function ChatHub() {
     setImageUploading(true);
     setReplyNotice("กำลังอัปโหลดภาพเข้า ROOM 04 · PRIVATE VAULT…");
     try {
-      const result = await uploadChatImageToVault(vaultClient, file);
+      const result = await uploadChatImageToVault(vaultClient, normalizedFile);
       setReplyImageUrl(result.url);
       setReplyImageSendUrl(result.url);
-      setReplyImageFileName(file.name);
+      setReplyImageFileName(normalizedFile.name);
       setReplyNotice("อัปโหลดภาพสำเร็จ · พร้อมส่งให้ลูกค้า");
     } catch (error) {
       setReplyNotice(`อัปโหลดภาพไม่สำเร็จ: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setImageUploading(false);
     }
+  };
+  const handleComposerPaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
+    const imageItem = Array.from(event.clipboardData.items).find(item => item.kind === "file" && item.type.startsWith("image/"));
+    if (!imageItem) return;
+    const file = imageItem.getAsFile();
+    if (!file) return;
+    event.preventDefault();
+    void handleImageUpload(file);
   };
   const addEmoji = (emoji: string) => setReplyText(current => `${current}${current ? " " : ""}${emoji}`);
   const copySummary = async () => {
@@ -439,7 +449,7 @@ export default function ChatHub() {
     {emojiPickerOpen ? <div role="group" aria-label="เลือกอีโมจิ" className="mb-2 flex flex-wrap gap-1 rounded-xl border border-cyan-300/15 bg-[#0a111b] p-2">{["😊", "😂", "😍", "🥰", "👍", "🙏", "❤️", "🎉", "📦", "✨"].map(emoji => <button key={emoji} type="button" onClick={() => { addEmoji(emoji); setEmojiPickerOpen(false); }} className="flex h-9 w-9 items-center justify-center rounded-lg text-xl hover:bg-cyan-300/10" aria-label={`เพิ่มอีโมจิ ${emoji}`}>{emoji}</button>)}</div> : null}
     <div className="flex min-w-0 items-end gap-1.5 rounded-xl border border-cyan-300/20 bg-[#0a111b] p-1.5 sm:gap-2 sm:p-2">
       <Button type="button" aria-label="แนบรูปภาพ" title={imageUploading ? "กำลังอัปโหลด…" : "แนบรูปภาพ"} variant="ghost" onClick={() => fileInputRef.current?.click()} disabled={imageUploading || sendReply.isPending} className="h-10 w-10 shrink-0 rounded-lg p-0 text-cyan-100/75 hover:bg-cyan-300/10 hover:text-cyan-100"><Paperclip className="h-5 w-5" /></Button>
-      <Textarea ref={replyTextareaRef} value={replyText} onChange={event => setReplyText(event.target.value)} placeholder={selectedCustomerId ? "พิมพ์ข้อความ…" : "ไม่พบ Customer PSID ของห้องนี้"} disabled={!selectedCustomerId} className="field-sizing-fixed h-20 max-h-[136px] min-h-20 min-w-0 flex-1 resize-none overflow-y-auto border-0 bg-transparent px-2 py-2 text-sm leading-6 text-white placeholder:text-cyan-100/35 focus-visible:ring-0 focus-visible:ring-offset-0" onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing && event.nativeEvent.keyCode !== 229) { event.preventDefault(); sendCurrentReply(); } }} />
+      <Textarea ref={replyTextareaRef} value={replyText} onChange={event => setReplyText(event.target.value)} placeholder={selectedCustomerId ? "พิมพ์ข้อความ…" : "ไม่พบ Customer PSID ของห้องนี้"} disabled={!selectedCustomerId} className="field-sizing-fixed h-20 max-h-[136px] min-h-20 min-w-0 flex-1 resize-none overflow-y-auto border-0 bg-transparent px-2 py-2 text-sm leading-6 text-white placeholder:text-cyan-100/35 focus-visible:ring-0 focus-visible:ring-offset-0" onPaste={handleComposerPaste} onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing && event.nativeEvent.keyCode !== 229) { event.preventDefault(); sendCurrentReply(); } }} />
       <Button type="button" aria-label="เลือกอีโมจิ" title="เลือกอีโมจิ" variant="ghost" aria-expanded={emojiPickerOpen} onClick={() => setEmojiPickerOpen(value => !value)} className="h-10 w-10 shrink-0 rounded-lg p-0 text-cyan-100/75 hover:bg-cyan-300/10 hover:text-cyan-100"><Smile className="h-5 w-5" /></Button>
       <Button aria-label="ส่งข้อความ" title="ส่งข้อความ" disabled={sendReply.isPending || imageUploading || !selectedCustomerId || (!replyText.trim() && !replyImageUrl.trim())} onClick={sendCurrentReply} className="h-10 min-w-10 shrink-0 rounded-lg bg-gradient-to-br from-cyan-300 to-violet-400 px-3 text-[#07101a] shadow-[0_0_14px_rgba(34,211,238,.22)] transition hover:brightness-110">{sendReply.isPending ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}</Button>
     </div>
