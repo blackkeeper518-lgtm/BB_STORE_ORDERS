@@ -484,17 +484,13 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "=https://graph.facebook.com/v26.0/{{ $json.customer_id }}/picture",
+        "url": "=https://graph.facebook.com/v26.0/{{ $json.customer_id }}",
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
             {
-              "name": "type",
-              "value": "large"
-            },
-            {
-              "name": "redirect",
-              "value": "false"
+              "name": "fields",
+              "value": "profile_pic"
             },
             {
               "name": "access_token",
