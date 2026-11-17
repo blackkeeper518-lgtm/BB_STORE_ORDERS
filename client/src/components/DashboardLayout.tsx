@@ -17,6 +17,7 @@ import { THEME_LAB_EVENT, prepareThemeCss, readThemeLab, themeRoomFromPath } fro
 
 const menuItems = [
   { icon: MessageCircle, label: "รวมแชทเพจ", path: "/chats" },
+  { icon: MessageCircle, label: "LINE OA · ห้องตอบแชท", path: "/line-chat" },
   { icon: LayoutDashboard, label: "Order Control", path: "/orders" },
   { icon: Truck, label: "แมปเลขพัสดุ", path: "/parcel-mapping" },
   { icon: Database, label: "คู่มือระบบ · System Manual", path: "/system-manual" },

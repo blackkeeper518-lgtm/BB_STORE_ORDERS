@@ -33,7 +33,6 @@ import {
 } from "react";
 import { useLocation } from "wouter";
 import Prism from "prismjs";
-import { createClient } from "@supabase/supabase-js";
 import "prismjs/components/prism-sql";
 import "prismjs/components/prism-java";
 import "prismjs/components/prism-markdown";
@@ -217,15 +216,16 @@ export default function SecretGallery() {
     if (!file) { setSoundUploadMessage("เลือกไฟล์เสียงก่อนครับ"); return; }
     if (!file.type.startsWith("audio/")) { setSoundUploadMessage("รองรับเฉพาะไฟล์เสียงเท่านั้น"); return; }
     if (file.size > 20_000_000) { setSoundUploadMessage("ไฟล์เสียงต้องไม่เกิน 20 MB"); return; }
-    const browserChat = readBrowserChatConfig();
-    if (!browserChat) { setSoundUploadMessage("กรุณาตั้งค่า Chat URL และ service-role key ใน ROOM 02 ก่อน"); return; }
+    const assets = getSupabaseConfig(camp, "vault");
+    if (!assets) { setSoundUploadMessage("กรุณาตั้งค่า Private Vault URL และ Anon/Publishable Key ใน ROOM 04 ก่อน"); return; }
+    const api = getSupabase("vault");
+    if (!api) { setSoundUploadMessage("สร้าง Assets Supabase client ไม่สำเร็จ"); return; }
     const name = soundName.trim() || file.name.replace(/\.[^.]+$/, "");
     const safeName = name.toLowerCase().replace(/[^a-z0-9ก-๙]+/gi, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "custom-sound";
     const extension = file.name.split(".").pop()?.toLowerCase() || "audio";
     const storagePath = `sounds/${Date.now()}-${safeName}.${extension}`;
     setSoundUploadMessage("กำลังโยนไฟล์เสียง…");
     try {
-      const api = createClient(browserChat.url, browserChat.serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
       const upload = await api.storage.from("chat-sounds").upload(storagePath, file, { contentType: file.type, upsert: false });
       if (upload.error) throw upload.error;
       const soundKey = `sound-${safeName}-${Date.now()}`;
@@ -346,7 +346,7 @@ export default function SecretGallery() {
       if (!api) throw new Error("สร้าง Private Vault Supabase client ไม่สำเร็จ");
       const { error: authError } = await api.auth.getSession();
       if (authError) throw authError;
-      setVaultMessage("เชื่อมต่อแล้ว · ใช้ sales_script_cards + sales-script-images");
+      setVaultMessage("เชื่อมต่อแล้ว · ใช้ sales_script_cards + sales-script-images + app_sounds + chat-sounds");
     } catch (e) {
       setVaultMessage(e instanceof Error ? e.message : String(e));
     } finally {
