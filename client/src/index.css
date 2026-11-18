@@ -1560,3 +1560,8 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .mobile-inbox-conversation-header { flex: 0 0 auto; }
 .mobile-inbox-timeline { min-height: 0; height: auto; overscroll-behavior: contain; overflow-anchor: none; scroll-behavior: auto; touch-action: pan-y; -webkit-overflow-scrolling: touch; }
 .mobile-inbox-composer { flex: 0 0 auto; }
+
+.mobile-inbox-drawer-link { display:flex; align-items:center; gap:13px; width:100%; padding:15px 14px; border:1px solid color-mix(in srgb,var(--mobile-accent) 30%,transparent); border-radius:14px; background:linear-gradient(115deg,color-mix(in srgb,var(--mobile-accent) 13%,var(--mobile-surface)),color-mix(in srgb,var(--mobile-primary) 10%,var(--mobile-surface))); color:var(--mobile-text); text-decoration:none; box-shadow:0 0 18px color-mix(in srgb,var(--mobile-accent) 9%,transparent); }
+.mobile-inbox-drawer-link svg { width:20px; flex:none; color:var(--mobile-accent); }
+.mobile-inbox-drawer-link span { font-weight:700; }
+.mobile-inbox-drawer-link small { margin-left:auto; color:var(--mobile-muted); font-size:9px; }
