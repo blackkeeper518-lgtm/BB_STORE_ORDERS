@@ -1364,7 +1364,7 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
   box-shadow:0 12px 28px rgba(0,0,0,.28), inset 0 -1px 0 color-mix(in srgb, var(--depth-accent) 22%, transparent);
 }
 .mobile-inbox-page.mobile-inbox-themed .mobile-inbox-header::before {
-  content:"S";
+  content:"BB";
   position:absolute;
   left:18px;
   top:23px;
