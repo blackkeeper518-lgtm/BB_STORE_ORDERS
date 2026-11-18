@@ -1547,3 +1547,9 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 @keyframes theme-drawer-in { from { transform: translateX(100%); opacity: .4; } to { transform: translateX(0); opacity: 1; } }
 @media (max-width: 767px) { .theme-studio-drawer { top: 48px; width: 100vw; border-radius: 18px 0 0 0 !important; } .theme-studio-drawer .grid.gap-2.sm\\:grid-cols-2.lg\\:grid-cols-4 { grid-template-columns: repeat(2,minmax(0,1fr)); } .theme-card-preview { height: 112px; } }
 @media (prefers-reduced-motion: reduce) { .theme-studio-drawer { animation: none; } }
+
+/* Theme cards carry their own readable live-chat composition. */
+.theme-studio-card { min-height: 335px; }
+.theme-card-preview { height: 178px; border-color: rgba(255,79,154,.32); box-shadow: inset 0 0 22px rgba(255,49,87,.08); }
+.theme-card-preview-inner { transform: scale(.72); width: 138.9%; min-height: 248px !important; }
+@media (max-width: 767px) { .theme-studio-card { min-height: 300px; } .theme-card-preview { height: 158px; } .theme-card-preview-inner { transform: scale(.64); width: 156.25%; } }
