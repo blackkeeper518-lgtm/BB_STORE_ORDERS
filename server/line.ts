@@ -110,11 +110,11 @@ export async function fetchLineConversations(credentials?: ChatSupabaseCredentia
   return conversations.sort((a, b) => String(b.latestAt || "").localeCompare(String(a.latestAt || "")));
 }
 
-export async function fetchLineMessages(conversationId: string, lineUser: string, oa: string, credentials?: ChatSupabaseCredentials): Promise<LineMessage[]> {
+export async function fetchLineMessages(conversationKey: string, lineUser: string, oa: string, credentials?: ChatSupabaseCredentials): Promise<LineMessage[]> {
   const query = new URLSearchParams({ select: "*", line_user_id: `eq.${lineUser}`, order: "created_at.asc", limit: "1000" });
   if (oa) query.set("destination", `eq.${oa}`);
   const rows = await supabaseGet<Array<Record<string, unknown>>>(`line_messages?${query.toString()}`, "chat", credentials);
-  return rows.map((row, index) => ({ id: text(row.id || row.line_message_id || row.event_id || `${conversationId}-${index}`), lineUserId: userId(row), conversationId: conversationId(row), oaId: oaId(row), text: messageText(row), direction: direction(row), messageType: text(row.message_type || row.type || "text"), occurredAt: timestamp(row), messageId: text(row.line_message_id || row.message_id || row.event_id) || null }));
+  return rows.map((row, index) => ({ id: text(row.id || row.line_message_id || row.event_id || `${conversationKey}-${index}`), lineUserId: userId(row), conversationId: conversationId(row), oaId: oaId(row), text: messageText(row), direction: direction(row), messageType: text(row.message_type || row.type || "text"), occurredAt: timestamp(row), messageId: text(row.line_message_id || row.message_id || row.event_id) || null }));
 }
 
 export async function sendLineText(lineUserId: string, message: string, oa: string | undefined, credentials?: ChatSupabaseCredentials) {
