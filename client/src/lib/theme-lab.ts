@@ -43,6 +43,7 @@ const CYBER_THEME_COLORS = [
   ["Amber Command", "#191409", "#2b2515", "#ffca63", "#d0ff7b", "อำพัน × ไลม์"], ["Frost Mint", "#0a1815", "#142923", "#a2ffde", "#9fc7ff", "มิ้นต์ × ฟรอสต์"],
   ["Ultraviolet Wave", "#120d23", "#211832", "#dbacff", "#ff8be3", "อัลตราไวโอเลต × ชมพู"], ["Inferno Signal", "#190d0e", "#2c171b", "#ff8872", "#ffc56b", "คอรัล × เปลวไฟ"],
   ["Silver Circuit", "#0d1420", "#1b2735", "#d7eaff", "#82dfff", "เงิน × ไอซ์บลู"], ["Galaxy Spectrum", "#100d20", "#1d1933", "#97eaff", "#ff9cdb", "กาแล็กซี × แมเจนตา"],
+  ["Meta Monochrome", "#f5f5f5", "#ffffff", "#111111", "#65676b", "ขาวดำแบบ Meta"], ["Black Plain", "#050505", "#111111", "#f5f5f5", "#777777", "ดำเรียบ"],
 ] as const;
 export const CYBER_THEME_PRESETS: CyberTheme[] = CYBER_THEME_COLORS.map(([name, bg, surface, primary, accent], preset) => ({ version: 1, preset, name, bg, surface, primary, accent, border: "gradient", button: "solid", radius: 16, glow: 12, motion: true }));
 export const DEFAULT_CYBER_THEME = CYBER_THEME_PRESETS[0];

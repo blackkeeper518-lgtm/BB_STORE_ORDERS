@@ -6,7 +6,7 @@ import { uploadChatImageToVault } from "@/lib/chat-image-upload";
 import { CHAT_BROWSER_CONFIG_EVENT, readBrowserChatConfig } from "@/lib/chat-config";
 import { CYBER_FRAME_EVENT, CYBER_FRAME_OPTIONS, readCyberFrame, readCyberFrameRooms, saveCyberFrameRoom } from "@/lib/cyber-frame";
 import { CYBER_THEME_PRESETS, readCyberTheme, saveCyberTheme, type CyberTheme } from "@/lib/theme-lab";
-import { CHAT_NOTIFICATION_EVENT, countUnreadChatMessages, playChatNotificationSound, readChatNotificationState, reconcileChatNotificationRows, unlockChatNotificationAudio, writeChatNotificationState, type ChatNotification } from "@/lib/chat-notifications";
+import { CHAT_NOTIFICATION_EVENT, countUnreadChatMessages, playChatNotificationSound, readChatNotificationState, reconcileChatNotificationRows, setChatNotificationSound, unlockChatNotificationAudio, writeChatNotificationState, type ChatNotification } from "@/lib/chat-notifications";
 import { trpc } from "@/lib/trpc";
 import { Bell, Check, Download, Facebook, LoaderCircle, Menu, MessageCircle, MessagesSquare, Palette, Paperclip, Search, Send, Smile, Volume2, X } from "lucide-react";
 import { type ClipboardEvent, useEffect, useMemo, useRef, useState } from "react";
@@ -66,6 +66,8 @@ export default function MobileInbox() {
   const [cyberFrame, setCyberFrame] = useState(() => readCyberFrame());
   const [cyberFrameRooms, setCyberFrameRooms] = useState(() => readCyberFrameRooms());
   const [frameOptions, setFrameOptions] = useState<Array<{ id: string; name: string }>>(CYBER_FRAME_OPTIONS.map(option => ({ id: option.id, name: option.name })));
+  const [soundOptions, setSoundOptions] = useState<Array<{ key: string; name: string; volume: number }>>([]);
+  const [selectedSoundKey, setSelectedSoundKey] = useState(() => { try { return typeof window === "undefined" ? "" : JSON.parse(window.localStorage.getItem("nightops-chat-sound-v1") || "{}").soundKey || ""; } catch { return ""; } });
   const [framePickerOpen, setFramePickerOpen] = useState(false);
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
   const [orderUnreadCount, setOrderUnreadCount] = useState(0);
@@ -109,6 +111,18 @@ export default function MobileInbox() {
       if (next.length) setFrameOptions(next);
     };
     void loadFrames();
+    return () => { cancelled = true; };
+  }, []);
+  useEffect(() => {
+    let cancelled = false;
+    const loadSounds = async () => {
+      const api = getSupabase("vault");
+      if (!api) return;
+      const result = await api.from("app_sounds").select("sound_key,name,volume,is_enabled").eq("is_enabled", true).order("sort_order", { ascending: true });
+      if (cancelled || result.error || !Array.isArray(result.data)) return;
+      setSoundOptions(result.data.map(row => ({ key: String(row.sound_key ?? ""), name: String(row.name ?? row.sound_key ?? "เสียงแจ้งเตือน"), volume: Number(row.volume) || 0.35 })).filter(row => row.key));
+    };
+    void loadSounds();
     return () => { cancelled = true; };
   }, []);
   useEffect(() => {
@@ -322,10 +336,10 @@ export default function MobileInbox() {
     {drawerOpen ? <><button type="button" aria-label="ปิดเมนู" className="mobile-inbox-drawer-scrim" onClick={() => setDrawerOpen(false)} /><aside className="mobile-inbox-drawer"><div className="mobile-inbox-drawer-head"><strong>เมนูจัดการแชท</strong><button type="button" onClick={() => setDrawerOpen(false)}><X /></button></div><button type="button" onClick={() => openCustomizer("theme")}><Palette /><span>ธีม</span></button><button type="button" onClick={() => openCustomizer("frame")}><MessagesSquare /><span>กรอบแชท</span></button><button type="button" onClick={() => openCustomizer("sound")}><Volume2 /><span>เสียง</span></button></aside></> : null}
     {customPanel === "theme" ? <section className="mobile-inbox-custom-panel"><div className="mobile-inbox-theme-panel-head"><div><strong>ธีมแอป</strong><small>เลือกแล้วเห็นผลทันที</small></div><button type="button" onClick={() => setCustomPanel(null)}><X /></button></div><div className="mobile-inbox-theme-grid">{CYBER_THEME_PRESETS.map(preset => <button type="button" key={preset.name} className={`mobile-inbox-theme-swatch ${cyberTheme.name === preset.name ? "is-active" : ""}`} style={{ "--swatch-bg": preset.bg, "--swatch-primary": preset.primary, "--swatch-accent": preset.accent } as React.CSSProperties} onClick={() => chooseTheme(preset)}><span className="mobile-inbox-theme-swatch-light" /><span>{preset.name}</span>{cyberTheme.name === preset.name ? <Check /> : null}</button>)}</div></section> : null}
     {customPanel === "frame" ? <section className="mobile-inbox-custom-panel"><div className="mobile-inbox-theme-panel-head"><div><strong>กรอบแชท</strong><small>พรีวิว · กดเพื่อใช้เป็นกรอบหลัก</small></div><button type="button" onClick={() => setCustomPanel(null)}><X /></button></div><div className="mobile-inbox-frame-grid">{frameOptions.map(option => <button type="button" key={option.id} onClick={() => { saveCyberFrameRoom("__default__", option.id); setCyberFrame(option.id); setCustomPanel(null); }} className={`mobile-inbox-frame-preview cyber-frame-card cyber-frame-${option.id} ${cyberFrame === option.id ? "is-active" : ""}`}><strong>{option.name}</strong><small>{option.id.toUpperCase()}</small></button>)}</div></section> : null}
-    {customPanel === "sound" ? <section className="mobile-inbox-custom-panel mobile-inbox-sound-panel"><div className="mobile-inbox-theme-panel-head"><div><strong>เสียงแจ้งเตือน</strong><small>เสียงที่เลือกจาก Secret Gallery · ROOM 04</small></div><button type="button" onClick={() => setCustomPanel(null)}><X /></button></div><Volume2 className="mx-auto my-4 h-12 w-12 text-[var(--mobile-primary)]" /><p>ทดลองเสียงแจ้งเตือนข้อความใหม่ได้จากปุ่มด้านล่าง</p><button type="button" className="mobile-inbox-sound-test" onClick={() => { void unlockChatNotificationAudio(); playChatNotificationSound(); }}>ทดลองเล่นเสียง</button></section> : null}
+    {customPanel === "sound" ? <section className="mobile-inbox-custom-panel mobile-inbox-sound-panel"><div className="mobile-inbox-theme-panel-head"><div><strong>เสียงแจ้งเตือน</strong><small>เสียงที่เลือกจาก Secret Gallery · ROOM 04</small></div><button type="button" onClick={() => setCustomPanel(null)}><X /></button></div><Volume2 className="mx-auto my-4 h-12 w-12 text-[var(--mobile-primary)]" /><p>เลือกเสียงแจ้งเตือนจาก ROOM 04</p><select className="mobile-inbox-sound-select" value={selectedSoundKey} onChange={event => { const option = soundOptions.find(item => item.key === event.target.value); setSelectedSoundKey(event.target.value); setChatNotificationSound(event.target.value, option?.volume); }}><option value="">เสียงเริ่มต้น</option>{soundOptions.map(option => <option key={option.key} value={option.key}>{option.name} · {option.key}</option>)}</select><button type="button" className="mobile-inbox-sound-test" onClick={() => { void unlockChatNotificationAudio(); playChatNotificationSound(); }}>ทดลองเล่นเสียง</button></section> : null}
     <div className="mobile-inbox-tabs"><button type="button" className="platform-facebook is-active" aria-label={`Facebook ${filteredThreads.length} ห้อง`}><Facebook /><span>Facebook</span><b className="mobile-inbox-tab-count">{filteredThreads.length}</b></button><button type="button" className="platform-line" onClick={() => setPlatform("line")} aria-label={`LINE ${lineConversationsQuery.data?.length ?? 0} ห้อง`}><MessageCircle /><span>LINE</span><b className="mobile-inbox-tab-count">{lineConversationsQuery.data?.length ?? 0}</b></button></div>
     <section className="mobile-inbox-list-panel">
-      <div className="mobile-inbox-search"><Search /><Input value={search} onChange={event => setSearch(event.target.value)} placeholder="ค้นหาชื่อลูกค้าหรือข้อความ…" /></div>
+      <div className={`mobile-inbox-search cyber-frame-card cyber-frame-${cyberFrame}`}><Search /><Input value={search} onChange={event => setSearch(event.target.value)} placeholder="ค้นหาชื่อลูกค้าหรือข้อความ…" /></div>
       <div className="mobile-inbox-filters"><select aria-label="เลือกเพจ" value={pageFilter} onChange={event => setPageFilter(event.target.value)}><option value="all">ทุกเพจ</option>{availablePages.map(([pageId, pageName]) => <option key={pageId} value={pageId}>{pageName}</option>)}</select>{([ ["all", "ทั้งหมด"], ["ordered", "ออเดอร์"], ["tracking", "เลขพัสดุ"] ] as const).map(([value, label]) => <button key={value} type="button" className={filter === value ? "is-active" : ""} onClick={() => setFilter(value)}>{label}</button>)}</div>
       {!hasConfig ? <div className="mobile-inbox-empty"><MessageCircle /><p>ยังไม่ได้ตั้งค่า Chat ใน ROOM 02</p><button type="button" onClick={() => setLocation("/secret-gallery")}>ไปตั้งค่า</button></div> : threadsQuery.isLoading ? <div className="mobile-inbox-empty"><LoaderCircle className="animate-spin" /><p>กำลังโหลดข้อความ…</p></div> : filteredThreads.length === 0 ? <div className="mobile-inbox-empty"><MessageCircle /><p>ไม่พบห้องแชท</p></div> : <div className="mobile-inbox-threads">{filteredThreads.map(thread => <button type="button" key={thread.key} onClick={() => selectRoom(thread)} className={`mobile-inbox-thread ${selected?.key === thread.key ? "is-selected" : ""}`}><span className="mobile-inbox-avatar">{profileAvatar(thread)}</span><span className="mobile-inbox-thread-body"><span className="mobile-inbox-thread-top"><strong>{thread.customerName || ""}</strong><time>{timeLabel(thread.latestAt)}</time></span><span className="mobile-inbox-thread-preview">{thread.preview || "ยังไม่มีข้อความ"}</span><span className="mobile-inbox-thread-tags"><span>{thread.pageName || "ไม่ระบุเพจ"}</span>{thread.unread ? <b>ใหม่</b> : null}{thread.orderCount > 0 ? <b>ออเดอร์</b> : null}</span></span></button>)}</div>}
     </section>
