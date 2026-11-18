@@ -1577,3 +1577,17 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .mobile-inbox-drawer-link span { font-size:15px; }
 .mobile-inbox-drawer-link small { font-size:10px; }
 @media (max-width: 480px) { .mobile-inbox-drawer { width:100vw; } }
+
+/* Final chat menu behavior: original compact size, fixed above every scroll layer. */
+.mobile-inbox-drawer-scrim { position: fixed !important; z-index: 9990 !important; inset: 0; }
+.mobile-inbox-drawer { position: fixed !important; z-index: 9991 !important; top: 0; bottom: 0; left: 0; width: min(88vw,360px); padding: calc(env(safe-area-inset-top) + 18px) 16px 20px; border-right-width: 1px; border-radius: 0; box-shadow: 16px 0 40px rgba(0,0,0,.45); }
+.mobile-inbox-drawer::before { display: none; }
+.mobile-inbox-drawer-head { min-height: 0; margin-bottom: 16px; padding: 0; border-bottom: 0; font-size: 17px; letter-spacing: normal; }
+.mobile-inbox-drawer-head button { width: 34px; height: 34px; border: 0; }
+.mobile-inbox-drawer > button, .mobile-inbox-drawer-link { min-height: 0; padding: 15px 14px; border-radius: 14px; }
+.mobile-inbox-drawer > button { font-size: inherit; }
+.mobile-inbox-drawer > button svg, .mobile-inbox-drawer-link svg { width: 20px; height: 20px; }
+.mobile-inbox-drawer-link span { font-size: inherit; }
+.mobile-inbox-drawer-link small { font-size: 9px; }
+.mobile-inbox-page.mobile-inbox-themed > .mobile-inbox-header,
+.mobile-inbox-page.mobile-inbox-themed > .mobile-inbox-tabs { flex: 0 0 auto; position: relative; z-index: 2; }
