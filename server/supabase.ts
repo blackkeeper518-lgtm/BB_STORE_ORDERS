@@ -107,27 +107,30 @@ function isChatStatusEnabled(value: unknown) {
 function effectiveWebStatus(row: Record<string, unknown>) {
   return Object.prototype.hasOwnProperty.call(row, "status_web") && String(row.status_web ?? "").trim() ? row.status_web : row.status;
 }
-async function getActiveChatPageIds(credentials?: ChatSupabaseCredentials) {
+function effectiveChatStatus(row: Record<string, unknown>, surface: "web" | "mobile") {
+  return surface === "mobile" ? row.status : effectiveWebStatus(row);
+}
+async function getActiveChatPageIds(credentials?: ChatSupabaseCredentials, surface: "web" | "mobile" = "web") {
   const query = new URLSearchParams({ select: "page_id,status,status_web", limit: "5000" });
   const rows = await supabaseGet<Array<Record<string, unknown>>>(`${encodeURIComponent(CHAT_PAGE_TOKEN_TABLE)}?${query.toString()}`, "chat", credentials);
   if (!rows.some(row => Object.prototype.hasOwnProperty.call(row, "status_web") || Object.prototype.hasOwnProperty.call(row, "status"))) return null;
-  return new Set(rows.filter(row => isChatStatusEnabled(effectiveWebStatus(row))).map(row => String(row.page_id ?? "").trim()).filter(Boolean));
+  return new Set(rows.filter(row => isChatStatusEnabled(effectiveChatStatus(row, surface))).map(row => String(row.page_id ?? "").trim()).filter(Boolean));
 }
 export async function fetchChatPages(credentials?: ChatSupabaseCredentials) {
   const query = new URLSearchParams({ select: "page_id,page_name,status,status_web", order: "page_name.asc", limit: "5000" });
   const rows = await supabaseGet<Array<Record<string, unknown>>>(`${encodeURIComponent(CHAT_PAGE_TOKEN_TABLE)}?${query.toString()}`, "chat", credentials);
-  return rows.map(row => ({ pageId: String(row.page_id ?? "").trim(), pageName: String(row.page_name ?? "ไม่ระบุเพจ").trim() || "ไม่ระบุเพจ", status: row.status ?? null, statusWeb: row.status_web ?? row.status ?? null, enabledWeb: isChatStatusEnabled(effectiveWebStatus(row)) })).filter(row => row.pageId);
+  return rows.map(row => ({ pageId: String(row.page_id ?? "").trim(), pageName: String(row.page_name ?? "ไม่ระบุเพจ").trim() || "ไม่ระบุเพจ", status: row.status ?? null, statusWeb: row.status_web ?? row.status ?? null, enabledMobile: isChatStatusEnabled(row.status), enabledWeb: isChatStatusEnabled(effectiveWebStatus(row)) })).filter(row => row.pageId);
 }
 export async function setChatPageWebStatus(pageId: string, enabled: boolean, credentials?: ChatSupabaseCredentials) {
   const query = `${encodeURIComponent(CHAT_PAGE_TOKEN_TABLE)}?page_id=eq.${encodeURIComponent(pageId)}`;
   return supabasePatch<Array<Record<string, unknown>>>(query, { status_web: enabled ? "ON" : "OFF" }, "chat", credentials);
 }
-export async function assertChatPageEnabled(pageId: string, credentials?: ChatSupabaseCredentials) {
-  const activeIds = await getActiveChatPageIds(credentials);
+export async function assertChatPageEnabled(pageId: string, credentials?: ChatSupabaseCredentials, surface: "web" | "mobile" = "web") {
+  const activeIds = await getActiveChatPageIds(credentials, surface);
   if (activeIds && !activeIds.has(pageId.trim())) throw new Error("เพจนี้ถูกปิดใช้งานโดยผู้ดูแลระบบ");
 }
-export async function fetchChatThreadRows(credentials?: ChatSupabaseCredentials) {
-  const [rows, activeIds] = await Promise.all([fetchChatRows({}, credentials), getActiveChatPageIds(credentials)]);
+export async function fetchChatThreadRows(credentials?: ChatSupabaseCredentials, surface: "web" | "mobile" = "web") {
+  const [rows, activeIds] = await Promise.all([fetchChatRows({}, credentials), getActiveChatPageIds(credentials, surface)]);
   return activeIds ? rows.filter(row => activeIds.has(String(row.page_id ?? "").trim())) : rows;
 }
 export async function fetchChatNotificationRows(afterRowId: string | null, credentials?: ChatSupabaseCredentials) {
@@ -163,8 +166,8 @@ export async function fetchChatNotificationRows(afterRowId: string | null, crede
   const cursorRowId = String(rows[rows.length - 1]?.message_row_id ?? afterRowId);
   return { rows, cursorRowId };
 }
-export async function fetchChatMessageRows(input: { pageId: string; threadId: string }, credentials?: ChatSupabaseCredentials) {
-  await assertChatPageEnabled(input.pageId, credentials);
+export async function fetchChatMessageRows(input: { pageId: string; threadId: string }, credentials?: ChatSupabaseCredentials, surface: "web" | "mobile" = "web") {
+  await assertChatPageEnabled(input.pageId, credentials, surface);
   return fetchChatRows({ pageId: input.pageId, threadId: input.threadId }, credentials, true);
 }
 const CHAT_CONNECTION_CHECKS = [

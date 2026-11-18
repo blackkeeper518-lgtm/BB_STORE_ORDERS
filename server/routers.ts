@@ -54,12 +54,12 @@ export const appRouter = router({
     connection: publicProcedure.query(({ ctx }) => checkChatConnection(requireBrowserChatConfig(ctx))),
     pages: protectedProcedure.query(({ ctx }) => fetchChatPages(requireBrowserChatConfig(ctx))),
     setPageWebStatus: protectedProcedure.input(z.object({ pageId: z.string().min(1), enabled: z.boolean() })).mutation(({ input, ctx }) => setChatPageWebStatus(input.pageId, input.enabled, requireBrowserChatConfig(ctx))),
-    threads: protectedProcedure.query(({ ctx }) => fetchChatThreadRows(requireBrowserChatConfig(ctx))),
+    threads: protectedProcedure.input(z.object({ surface: z.enum(["web", "mobile"]).default("web") }).optional()).query(({ input, ctx }) => fetchChatThreadRows(requireBrowserChatConfig(ctx), input?.surface ?? "web")),
     pollNotifications: protectedProcedure.input(z.object({ afterRowId: z.string().regex(/^\d+$/).nullable() })).mutation(({ input, ctx }) => fetchChatNotificationRows(input.afterRowId, requireBrowserChatConfig(ctx))),
-    messages: protectedProcedure.input(z.object({ pageId: z.string().min(1), threadId: z.string().min(1) })).query(({ input, ctx }) => fetchChatMessageRows(input, requireBrowserChatConfig(ctx))),
-    sendReply: protectedProcedure.input(z.object({ pageId: z.string(), pageName: z.string().optional(), portalKey: z.string().optional(), chatLinkKey: z.string().optional(), threadId: z.string(), recipientId: z.string(), text: z.string().optional(), imageUrl: z.string().optional(), imageSendUrl: z.string().optional(), imageUrls: z.array(z.string().url()).max(4).optional(), stickerId: z.string().optional() })).mutation(async ({ input, ctx }) => {
+    messages: protectedProcedure.input(z.object({ pageId: z.string().min(1), threadId: z.string().min(1), surface: z.enum(["web", "mobile"]).default("web") })).query(({ input, ctx }) => fetchChatMessageRows(input, requireBrowserChatConfig(ctx), input.surface)),
+    sendReply: protectedProcedure.input(z.object({ pageId: z.string(), pageName: z.string().optional(), portalKey: z.string().optional(), chatLinkKey: z.string().optional(), threadId: z.string(), recipientId: z.string(), text: z.string().optional(), imageUrl: z.string().optional(), imageSendUrl: z.string().optional(), imageUrls: z.array(z.string().url()).max(4).optional(), stickerId: z.string().optional(), surface: z.enum(["web", "mobile"]).default("web") })).mutation(async ({ input, ctx }) => {
       const credentials = requireBrowserChatConfig(ctx);
-      await assertChatPageEnabled(input.pageId, credentials);
+      await assertChatPageEnabled(input.pageId, credentials, input.surface ?? "web");
       const text = input.text?.trim() || "";
       const imageUrl = input.imageUrl?.trim() || "";
       const imageSendUrl = input.imageSendUrl?.trim() || imageUrl;

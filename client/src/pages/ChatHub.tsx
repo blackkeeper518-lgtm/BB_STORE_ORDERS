@@ -159,7 +159,7 @@ export default function ChatHub() {
     field.style.overflowY = contentHeight > maxHeight ? "auto" : "hidden";
   }, [replyText]);
   useEffect(() => { if (selectedKey) localStorage.setItem(CHAT_SELECTED_ROOM_KEY, selectedKey); }, [selectedKey]);
-  const threadsQuery = trpc.chat.threads.useQuery(undefined, {
+  const threadsQuery = trpc.chat.threads.useQuery({ surface: "web" }, {
     enabled: hasBrowserChatConfig,
     staleTime: 0,
     refetchInterval: false,
@@ -171,7 +171,11 @@ export default function ChatHub() {
   const setPageWebStatus = trpc.chat.setPageWebStatus.useMutation({ onSuccess: () => { void pageCatalogQuery.refetch(); void threadsQuery.refetch(); } });
   const threads = threadsQuery.data ?? [];
   const availablePages = useMemo<Array<[string, string, boolean, boolean]>>(
-    () => (pageCatalogQuery.data ?? []).map(page => [page.pageId, page.pageName, threads.some(thread => thread.pageId === page.pageId && isOrderRoom(thread)), page.enabledWeb] as [string, string, boolean, boolean]).sort((a, b) => a[1].localeCompare(b[1], "th")),
+    () => {
+      const catalog = pageCatalogQuery.data ?? [];
+      const source = catalog.length ? catalog : Array.from(new Map(threads.filter(thread => thread.pageId && thread.pageName).map(thread => [thread.pageId as string, { pageId: thread.pageId as string, pageName: thread.pageName || "ไม่ระบุเพจ", enabledWeb: true }])).values());
+      return source.map(page => [page.pageId, page.pageName, threads.some(thread => thread.pageId === page.pageId && isOrderRoom(thread)), "enabledWeb" in page ? page.enabledWeb : true] as [string, string, boolean, boolean]).sort((a, b) => a[1].localeCompare(b[1], "th"));
+    },
     [pageCatalogQuery.data, threads],
   );
 
@@ -191,7 +195,7 @@ export default function ChatHub() {
   const selectedCustomerId = selected?.customerId ?? "";
   const selectedMetaInboxUrl = buildMetaConversationUrl(selected?.chatLinkKey);
   const [handoffTracking, setHandoffTracking] = useState<Record<string, any> | null>(null);
-  const messagesQuery = trpc.chat.messages.useQuery({ pageId: selectedPageId, threadId: selectedThreadId }, {
+  const messagesQuery = trpc.chat.messages.useQuery({ pageId: selectedPageId, threadId: selectedThreadId, surface: "web" }, {
     enabled: hasBrowserChatConfig && Boolean(selectedPageId && selectedThreadId),
     staleTime: 0,
     refetchInterval: false,

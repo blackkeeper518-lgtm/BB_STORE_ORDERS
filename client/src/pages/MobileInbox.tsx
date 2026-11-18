@@ -108,10 +108,15 @@ export default function MobileInbox() {
   }, []);
   const chatConfiguredQuery = trpc.chat.configured.useQuery(undefined, { enabled: !hasBrowserConfig, staleTime: 60_000, retry: false });
   const hasConfig = hasBrowserConfig || Boolean(chatConfiguredQuery.data?.configured);
-  const threadsQuery = trpc.chat.threads.useQuery(undefined, { enabled: hasConfig, staleTime: 0, refetchInterval: false, refetchOnWindowFocus: false, refetchOnReconnect: false, select: mapChatRowsToThreads });
+  const threadsQuery = trpc.chat.threads.useQuery({ surface: "mobile" }, { enabled: hasConfig, staleTime: 0, refetchInterval: false, refetchOnWindowFocus: false, refetchOnReconnect: false, select: mapChatRowsToThreads });
+  const pageCatalogQuery = trpc.chat.pages.useQuery(undefined, { enabled: hasConfig, staleTime: 0, refetchInterval: false, refetchOnWindowFocus: false, retry: false });
   const lineConversationsQuery = trpc.line.conversations.useQuery(undefined, { staleTime: 0, refetchInterval: false, refetchOnWindowFocus: false, refetchOnReconnect: false, retry: false });
   const threads = threadsQuery.data ?? [];
-  const availablePages = useMemo(() => Array.from(new Map(threads.filter(thread => thread.pageId && thread.pageName && thread.pageName !== "ไม่ระบุเพจ").map(thread => [thread.pageId, thread.pageName])).entries()), [threads]);
+  const availablePages = useMemo(() => {
+    const catalog = pageCatalogQuery.data ?? [];
+    if (catalog.length) return catalog.filter(page => page.enabledMobile).map(page => [page.pageId, page.pageName] as [string, string]);
+    return Array.from(new Map(threads.filter(thread => thread.pageId && thread.pageName && thread.pageName !== "ไม่ระบุเพจ").map(thread => [thread.pageId, thread.pageName])).entries());
+  }, [pageCatalogQuery.data, threads]);
   const filteredThreads = useMemo(() => {
     const query = search.trim().toLowerCase();
     return threads.filter(thread => {
@@ -125,7 +130,7 @@ export default function MobileInbox() {
   const selectedPageId = selected?.pageId ?? "";
   const selectedThreadId = selected?.threadId ?? "";
   const selectedCustomerId = selected?.customerId ?? "";
-  const messagesQuery = trpc.chat.messages.useQuery({ pageId: selectedPageId, threadId: selectedThreadId }, { enabled: hasConfig && Boolean(selectedPageId && selectedThreadId), staleTime: 0, refetchInterval: false, refetchOnWindowFocus: false, refetchOnReconnect: false, select: mapChatRowsToMessages });
+  const messagesQuery = trpc.chat.messages.useQuery({ pageId: selectedPageId, threadId: selectedThreadId, surface: "mobile" }, { enabled: hasConfig && Boolean(selectedPageId && selectedThreadId), staleTime: 0, refetchInterval: false, refetchOnWindowFocus: false, refetchOnReconnect: false, select: mapChatRowsToMessages });
   const refreshInbox = () => { void Promise.all([threadsQuery.refetch(), lineConversationsQuery.refetch(), messagesQuery.refetch()]); };
   const optimisticMessageIdRef = useRef<string | null>(null);
   const sendReply = trpc.chat.sendReply.useMutation({
@@ -200,7 +205,7 @@ export default function MobileInbox() {
     const optimisticId = `optimistic-${Date.now()}`;
     optimisticMessageIdRef.current = optimisticId;
     setOptimisticMessages(current => [...current, { id: optimisticId, text: text || "ส่งรูปภาพ", message_text: text, direction: "outbound", senderType: "page", side: "right", occurredAt: new Date().toISOString(), attachmentsJson: replyImages.length ? JSON.stringify(replyImages.map(image => ({ url: image.url }))) : "[]" }]);
-    sendReply.mutate({ pageId: selectedPageId, pageName: selected?.pageName ?? undefined, portalKey: selected?.portalKey ?? undefined, chatLinkKey: selected?.chatLinkKey ?? undefined, threadId: selectedThreadId, recipientId: selectedCustomerId, text: text || undefined, imageUrls: replyImages.map(image => image.sendUrl || image.url) });
+    sendReply.mutate({ pageId: selectedPageId, pageName: selected?.pageName ?? undefined, portalKey: selected?.portalKey ?? undefined, chatLinkKey: selected?.chatLinkKey ?? undefined, threadId: selectedThreadId, recipientId: selectedCustomerId, text: text || undefined, imageUrls: replyImages.map(image => image.sendUrl || image.url), surface: "mobile" });
   };
   const chooseTheme = (preset: CyberTheme) => {
     const next = { ...cyberTheme, ...preset, preset: preset.preset };
