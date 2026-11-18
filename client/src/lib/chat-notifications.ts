@@ -225,6 +225,17 @@ export function setChatNotificationSoundEnabled(enabled: boolean): void {
   }
 }
 
+export function setChatNotificationSound(soundKey: string, volume?: number): void {
+  if (typeof window === "undefined") return;
+  try {
+    const current = readSoundSettings();
+    window.localStorage.setItem(CHAT_SOUND_KEY, JSON.stringify({ ...current, soundKey, volume: volume ?? current.volume, enabled: true }));
+    window.dispatchEvent(new StorageEvent("storage", { key: CHAT_SOUND_KEY }));
+  } catch {
+    // Keep the current sound when storage is unavailable.
+  }
+}
+
 let customSoundUrl = "";
 let customSoundKey = "";
 let customSoundExpiresAt = 0;
