@@ -3,7 +3,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { startLogin } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { Activity, Archive, Bell, Boxes, CalendarDays, Database, LayoutDashboard, LockKeyhole, MessageCircle, PanelLeft, Search, Send, Skull, Truck, WandSparkles } from "lucide-react";
+import { Activity, Archive, Bell, Boxes, CalendarDays, Database, LayoutDashboard, LockKeyhole, MessageCircle, PackageSearch, PanelLeft, Search, Send, Skull, Truck, WandSparkles } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
@@ -20,7 +20,7 @@ const menuItems = [
   { icon: MessageCircle, label: "LINE OA · ห้องตอบแชท", path: "/line-chat" },
   { icon: LayoutDashboard, label: "Order Control", path: "/orders" },
   { icon: Truck, label: "แมปเลขพัสดุ", path: "/parcel-mapping" },
-  { icon: Truck, label: "BB TRACKING", path: "/bb-tracking" },
+  { icon: PackageSearch, label: "BB TRACKING", path: "/bb-tracking" },
   { icon: Database, label: "คู่มือระบบ · System Manual", path: "/system-manual" },
   { icon: Send, label: "PIONEER · คิวพัก / ดักสองชั้น", path: "/telegram-delivery" },
   { icon: Bell, label: "ประวัติเปลี่ยนของ · PARADOX", path: "/alert-room" },
