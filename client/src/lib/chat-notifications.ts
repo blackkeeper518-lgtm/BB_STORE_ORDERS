@@ -1,3 +1,5 @@
+import { getSupabase } from "@/lib/canonical";
+
 export type ChatNotification = {
   key: string;
   threadKey: string;
@@ -193,7 +195,7 @@ export function countUnreadChatMessages(state: ChatNotificationState): number {
   return state.pending.reduce((total, item) => total + Math.max(0, Number(item.count) || 0), 0);
 }
 
-function readSoundSettings(): { enabled: boolean; volume: number; tone?: string } {
+function readSoundSettings(): { enabled: boolean; volume: number; tone?: string; soundKey?: string } {
   if (typeof window === "undefined") return { enabled: true, volume: 0.35 };
   try {
     const value: unknown = JSON.parse(window.localStorage.getItem(CHAT_SOUND_KEY) || "{}");
@@ -203,6 +205,7 @@ function readSoundSettings(): { enabled: boolean; volume: number; tone?: string 
       enabled: value.enabled !== false,
       volume: Number.isFinite(volume) ? Math.min(1, Math.max(0.02, volume)) : 0.35,
       tone: typeof value.tone === "string" ? value.tone : undefined,
+      soundKey: typeof value.soundKey === "string" ? value.soundKey : undefined,
     };
   } catch {
     return { enabled: true, volume: 0.35 };
@@ -220,6 +223,32 @@ export function setChatNotificationSoundEnabled(enabled: boolean): void {
   } catch {
     // Keep the in-memory control usable when local storage is unavailable.
   }
+}
+
+let customSoundUrl = "";
+let customSoundKey = "";
+let customSoundExpiresAt = 0;
+
+async function playConfiguredSound(settings: ReturnType<typeof readSoundSettings>): Promise<boolean> {
+  if (!settings.soundKey) return false;
+  const api = getSupabase("vault");
+  if (!api) return false;
+  try {
+    let url = customSoundKey === settings.soundKey && customSoundExpiresAt > Date.now() ? customSoundUrl : "";
+    if (!url) {
+      const result = await api.from("app_sounds").select("sound_key,storage_bucket,storage_path,volume").eq("sound_key", settings.soundKey).eq("is_enabled", true).maybeSingle();
+      const row = result.data as { storage_bucket?: string | null; storage_path?: string | null; volume?: number | null } | null;
+      if (result.error || !row?.storage_path) return false;
+      const signed = await api.storage.from(row.storage_bucket || "chat-sounds").createSignedUrl(row.storage_path, 300);
+      if (signed.error || !signed.data?.signedUrl) return false;
+      url = signed.data.signedUrl;
+      customSoundKey = settings.soundKey; customSoundUrl = url; customSoundExpiresAt = Date.now() + 240_000;
+    }
+    const audio = new Audio(url);
+    audio.volume = settings.volume;
+    await audio.play();
+    return true;
+  } catch { return false; }
 }
 
 let audioContext: AudioContext | null = null;
@@ -246,6 +275,10 @@ export async function unlockChatNotificationAudio(): Promise<void> {
 export function playChatNotificationSound(): void {
   const settings = readSoundSettings();
   if (!settings.enabled) return;
+  void playConfiguredSound(settings).then(played => { if (!played) playSynthNotificationSound(settings); });
+}
+
+function playSynthNotificationSound(settings: ReturnType<typeof readSoundSettings>): void {
   const context = getAudioContext();
   if (!context) return;
 

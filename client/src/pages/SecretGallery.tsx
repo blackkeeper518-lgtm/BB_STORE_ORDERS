@@ -65,7 +65,7 @@ const ROOM_PASSWORD = "1234";
 const DOCS_KEY = "nightops-secret-vault-v2";
 const IMAGES_KEY = "nightops-secret-gallery-v1";
 const SOUND_KEY = "nightops-chat-sound-v1";
-type ChatSoundSettings = { enabled: boolean; tone: "ping" | "bell" | "pop"; volume: number };
+type ChatSoundSettings = { enabled: boolean; tone: "ping" | "bell" | "pop"; volume: number; soundKey?: string };
 type SoundRow = { sound_key: string; name: string; event_type: string; storage_bucket: string | null; storage_path: string | null; mime_type: string | null; volume: number | null; is_enabled: boolean };
 const DEFAULT_SOUND_SETTINGS: ChatSoundSettings = { enabled: true, tone: "ping", volume: 0.35 };
 const languageMeta: Record<
@@ -217,6 +217,9 @@ export default function SecretGallery() {
   useEffect(() => {
     localStorage.setItem(SOUND_KEY, JSON.stringify(soundSettings));
   }, [soundSettings]);
+  useEffect(() => {
+    localStorage.setItem(SOUND_KEY, JSON.stringify({ ...soundSettings, soundKey: selectedSoundKey || undefined }));
+  }, [selectedSoundKey, soundSettings]);
   const loadSoundRows = useCallback(async () => {
     const api = getSupabase("vault");
     if (!api) return;
