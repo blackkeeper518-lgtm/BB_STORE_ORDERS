@@ -1553,3 +1553,10 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .theme-card-preview { height: 178px; border-color: rgba(255,79,154,.32); box-shadow: inset 0 0 22px rgba(255,49,87,.08); }
 .theme-card-preview-inner { transform: scale(.72); width: 138.9%; min-height: 248px !important; }
 @media (max-width: 767px) { .theme-studio-card { min-height: 300px; } .theme-card-preview { height: 158px; } .theme-card-preview-inner { transform: scale(.64); width: 156.25%; } }
+
+/* Chat scrolling: only the message timeline scrolls; the shell and composer stay locked. */
+.mobile-inbox-conversation { overflow: hidden; }
+.mobile-inbox-conversation-shell { min-height: 0; overflow: hidden; }
+.mobile-inbox-conversation-header { flex: 0 0 auto; }
+.mobile-inbox-timeline { min-height: 0; height: auto; overscroll-behavior: contain; overflow-anchor: none; scroll-behavior: auto; touch-action: pan-y; -webkit-overflow-scrolling: touch; }
+.mobile-inbox-composer { flex: 0 0 auto; }
