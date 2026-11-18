@@ -1310,3 +1310,181 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 @media (max-width:767px) {
   .mobile-inbox-filters select { width:112px; max-width:112px; min-width:112px; padding:0 20px 0 9px; font-size:11px; text-overflow:ellipsis; white-space:nowrap; }
 }
+
+
+
+/* MOBILE INBOX // DARKSIDE DEPTH PASS · intentionally scoped to the real mobile app */
+.mobile-inbox-page.mobile-inbox-themed {
+  --depth-bg: var(--mobile-bg, #080b14);
+  --depth-surface: var(--mobile-surface, #111a29);
+  --depth-primary: var(--mobile-primary, #57d9ff);
+  --depth-accent: var(--mobile-accent, #ff58c8);
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 88% -8%, color-mix(in srgb, var(--depth-accent) 28%, transparent), transparent 38%),
+    radial-gradient(ellipse at -15% 48%, color-mix(in srgb, var(--depth-primary) 20%, transparent), transparent 42%),
+    radial-gradient(ellipse at 70% 118%, color-mix(in srgb, var(--depth-accent) 16%, transparent), transparent 40%),
+    var(--depth-bg);
+}
+.mobile-inbox-page.mobile-inbox-themed::before {
+  content:"";
+  position:absolute;
+  z-index:-2;
+  inset:0;
+  pointer-events:none;
+  opacity:.52;
+  background-image:
+    linear-gradient(90deg, color-mix(in srgb, var(--depth-primary) 10%, transparent) 1px, transparent 1px),
+    linear-gradient(color-mix(in srgb, var(--depth-accent) 8%, transparent) 1px, transparent 1px),
+    radial-gradient(circle, rgba(255,255,255,.85) 0 1px, transparent 1.5px);
+  background-size:32px 32px,32px 32px,113px 137px;
+  background-position:0 0,0 0,18px 22px;
+  mask-image:linear-gradient(to bottom, #000, transparent 95%);
+  animation:mobile-inbox-star-drift 28s linear infinite;
+}
+.mobile-inbox-page.mobile-inbox-themed::after {
+  content:"";
+  position:absolute;
+  z-index:30;
+  inset:0;
+  pointer-events:none;
+  opacity:.09;
+  background:repeating-linear-gradient(0deg, transparent 0, transparent 4px, rgba(255,255,255,.16) 5px);
+  mix-blend-mode:screen;
+}
+.mobile-inbox-page.mobile-inbox-themed > * { position:relative; z-index:1; }
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-header {
+  position:relative;
+  min-height:92px;
+  padding:22px 18px 15px 62px;
+  border-bottom:1px solid color-mix(in srgb, var(--depth-primary) 24%, transparent);
+  background:linear-gradient(120deg, color-mix(in srgb, var(--depth-surface) 94%, #000), color-mix(in srgb, var(--depth-accent) 10%, var(--depth-bg)) 72%, transparent);
+  box-shadow:0 12px 28px rgba(0,0,0,.28), inset 0 -1px 0 color-mix(in srgb, var(--depth-accent) 22%, transparent);
+}
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-header::before {
+  content:"S";
+  position:absolute;
+  left:18px;
+  top:23px;
+  display:grid;
+  place-items:center;
+  width:31px;
+  height:31px;
+  border:1px solid var(--depth-primary);
+  border-radius:9px 3px 9px 3px;
+  color:var(--depth-primary);
+  font:700 15px 'IBM Plex Mono', monospace;
+  transform:skew(-8deg);
+  box-shadow:0 0 14px color-mix(in srgb, var(--depth-primary) 52%, transparent), inset 0 0 10px color-mix(in srgb, var(--depth-primary) 20%, transparent);
+}
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-header::after {
+  content:"DARKSIDE // INBOX";
+  position:absolute;
+  left:63px;
+  top:10px;
+  color:color-mix(in srgb, var(--depth-accent) 74%, white 15%);
+  font:600 7px 'IBM Plex Mono', monospace;
+  letter-spacing:.18em;
+}
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-kicker { color:color-mix(in srgb, var(--depth-primary) 72%, white 10%); letter-spacing:.2em; }
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-header h1 { font-size:26px; letter-spacing:-.055em; text-shadow:0 0 16px color-mix(in srgb, var(--depth-primary) 38%, transparent); }
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-theme-name { color:#8498ad; font:500 9px 'IBM Plex Mono', monospace; }
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-bell-button {
+  position:relative;
+  width:42px;
+  height:42px;
+  border:1px solid color-mix(in srgb, var(--depth-primary) 42%, transparent);
+  border-radius:13px 5px 13px 5px;
+  background:linear-gradient(145deg, color-mix(in srgb, var(--depth-primary) 18%, var(--depth-surface)), color-mix(in srgb, var(--depth-accent) 12%, var(--depth-bg)));
+  color:var(--depth-primary);
+  box-shadow:0 0 18px color-mix(in srgb, var(--depth-primary) 18%, transparent), inset 0 0 15px rgba(255,255,255,.04);
+}
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-bell-button span { background:var(--depth-accent); box-shadow:0 0 12px var(--depth-accent); }
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-tabs {
+  min-height:52px;
+  gap:7px;
+  padding:0 15px;
+  border-bottom:1px solid color-mix(in srgb, var(--depth-primary) 18%, transparent);
+  background:color-mix(in srgb, var(--depth-bg) 84%, transparent);
+}
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-tabs button {
+  height:38px;
+  margin-top:6px;
+  padding:0 13px;
+  border:1px solid transparent;
+  border-radius:10px 3px 10px 3px;
+  font-size:12px;
+  letter-spacing:.02em;
+}
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-tabs button.is-active {
+  border-color:color-mix(in srgb, var(--depth-primary) 62%, transparent);
+  background:linear-gradient(100deg, color-mix(in srgb, var(--depth-primary) 19%, transparent), color-mix(in srgb, var(--depth-accent) 13%, transparent));
+  color:#f4fbff;
+  box-shadow:0 0 18px color-mix(in srgb, var(--depth-primary) 16%, transparent), inset 0 -2px 0 var(--depth-primary);
+}
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-tab-count { background:color-mix(in srgb, var(--depth-primary) 19%, var(--depth-bg)); color:var(--depth-primary); }
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-list-panel { background:transparent; }
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-search {
+  position:relative;
+  margin:15px 15px 11px;
+  height:48px;
+  border:1px solid color-mix(in srgb, var(--depth-primary) 36%, transparent);
+  border-radius:12px 4px 12px 4px;
+  background:linear-gradient(105deg, color-mix(in srgb, var(--depth-surface) 90%, #000), color-mix(in srgb, var(--depth-accent) 9%, var(--depth-surface)));
+  box-shadow:0 10px 24px rgba(0,0,0,.22), inset 0 0 18px color-mix(in srgb, var(--depth-primary) 7%, transparent);
+}
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-search::after { content:"SEARCH SIGNAL"; position:absolute; right:11px; top:-7px; padding:0 4px; background:var(--depth-bg); color:#71869a; font:600 7px 'IBM Plex Mono',monospace; letter-spacing:.12em; }
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-filters { padding:0 15px 12px; }
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-filters button,.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-filters select {
+  border:1px solid color-mix(in srgb, var(--depth-primary) 20%, transparent);
+  border-radius:8px 3px 8px 3px;
+  background:color-mix(in srgb, var(--depth-surface) 90%, transparent);
+  color:#9aabbc;
+}
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-filters button.is-active { border-color:var(--depth-primary); background:linear-gradient(135deg, color-mix(in srgb, var(--depth-primary) 26%, var(--depth-surface)), color-mix(in srgb, var(--depth-accent) 18%, var(--depth-surface))); color:#fff; box-shadow:0 0 13px color-mix(in srgb, var(--depth-primary) 18%, transparent); }
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-threads { padding:0 13px 24px; }
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-thread {
+  position:relative;
+  min-height:78px;
+  margin:5px 0;
+  padding:12px 10px;
+  border:1px solid transparent;
+  border-radius:15px 5px 15px 5px;
+  background:linear-gradient(110deg, color-mix(in srgb, var(--depth-surface) 76%, transparent), color-mix(in srgb, var(--depth-bg) 88%, transparent));
+  box-shadow:0 8px 22px rgba(0,0,0,.16), inset 0 1px 0 rgba(255,255,255,.025);
+}
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-thread::after { content:""; position:absolute; top:11px; bottom:11px; left:-1px; width:2px; border-radius:3px; background:color-mix(in srgb, var(--depth-primary) 34%, transparent); box-shadow:0 0 8px color-mix(in srgb, var(--depth-primary) 32%, transparent); }
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-thread.is-selected,.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-thread:hover { border-color:color-mix(in srgb, var(--depth-primary) 52%, transparent); background:linear-gradient(110deg, color-mix(in srgb, var(--depth-primary) 16%, var(--depth-surface)), color-mix(in srgb, var(--depth-accent) 11%, var(--depth-bg))); box-shadow:0 0 22px color-mix(in srgb, var(--depth-primary) 15%, transparent), inset 0 0 18px color-mix(in srgb, var(--depth-accent) 6%, transparent); transform:translateX(2px); }
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-thread.is-selected::after { background:var(--depth-accent); box-shadow:0 0 12px var(--depth-accent); }
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-avatar { width:46px; height:46px; border:1px solid color-mix(in srgb, var(--depth-primary) 48%, transparent); background:radial-gradient(circle at 32% 24%, color-mix(in srgb, white 44%, var(--depth-primary)), color-mix(in srgb, var(--depth-primary) 42%, var(--depth-surface)) 34%, var(--depth-bg) 72%); color:#fff; box-shadow:0 0 13px color-mix(in srgb, var(--depth-primary) 24%, transparent), inset 0 0 12px rgba(255,255,255,.12); }
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-thread-top strong { font-size:14px; }
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-thread-preview { color:#9baabd; font-size:12px; }
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-thread-tags b { border:1px solid color-mix(in srgb, var(--depth-accent) 35%, transparent); background:color-mix(in srgb, var(--depth-accent) 12%, transparent); color:color-mix(in srgb, var(--depth-accent) 78%, white); }
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-bottom-nav {
+  position:relative;
+  z-index:4;
+  height:70px;
+  border:1px solid color-mix(in srgb, var(--depth-primary) 22%, transparent);
+  border-bottom:0;
+  border-radius:18px 18px 0 0;
+  background:linear-gradient(180deg, color-mix(in srgb, var(--depth-surface) 92%, transparent), color-mix(in srgb, var(--depth-bg) 98%, transparent));
+  box-shadow:0 -10px 30px rgba(0,0,0,.32), inset 0 1px 0 color-mix(in srgb, var(--depth-primary) 25%, transparent);
+  backdrop-filter:blur(14px);
+}
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-bottom-nav button { color:#708398; }
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-bottom-nav button.is-active { color:var(--depth-primary); text-shadow:0 0 12px var(--depth-primary); }
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-bottom-nav button.is-active svg { filter:drop-shadow(0 0 7px var(--depth-primary)); }
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-conversation,.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-conversation-shell { background:var(--depth-bg); }
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-conversation-header { border-color:color-mix(in srgb, var(--depth-primary) 24%, transparent); background:linear-gradient(105deg, color-mix(in srgb, var(--depth-surface) 96%, #000), color-mix(in srgb, var(--depth-accent) 11%, var(--depth-bg))); box-shadow:0 8px 24px rgba(0,0,0,.24); }
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-timeline { position:relative; background:radial-gradient(ellipse at 88% 8%, color-mix(in srgb, var(--depth-primary) 18%, transparent), transparent 38%),radial-gradient(ellipse at 8% 86%, color-mix(in srgb, var(--depth-accent) 16%, transparent), transparent 40%),linear-gradient(135deg, #070a13, var(--depth-bg)); }
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-timeline::before { content:""; position:absolute; inset:0; pointer-events:none; opacity:.35; background-image:radial-gradient(circle,rgba(255,255,255,.8) 0 1px,transparent 1.5px); background-size:97px 121px; animation:mobile-inbox-star-drift 24s linear infinite; }
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-message { position:relative; border:1px solid color-mix(in srgb, var(--depth-primary) 22%, transparent); border-radius:16px 16px 16px 4px; background:linear-gradient(145deg, color-mix(in srgb, var(--depth-surface) 94%, #000), color-mix(in srgb, var(--depth-primary) 7%, var(--depth-bg))); color:#eaf3ff; box-shadow:0 8px 20px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04); }
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-message-row.is-outgoing .mobile-inbox-message { border-color:color-mix(in srgb, var(--depth-accent) 56%, transparent); border-radius:16px 16px 4px 16px; background:linear-gradient(135deg, color-mix(in srgb, var(--depth-primary) 34%, var(--depth-surface)), color-mix(in srgb, var(--depth-accent) 30%, var(--depth-surface))); box-shadow:0 8px 24px color-mix(in srgb, var(--depth-accent) 16%, transparent), inset 0 1px 0 rgba(255,255,255,.1); }
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-composer { border-color:color-mix(in srgb, var(--depth-primary) 24%, transparent); background:linear-gradient(180deg, color-mix(in srgb, var(--depth-surface) 96%, #000), var(--depth-bg)); box-shadow:0 -12px 28px rgba(0,0,0,.3); }
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-compose-row > button { border:1px solid color-mix(in srgb, var(--depth-primary) 28%, transparent); background:color-mix(in srgb, var(--depth-surface) 90%, transparent); color:var(--depth-primary); }
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-compose-row > button:last-child { background:linear-gradient(135deg, var(--depth-primary), var(--depth-accent)); color:#090611; box-shadow:0 0 18px color-mix(in srgb, var(--depth-primary) 34%, transparent); }
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-compose-row textarea { border-color:color-mix(in srgb, var(--depth-primary) 28%, transparent); background:color-mix(in srgb, var(--depth-bg) 90%, var(--depth-surface)); color:#f2f7ff; }
+@keyframes mobile-inbox-star-drift { from { background-position:0 0,0 0,18px 22px; transform:translate3d(0,0,0); } to { background-position:0 0,0 0,-34px 44px; transform:translate3d(-12px,18px,0); } }
+@media (prefers-reduced-motion:reduce) { .mobile-inbox-page.mobile-inbox-themed::before,.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-timeline::before { animation:none; } }
