@@ -47,6 +47,7 @@ import {
 import { trpc } from "@/lib/trpc";
 import { clearBrowserChatConfig, readBrowserChatConfig, saveBrowserChatConfig } from "@/lib/chat-config";
 import { CyberFrameVault } from "@/components/CyberFrameVault";
+import { CustomizationAdmin } from "@/components/CustomizationAdmin";
 import { CYBER_THEME_PRESETS, readCyberTheme, saveCyberTheme, type CyberTheme } from "@/lib/theme-lab";
 
 type CodeLanguage = "sql" | "java" | "md";
@@ -748,14 +749,23 @@ export default function SecretGallery() {
           </div>
         </div>
         {view === "theme" ? (
+          <>
           <Card className="neon-card overflow-hidden rounded-3xl border-violet-400/25 bg-[#100c20]">
             <CardHeader className="border-b border-violet-300/10"><CardTitle className="flex items-center gap-2 text-base text-white"><Palette className="h-5 w-5 text-violet-300" /> APPEARANCE THEME STUDIO · 20 แบบ</CardTitle><p className="text-xs leading-5 text-violet-100/60">เลือกธีมศูนย์กลางจากเว็บ แล้ว Mobile Inbox จะอ่านค่าชุดเดียวกันอัตโนมัติ</p></CardHeader>
             <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">{CYBER_THEME_PRESETS.map(preset => <button type="button" key={preset.name} onClick={() => { setCyberTheme(preset); saveCyberTheme(preset); }} className={`rounded-2xl border p-3 text-left transition ${cyberTheme.name === preset.name ? "border-violet-300 bg-violet-400/15 shadow-[0_0_22px_rgba(167,139,250,.22)]" : "border-white/10 bg-black/20 hover:border-cyan-300/40"}`} style={{ background: `linear-gradient(135deg, ${preset.bg}, ${preset.surface})` }}><span className="mb-3 block h-2 rounded-full" style={{ background: `linear-gradient(90deg, ${preset.primary}, ${preset.accent})` }} /><strong className="block truncate text-xs text-white">{preset.name}</strong><small className="mt-1 block text-[10px] text-white/50">{preset.border} · glow {preset.glow}</small>{cyberTheme.name === preset.name ? <Check className="mt-2 h-4 w-4 text-emerald-300" /> : null}</button>)}</CardContent>
           </Card>
+          <CustomizationAdmin defaultType="theme" />
+          </>
         ) : view === "sound" ? (
+          <>
           <Card className="neon-card rounded-3xl border-amber-400/20 bg-[#171208]"><CardHeader><CardTitle className="flex items-center gap-2 text-base text-white"><Volume2 className="h-5 w-5 text-amber-300" /> SOUND LAB · เสียงแจ้งเตือนแชท</CardTitle><p className="text-xs leading-5 text-amber-100/60">ตั้งค่าเสียง และโยนไฟล์เสียงจริงเข้า chat-sounds พร้อมสร้างแถว app_sounds อัตโนมัติ</p></CardHeader><CardContent className="grid gap-4"><div className="grid gap-3 md:grid-cols-[auto_1fr_1fr_auto]"><label className="flex items-center gap-2 text-sm text-white"><input type="checkbox" checked={soundSettings.enabled} onChange={event => setSoundSettings(current => ({ ...current, enabled: event.target.checked }))} className="h-4 w-4 accent-amber-500" /> เปิดเสียง</label><label className="grid gap-1 text-xs text-amber-100/60">โทนเสียง<select value={soundSettings.tone} onChange={event => setSoundSettings(current => ({ ...current, tone: event.target.value as ChatSoundSettings["tone"] }))} className="h-9 rounded-lg border border-amber-400/20 bg-[#21170a] px-2 text-sm text-white"><option value="ping">Ping · ใส</option><option value="bell">Bell · กังวาน</option><option value="pop">Pop · สั้น</option></select></label><label className="grid gap-1 text-xs text-amber-100/60">ระดับเสียง · {Math.round(soundSettings.volume * 100)}%<input type="range" min="0.05" max="1" step="0.05" value={soundSettings.volume} onChange={event => setSoundSettings(current => ({ ...current, volume: Number(event.target.value) }))} className="accent-amber-400" /></label><Button type="button" variant="outline" onClick={previewSound} className="border-amber-400/30 text-amber-200"><Volume2 className="mr-2 h-4 w-4" /> ทดสอบเสียง</Button></div><div className="grid gap-3 rounded-2xl border border-amber-300/15 bg-black/20 p-3 md:grid-cols-[1fr_1fr_auto]"><label className="grid gap-1 text-xs text-amber-100/60">ชื่อเสียง<Input value={soundName} onChange={event => setSoundName(event.target.value)} placeholder="เช่น Ragnarok · ปิดยอดสำเร็จ" /></label><label className="grid gap-1 text-xs text-amber-100/60">เหตุการณ์<select value={soundEvent} onChange={event => setSoundEvent(event.target.value as typeof soundEvent)} className="h-10 rounded-lg border border-amber-400/20 bg-[#21170a] px-2 text-sm text-white"><option value="custom">กำหนดเอง</option><option value="new_message">ข้อความใหม่</option><option value="message_sent">ส่งสำเร็จ</option><option value="message_failed">ส่งไม่สำเร็จ</option><option value="new_order">ออเดอร์ใหม่</option></select></label><div className="flex items-end gap-2"><input ref={soundFileRef} hidden type="file" accept="audio/*" onChange={event => setSoundFile(event.target.files?.[0] ?? null)} /><Button type="button" variant="outline" onClick={() => soundFileRef.current?.click()} className="border-cyan-400/30 text-cyan-200">เลือกไฟล์</Button><Button type="button" onClick={() => void uploadSoundFile()} disabled={!soundFile} className="bg-gradient-to-r from-amber-400 to-orange-500 text-black">โยนและบันทึก</Button></div><p className="text-[11px] text-amber-100/60 md:col-span-3">{soundFile ? `ไฟล์ที่เลือก: ${soundFile.name}` : "รองรับไฟล์เสียงไม่เกิน 20 MB"} · {soundUploadMessage}</p></div></CardContent></Card>
+          <CustomizationAdmin defaultType="sound" />
+          </>
         ) : view === "cyber" ? (
+          <>
           <CyberFrameVault />
+          <CustomizationAdmin defaultType="frame" />
+          </>
         ) : view === "connect" ? (
           <ConnectSupabase />
         ) : view === "images" ? (
