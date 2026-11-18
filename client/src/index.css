@@ -1532,3 +1532,18 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .theme-studio-editor { position: sticky; bottom: 10px; z-index: 3; border-color: rgba(255,79,154,.48) !important; background: linear-gradient(135deg, rgba(20,8,16,.98), rgba(7,8,13,.98)) !important; box-shadow: 0 -18px 45px rgba(0,0,0,.38), 0 0 28px rgba(255,49,87,.12); }
 @media (min-width: 1024px) { .theme-studio-card-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 @media (max-width: 700px) { .theme-studio-admin > div:nth-of-type(2) { max-height: none; overflow: visible; } .theme-studio-editor { position: relative; bottom: auto; } }
+
+/* Theme Studio control-room layout: cards stay visible while the editor slides from the right. */
+.theme-studio-admin { position: relative; overflow: visible !important; }
+.theme-studio-card { user-select: none; }
+.theme-studio-card:focus-visible, .theme-studio-card:active { outline: 1px solid rgba(255,79,154,.8); outline-offset: 2px; }
+.theme-card-preview { position: relative; height: 128px; overflow: hidden; border: 1px solid rgba(255,79,154,.18); border-radius: 12px; background: rgba(0,0,0,.24); }
+.theme-card-preview-inner { transform: scale(.58); transform-origin: top left; width: 172.5%; min-height: 220px !important; }
+.theme-studio-drawer { position: fixed !important; z-index: 80; top: 72px; right: 0; bottom: 0; width: min(560px, 94vw); max-height: none !important; overflow-y: auto; display: flex !important; flex-direction: column !important; gap: 14px !important; margin: 0 !important; border-right: 0 !important; border-radius: 22px 0 0 0 !important; padding: 16px !important; background: linear-gradient(145deg, rgba(19,7,18,.98), rgba(7,8,14,.98)) !important; box-shadow: -18px 0 60px rgba(0,0,0,.48), -2px 0 24px rgba(255,49,87,.18); animation: theme-drawer-in .22s cubic-bezier(.23,1,.32,1); }
+.theme-studio-drawer > div:first-child { order: 2; }
+.theme-studio-drawer > div:last-child { order: 1; width: 100%; }
+.theme-studio-drawer .grid.gap-2.sm\\:grid-cols-2.lg\\:grid-cols-4 { grid-template-columns: repeat(2,minmax(0,1fr)); }
+.theme-studio-drawer::before { content: "THEME PREVIEW // LIVE"; display: block; position: absolute; top: 8px; right: 18px; color: rgba(255,143,199,.58); font: 600 9px/1 'IBM Plex Mono',monospace; letter-spacing: .16em; pointer-events: none; }
+@keyframes theme-drawer-in { from { transform: translateX(100%); opacity: .4; } to { transform: translateX(0); opacity: 1; } }
+@media (max-width: 767px) { .theme-studio-drawer { top: 48px; width: 100vw; border-radius: 18px 0 0 0 !important; } .theme-studio-drawer .grid.gap-2.sm\\:grid-cols-2.lg\\:grid-cols-4 { grid-template-columns: repeat(2,minmax(0,1fr)); } .theme-card-preview { height: 112px; } }
+@media (prefers-reduced-motion: reduce) { .theme-studio-drawer { animation: none; } }
