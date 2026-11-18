@@ -91,10 +91,10 @@ export const appRouter = router({
   }),
 
   line: router({
-    status: protectedProcedure.input(z.object({ oaId: z.string().optional() }).optional()).query(({ input }) => checkLineConnection(input?.oaId, requireServerChatConfig())),
-    conversations: protectedProcedure.query(() => fetchLineConversations(requireServerChatConfig())),
-    messages: protectedProcedure.input(z.object({ conversationId: z.string().min(1), oaId: z.string().optional() })).query(({ input }) => fetchLineMessages(input.conversationId, input.oaId ?? "", requireServerChatConfig())),
-    send: protectedProcedure.input(z.object({ lineUserId: z.string().min(1), oaId: z.string().optional(), text: z.string().trim().min(1).max(5000) })).mutation(({ input }) => sendLineText(input.lineUserId, input.text, input.oaId, requireServerChatConfig())),
+    status: protectedProcedure.input(z.object({ oaId: z.string().optional() }).optional()).query(({ input, ctx }) => checkLineConnection(input?.oaId, requireBrowserChatConfig(ctx))),
+    conversations: protectedProcedure.query(({ ctx }) => fetchLineConversations(requireBrowserChatConfig(ctx))),
+    messages: protectedProcedure.input(z.object({ conversationId: z.string().min(1), oaId: z.string().optional() })).query(({ input, ctx }) => fetchLineMessages(input.conversationId, input.oaId ?? "", requireBrowserChatConfig(ctx))),
+    send: protectedProcedure.input(z.object({ lineUserId: z.string().min(1), oaId: z.string().optional(), text: z.string().trim().min(1).max(5000) })).mutation(({ input, ctx }) => sendLineText(input.lineUserId, input.text, input.oaId, requireBrowserChatConfig(ctx))),
   }),
 
   parcels: router({
