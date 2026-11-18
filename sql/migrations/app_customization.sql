@@ -200,4 +200,24 @@ drop policy if exists app_customization_selections_public_read on public.app_cus
 create policy app_customization_selections_public_read on public.app_customization_selections
 for select to anon, authenticated using (is_active = true);
 
+-- The current Secret Gallery uses the ROOM 04 anon/publishable key from the
+-- browser. These policies make its add/edit/toggle buttons functional.
+-- If the project later moves writes behind an authenticated server route,
+-- remove these four public-write policies and grant writes only to that role.
+drop policy if exists app_chat_frames_secret_write on public.app_chat_frames;
+create policy app_chat_frames_secret_write on public.app_chat_frames
+for all to anon, authenticated using (true) with check (true);
+
+drop policy if exists app_themes_secret_write on public.app_themes;
+create policy app_themes_secret_write on public.app_themes
+for all to anon, authenticated using (true) with check (true);
+
+drop policy if exists app_sounds_secret_write on public.app_sounds;
+create policy app_sounds_secret_write on public.app_sounds
+for all to anon, authenticated using (true) with check (true);
+
+drop policy if exists app_customization_selections_secret_write on public.app_customization_selections;
+create policy app_customization_selections_secret_write on public.app_customization_selections
+for all to anon, authenticated using (true) with check (true);
+
 notify pgrst, 'reload schema';
