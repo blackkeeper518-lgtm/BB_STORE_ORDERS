@@ -6,6 +6,7 @@ export type LineConversation = {
   conversationId: string;
   oaId: string;
   displayName: string;
+  profilePictureUrl: string | null;
   latestAt: string | null;
   preview: string;
   messageCount: number;
@@ -52,6 +53,18 @@ async function readLineChannel(oa: string | undefined, credentials?: ChatSupabas
   return rows[0] ?? null;
 }
 
+async function fetchLineProfile(lineUser: string, oa: string, credentials?: ChatSupabaseCredentials) {
+  const channel = await readLineChannel(oa, credentials).catch(() => null);
+  const token = channel?.channel_access_token?.trim() || process.env.LINE_CHANNEL_ACCESS_TOKEN?.trim();
+  if (!token) return null;
+  try {
+    const response = await fetch(`https://api.line.me/v2/bot/profile/${encodeURIComponent(lineUser)}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!response.ok) return null;
+    const body = await response.json() as Record<string, unknown>;
+    return { displayName: text(body.displayName) || lineUser, profilePictureUrl: text(body.pictureUrl) || null };
+  } catch { return null; }
+}
+
 export async function checkLineConnection(oa?: string, credentials?: ChatSupabaseCredentials): Promise<LineConnectionStatus> {
   const channel = await readLineChannel(oa, credentials).catch(() => null);
   const token = channel?.channel_access_token?.trim() || process.env.LINE_CHANNEL_ACCESS_TOKEN?.trim();
@@ -81,18 +94,24 @@ export async function fetchLineConversations(credentials?: ChatSupabaseCredentia
     const channelOaId = oaId(row);
     const key = `${channelOaId}:${conversation}`;
     const occurredAt = timestamp(row);
-    const current = map.get(key) ?? { key, lineUserId, conversationId: conversation, oaId: channelOaId, displayName: text(row.display_name || row.customer_name || lineUserId), latestAt: occurredAt, preview: messageText(row), messageCount: 0 };
+    const current = map.get(key) ?? { key, lineUserId, conversationId: conversation, oaId: channelOaId, displayName: text(row.display_name || row.customer_name || lineUserId), profilePictureUrl: text(row.profile_picture_url) || null, latestAt: occurredAt, preview: messageText(row), messageCount: 0 };
     current.messageCount += 1;
     if (!current.latestAt && occurredAt) current.latestAt = occurredAt;
     if (!current.preview) current.preview = messageText(row);
     if (text(row.display_name || row.customer_name)) current.displayName = text(row.display_name || row.customer_name);
     map.set(key, current);
   }
-  return Array.from(map.values()).sort((a, b) => String(b.latestAt || "").localeCompare(String(a.latestAt || "")));
+  const conversations = Array.from(map.values());
+  await Promise.all(conversations.map(async conversation => {
+    if (conversation.displayName !== conversation.lineUserId && conversation.profilePictureUrl) return;
+    const profile = await fetchLineProfile(conversation.lineUserId, conversation.oaId, credentials);
+    if (profile) { conversation.displayName = profile.displayName; conversation.profilePictureUrl = profile.profilePictureUrl; }
+  }));
+  return conversations.sort((a, b) => String(b.latestAt || "").localeCompare(String(a.latestAt || "")));
 }
 
-export async function fetchLineMessages(conversationId: string, oa: string, credentials?: ChatSupabaseCredentials): Promise<LineMessage[]> {
-  const query = new URLSearchParams({ select: "*", conversation_id: `eq.${conversationId}`, order: "created_at.asc", limit: "1000" });
+export async function fetchLineMessages(conversationId: string, lineUser: string, oa: string, credentials?: ChatSupabaseCredentials): Promise<LineMessage[]> {
+  const query = new URLSearchParams({ select: "*", line_user_id: `eq.${lineUser}`, order: "created_at.asc", limit: "1000" });
   if (oa) query.set("destination", `eq.${oa}`);
   const rows = await supabaseGet<Array<Record<string, unknown>>>(`line_messages?${query.toString()}`, "chat", credentials);
   return rows.map((row, index) => ({ id: text(row.id || row.line_message_id || row.event_id || `${conversationId}-${index}`), lineUserId: userId(row), conversationId: conversationId(row), oaId: oaId(row), text: messageText(row), direction: direction(row), messageType: text(row.message_type || row.type || "text"), occurredAt: timestamp(row), messageId: text(row.line_message_id || row.message_id || row.event_id) || null }));
