@@ -118,9 +118,9 @@ export default function MobileInbox() {
     const loadSounds = async () => {
       const api = getSupabase("vault");
       if (!api) return;
-      const result = await api.from("app_sounds").select("sound_key,name,volume,is_enabled").eq("is_enabled", true).order("sort_order", { ascending: true });
+      const result = await api.from("app_sounds").select("sound_key,name,volume,is_enabled").order("sort_order", { ascending: true });
       if (cancelled || result.error || !Array.isArray(result.data)) return;
-      setSoundOptions(result.data.map(row => ({ key: String(row.sound_key ?? ""), name: String(row.name ?? row.sound_key ?? "เสียงแจ้งเตือน"), volume: Number(row.volume) || 0.35 })).filter(row => row.key));
+      setSoundOptions(Array.from(new Map(result.data.filter(row => row.is_enabled !== false).map(row => [String(row.sound_key ?? ""), { key: String(row.sound_key ?? ""), name: String(row.name ?? row.sound_key ?? "เสียงแจ้งเตือน"), volume: Number(row.volume) || 0.35 }])).values()).filter(row => row.key));
     };
     void loadSounds();
     return () => { cancelled = true; };
@@ -188,6 +188,12 @@ export default function MobileInbox() {
         const keys = rows.map(row => String(row.upsert_key || row.order_number || row.id || "")).filter(Boolean);
         const index = lastSeen ? keys.indexOf(lastSeen) : -1;
         if (!cancelled) setOrderUnreadCount(!lastSeen || index < 0 ? 0 : index);
+        const latestOrder = rows[0];
+        const notifiedKey = localStorage.getItem(`${key}-notified`) || "";
+        if (!cancelled && index > 0 && keys[0] && keys[0] !== notifiedKey) {
+          localStorage.setItem(`${key}-notified`, keys[0]);
+          void showSystemNotification(`ออเดอร์ใหม่ · ${latestOrder?.page_name || "BB STORE"}`, `${latestOrder?.customer_name || "ลูกค้า"} · ${latestOrder?.order_number || keys[0]}`, `/orders?order=${encodeURIComponent(keys[0])}`, `bb-order-${keys[0]}`);
+        }
         if (!lastSeen && keys[0]) localStorage.setItem(key, keys[0]);
       } catch { /* order badge is best effort */ }
     };
@@ -339,17 +345,21 @@ export default function MobileInbox() {
     if (!("Notification" in window) || Notification.permission !== "default") return;
     try { await Notification.requestPermission(); } catch { /* browser may require a separate settings action */ }
   };
-  const showChatNotifications = async (items: ChatNotification[]) => {
-    if (!items.length || !("Notification" in window) || Notification.permission !== "granted" || !navigator.serviceWorker) return;
+  const showSystemNotification = async (title: string, body: string, url: string, tag: string) => {
+    if (!("Notification" in window) || Notification.permission !== "granted" || !navigator.serviceWorker) return;
     const registration = await navigator.serviceWorker.ready.catch(() => null);
     if (!registration) return;
+    await registration.showNotification(title, { body, tag, icon: "/icons/icon-192.png", data: { url } });
+  };
+  const showChatNotifications = async (items: ChatNotification[]) => {
+    if (!items.length) return;
     const item = items[0];
-    await registration.showNotification(`ข้อความใหม่ · ${item.pageName || "Facebook"}`, { body: `${item.customerName || "ลูกค้า"}: ${item.message}`, tag: `bb-chat-${item.threadKey}`, icon: "/icons/icon-192.png", data: { url: `/mobile-inbox?page=${encodeURIComponent(item.pageId)}&thread=${encodeURIComponent(item.threadId)}` } });
+    await showSystemNotification(`ข้อความใหม่ · ${item.pageName || "Facebook"}`, `${item.customerName || "ลูกค้า"}: ${item.message}`, `/mobile-inbox?page=${encodeURIComponent(item.pageId)}&thread=${encodeURIComponent(item.threadId)}`, `bb-chat-${item.threadKey}`);
   };
   const messages = [...(messagesQuery.data ?? []), ...optimisticMessages].filter(message => messageText(message).trim());
 
   if (platform === "line") return <main onPointerDown={() => { void unlockChatNotificationAudio(); void enableBrowserNotifications(); }} className="mobile-inbox-page mobile-inbox-themed" style={{ "--mobile-bg": cyberTheme.bg, "--mobile-surface": cyberTheme.surface, "--mobile-primary": cyberTheme.primary, "--mobile-accent": cyberTheme.accent, "--mobile-radius": `${cyberTheme.radius}px`, "--mobile-glow": `${cyberTheme.glow}px` } as React.CSSProperties}><header className="mobile-inbox-header"><div><p className="mobile-inbox-kicker">BB STORE</p><button type="button" onClick={() => void lineConversationsQuery.refetch()} className="mobile-inbox-title-button"><h1>กล่องข้อความ</h1></button><small className="mobile-inbox-theme-name">กดชื่อเพื่อรีเฟรช · LINE OA</small></div><div className="mobile-inbox-header-actions"><button type="button" aria-label="การแจ้งเตือน" className="mobile-inbox-bell-button" onClick={() => setNotificationOpen(value => !value)}><Bell /><span>{visibleChatUnreadCount + orderUnreadCount > 99 ? "99+" : visibleChatUnreadCount + orderUnreadCount}</span></button></div></header><div className="mobile-inbox-tabs"><button type="button" className="platform-facebook" onClick={() => setPlatform("facebook")}><Facebook /><span>Facebook</span><b className="mobile-inbox-tab-count">{filteredThreads.length}</b></button><button type="button" className="platform-line is-active"><MessageCircle /><span>LINE</span><b className="mobile-inbox-tab-count">{lineConversationsQuery.data?.length ?? 0}</b></button></div><div className="mobile-line-embedded"><LineChat compact /></div></main>
-  return <main onPointerDown={() => void unlockChatNotificationAudio()} className="mobile-inbox-page mobile-inbox-themed" style={{ "--mobile-bg": cyberTheme.bg, "--mobile-surface": cyberTheme.surface, "--mobile-primary": cyberTheme.primary, "--mobile-accent": cyberTheme.accent, "--mobile-radius": `${cyberTheme.radius}px`, "--mobile-glow": `${cyberTheme.glow}px` } as React.CSSProperties}>
+  return <main onPointerDown={() => { void unlockChatNotificationAudio(); void enableBrowserNotifications(); }} className="mobile-inbox-page mobile-inbox-themed" style={{ "--mobile-bg": cyberTheme.bg, "--mobile-surface": cyberTheme.surface, "--mobile-primary": cyberTheme.primary, "--mobile-accent": cyberTheme.accent, "--mobile-radius": `${cyberTheme.radius}px`, "--mobile-glow": `${cyberTheme.glow}px` } as React.CSSProperties}>
     <header className="mobile-inbox-header"><div><p className="mobile-inbox-kicker">BB STORE</p><button type="button" onClick={refreshInbox} className="mobile-inbox-title-button"><h1>กล่องข้อความ{threadsQuery.isFetching ? <LoaderCircle className="ml-2 inline-block h-5 w-5 animate-spin" /> : null}</h1></button><small className="mobile-inbox-theme-name">กดชื่อเพื่อรีเฟรช · ธีม {cyberTheme.name}</small></div><div className="mobile-inbox-header-actions"><button type="button" aria-label="เปิดการแจ้งเตือน" className="mobile-inbox-bell-button" onClick={() => setNotificationOpen(value => !value)}><Bell /><span>{visibleChatUnreadCount + orderUnreadCount > 99 ? "99+" : visibleChatUnreadCount + orderUnreadCount}</span></button>{installPrompt ? <button type="button" aria-label="ติดตั้งแอป BB Store Inbox" onClick={() => void installApp()} className="mobile-inbox-install-button"><Download /><span>ติดตั้งแอป</span></button> : null}</div></header>
     {notificationOpen ? <section className="mobile-inbox-notification-panel"><div className="mobile-inbox-notification-head"><strong>การแจ้งเตือน</strong><button type="button" onClick={() => setNotificationOpen(false)}><X /></button></div><div className="mobile-inbox-notification-summary"><span>ข้อความใหม่ <b>{visibleChatUnreadCount}</b></span><span>ออเดอร์ใหม่ <b>{orderUnreadCount}</b></span></div>{visibleChatNotifications.length ? <div className="mobile-inbox-notification-list">{visibleChatNotifications.slice(0, 8).map(item => <button type="button" key={item.threadKey} onClick={() => { setNotificationOpen(false); setPlatform("facebook"); setPageFilter(item.pageId); const room = threads.find(thread => thread.key === item.threadKey); if (room) selectRoom(room); }}><strong>{item.customerName || "ลูกค้า"}</strong><small>{item.message}</small></button>)}</div> : <p className="mobile-inbox-notification-empty">ยังไม่มีข้อความใหม่สำหรับเพจนี้</p>}</section> : null}
     {drawerOpen ? <><button type="button" aria-label="ปิดเมนู" className="mobile-inbox-drawer-scrim" onClick={() => setDrawerOpen(false)} /><aside className="mobile-inbox-drawer"><div className="mobile-inbox-drawer-head"><strong>เมนูจัดการแชท</strong><button type="button" onClick={() => setDrawerOpen(false)}><X /></button></div><button type="button" onClick={() => openCustomizer("theme")}><Palette /><span>ธีม</span></button><button type="button" onClick={() => openCustomizer("frame")}><MessagesSquare /><span>กรอบแชท</span></button><button type="button" onClick={() => openCustomizer("sound")}><Volume2 /><span>เสียง</span></button></aside></> : null}
