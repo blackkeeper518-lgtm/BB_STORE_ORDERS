@@ -2,8 +2,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
+import { playChatNotificationSound, unlockChatNotificationAudio } from "@/lib/chat-notifications";
 import { CheckCircle2, CircleX, LoaderCircle, MessageCircle, RefreshCw, Send } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 function timeLabel(value: string | null | undefined) {
   if (!value) return "—";
@@ -17,6 +18,8 @@ export default function LineChat() {
   const [text, setText] = useState("");
   const [notice, setNotice] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  const previousRoomsRef = useRef<Map<string, string>>(new Map());
+  const initializedRoomsRef = useRef(false);
   const conversations = trpc.line.conversations.useQuery(undefined, { refetchInterval: 5000, retry: false });
   const visible = useMemo(() => (conversations.data ?? []).filter(item => `${item.displayName} ${item.lineUserId} ${item.preview}`.toLowerCase().includes(search.toLowerCase())), [conversations.data, search]);
   const selected = visible.find(item => item.key === selectedKey) ?? visible[0] ?? null;
@@ -26,8 +29,20 @@ export default function LineChat() {
     onSuccess: () => { setText(""); setNotice("ส่ง LINE แล้ว"); void messages.refetch(); void conversations.refetch(); },
     onError: error => setNotice(error.message),
   });
+  useEffect(() => {
+    const next = new Map<string, string>();
+    let shouldPlay = false;
+    for (const room of conversations.data ?? []) {
+      const fingerprint = `${room.latestAt ?? ""}|${room.messageCount}|${room.preview}`;
+      next.set(room.key, fingerprint);
+      if (initializedRoomsRef.current && room.latestDirection === "inbound" && previousRoomsRef.current.get(room.key) !== fingerprint) shouldPlay = true;
+    }
+    if (shouldPlay) playChatNotificationSound();
+    previousRoomsRef.current = next;
+    initializedRoomsRef.current = true;
+  }, [conversations.data]);
   useEffect(() => { if (!selectedKey && visible[0]) setSelectedKey(visible[0].key); }, [selectedKey, visible]);
-  return <main className="flex h-full min-h-0 flex-col gap-3 bg-[#090611] p-3 text-white sm:p-5">
+  return <main onPointerDown={() => void unlockChatNotificationAudio()} className="flex h-full min-h-0 flex-col gap-3 bg-[#090611] p-3 text-white sm:p-5">
     <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-300/20 bg-gradient-to-r from-[#071c1c] to-[#160d24] p-4">
       <div><p className="text-[10px] uppercase tracking-[0.25em] text-emerald-300">LINE OA · DIRECT API</p><h1 className="text-2xl font-semibold">ห้องแชท LINE</h1><p className="text-xs text-white/55">รับจาก line_messages · ตอบผ่าน Render → LINE Messaging API</p></div>
       <div className="flex flex-wrap items-center gap-2"><span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs ${lineStatus.data?.connected ? "border-emerald-300/30 bg-emerald-400/10 text-emerald-200" : "border-red-300/30 bg-red-400/10 text-red-200"}`}>{lineStatus.isLoading ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : lineStatus.data?.connected ? <CheckCircle2 className="h-3.5 w-3.5" /> : <CircleX className="h-3.5 w-3.5" />}{lineStatus.data?.connected ? `เชื่อมต่อแล้ว${lineStatus.data.botName ? ` · ${lineStatus.data.botName}` : ""}` : (lineStatus.data?.error || "กำลังตรวจสอบ LINE")}</span><Button variant="outline" disabled={refreshing} onClick={() => { setRefreshing(true); void Promise.all([lineStatus.refetch(), conversations.refetch(), messages.refetch()]).finally(() => setRefreshing(false)); }} className="border-emerald-300/30 bg-transparent text-emerald-200"><RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />{refreshing ? "กำลังโหลด…" : "ตรวจ/รีเฟรช"}</Button></div>

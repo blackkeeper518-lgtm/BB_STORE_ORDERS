@@ -7,6 +7,7 @@ export type LineConversation = {
   oaId: string;
   displayName: string;
   profilePictureUrl: string | null;
+  latestDirection: "inbound" | "outbound";
   latestAt: string | null;
   preview: string;
   messageCount: number;
@@ -94,11 +95,12 @@ export async function fetchLineConversations(credentials?: ChatSupabaseCredentia
     const channelOaId = oaId(row);
     const key = `${channelOaId}:${conversation}`;
     const occurredAt = timestamp(row);
-    const current = map.get(key) ?? { key, lineUserId, conversationId: conversation, oaId: channelOaId, displayName: text(row.display_name || row.customer_name || lineUserId), profilePictureUrl: text(row.profile_picture_url) || null, latestAt: occurredAt, preview: messageText(row), messageCount: 0 };
+    const current = map.get(key) ?? { key, lineUserId, conversationId: conversation, oaId: channelOaId, displayName: text(row.display_name || row.customer_name || lineUserId), profilePictureUrl: text(row.profile_picture_url) || null, latestDirection: direction(row), latestAt: occurredAt, preview: messageText(row), messageCount: 0 };
     current.messageCount += 1;
     if (!current.latestAt && occurredAt) current.latestAt = occurredAt;
     if (!current.preview) current.preview = messageText(row);
     if (text(row.display_name || row.customer_name)) current.displayName = text(row.display_name || row.customer_name);
+    if (occurredAt && (!current.latestAt || occurredAt >= current.latestAt)) current.latestDirection = direction(row);
     map.set(key, current);
   }
   const conversations = Array.from(map.values());
