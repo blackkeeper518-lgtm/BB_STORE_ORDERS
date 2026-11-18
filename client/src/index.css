@@ -1171,6 +1171,9 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .mobile-inbox-themed .mobile-inbox-message.is-media-only,.mobile-inbox-themed .mobile-inbox-message-row.is-outgoing .mobile-inbox-message.is-media-only { background:transparent; box-shadow:none; }
 .mobile-inbox-title-button { display:block; padding:0; border:0; background:transparent; color:inherit; text-align:left; cursor:pointer; }
 .mobile-inbox-title-button:hover h1 { color:#7eeaff; }
+.mobile-line-embedded { min-height:0; flex:1; overflow:hidden; }
+.mobile-line-embedded > main { height:100%; min-height:0; padding:8px; }
+.mobile-line-embedded > main > section { min-height:0; }
 .mobile-inbox-tabs button.platform-facebook { color:#1877f2; }
 .mobile-inbox-tabs button.platform-facebook.is-active { border-bottom-color:#1877f2; color:#4d9cff; }
 .mobile-inbox-tabs button.platform-line { color:#06c755; }
