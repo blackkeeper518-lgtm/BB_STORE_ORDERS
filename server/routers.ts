@@ -34,6 +34,7 @@ async function persistOutgoingChatBestEffort(
   catch (error) { console.error("[chat] outgoing write-back failed after Meta accepted message", error); }
 }
 async function persistLocalChatBestEffort(input: Parameters<typeof db.saveChatMessage>[0]) {
+  if (!process.env.DATABASE_URL?.trim()) return;
   try { await db.saveChatMessage(input); }
   catch (error) { console.error("[chat] local audit write skipped after Meta accepted message", error); }
 }
