@@ -25,7 +25,6 @@ import OrderEditor from "./pages/OrderEditor";
 import ScriptAtelier from "./pages/ScriptAtelier";
 import MobileInbox from "./pages/MobileInbox";
 import LineChat from "./pages/LineChat";
-import BBTracking from "./pages/BBTracking";
 import { useEffect } from "react";
 
 function Shell({ children }: { children: React.ReactNode }) { return <DashboardLayout>{children}</DashboardLayout>; }
@@ -51,7 +50,6 @@ function Router() {
     <Route path="/parcel-mapping"><Shell><ParcelMapping /></Shell></Route>
     <Route path="/chats"><Shell><ChatHub /></Shell></Route>
     <Route path="/line-chat"><Shell><LineChat /></Shell></Route>
-    <Route path="/bb-tracking"><Shell><BBTracking /></Shell></Route>
     <Route path="/close-job-history"><Shell><CloseJobHistory /></Shell></Route>
     <Route path="/telegram-delivery"><Shell><TelegramDeliveryRoom /></Shell></Route>
     <Route path="/andromeda"><Shell><TelegramDeliveryRoom /></Shell></Route>
