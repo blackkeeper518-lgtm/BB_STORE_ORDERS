@@ -1061,7 +1061,9 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .mobile-inbox-header h1 { color:#f4f7ff; text-shadow:0 0 18px rgba(99,220,255,.18); }
 .mobile-inbox-refresh { background:#151d2c; color:#67e8f9; }
 .mobile-inbox-tabs { border-color:rgba(113,174,255,.16); }
-.mobile-inbox-tabs button { border-color:#57d9ff; color:#7eeaff; }
+.mobile-inbox-tabs button { border-bottom-color:transparent; color:#7f91a5; }
+.mobile-inbox-tabs button.is-active { border-bottom-color:#57d9ff; color:#7eeaff; }
+.mobile-inbox-tabs button:not(.is-active) { opacity:.72; }
 .mobile-inbox-tab-count { background:#17263a; color:#a9c8de; }
 .mobile-inbox-search { border-color:rgba(94,210,255,.2); background:#111a29; color:#7f9db0; }
 .mobile-inbox-search input { color:#f4f7ff; }
