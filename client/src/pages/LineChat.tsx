@@ -6,7 +6,7 @@ import { playChatNotificationSound, unlockChatNotificationAudio } from "@/lib/ch
 import { CYBER_FRAME_EVENT, CYBER_FRAME_OPTIONS, readCyberFrame, readCyberFrameRooms, saveCyberFrameRoom } from "@/lib/cyber-frame";
 import { getSupabase } from "@/lib/canonical";
 import "@/styles/cyber-frames.css";
-import { CheckCircle2, CircleX, LoaderCircle, MessageCircle, RefreshCw, Send } from "lucide-react";
+import { CheckCircle2, CircleX, ChevronLeft, LoaderCircle, MessageCircle, RefreshCw, Send } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 function timeLabel(value: string | null | undefined) {
@@ -18,7 +18,7 @@ function timeLabel(value: string | null | undefined) {
 type FrameOption = { id: string; name: string };
 const fallbackFrameOptions: FrameOption[] = CYBER_FRAME_OPTIONS.map(option => ({ id: option.id, name: option.name }));
 
-export default function LineChat() {
+export default function LineChat({ compact = false }: { compact?: boolean }) {
   const [search, setSearch] = useState("");
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [text, setText] = useState("");
@@ -28,6 +28,7 @@ export default function LineChat() {
   const [cyberFrameRooms, setCyberFrameRooms] = useState(() => readCyberFrameRooms());
   const [framePickerRoom, setFramePickerRoom] = useState<string | null>(null);
   const [frameOptions, setFrameOptions] = useState<FrameOption[]>(fallbackFrameOptions);
+  const [mobileRoomOpen, setMobileRoomOpen] = useState(false);
   const previousRoomsRef = useRef<Map<string, string>>(new Map());
   const initializedRoomsRef = useRef(false);
   const conversations = trpc.line.conversations.useQuery(undefined, { refetchInterval: 5000, retry: false });
@@ -74,6 +75,9 @@ export default function LineChat() {
     void loadFrames();
     return () => { cancelled = true; };
   }, []);
+  if (compact) return <main onPointerDown={() => void unlockChatNotificationAudio()} className="line-mobile-shell">
+    {!mobileRoomOpen ? <section className="line-mobile-list"><div className="line-mobile-search"><Input value={search} onChange={event => setSearch(event.target.value)} placeholder="ค้นหาชื่อลูกค้าหรือข้อความ LINE…" /></div>{visible.length === 0 ? <div className="line-mobile-empty"><MessageCircle /><p>ยังไม่มีข้อความ LINE</p></div> : visible.map(item => <button type="button" key={item.key} onClick={() => { setSelectedKey(item.key); setMobileRoomOpen(true); }} className="line-mobile-thread"><span className="line-mobile-avatar">{item.profilePictureUrl ? <img src={item.profilePictureUrl} alt="" /> : item.displayName.slice(0, 1)}</span><span className="line-mobile-thread-body"><span className="line-mobile-thread-top"><strong>{item.displayName}</strong><time>{timeLabel(item.latestAt)}</time></span><span className="line-mobile-thread-preview">{item.preview || "ยังไม่มีข้อความ"}</span><span className="line-mobile-thread-tag">LINE OA · {item.oaId || "ไม่ระบุ"}</span></span></button>)}</section> : <section className="line-mobile-room"><header className="line-mobile-room-header"><button type="button" aria-label="กลับรายการ LINE" onClick={() => setMobileRoomOpen(false)}><ChevronLeft /></button><span className="line-mobile-avatar">{selected?.profilePictureUrl ? <img src={selected.profilePictureUrl} alt="" /> : (selected?.displayName || "L").slice(0, 1)}</span><div><strong>{selected?.displayName || "LINE"}</strong><small>{selected?.oaId || "LINE OA"}</small></div></header><div className="line-mobile-timeline">{messages.isLoading ? <LoaderCircle className="mx-auto animate-spin" /> : (messages.data ?? []).map(message => <div key={message.id} className={`line-mobile-message-row ${message.direction === "outbound" ? "is-outgoing" : ""}`}><div className="line-mobile-message"><p>{message.text || `[${message.messageType}]`}</p><time>{timeLabel(message.occurredAt)}</time></div></div>)}</div><form className="line-mobile-composer" onSubmit={event => { event.preventDefault(); if (selected && lineStatus.data?.connected && text.trim()) send.mutate({ lineUserId: selected.lineUserId, oaId: selected.oaId || undefined, text: text.trim() }); }}><Textarea value={text} onChange={event => setText(event.target.value)} placeholder="พิมพ์ข้อความ LINE…" disabled={!lineStatus.data?.connected} /><Button type="submit" disabled={send.isPending || !lineStatus.data?.connected || !text.trim()}><Send /></Button></form></section>}
+  </main>;
   return <main onPointerDown={() => void unlockChatNotificationAudio()} className="flex h-full min-h-0 flex-col gap-3 bg-[#090611] p-3 text-white sm:p-5">
     <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-300/20 bg-gradient-to-r from-[#071c1c] to-[#160d24] p-4">
       <div className="flex items-center gap-3"><span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border border-emerald-300/30 bg-emerald-400/15 text-lg text-emerald-100">{lineStatus.data?.pictureUrl ? <img src={lineStatus.data.pictureUrl} alt="" className="h-full w-full object-cover" /> : (lineStatus.data?.botName || "L").slice(0, 1)}</span><div><p className="text-[10px] uppercase tracking-[0.25em] text-emerald-300">LINE OA · DIRECT API</p><h1 className="text-2xl font-semibold">{lineStatus.data?.botName || "ห้องแชท LINE"}</h1><p className="text-xs text-white/55">รับจาก line_messages · ตอบผ่าน Render → LINE Messaging API</p></div></div>
