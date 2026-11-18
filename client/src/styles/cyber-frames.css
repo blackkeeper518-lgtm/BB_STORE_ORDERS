@@ -130,3 +130,17 @@
 .cyber-frame-avatar-wrap { z-index: 8; }
 .cyber-frame-room-select { position:absolute; right:-7px; bottom:-4px; width:34px; max-width:34px; height:16px; border:1px solid rgba(255,90,203,.72); border-radius:5px; padding:0 1px; background:rgba(12,8,28,.96); color:rgba(255,214,246,.92); font:700 7px 'IBM Plex Mono',monospace; line-height:14px; outline:none; cursor:pointer; box-shadow:0 0 8px rgba(255,66,199,.2); }
 .cyber-frame-room-select:focus { border-color:rgba(93,233,255,.9); box-shadow:0 0 10px rgba(93,233,255,.35); }
+
+/* Apply the selected customer frame to real message bubbles, not room-list cards. */
+.chat-message-bubble.chat-bubble-frame,
+.mobile-inbox-message.chat-bubble-frame {
+  min-height: 0;
+  width: fit-content;
+  max-width: min(86%, 620px);
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius, 16px);
+  background: var(--panel, #101527);
+}
+.chat-message-bubble.chat-bubble-frame > *,
+.mobile-inbox-message.chat-bubble-frame > * { position: relative; z-index: 3; }
+.mobile-inbox-message.chat-bubble-frame.is-media-only { background: transparent; box-shadow: none; }

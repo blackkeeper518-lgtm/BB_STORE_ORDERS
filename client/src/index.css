@@ -1169,6 +1169,14 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .mobile-inbox-themed .mobile-inbox-message { background:var(--mobile-surface); color:var(--mobile-text); border-radius:var(--mobile-radius); }
 .mobile-inbox-themed .mobile-inbox-message-row.is-outgoing .mobile-inbox-message { background:linear-gradient(135deg,color-mix(in srgb,var(--mobile-primary) 38%,var(--mobile-surface)),color-mix(in srgb,var(--mobile-accent) 38%,var(--mobile-surface))); }
 .mobile-inbox-themed .mobile-inbox-message.is-media-only,.mobile-inbox-themed .mobile-inbox-message-row.is-outgoing .mobile-inbox-message.is-media-only { background:transparent; box-shadow:none; }
+.mobile-inbox-title-button { display:block; padding:0; border:0; background:transparent; color:inherit; text-align:left; cursor:pointer; }
+.mobile-inbox-title-button:hover h1 { color:#7eeaff; }
+.mobile-inbox-tabs button.platform-facebook { color:#1877f2; }
+.mobile-inbox-tabs button.platform-facebook.is-active { border-bottom-color:#1877f2; color:#4d9cff; }
+.mobile-inbox-tabs button.platform-line { color:#06c755; }
+.mobile-inbox-tabs button.platform-line:hover { color:#35e77c; }
+.mobile-inbox-tabs button.platform-facebook .mobile-inbox-tab-count { background:rgba(24,119,242,.18); color:#72b0ff; }
+.mobile-inbox-tabs button.platform-line .mobile-inbox-tab-count { background:rgba(6,199,85,.18); color:#62ef9a; }
 .mobile-inbox-themed .mobile-inbox-composer { border-color:color-mix(in srgb,var(--mobile-primary) 20%,transparent); background:var(--mobile-surface); }
 .mobile-inbox-themed .mobile-inbox-compose-row > button { background:color-mix(in srgb,var(--mobile-primary) 13%,var(--mobile-surface)); color:var(--mobile-primary); }
 .mobile-inbox-themed .mobile-inbox-compose-row > button:last-child { background:linear-gradient(135deg,var(--mobile-primary),var(--mobile-accent)); color:#07121c; }
