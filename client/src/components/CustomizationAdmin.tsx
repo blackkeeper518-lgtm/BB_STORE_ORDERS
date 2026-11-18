@@ -94,24 +94,27 @@ export function CustomizationAdmin({ defaultType = "frame" }: { defaultType?: As
     if (!api) return setNotice("ยังไม่ได้เชื่อม ROOM 04");
     const key = config.key;
     if (!String(draft.name ?? "").trim()) return setNotice("กรอกชื่อก่อนบันทึก");
-    if (!String(draft[key] ?? "").trim()) setDraft(current => ({ ...current, [key]: nextAutoKey() }));
     setBusy(true); setNotice("");
-    const isExisting = rows.some(row => String(row[key]) === String(draft[key]).trim());
-    const maxSort = rows.reduce((max, row) => Math.max(max, Number(row.sort_order) || 0), 0);
-    let graphicUrl = String(draft.graphic_url || "");
-    if (type === "theme" && graphicFile) {
-      const safeName = graphicFile.name.toLowerCase().replace(/[^a-z0-9._-]+/g, "-");
-      const storagePath = `themes/${String(draft[key]).trim()}-${Date.now()}-${safeName}`;
-      const upload = await api.storage.from("theme-graphics").upload(storagePath, graphicFile, { contentType: graphicFile.type, upsert: false });
-      if (upload.error) { setNotice(`อัปโหลดกราฟิกไม่สำเร็จ: ${upload.error.message} · ตรวจว่ามี bucket theme-graphics`); setBusy(false); return; }
-      graphicUrl = api.storage.from("theme-graphics").getPublicUrl(storagePath).data.publicUrl;
-    }
-    const resolvedKey = String(draft[key] || nextAutoKey()).trim();
-    const payload = { ...draft, graphic_url: graphicUrl, [key]: resolvedKey, name: String(draft.name).trim(), sort_order: isExisting ? Number(draft.sort_order) || 0 : maxSort + 1, updated_by: "secret-gallery" };
-    const result = await api.from(config.table).upsert(payload, { onConflict: key });
-    if (result.error) setNotice(`บันทึกไม่สำเร็จ: ${result.error.message}`);
-    else { setNotice(`บันทึก ${payload.name} แล้ว · อยู่ลำดับ ${payload.sort_order}`); setBaseline(payload); setDraft(payload); setGraphicFile(null); setEditing(false); await load(); }
-    setBusy(false);
+    try {
+      const resolvedKey = String(draft[key] || nextAutoKey()).trim();
+      const isExisting = rows.some(row => String(row[key]) === resolvedKey);
+      const maxSort = rows.reduce((max, row) => Math.max(max, Number(row.sort_order) || 0), 0);
+      let graphicUrl = String(draft.graphic_url || "");
+      if (type === "theme" && graphicFile) {
+        const safeName = graphicFile.name.toLowerCase().replace(/[^a-z0-9._-]+/g, "-");
+        const storagePath = `themes/${resolvedKey}-${Date.now()}-${safeName}`;
+        const upload = await api.storage.from("theme-graphics").upload(storagePath, graphicFile, { contentType: graphicFile.type, upsert: false });
+        if (upload.error) throw new Error(`อัปโหลดกราฟิกไม่สำเร็จ: ${upload.error.message} · ตรวจ bucket theme-graphics`);
+        graphicUrl = api.storage.from("theme-graphics").getPublicUrl(storagePath).data.publicUrl;
+      }
+      const payload = { ...draft, graphic_url: graphicUrl, [key]: resolvedKey, name: String(draft.name).trim(), sort_order: isExisting ? Number(draft.sort_order) || 0 : maxSort + 1, updated_by: "secret-gallery" };
+      const result = await api.from(config.table).upsert(payload, { onConflict: key });
+      if (result.error) throw new Error(`Supabase ${config.table}: ${result.error.message}`);
+      setNotice(`บันทึก ${payload.name} แล้ว · ${resolvedKey} · ลำดับ ${payload.sort_order}`);
+      setBaseline(payload); setDraft(payload); setGraphicFile(null); setEditing(false); await load();
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "บันทึกไม่สำเร็จ: ตรวจ Supabase schema/RLS");
+    } finally { setBusy(false); }
   };
 
   const toggle = async (row: Row) => {
