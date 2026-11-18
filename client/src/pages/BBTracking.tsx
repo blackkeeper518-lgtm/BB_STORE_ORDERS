@@ -1,18 +1,9 @@
 import { ExternalLink, PackageSearch, RefreshCw } from "lucide-react";
-import { useState } from "react";
 
 const FLASH_WIDGET_URL = "https://www.flashexpress.co.th/fle/widget-tracking";
 const FLASH_TRACKING_URL = "https://www.flashexpress.co.th/fle/tracking";
 
 export default function BBTracking() {
-  const [widgetVersion, setWidgetVersion] = useState(0);
-  const [widgetLoading, setWidgetLoading] = useState(true);
-
-  const refreshWidget = () => {
-    setWidgetLoading(true);
-    setWidgetVersion(value => value + 1);
-  };
-
   return (
     <section className="mx-auto w-full max-w-5xl space-y-4">
       <header className="rounded-2xl border border-cyan-300/20 bg-[#0d1426]/90 p-5 shadow-[0_0_35px_rgba(34,211,238,.08)]">
@@ -27,14 +18,7 @@ export default function BBTracking() {
       </header>
 
       <div className="overflow-hidden rounded-2xl border border-cyan-300/20 bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
-          <span>{widgetLoading ? "กำลังโหลด Flash Tracking…" : "Flash Tracking พร้อมใช้งาน"}</span>
-          <button type="button" onClick={refreshWidget} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 font-semibold text-slate-700 transition hover:bg-slate-100" aria-label="รีเฟรช Flash Tracking">
-            <RefreshCw className={`h-3.5 w-3.5 ${widgetLoading ? "animate-spin" : ""}`} />
-            รีเฟรช
-          </button>
-        </div>
-        <iframe key={widgetVersion} src={FLASH_WIDGET_URL} title="Flash Express Tracking" className="block h-[520px] w-full border-0" scrolling="auto" loading="lazy" onLoad={() => setWidgetLoading(false)} />
+        <iframe src={FLASH_WIDGET_URL} title="Flash Express Tracking" className="block h-[520px] w-full border-0" scrolling="auto" loading="lazy" />
       </div>
 
       <div className="flex items-center gap-2 rounded-xl border border-amber-300/20 bg-amber-400/[0.06] p-3 text-xs text-amber-100/70">
