@@ -29,6 +29,7 @@ export type LineConnectionStatus = {
   configured: boolean;
   connected: boolean;
   botName: string | null;
+  pictureUrl: string | null;
   channelId: string | null;
   oaId: string | null;
   error: string | null;
@@ -69,14 +70,14 @@ async function fetchLineProfile(lineUser: string, oa: string, credentials?: Chat
 export async function checkLineConnection(oa?: string, credentials?: ChatSupabaseCredentials): Promise<LineConnectionStatus> {
   const channel = await readLineChannel(oa, credentials).catch(() => null);
   const token = channel?.channel_access_token?.trim() || process.env.LINE_CHANNEL_ACCESS_TOKEN?.trim();
-  if (!token) return { configured: false, connected: false, botName: null, channelId: channel?.channel_id ?? null, oaId: channel?.oa_id ?? oa ?? null, error: "ยังไม่มี LINE Channel ในตาราง line_channels หรือ LINE_CHANNEL_ACCESS_TOKEN บน Render" };
+  if (!token) return { configured: false, connected: false, botName: null, pictureUrl: null, channelId: channel?.channel_id ?? null, oaId: channel?.oa_id ?? oa ?? null, error: "ยังไม่มี LINE Channel ในตาราง line_channels หรือ LINE_CHANNEL_ACCESS_TOKEN บน Render" };
   try {
     const response = await fetch("https://api.line.me/v2/bot/info", { headers: { Authorization: `Bearer ${token}` } });
     const body = await response.json().catch(() => ({})) as Record<string, unknown>;
-    if (!response.ok) return { configured: true, connected: false, botName: null, channelId: channel?.channel_id ?? null, oaId: channel?.oa_id ?? oa ?? null, error: `LINE Token ใช้งานไม่ได้ (${response.status})` };
-    return { configured: true, connected: true, botName: text(body.displayName) || channel?.channel_name || null, channelId: text(body.basicId || body.channelId || channel?.channel_id) || null, oaId: channel?.oa_id ?? oa ?? null, error: null };
+    if (!response.ok) return { configured: true, connected: false, botName: null, pictureUrl: null, channelId: channel?.channel_id ?? null, oaId: channel?.oa_id ?? oa ?? null, error: `LINE Token ใช้งานไม่ได้ (${response.status})` };
+    return { configured: true, connected: true, botName: text(body.displayName) || channel?.channel_name || null, pictureUrl: text(body.pictureUrl) || null, channelId: text(body.basicId || body.channelId || channel?.channel_id) || null, oaId: channel?.oa_id ?? oa ?? null, error: null };
   } catch (error) {
-    return { configured: true, connected: false, botName: null, channelId: channel?.channel_id ?? null, oaId: channel?.oa_id ?? oa ?? null, error: error instanceof Error ? error.message : String(error) };
+    return { configured: true, connected: false, botName: null, pictureUrl: null, channelId: channel?.channel_id ?? null, oaId: channel?.oa_id ?? oa ?? null, error: error instanceof Error ? error.message : String(error) };
   }
 }
 
