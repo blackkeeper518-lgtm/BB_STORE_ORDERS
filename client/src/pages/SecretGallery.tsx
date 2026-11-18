@@ -141,7 +141,7 @@ export default function SecretGallery() {
   );
   const [draggedDocId, setDraggedDocId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [view, setView] = useState<"vault" | "images" | "connect" | "cyber" | "theme" | "sound">("vault");
+  const [view, setView] = useState<"vault" | "images" | "connect" | "cyber" | "theme" | "sound">("theme");
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
   const [preview, setPreview] = useState<GalleryItem | null>(null);
@@ -177,7 +177,7 @@ export default function SecretGallery() {
               ? "theme"
               : location.includes("tab=sound")
                 ? "sound"
-                : "vault"
+                : "theme"
     );
   }, [location]);
   const activeDoc = docs.find(doc => doc.id === activeId) ?? null;
@@ -558,7 +558,7 @@ export default function SecretGallery() {
               <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.3em] text-cyan-300">
                 <Sparkles className="h-4 w-4" /> DRAKSIDE MARKETING
               </div>
-              <h1 className="cyber-title mt-2 text-3xl font-bold text-white sm:text-4xl">
+              <h1 onDoubleClick={() => setGalleryView("connect")} title="DRAKSIDE" className="cyber-title mt-2 cursor-default select-none text-3xl font-bold text-white sm:text-4xl">
                 DRAKSIDE MARKETING
               </h1>
               <p className="mt-2 max-w-2xl text-sm text-fuchsia-100/60">
@@ -595,6 +595,7 @@ export default function SecretGallery() {
             </div>
           </div>
         </header>
+        {view === "connect" ? <>
         <Card className="neon-card project-room-card rounded-3xl border-cyan-400/20 bg-black/20">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-sm text-white">
@@ -690,6 +691,7 @@ export default function SecretGallery() {
             <p className="text-[10px] leading-4 text-emerald-100/45 md:col-span-2">ใส่เฉพาะ Anon/Publishable Key · ห้ามใส่ service-role · ตารางของภาพ สคริปต์ และบทความจะกำหนดแยกในแต่ละฟีเจอร์</p>
           </CardContent>
         </Card>
+        </> : null}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
             <Button
@@ -743,18 +745,6 @@ export default function SecretGallery() {
             >
               <ImagePlus className="mr-2 h-4 w-4" />
               ภาพอ้างอิง · {images.length}
-            </Button>
-            <Button
-              onClick={() => setGalleryView("connect")}
-              variant="outline"
-              className={
-                view === "connect"
-                  ? "border-emerald-400/50 bg-emerald-500/15 text-emerald-200"
-                  : "border-white/10 bg-transparent text-white/60"
-              }
-            >
-              <LockKeyhole className="mr-2 h-4 w-4" />
-              ฐานค่าย · ตั้งค่าการเชื่อมต่อ
             </Button>
           </div>
           <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-cyan-200/45">
