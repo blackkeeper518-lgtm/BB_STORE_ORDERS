@@ -98,17 +98,29 @@ async function fetchChatRows(filter: ChatReadFilter = {}, credentials?: ChatSupa
     ...pageRows.map(row => ({ ...row, _source_table: CHAT_PAGE_TABLE })),
   ];
 }
+function isChatStatusEnabled(value: unknown) {
+  const status = String(value ?? "").trim().toUpperCase();
+  if (!status) return false;
+  if (["OFF", "FALSE", "0", "INACTIVE", "DISABLED", "CLOSED", "ปิด", "ปิดใช้งาน"].some(disabled => status === disabled || status.includes(disabled))) return false;
+  return ["ON", "TRUE", "1", "ACTIVE", "เปิด", "เปิดใช้งาน", "ใช้งาน", "✅", "🟢"].some(enabled => status === enabled || status.includes(enabled));
+}
+function effectiveWebStatus(row: Record<string, unknown>) {
+  return Object.prototype.hasOwnProperty.call(row, "status_web") && String(row.status_web ?? "").trim() ? row.status_web : row.status;
+}
 async function getActiveChatPageIds(credentials?: ChatSupabaseCredentials) {
-  const query = new URLSearchParams({ select: "page_id,status", limit: "5000" });
+  const query = new URLSearchParams({ select: "page_id,status,status_web", limit: "5000" });
   const rows = await supabaseGet<Array<Record<string, unknown>>>(`${encodeURIComponent(CHAT_PAGE_TOKEN_TABLE)}?${query.toString()}`, "chat", credentials);
-  if (!rows.some(row => Object.prototype.hasOwnProperty.call(row, "status"))) return null;
-  const isEnabled = (value: unknown) => {
-    const status = String(value ?? "").trim().toUpperCase();
-    if (!status) return false;
-    if (["OFF", "FALSE", "0", "INACTIVE", "DISABLED", "CLOSED", "ปิด", "ปิดใช้งาน"].some(disabled => status === disabled || status.includes(disabled))) return false;
-    return ["ON", "TRUE", "1", "ACTIVE", "เปิด", "เปิดใช้งาน", "ใช้งาน", "✅", "🟢"].some(enabled => status === enabled || status.includes(enabled));
-  };
-  return new Set(rows.filter(row => isEnabled(row.status)).map(row => String(row.page_id ?? "").trim()).filter(Boolean));
+  if (!rows.some(row => Object.prototype.hasOwnProperty.call(row, "status_web") || Object.prototype.hasOwnProperty.call(row, "status"))) return null;
+  return new Set(rows.filter(row => isChatStatusEnabled(effectiveWebStatus(row))).map(row => String(row.page_id ?? "").trim()).filter(Boolean));
+}
+export async function fetchChatPages(credentials?: ChatSupabaseCredentials) {
+  const query = new URLSearchParams({ select: "page_id,page_name,status,status_web", order: "page_name.asc", limit: "5000" });
+  const rows = await supabaseGet<Array<Record<string, unknown>>>(`${encodeURIComponent(CHAT_PAGE_TOKEN_TABLE)}?${query.toString()}`, "chat", credentials);
+  return rows.map(row => ({ pageId: String(row.page_id ?? "").trim(), pageName: String(row.page_name ?? "ไม่ระบุเพจ").trim() || "ไม่ระบุเพจ", status: row.status ?? null, statusWeb: row.status_web ?? row.status ?? null, enabledWeb: isChatStatusEnabled(effectiveWebStatus(row)) })).filter(row => row.pageId);
+}
+export async function setChatPageWebStatus(pageId: string, enabled: boolean, credentials?: ChatSupabaseCredentials) {
+  const query = `${encodeURIComponent(CHAT_PAGE_TOKEN_TABLE)}?page_id=eq.${encodeURIComponent(pageId)}`;
+  return supabasePatch<Array<Record<string, unknown>>>(query, { status_web: enabled ? "ON" : "OFF" }, "chat", credentials);
 }
 export async function assertChatPageEnabled(pageId: string, credentials?: ChatSupabaseCredentials) {
   const activeIds = await getActiveChatPageIds(credentials);
@@ -169,6 +181,7 @@ export async function checkChatConnection(credentials?: ChatSupabaseCredentials)
   return { checked: CHAT_CONNECTION_CHECKS.map(({ name }) => name) };
 }
 export async function supabasePost<T>(path: string, body: unknown, project: SupabaseProject = "main", prefer?: string, browserChatCredentials?: ChatSupabaseCredentials): Promise<T> { const { baseUrl, key } = config(project, browserChatCredentials); const headers: Record<string, string> = { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" }; if (prefer) headers.Prefer = prefer; const response = await fetch(`${baseUrl}/rest/v1/${path}`, { method: "POST", headers, body: JSON.stringify(body) }); if (!response.ok) throw new Error(`Supabase returned HTTP ${response.status}: ${(await response.text()).slice(0, 300)}`); return response.json() as Promise<T>; }
+export async function supabasePatch<T>(path: string, body: unknown, project: SupabaseProject = "main", browserChatCredentials?: ChatSupabaseCredentials): Promise<T> { const { baseUrl, key } = config(project, browserChatCredentials); const response = await fetch(`${baseUrl}/rest/v1/${path.replace(/^\/+/, "")}`, { method: "PATCH", headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json", Prefer: "return=representation" }, body: JSON.stringify(body) }); if (!response.ok) throw new Error(`Supabase returned HTTP ${response.status}: ${(await response.text()).slice(0, 500)}`); const text = await response.text(); return (text ? JSON.parse(text) : []) as T; }
 export async function recordOutgoingChatMessage(input: { portalKey?: string; chatLinkKey?: string; pageId: string; pageName?: string; threadId: string; recipientId: string; messageId?: string; text?: string; occurredAt?: Date }, credentials?: ChatSupabaseCredentials) {
   const occurredAt = input.occurredAt ?? new Date();
   const iso = occurredAt.toISOString();
