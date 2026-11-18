@@ -55,10 +55,6 @@ const chatProcedures = new Set([
   "chat.pollNotifications",
   "chat.messages",
   "chat.sendReply",
-  "line.status",
-  "line.conversations",
-  "line.messages",
-  "line.send",
   "parcels.sendTracking",
 ]);
 
