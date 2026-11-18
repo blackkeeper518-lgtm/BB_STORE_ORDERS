@@ -1591,3 +1591,7 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .mobile-inbox-drawer-link small { font-size: 9px; }
 .mobile-inbox-page.mobile-inbox-themed > .mobile-inbox-header,
 .mobile-inbox-page.mobile-inbox-themed > .mobile-inbox-tabs { flex: 0 0 auto; position: relative; z-index: 2; }
+
+/* Modal layer contract: one control surface at a time. */
+.mobile-inbox-custom-panel { z-index: 9992 !important; }
+.mobile-inbox-notification-panel { z-index: 80; }
