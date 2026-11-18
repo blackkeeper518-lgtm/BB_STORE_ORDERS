@@ -1488,3 +1488,35 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .mobile-inbox-page.mobile-inbox-themed .mobile-inbox-compose-row textarea { border-color:color-mix(in srgb, var(--depth-primary) 28%, transparent); background:color-mix(in srgb, var(--depth-bg) 90%, var(--depth-surface)); color:#f2f7ff; }
 @keyframes mobile-inbox-star-drift { from { background-position:0 0,0 0,18px 22px; transform:translate3d(0,0,0); } to { background-position:0 0,0 0,-34px 44px; transform:translate3d(-12px,18px,0); } }
 @media (prefers-reduced-motion:reduce) { .mobile-inbox-page.mobile-inbox-themed::before,.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-timeline::before { animation:none; } }
+
+/* Secret Gallery · Darkside Theme Studio visual system */
+.secret-gallery-page {
+  --sg-bg: #09070b;
+  --sg-panel: #160b13;
+  --sg-red: #ff3157;
+  --sg-pink: #ff4f9a;
+  --sg-text: #fff5f8;
+  --sg-muted: #b49ca8;
+  position: relative;
+  isolation: isolate;
+  background-color: var(--sg-bg) !important;
+  background-image: radial-gradient(ellipse at 86% 0%, rgba(255,49,87,.22), transparent 34%), radial-gradient(ellipse at 4% 72%, rgba(255,79,154,.13), transparent 38%), linear-gradient(rgba(255,49,87,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(255,79,154,.045) 1px, transparent 1px) !important;
+  background-size: auto, auto, 28px 28px, 28px 28px !important;
+  color: var(--sg-text) !important;
+}
+.secret-gallery-page::before { content: ""; position: fixed; z-index: -1; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, transparent 42%, rgba(0,0,0,.58) 100%), repeating-linear-gradient(0deg, transparent 0 3px, rgba(255,49,87,.018) 4px); }
+.secret-gallery-page .neon-card,
+.secret-gallery-page .project-room-card { border-color: rgba(255,79,154,.34) !important; background: linear-gradient(135deg, rgba(22,11,19,.97), rgba(10,8,14,.96)) !important; box-shadow: 0 0 0 1px rgba(255,49,87,.06), 0 20px 70px rgba(0,0,0,.38), 0 0 34px rgba(255,49,87,.10) !important; }
+.secret-gallery-page .neon-card:hover,
+.secret-gallery-page .project-room-card:hover { border-color: rgba(255,79,154,.72) !important; box-shadow: 0 0 0 1px rgba(255,79,154,.14), 0 24px 80px rgba(0,0,0,.48), 0 0 48px rgba(255,49,87,.20) !important; }
+.secret-gallery-page input,
+.secret-gallery-page select,
+.secret-gallery-page textarea { border-color: rgba(255,79,154,.28) !important; background: rgba(8,6,11,.72) !important; color: var(--sg-text) !important; }
+.secret-gallery-page .cyber-title { color: #fff5f8 !important; text-shadow: 0 0 14px rgba(255,49,87,.45), 0 0 34px rgba(255,79,154,.22) !important; }
+.secret-gallery-page .text-cyan-300,
+.secret-gallery-page .text-cyan-200,
+.secret-gallery-page .text-violet-200 { color: #ff9fbe !important; }
+.secret-gallery-page .bg-cyan-500\/15,
+.secret-gallery-page .bg-violet-500\/15 { background: rgba(255,49,87,.14) !important; }
+.secret-gallery-page .border-cyan-400\/50,
+.secret-gallery-page .border-violet-400\/50 { border-color: rgba(255,79,154,.65) !important; }
