@@ -1565,3 +1565,15 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .mobile-inbox-drawer-link svg { width:20px; flex:none; color:var(--mobile-accent); }
 .mobile-inbox-drawer-link span { font-weight:700; }
 .mobile-inbox-drawer-link small { margin-left:auto; color:var(--mobile-muted); font-size:9px; }
+
+/* Chat management drawer: one large left-side control panel. */
+.mobile-inbox-drawer { width: min(94vw, 460px); padding: calc(env(safe-area-inset-top) + 24px) 22px 28px; border-right-width: 2px; box-shadow: 20px 0 70px rgba(0,0,0,.62), 4px 0 26px color-mix(in srgb,var(--mobile-primary) 15%,transparent); background: linear-gradient(155deg, color-mix(in srgb,var(--mobile-bg) 96%,#000), color-mix(in srgb,var(--mobile-primary) 8%,#070912) 56%, color-mix(in srgb,var(--mobile-accent) 7%,#070912)); }
+.mobile-inbox-drawer::before { content:"DARKSIDE // CHAT CONTROL"; display:block; margin:0 0 12px 2px; color:color-mix(in srgb,var(--mobile-primary) 76%,white 8%); font:600 9px/1 'IBM Plex Mono',monospace; letter-spacing:.2em; }
+.mobile-inbox-drawer-head { min-height:58px; margin-bottom:22px; padding:0 2px 16px; border-bottom:1px solid color-mix(in srgb,var(--mobile-primary) 24%,transparent); font-size:22px; letter-spacing:-.03em; }
+.mobile-inbox-drawer-head button { width:40px; height:40px; border:1px solid color-mix(in srgb,var(--mobile-primary) 28%,transparent); background:color-mix(in srgb,var(--mobile-surface) 82%,transparent); }
+.mobile-inbox-drawer > button, .mobile-inbox-drawer-link { min-height:66px; padding:18px 18px; border-radius:16px; }
+.mobile-inbox-drawer > button { font-size:15px; }
+.mobile-inbox-drawer > button svg, .mobile-inbox-drawer-link svg { width:23px; height:23px; }
+.mobile-inbox-drawer-link span { font-size:15px; }
+.mobile-inbox-drawer-link small { font-size:10px; }
+@media (max-width: 480px) { .mobile-inbox-drawer { width:100vw; } }
