@@ -3,7 +3,7 @@ import { adminProcedure, protectedProcedure, publicProcedure, router } from "./_
 import { COOKIE_NAME } from "../shared/const";
 import { sendMetaMessage } from "./meta";
 import { assertChatPageEnabled, checkChatConnection, fetchChatMessageRows, fetchChatNotificationRows, fetchChatThreadRows, fetchParcelMappingQueue, purgeOldParcels, recordOutgoingChatMessage, supabaseGet, supabasePost } from "./supabase";
-import { fetchLineConversations, fetchLineMessages, sendLineText } from "./line";
+import { checkLineConnection, fetchLineConversations, fetchLineMessages, sendLineText } from "./line";
 import * as db from "./db";
 
 const ownerId = (ctx: { user: { id: number } | null }) => ctx.user?.id ?? 0;
@@ -83,6 +83,7 @@ export const appRouter = router({
   }),
 
   line: router({
+    status: protectedProcedure.query(() => checkLineConnection()),
     conversations: protectedProcedure.query(({ ctx }) => fetchLineConversations(requireBrowserChatConfig(ctx))),
     messages: protectedProcedure.input(z.object({ conversationId: z.string().min(1) })).query(({ input, ctx }) => fetchLineMessages(input.conversationId, requireBrowserChatConfig(ctx))),
     send: protectedProcedure.input(z.object({ lineUserId: z.string().min(1), text: z.string().trim().min(1).max(5000) })).mutation(({ input, ctx }) => sendLineText(input.lineUserId, input.text, requireBrowserChatConfig(ctx))),

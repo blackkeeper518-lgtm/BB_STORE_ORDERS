@@ -21,6 +21,14 @@ export type LineMessage = {
   messageId: string | null;
 };
 
+export type LineConnectionStatus = {
+  configured: boolean;
+  connected: boolean;
+  botName: string | null;
+  channelId: string | null;
+  error: string | null;
+};
+
 function text(value: unknown) { return value == null ? "" : String(value); }
 function timestamp(row: Record<string, unknown>) { return text(row.created_at || row.occurred_at || row.timestamp || row.time) || null; }
 function userId(row: Record<string, unknown>) { return text(row.line_user_id || row.user_id || row.destination || row.customer_id); }
@@ -29,6 +37,19 @@ function messageText(row: Record<string, unknown>) { return text(row.message_tex
 function direction(row: Record<string, unknown>): "inbound" | "outbound" {
   const value = text(row.direction || row.speaker || row.source).toLowerCase();
   return value.includes("out") || value.includes("page") || value.includes("admin") ? "outbound" : "inbound";
+}
+
+export async function checkLineConnection(): Promise<LineConnectionStatus> {
+  const token = process.env.LINE_CHANNEL_ACCESS_TOKEN?.trim();
+  if (!token) return { configured: false, connected: false, botName: null, channelId: null, error: "ยังไม่ได้ตั้งค่า LINE_CHANNEL_ACCESS_TOKEN บน Render" };
+  try {
+    const response = await fetch("https://api.line.me/v2/bot/info", { headers: { Authorization: `Bearer ${token}` } });
+    const body = await response.json().catch(() => ({})) as Record<string, unknown>;
+    if (!response.ok) return { configured: true, connected: false, botName: null, channelId: null, error: `LINE Token ใช้งานไม่ได้ (${response.status})` };
+    return { configured: true, connected: true, botName: text(body.displayName) || null, channelId: text(body.basicId || body.channelId) || null, error: null };
+  } catch (error) {
+    return { configured: true, connected: false, botName: null, channelId: null, error: error instanceof Error ? error.message : String(error) };
+  }
 }
 
 async function readRows(credentials?: ChatSupabaseCredentials) {
