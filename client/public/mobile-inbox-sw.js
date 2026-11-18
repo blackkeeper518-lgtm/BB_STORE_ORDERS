@@ -25,3 +25,18 @@ self.addEventListener("fetch", event => {
       .catch(() => caches.match(event.request).then(response => response || caches.match(APP_SHELL)))
   );
 });
+
+self.addEventListener("notificationclick", event => {
+  event.notification.close();
+  const target = event.notification.data?.url || APP_SHELL;
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(clientList => {
+      const existing = clientList.find(client => "focus" in client && client.url.includes("/mobile-inbox"));
+      if (existing) {
+        existing.navigate(target);
+        return existing.focus();
+      }
+      return self.clients.openWindow(target);
+    }),
+  );
+});
