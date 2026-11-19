@@ -358,6 +358,19 @@ describe("ChatHub read contract v5", () => {
     expect(message.text).toBe("ลูกค้าทักมาก่อน ขอเช็กค่าส่งหน่อยค่ะ");
   });
 
+  it("preserves explicit system speakers so they cannot be selected as customer messages", () => {
+    const [message] = mapChatRowsToMessages([{
+      _source_table: CHAT_CUSTOMER_TABLE,
+      page_id: "page-1",
+      thread_id: "thread-1",
+      speaker: "system",
+      message_text: "ข้อความแจ้งเตือนของระบบ",
+    }]);
+
+    expect(message.senderType).toBe("system");
+    expect(message.direction).toBe("inbound");
+  });
+
   it("splits customer and page latest fields when staggered flows write one summary row", () => {
     const messages = mapChatRowsToMessages([{
       _source_table: CHAT_PAGE_TABLE,
@@ -387,6 +400,7 @@ describe("ChatHub read contract v5", () => {
       {
         _source_table: CHAT_CUSTOMER_TABLE,
         id: 101, page_id: "page-1", thread_id: "thread-1", speaker: "customer",
+        source_lane: "🌌BB_CHAT", message_text: null,
         customer_message_text: "ลูกค้าทักสด", page_message_text: null,
         occurred_at: "2026-11-15T10:04:18.000Z", time_th: "15/11/2569 17:04:18", message_id: "customer-101",
       },
@@ -402,6 +416,8 @@ describe("ChatHub read contract v5", () => {
       ["customer", "ลูกค้าทักสด", "ลูกค้าทักสด", "15/11/2569 17:04:18"],
       ["page", "เพจตอบสด", "เพจตอบสด", "15/11/2569 17:06:46"],
     ]);
+    expect(messages[0].customer_message_text).toBe("ลูกค้าทักสด");
+    expect(messages[0].source_lane).toBe("🌌BB_CHAT");
   });
 
   it("keeps a late-arriving old-time message in history but never replaces the room's newest preview", () => {

@@ -3,11 +3,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { getActiveCamp, getSupabase, mapChatRowsToMessages, mapChatRowsToThreads, readCanonicalOrders, reconcileOptimisticMessages } from "@/lib/canonical";
 import { uploadChatImageToVault } from "@/lib/chat-image-upload";
+import { isSelectableCustomerMessage } from "@/lib/order-deck-context";
 import { CHAT_BROWSER_CONFIG_EVENT, readBrowserChatConfig } from "@/lib/chat-config";
 import { CYBER_FRAME_EVENT, CYBER_FRAME_OPTIONS, readCyberFrame, readCyberFrameRooms, saveCyberFrameRoom } from "@/lib/cyber-frame";
 import { CYBER_THEME_PRESETS, readCyberTheme, saveCyberTheme, type CyberTheme } from "@/lib/theme-lab";
 import { CHAT_NOTIFICATION_EVENT, countUnreadChatMessages, isChatNotificationSoundEnabled, markChatNotificationsRead, playChatNotificationSound, readChatNotificationState, reconcileChatNotificationRows, setChatNotificationSound, setChatNotificationSoundEnabled, unlockChatNotificationAudio, writeChatNotificationState, type ChatNotification } from "@/lib/chat-notifications";
-import { selectLatestCustomerMessageTexts } from "@/lib/order-deck-context";
 import { trpc } from "@/lib/trpc";
 import { OrderDeckFrame } from "@/components/chat/OrderDeckFrame";
 import { ArrowLeft, Bell, Check, Clipboard, Download, ExternalLink, Facebook, LoaderCircle, Menu, MessageCircle, MessagesSquare, Palette, Paperclip, Search, Send, Smile, Volume2, VolumeX, X } from "lucide-react";
@@ -21,6 +21,7 @@ const SELECTED_ROOM_KEY = "bb-orders-mobile-inbox-selected-v1";
 
 type Thread = ReturnType<typeof mapChatRowsToThreads>[number];
 type BeforeInstallPromptEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: "accepted" | "dismissed" }> };
+type SelectedOrderMessage = { id: string; threadKey: string; text: string };
 
 function timeLabel(value: string | null | undefined) {
   if (!value) return "";
@@ -42,7 +43,10 @@ function imageUrls(value: string | null | undefined) {
     return urls;
   } catch { return []; }
 }
-function messageText(message: Record<string, any>) { return String(message.text ?? message.message_text ?? (imageUrls(message.attachmentsJson).length ? "ส่งรูปภาพ" : "")); }
+function messageText(message: Record<string, any> | null | undefined) {
+  if (!message || typeof message !== "object") return "";
+  return String(message.text ?? message.message_text ?? (imageUrls(message.attachmentsJson).length ? "ส่งรูปภาพ" : ""));
+}
 function profileAvatar(thread: Thread) { return thread.profilePictureUrl ? <img src={thread.profilePictureUrl} alt="" loading="lazy" referrerPolicy="no-referrer" /> : (thread.customerName || "").slice(0, 1); }
 
 export default function MobileInbox() {
@@ -83,6 +87,7 @@ export default function MobileInbox() {
   const [summaryProduct, setSummaryProduct] = useState("");
   const [orderSummary, setOrderSummary] = useState<{ orderNumber: string; customerName: string; phone: string; address: string; product: string; cod: string; copyText: string } | null>(null);
   const [orderDeckOpen, setOrderDeckOpen] = useState(false);
+  const [selectedOrderMessage, setSelectedOrderMessage] = useState<SelectedOrderMessage | null>(null);
   const orderDeckDialogRef = useRef<HTMLDivElement>(null);
   const orderDeckFocusReturnRef = useRef<HTMLElement | null>(null);
   useEffect(() => {
@@ -116,7 +121,6 @@ export default function MobileInbox() {
       orderDeckFocusReturnRef.current = null;
     };
   }, [orderDeckOpen]);
-  const [orderDeckImportKey, setOrderDeckImportKey] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
   const stickTimelineToBottomRef = useRef(true);
@@ -328,7 +332,7 @@ export default function MobileInbox() {
   });
   useEffect(() => { if (!selectedKey && filteredThreads[0]) setSelectedKey(filteredThreads[0].key); }, [filteredThreads, selectedKey]);
   useEffect(() => { if (selectedKey) localStorage.setItem(SELECTED_ROOM_KEY, selectedKey); }, [selectedKey]);
-  useEffect(() => { setOptimisticMessages([]); optimisticMessageIdRef.current = null; }, [selectedPageId, selectedThreadId]);
+  useEffect(() => { setOptimisticMessages([]); optimisticMessageIdRef.current = null; setSelectedOrderMessage(null); }, [selectedPageId, selectedThreadId]);
   useEffect(() => { setOptimisticMessages(current => reconcileOptimisticMessages(current, messagesQuery.data ?? [])); }, [messagesQuery.data, optimisticMessages]);
   useEffect(() => {
     if (!openRoom || !timelineRef.current) return;
@@ -349,6 +353,7 @@ export default function MobileInbox() {
   }, [openRoom, messagesQuery.data?.length, optimisticMessages.length]);
   const selectRoom = (thread: Thread) => {
     setSelectedKey(thread.key);
+    setSelectedOrderMessage(null);
     const roomFrame = cyberFrameRooms[thread.key];
     if (roomFrame) setCyberFrame(roomFrame);
     setOpenRoom(true);
@@ -457,8 +462,21 @@ export default function MobileInbox() {
     setNotificationSoundEnabled(next);
   };
   const messages = [...(messagesQuery.data ?? []), ...optimisticMessages].filter(message => messageText(message).trim());
-  const orderDeckCustomerMessages = useMemo(() => selectLatestCustomerMessageTexts(messages), [messages]);
-  const openOrderDeck = () => { orderDeckFocusReturnRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null; setSummaryOpen(false); setOrderSummary(null); setOrderDeckOpen(true); setOrderDeckImportKey(key => key + 1); };
+  const selectedOrderMessageText = selectedOrderMessage?.threadKey === selected?.key ? selectedOrderMessage.text : "";
+  const openOrderDeck = () => { orderDeckFocusReturnRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null; setSummaryOpen(false); setOrderSummary(null); setOrderDeckOpen(true); };
+  const toggleOrderMessageSelection = (message: unknown) => {
+    if (!isSelectableCustomerMessage(message) || !selected) return;
+    const text = message.customer_message_text.trim();
+    const id = String(message.id ?? message.messageId ?? `${message.occurredAt ?? ""}:${text}`);
+    const isAlreadySelected = selectedOrderMessage?.id === id && selectedOrderMessage.threadKey === selected.key;
+    if (isAlreadySelected) {
+      setSelectedOrderMessage(null);
+      setNotice("ยกเลิกการเลือกข้อความสำหรับสรุปออเดอร์แล้ว");
+      return;
+    }
+    setSelectedOrderMessage({ id, threadKey: selected.key, text });
+    setNotice("เลือกข้อความนี้ไว้แล้ว · เปิดสรุปออเดอร์แล้วกด “ดึงข้อมูลลูกค้า” เมื่อต้องการนำเข้า");
+  };
   const receiveProductImages = async (urls: string[], productName?: string) => {
     const isAllowedProductImage = (url: string) => /^https?:\/\//i.test(url) || (url.length <= 8_100_000 && /^data:image\/(?:png|jpeg|gif|webp);base64,/i.test(url));
     const existing = new Set(replyImages.map(image => image.sendUrl || image.url));
@@ -509,9 +527,8 @@ export default function MobileInbox() {
       setUploading(false);
     }
   };
-  const latestCustomerMessage = [...messages].reverse().find(message => message.direction !== "outbound" && message.senderType !== "page" && messageText(message).trim());
   const openOrderSummary = () => {
-    setSummaryText(messageText(latestCustomerMessage ?? {}));
+    setSummaryText(selectedOrderMessageText);
     setSummaryProduct("");
     setOrderSummary(null);
     setSummaryOpen(true);
@@ -536,15 +553,35 @@ export default function MobileInbox() {
       {!hasConfig ? <div className="mobile-inbox-empty"><MessageCircle /><p>ยังไม่ได้ตั้งค่า Chat ใน ROOM 02</p><button type="button" onClick={() => setLocation("/secret-gallery")}>ไปตั้งค่า</button></div> : threadsQuery.isLoading ? <div className="mobile-inbox-empty"><LoaderCircle className="animate-spin" /><p>กำลังโหลดข้อความ…</p></div> : filteredThreads.length === 0 ? <div className="mobile-inbox-empty"><MessageCircle /><p>ไม่พบห้องแชท</p></div> : <div className="mobile-inbox-threads">{filteredThreads.map(thread => <button type="button" key={thread.key} onClick={() => selectRoom(thread)} className={`mobile-inbox-thread ${selected?.key === thread.key ? "is-selected" : ""}`}><span className="mobile-inbox-avatar">{profileAvatar(thread)}</span><span className="mobile-inbox-thread-body"><span className="mobile-inbox-thread-top"><strong>{thread.customerName || ""}</strong><time>{timeLabel(thread.latestAt)}</time></span><span className="mobile-inbox-thread-preview">{thread.preview || "ยังไม่มีข้อความ"}</span><span className="mobile-inbox-thread-tags"><span className="mobile-inbox-platform-badge" aria-label="Facebook"><Facebook /> Facebook</span><span>{thread.pageName || "ไม่ระบุเพจ"}</span><time>{timeLabel(thread.latestAt)}</time>{thread.unread ? <b>ใหม่</b> : null}{thread.orderCount > 0 ? <b>ออเดอร์</b> : null}</span></span></button>)}</div>}
     </section>
     <nav className="mobile-inbox-bottom-nav"><button type="button" className="is-active" onClick={returnToInbox}><MessagesSquare /><span>ข้อความ</span></button><button type="button" onClick={() => { returnToInbox(); requestAnimationFrame(() => document.querySelector<HTMLInputElement>(".mobile-inbox-search input")?.focus()); }}><Search /><span>ค้นหา</span></button><button type="button" onClick={openDrawer}><Menu /><span>เมนู</span></button></nav>
-    {openRoom && selected ? <div className="mobile-inbox-conversation"><div className="mobile-inbox-conversation-shell"><header className="mobile-inbox-conversation-header"><button type="button" aria-label="กลับไปหน้ารวมแชท" onClick={closeRoom}><ArrowLeft /></button><span className="mobile-inbox-avatar">{profileAvatar(selected)}</span><div className="min-w-0 flex-1"><strong className="block truncate">{selected.customerName || ""}</strong><small>{selected.pageName || "ไม่ระบุเพจ"}</small></div><button type="button" onClick={openOrderDeck} className="mobile-inbox-order-summary-button" aria-label="สรุปออเดอร์"><Clipboard /><span>สรุปออเดอร์</span></button></header><div ref={timelineRef} onScroll={event => { const node = event.currentTarget; stickTimelineToBottomRef.current = node.scrollHeight - node.scrollTop - node.clientHeight < 48; }} className="mobile-inbox-timeline">{messages.length ? messages.map(message => { const outgoing = message.direction === "outbound" || message.senderType === "page"; const text = messageText(message); const images = imageUrls(message.attachmentsJson); const mediaOnly = images.length > 0 && (!text.trim() || /^\[รูปภาพ\]$|^ส่งรูปภาพ$/i.test(text.trim())); const roomFrame = cyberFrameRooms[selected.key] || cyberFrame; return <div key={message.id} className={`mobile-inbox-message-row ${outgoing ? "is-outgoing" : ""}`}><div className={`mobile-inbox-message chat-bubble-frame ${roomFrame ? `cyber-frame-card cyber-frame-${roomFrame}` : ""} ${mediaOnly ? "is-media-only" : ""}`}>{!mediaOnly && text ? <p>{text}</p> : null}{images.map(url => <img key={url} src={url} alt="รูปภาพจากแชท" />)}<time>{timeLabel(message.occurredAt)}</time></div></div>; }) : <div className="mobile-inbox-empty"><MessageCircle /><p>{selected.preview || "ยังไม่มีข้อความ"}</p></div>}</div><div className="mobile-inbox-composer">{emojiOpen ? <div className="mobile-inbox-emoji">{["😊", "👍", "🙏", "❤️", "📦"].map(emoji => <button type="button" key={emoji} onClick={() => { addEmoji(emoji); setEmojiOpen(false); }}>{emoji}</button>)}</div> : null}{replyImages.length ? <div className="mobile-inbox-attachment">{replyImages.map((image, index) => <span key={image.url} className="relative inline-flex items-center gap-1"><img src={image.url} alt={`ภาพแนบ ${index + 1}`} className="h-10 w-10 rounded-md object-cover" /><button type="button" aria-label={`เอาภาพที่ ${index + 1} ออก`} onClick={() => setReplyImages(current => current.filter((_, imageIndex) => imageIndex !== index))}><X /></button></span>)}<small>{replyImages.length}/4</small></div> : null}{notice ? <div className="mobile-inbox-notice">{notice}</div> : null}<div className="mobile-inbox-compose-row"><input ref={fileRef} hidden multiple type="file" accept="image/jpeg,image/png,image/gif,image/webp" onChange={event => { void handleUpload(Array.from(event.target.files ?? [])); event.currentTarget.value = ""; }} /><button type="button" aria-label="แนบภาพ" onClick={() => fileRef.current?.click()} disabled={uploading || replyImages.length >= 4}><Paperclip /></button><Textarea value={replyText} onChange={event => setReplyText(event.target.value)} placeholder="พิมพ์ข้อความ…" disabled={!selectedCustomerId} onPaste={handleComposerPaste} onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); send(); } }} /><button type="button" aria-label="อีโมจิ" onClick={() => setEmojiOpen(value => !value)}><Smile /></button><Button type="button" aria-label="ส่งข้อความ" onClick={send} disabled={sendReply.isPending || uploading || !selectedCustomerId || (!replyText.trim() && replyImages.length === 0)}>{sendReply.isPending ? <LoaderCircle className="animate-spin" /> : <Send />}</Button></div></div></div></div> : null}
+    {openRoom && selected ? <div className="mobile-inbox-conversation"><div className="mobile-inbox-conversation-shell"><header className="mobile-inbox-conversation-header"><button type="button" aria-label="กลับไปหน้ารวมแชท" onClick={closeRoom}><ArrowLeft /></button><span className="mobile-inbox-avatar">{profileAvatar(selected)}</span><div className="min-w-0 flex-1"><strong className="block truncate">{selected.customerName || ""}</strong><small>{selected.pageName || "ไม่ระบุเพจ"}</small></div><button type="button" onClick={openOrderDeck} className="mobile-inbox-order-summary-button" aria-label="สรุปออเดอร์"><Clipboard /><span>สรุปออเดอร์</span></button></header><div ref={timelineRef} onScroll={event => { const node = event.currentTarget; stickTimelineToBottomRef.current = node.scrollHeight - node.scrollTop - node.clientHeight < 48; }} className="mobile-inbox-timeline">{messages.length ? messages.map(message => { const outgoing = message.direction === "outbound" || message.senderType === "page"; const text = messageText(message); const images = imageUrls(message.attachmentsJson); const mediaOnly = images.length > 0 && (!text.trim() || /^\[รูปภาพ\]$|^ส่งรูปภาพ$/i.test(text.trim())); const roomFrame = cyberFrameRooms[selected.key] || cyberFrame; const selectionId = String(message.id ?? message.messageId ?? `${message.occurredAt ?? ""}:${text.trim()}`); const isSelectedForOrder = selectedOrderMessage?.threadKey === selected.key && selectedOrderMessage.id === selectionId; return (
+              <div key={message.id} className={`mobile-inbox-message-row ${outgoing ? "is-outgoing" : ""}`}>
+                <div className={`mobile-inbox-message chat-bubble-frame ${roomFrame ? `cyber-frame-card cyber-frame-${roomFrame}` : ""} ${mediaOnly ? "is-media-only" : ""} ${isSelectedForOrder ? "is-selected-for-order" : ""}`}>
+                  {!mediaOnly && text ? <p>{text}</p> : null}
+                  {images.map(url => <img key={url} src={url} alt="รูปภาพจากแชท" />)}
+                  <time>{timeLabel(message.occurredAt)}</time>
+                </div>
+                {isSelectableCustomerMessage(message) && !outgoing && !mediaOnly && text.trim() ? (
+                  <button
+                    type="button"
+                    className={`mobile-inbox-message-select ${isSelectedForOrder ? "is-selected" : ""}`}
+                    aria-pressed={isSelectedForOrder}
+                    aria-label={isSelectedForOrder ? "ยกเลิกเลือกข้อความนี้" : "เลือกข้อความนี้สำหรับสรุปออเดอร์"}
+                    title="เลือกได้ครั้งละหนึ่งข้อความ · การเลือกยังไม่ดึงข้อมูลเข้า Order Deck"
+                    onClick={() => toggleOrderMessageSelection(message)}
+                  >
+                    {isSelectedForOrder ? <><Check className="h-3 w-3" /> เลือกแล้ว</> : <><Clipboard className="h-3 w-3" /> เลือกข้อความ</>}
+                  </button>
+                ) : null}
+              </div>
+            ); }) : <div className="mobile-inbox-empty"><MessageCircle /><p>{selected.preview || "ยังไม่มีข้อความ"}</p></div>}</div><div className="mobile-inbox-composer">{emojiOpen ? <div className="mobile-inbox-emoji">{["😊", "👍", "🙏", "❤️", "📦"].map(emoji => <button type="button" key={emoji} onClick={() => { addEmoji(emoji); setEmojiOpen(false); }}>{emoji}</button>)}</div> : null}{replyImages.length ? <div className="mobile-inbox-attachment">{replyImages.map((image, index) => <span key={image.url} className="relative inline-flex items-center gap-1"><img src={image.url} alt={`ภาพแนบ ${index + 1}`} className="h-10 w-10 rounded-md object-cover" /><button type="button" aria-label={`เอาภาพที่ ${index + 1} ออก`} onClick={() => setReplyImages(current => current.filter((_, imageIndex) => imageIndex !== index))}><X /></button></span>)}<small>{replyImages.length}/4</small></div> : null}{notice ? <div className="mobile-inbox-notice">{notice}</div> : null}<div className="mobile-inbox-compose-row"><input ref={fileRef} hidden multiple type="file" accept="image/jpeg,image/png,image/gif,image/webp" onChange={event => { void handleUpload(Array.from(event.target.files ?? [])); event.currentTarget.value = ""; }} /><button type="button" aria-label="แนบภาพ" onClick={() => fileRef.current?.click()} disabled={uploading || replyImages.length >= 4}><Paperclip /></button><Textarea value={replyText} onChange={event => setReplyText(event.target.value)} placeholder="พิมพ์ข้อความ…" disabled={!selectedCustomerId} onPaste={handleComposerPaste} onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); send(); } }} /><button type="button" aria-label="อีโมจิ" onClick={() => setEmojiOpen(value => !value)}><Smile /></button><Button type="button" aria-label="ส่งข้อความ" onClick={send} disabled={sendReply.isPending || uploading || !selectedCustomerId || (!replyText.trim() && replyImages.length === 0)}>{sendReply.isPending ? <LoaderCircle className="animate-spin" /> : <Send />}</Button></div></div></div></div> : null}
     {orderDeckOpen && selected && typeof document !== "undefined" ? createPortal(
       <div className="mobile-inbox-order-deck" role="presentation" onClick={() => setOrderDeckOpen(false)}>
         <div ref={orderDeckDialogRef} tabIndex={-1} className="mobile-inbox-order-deck-panel" role="dialog" aria-modal="true" aria-label={`สรุปออเดอร์ · ${selected.customerName || "ลูกค้า"}`} onClick={event => event.stopPropagation()}>
-          <OrderDeckFrame pageId={selected.pageId} pageName={selected.pageName || "ไม่ระบุเพจ"} threadId={selected.threadId} customerName={selected.customerName || "ลูกค้า"} customerPhone={String(selected.customerPhone || selected.phone || "")} customerMessages={orderDeckCustomerMessages} importKey={orderDeckImportKey} roomStatus="กำลังดูห้อง" onProductImagesSelected={receiveProductImages} onClose={() => setOrderDeckOpen(false)} />
+          <OrderDeckFrame pageId={selected.pageId} pageName={selected.pageName || "ไม่ระบุเพจ"} threadId={selected.threadId} customerName={selected.customerName || "ลูกค้า"} customerPhone={String(selected.customerPhone || selected.phone || "")} selectedCustomerMessage={selectedOrderMessageText} roomStatus="กำลังดูห้อง" onProductImagesSelected={receiveProductImages} onClose={() => setOrderDeckOpen(false)} />
         </div>
       </div>,
       document.body,
     ) : null}
-    {summaryOpen ? <div className="mobile-inbox-summary-overlay" role="dialog" aria-modal="true"><section className="mobile-inbox-summary-panel"><header><div><small>ADMIN ORDER SUMMARY</small><h2>สรุปออเดอร์จากข้อความล่าสุด</h2></div><button type="button" onClick={() => setSummaryOpen(false)} aria-label="ปิดสรุปออเดอร์"><X /></button></header><p className="mobile-inbox-summary-hint">ระบบเริ่มจากข้อความล่าสุดของลูกค้า แอดมินแก้ไขหรือเติมข้อมูลได้ก่อนกดอ่าน</p><Textarea autoFocus value={summaryText} onChange={event => { setSummaryText(event.target.value); setOrderSummary(null); }} placeholder="ข้อความล่าสุดของลูกค้า…" className="mobile-inbox-summary-input" /><Input value={summaryProduct} onChange={event => { setSummaryProduct(event.target.value); setOrderSummary(null); }} placeholder="สินค้า / ตัวย่อสินค้า เช่น SIERRA_GREEN 2 คอต" className="mobile-inbox-summary-product" />{orderSummary ? <div className="mobile-inbox-summary-result"><div><small>ชื่อ</small><strong>{orderSummary.customerName}</strong></div><div><small>เบอร์</small><strong>{orderSummary.phone || "ไม่ระบุ"}</strong></div><div className="wide"><small>ที่อยู่</small><strong>{orderSummary.address || "ไม่ระบุ"}</strong></div><div><small>สินค้า</small><strong>{orderSummary.product}</strong></div><div><small>COD</small><strong>{orderSummary.cod}</strong></div><pre>{orderSummary.copyText}</pre><Button type="button" onClick={() => { setReplyText(orderSummary.copyText); setSummaryOpen(false); setNotice("ใส่ข้อความสรุปลงช่องตอบกลับแล้ว · ตรวจสอบก่อนส่ง"); }} className="wide bg-gradient-to-r from-fuchsia-600 to-cyan-500"><Send className="mr-2 h-4 w-4" />ใส่ลงช่องตอบกลับ</Button></div> : null}<footer><Button type="button" variant="outline" onClick={() => setSummaryOpen(false)}>ยกเลิก</Button><Button type="button" onClick={() => generateSummary.mutate({ rawText: summaryText, customerName: selected?.customerName || undefined, product: summaryProduct || undefined })} disabled={!summaryText.trim() || generateSummary.isPending} className="bg-gradient-to-r from-fuchsia-600 via-violet-600 to-emerald-500">{generateSummary.isPending ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Clipboard className="mr-2 h-4 w-4" />}อ่านและสรุป</Button></footer></section></div> : null}
+    {summaryOpen ? <div className="mobile-inbox-summary-overlay" role="dialog" aria-modal="true"><section className="mobile-inbox-summary-panel"><header><div><small>ADMIN ORDER SUMMARY</small><h2>สรุปออเดอร์จากข้อความที่เลือก</h2></div><button type="button" onClick={() => setSummaryOpen(false)} aria-label="ปิดสรุปออเดอร์"><X /></button></header><p className="mobile-inbox-summary-hint">เริ่มจากข้อความที่คุณเลือกเอง · แก้ไขหรือเติมข้อมูลได้ก่อนกดอ่าน</p><Textarea autoFocus value={summaryText} onChange={event => { setSummaryText(event.target.value); setOrderSummary(null); }} placeholder="ข้อความที่เลือกจากลูกค้า…" className="mobile-inbox-summary-input" /><Input value={summaryProduct} onChange={event => { setSummaryProduct(event.target.value); setOrderSummary(null); }} placeholder="สินค้า / ตัวย่อสินค้า เช่น SIERRA_GREEN 2 คอต" className="mobile-inbox-summary-product" />{orderSummary ? <div className="mobile-inbox-summary-result"><div><small>ชื่อ</small><strong>{orderSummary.customerName}</strong></div><div><small>เบอร์</small><strong>{orderSummary.phone || "ไม่ระบุ"}</strong></div><div className="wide"><small>ที่อยู่</small><strong>{orderSummary.address || "ไม่ระบุ"}</strong></div><div><small>สินค้า</small><strong>{orderSummary.product}</strong></div><div><small>COD</small><strong>{orderSummary.cod}</strong></div><pre>{orderSummary.copyText}</pre><Button type="button" onClick={() => { setReplyText(orderSummary.copyText); setSummaryOpen(false); setNotice("ใส่ข้อความสรุปลงช่องตอบกลับแล้ว · ตรวจสอบก่อนส่ง"); }} className="wide bg-gradient-to-r from-fuchsia-600 to-cyan-500"><Send className="mr-2 h-4 w-4" />ใส่ลงช่องตอบกลับ</Button></div> : null}<footer><Button type="button" variant="outline" onClick={() => setSummaryOpen(false)}>ยกเลิก</Button><Button type="button" onClick={() => generateSummary.mutate({ rawText: summaryText, customerName: selected?.customerName || undefined, product: summaryProduct || undefined })} disabled={!summaryText.trim() || generateSummary.isPending} className="bg-gradient-to-r from-fuchsia-600 via-violet-600 to-emerald-500">{generateSummary.isPending ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Clipboard className="mr-2 h-4 w-4" />}อ่านและสรุป</Button></footer></section></div> : null}
   </main>;
 }

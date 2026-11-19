@@ -7,6 +7,7 @@ import { useIsMobile } from "@/hooks/useMobile";
 import { getSupabase, mapChatRowsToMessages, mapChatRowsToThreads, reconcileOptimisticMessages } from "@/lib/canonical";
 import { uploadChatImageToVault } from "@/lib/chat-image-upload";
 import { buildMetaConversationUrl } from "@/lib/meta-inbox";
+import { isSelectableCustomerMessage } from "@/lib/order-deck-context";
 import { CHAT_BROWSER_CONFIG_EVENT, readBrowserChatConfig } from "@/lib/chat-config";
 import { CYBER_FRAME_EVENT, CYBER_FRAME_OPTIONS, readCyberFrame, readCyberFrameRooms, saveCyberFrameRoom } from "@/lib/cyber-frame";
 import { trpc } from "@/lib/trpc";
@@ -15,7 +16,6 @@ import { Check, CheckCircle2, ChevronDown, CircleUserRound, Clipboard, ExternalL
 import { type ClipboardEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { OrderDeckFrame } from "@/components/chat/OrderDeckFrame";
-import { selectLatestCustomerMessageTexts } from "@/lib/order-deck-context";
 
 function timeLabel(value: string | null | undefined) {
   if (!value) return "—";
@@ -45,7 +45,8 @@ function imageUrls(value: string | null | undefined) {
 }
 
 function stripSpeakerPrefix(value: string) { return value.replace(/^\s*\[(?:เพจ|ลูกค้า)\]\s*/i, "").trim(); }
-function displayMessageText(message: Record<string, any>) {
+function displayMessageText(message: Record<string, any> | null | undefined) {
+  if (!message || typeof message !== "object") return "";
   const text = stripSpeakerPrefix(String(message.text ?? ""));
   if (text) return text;
   return imageUrls(message.attachmentsJson).length > 0 ? "ส่งรูปภาพ" : "";
@@ -63,6 +64,7 @@ function hasTrackingOver24Hours(thread: Record<string, any>) {
 
 const CHAT_PAGE_FILTER_KEY = "bb-orders-chat-page-filter-v1";
 const CHAT_SELECTED_ROOM_KEY = "bb-orders-chat-selected-room-v1";
+type SelectedOrderMessage = { id: string; threadKey: string; text: string };
 function CopyValueCard({ label, value, copied, onCopy }: { label: string; value: unknown; copied: boolean; onCopy: () => void }) {
   const text = String(value ?? "").trim();
   const hasValue = Boolean(text);
@@ -92,7 +94,7 @@ export default function ChatHub() {
   const [composerOpen, setComposerOpen] = useState(true);
   const [toolsOpen, setToolsOpen] = useState(() => typeof window === "undefined" || window.innerWidth >= 1440);
   const [orderDeckOpen, setOrderDeckOpen] = useState(false);
-  const [orderDeckImportKey, setOrderDeckImportKey] = useState(0);
+  const [selectedOrderMessage, setSelectedOrderMessage] = useState<SelectedOrderMessage | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [pageFilterOpen, setPageFilterOpen] = useState(false);
   const [selectedPages, setSelectedPages] = useState<string[]>(() => {
@@ -203,13 +205,11 @@ export default function ChatHub() {
     refetchOnReconnect: false,
     select: mapChatRowsToMessages,
   });
-  const orderDeckCustomerMessages = useMemo(
-    () => selectLatestCustomerMessageTexts(messagesQuery.data ?? []),
-    [messagesQuery.data],
-  );
+  const selectedOrderMessageText = selectedOrderMessage?.threadKey === selected?.key ? selectedOrderMessage.text : "";
   useEffect(() => {
     setOptimisticMessages([]);
     optimisticMessageIdRef.current = null;
+    setSelectedOrderMessage(null);
   }, [selectedPageId, selectedThreadId]);
   useEffect(() => {
     setOptimisticMessages(current => reconcileOptimisticMessages(current, messagesQuery.data ?? []));
@@ -311,8 +311,20 @@ export default function ChatHub() {
     if (!selected) return;
     setSummary(null);
     setOrderDeckOpen(true);
-    setOrderDeckImportKey(key => key + 1);
     setSummaryOpen(false);
+  };
+  const toggleOrderMessageSelection = (message: unknown) => {
+    if (!isSelectableCustomerMessage(message) || !selected) return;
+    const text = message.customer_message_text.trim();
+    const id = String(message.id ?? message.messageId ?? `${message.occurredAt ?? ""}:${text}`);
+    const isAlreadySelected = selectedOrderMessage?.id === id && selectedOrderMessage.threadKey === selected.key;
+    if (isAlreadySelected) {
+      setSelectedOrderMessage(null);
+      setReplyNotice("ยกเลิกการเลือกข้อความสำหรับสรุปออเดอร์แล้ว");
+      return;
+    }
+    setSelectedOrderMessage({ id, threadKey: selected.key, text });
+    setReplyNotice("เลือกข้อความนี้ไว้แล้ว · เปิดสรุปออเดอร์แล้วกด “ดึงข้อมูลลูกค้า” เมื่อต้องการนำเข้า");
   };
   const selectedConfirmed = Boolean(selected && confirmedKeys.has(`${selectedPageId}:${selectedThreadId}`));
   const confirmSelectedOrder = () => { if (!selectedPageId || !selectedThreadId || selectedConfirmed) return; confirmOrder.mutate({ pageId: selectedPageId, threadId: selectedThreadId, customerName: selected?.customerName ?? undefined, customerId: selectedCustomerId || undefined, evidenceText: selected?.preview ?? undefined }); };
@@ -440,10 +452,15 @@ export default function ChatHub() {
     if (!replyText.trim()) return;
     await navigator.clipboard.writeText(replyText);
     setCopied(true);
-    window.setTimeout(() => setCopied(false), 1600);
-  };
+  window.setTimeout(() => setCopied(false), 1600);
+};
   const visibleTimeline = (selected?.chatTimeline ?? []).filter((line: string) => stripSpeakerPrefix(line).trim() && (messageFilter === "all" || (messageFilter === "page" ? isPageTimelineLine(line) : isCustomerTimelineLine(line))));
-  const visibleStoredMessages = [...(messagesQuery.data ?? []), ...optimisticMessages].filter(message => { const hasContent = String(message.text ?? "").trim().length > 0 || imageUrls(message.attachmentsJson).length > 0; const matchesFilter = messageFilter === "all" || (messageFilter === "page" ? message.direction === "outbound" : message.direction === "inbound"); return hasContent && matchesFilter; });
+  const visibleStoredMessages = [...(messagesQuery.data ?? []), ...optimisticMessages].filter(message => {
+    if (!message || typeof message !== "object") return false;
+    const hasContent = String(message.text ?? "").trim().length > 0 || imageUrls(message.attachmentsJson).length > 0;
+    const matchesFilter = messageFilter === "all" || (messageFilter === "page" ? message.direction === "outbound" : message.direction === "inbound");
+    return hasContent && matchesFilter;
+  });
 
   const composer = <div className="flex min-h-0 flex-1 flex-col justify-end overflow-hidden border-t border-cyan-300/20 pt-2">
     <input ref={fileInputRef} type="file" multiple accept="image/jpeg,image/png,image/gif,image/webp" className="hidden" onChange={event => { handleImageUpload(Array.from(event.target.files ?? [])); event.currentTarget.value = ""; }} />
@@ -461,8 +478,32 @@ export default function ChatHub() {
     <div ref={chatTimelineRef} onScroll={handleTimelineScroll} className="chat-cosmos-timeline relative min-h-0 flex-1 flex flex-col justify-start gap-3 overflow-y-auto overscroll-contain bg-[radial-gradient(circle_at_82%_8%,rgba(16,185,129,0.12),transparent_28%),radial-gradient(circle_at_12%_74%,rgba(168,85,247,0.11),transparent_30%),linear-gradient(135deg,#080c15,#0d0914_56%,#090b12)] p-4 sm:p-5 [-webkit-overflow-scrolling:touch]">
       {showNewMessages ? <button type="button" onClick={jumpToLatest} className="sticky bottom-3 left-1/2 z-20 mx-auto -mb-10 rounded-full border border-fuchsia-300/30 bg-gradient-to-r from-fuchsia-600 via-violet-600 to-emerald-500 px-4 py-2 text-xs font-semibold text-white shadow-[0_0_24px_rgba(168,85,247,0.45)] transition hover:scale-105">ข้อความใหม่ · ลงล่างสุด</button> : null}
       {messagesQuery.isFetching ? <div className="absolute right-4 top-4 z-10 inline-flex items-center gap-1.5 rounded-full border border-fuchsia-400/20 bg-[#15101d]/90 px-2.5 py-1 text-[10px] text-fuchsia-200"><LoaderCircle className="h-3 w-3 animate-spin" />กำลังอัปเดต</div> : null}
-      {visibleStoredMessages.length === 0 ? <>{visibleTimeline.length ? visibleTimeline.map((line: string, index: number) => <div key={`${line}-${index}`} className={`chat-message-bubble min-w-0 shrink-0 break-words [overflow-wrap:anywhere] rounded-2xl px-4 py-3 text-sm leading-6 shadow-lg ${isPageTimelineLine(line) ? "ml-auto rounded-br-md border border-fuchsia-300/25 bg-gradient-to-br from-violet-900/80 to-fuchsia-950/65 text-fuchsia-50 shadow-[0_0_20px_rgba(217,70,239,.10)]" : "rounded-bl-md border border-emerald-300/25 bg-gradient-to-br from-emerald-950/85 to-green-950/55 text-emerald-50/95 shadow-[0_0_18px_rgba(16,185,129,.12)]"}`}><p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{stripSpeakerPrefix(line)}</p></div>) : <div className="rounded-2xl border border-fuchsia-500/10 bg-black/20 p-4 text-sm leading-6 text-fuchsia-100/60"><p>{selected.preview}</p></div>}</> : null}
-      {visibleStoredMessages.map(message => { const isRight = ("side" in message && message.side === "right") || message.direction === "outbound" || message.senderType === "page"; const senderName = isRight ? (selected.pageName || "เพจ") : (selected.customerName || ""); return <div key={message.id} className={`flex w-full shrink-0 ${isRight ? "justify-end" : "justify-start"}`}><div className={`chat-message-bubble chat-bubble-frame ${cyberFrameRooms[selected.key] || cyberFrame ? `cyber-frame-card cyber-frame-${cyberFrameRooms[selected.key] || cyberFrame}` : ""} min-w-0 shrink-0 break-words rounded-2xl px-4 py-3 text-sm leading-6 shadow-lg ${isRight ? "rounded-br-md border border-fuchsia-300/25 bg-gradient-to-br from-violet-900/80 to-fuchsia-950/65 text-fuchsia-50 shadow-[0_0_20px_rgba(217,70,239,.10)]" : "rounded-bl-md border border-emerald-300/25 bg-gradient-to-br from-emerald-950/85 to-green-950/55 text-emerald-50/95 shadow-[0_0_18px_rgba(16,185,129,.12)]"}`}><p className="mb-1 text-[10px] font-semibold uppercase tracking-wide opacity-60">{senderName}</p><p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{displayMessageText(message)}</p>{imageUrls(message.attachmentsJson).map(url => <button key={url} type="button" onClick={() => setLightboxUrl(url)} className="mt-2 block cursor-zoom-in text-left"><img src={url} alt="ไฟล์แนบจากแชท คลิกเพื่อขยาย" className="max-h-56 rounded-xl object-cover transition hover:brightness-110" /></button>)}<p className="mt-1 text-[10px] opacity-50">{senderName} · {messageTimeLabel(message)}</p></div></div>; })}
+      {visibleStoredMessages.length === 0 ? <>{visibleTimeline.length ? visibleTimeline.map((line: string, index: number) => {
+        const isPageMessage = isPageTimelineLine(line);
+        const text = stripSpeakerPrefix(line);
+        return <div key={`${line}-${index}`} className={`flex w-full shrink-0 flex-col ${isPageMessage ? "items-end" : "items-start"}`}>
+          <div className={`chat-message-bubble min-w-0 max-w-[86%] break-words [overflow-wrap:anywhere] rounded-2xl px-4 py-3 text-sm leading-6 shadow-lg ${isPageMessage ? "rounded-br-md border border-fuchsia-300/25 bg-gradient-to-br from-violet-900/80 to-fuchsia-950/65 text-fuchsia-50 shadow-[0_0_20px_rgba(217,70,239,.10)]" : "rounded-bl-md border border-emerald-300/25 bg-gradient-to-br from-emerald-950/85 to-green-950/55 text-emerald-50/95 shadow-[0_0_18px_rgba(16,185,129,.12)]"}`}>
+            <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{text}</p>
+          </div>
+        </div>;
+      }) : <div className="rounded-2xl border border-fuchsia-500/10 bg-black/20 p-4 text-sm leading-6 text-fuchsia-100/60"><p>{selected.preview}</p></div>}</> : null}
+      {visibleStoredMessages.map(message => {
+        const isRight = ("side" in message && message.side === "right") || message.direction === "outbound" || message.senderType === "page";
+        const isCustomerMessage = isSelectableCustomerMessage(message);
+        const senderName = isRight ? (selected.pageName || "เพจ") : (selected.customerName || "");
+        const text = stripSpeakerPrefix(String(message.text ?? message.message_text ?? "")).trim();
+        const messageId = String(message.id ?? message.messageId ?? `${message.occurredAt ?? ""}:${text}`);
+        const isSelected = isCustomerMessage && !isRight && selectedOrderMessage?.threadKey === selected.key && selectedOrderMessage.id === messageId;
+        return <div key={message.id} className={`flex w-full shrink-0 flex-col ${isRight ? "items-end" : "items-start"}`}>
+          <div className={`chat-message-bubble chat-bubble-frame ${cyberFrameRooms[selected.key] || cyberFrame ? `cyber-frame-card cyber-frame-${cyberFrameRooms[selected.key] || cyberFrame}` : ""} min-w-0 max-w-[86%] shrink-0 break-words rounded-2xl px-4 py-3 text-sm leading-6 shadow-lg ${isRight ? "rounded-br-md border border-fuchsia-300/25 bg-gradient-to-br from-violet-900/80 to-fuchsia-950/65 text-fuchsia-50 shadow-[0_0_20px_rgba(217,70,239,.10)]" : "rounded-bl-md border border-emerald-300/25 bg-gradient-to-br from-emerald-950/85 to-green-950/55 text-emerald-50/95 shadow-[0_0_18px_rgba(16,185,129,.12)]"}`}>
+            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide opacity-60">{senderName}</p>
+            <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{displayMessageText(message)}</p>
+            {imageUrls(message.attachmentsJson).map(url => <button key={url} type="button" onClick={() => setLightboxUrl(url)} className="mt-2 block cursor-zoom-in text-left"><img src={url} alt="ไฟล์แนบจากแชท คลิกเพื่อขยาย" className="max-h-56 rounded-xl object-cover transition hover:brightness-110" /></button>)}
+            <p className="mt-1 text-[10px] opacity-50">{senderName} · {messageTimeLabel(message)}</p>
+          </div>
+          {isCustomerMessage && !isRight && text ? <button type="button" className={`mobile-inbox-message-select ${isSelected ? "is-selected" : ""}`} aria-pressed={isSelected} aria-label={isSelected ? "ยกเลิกเลือกข้อความนี้" : "เลือกข้อความนี้สำหรับสรุปออเดอร์"} title="เลือกได้ครั้งละหนึ่งข้อความ · การเลือกยังไม่ดึงข้อมูลเข้า Order Deck" onClick={() => toggleOrderMessageSelection(message)}>{isSelected ? <><Check className="h-3 w-3" /> เลือกแล้ว</> : <><Clipboard className="h-3 w-3" /> เลือกข้อความ</>}</button> : null}
+        </div>;
+      })}
     </div>
     <div className={`chat-cosmos-composer mt-auto flex shrink-0 flex-col overflow-hidden border-t border-cyan-300/20 bg-gradient-to-b from-[#111326] to-[#090c14] p-3 shadow-[0_-8px_28px_rgba(34,211,238,.05)] sm:p-4 transition-[height] duration-300 ${composerOpen ? "chat-cosmos-composer--open" : "h-12 min-h-12"}`}><div className="mb-2 flex shrink-0 items-center justify-between gap-2 border-b border-fuchsia-500/10 pb-2">
       <div className="flex min-w-0 flex-1 items-center gap-1.5" aria-live="polite">
@@ -540,8 +581,7 @@ export default function ChatHub() {
         threadId={selectedThreadId}
         customerName={selected.customerName ?? ""}
         customerPhone={String(selected.phone ?? selected.customerPhone ?? selected.extracted_phone ?? "")}
-        customerMessages={orderDeckCustomerMessages}
-        importKey={orderDeckImportKey}
+        selectedCustomerMessage={selectedOrderMessageText}
         onClose={() => setOrderDeckOpen(false)}
       /> : null}
     </aside> : null}
