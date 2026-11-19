@@ -83,22 +83,25 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
         const rows = (result.orders ?? []) as Array<Record<string, any>>;
         const storageKey = `drakside-last-order-${getActiveCamp()}`;
         const lastSeen = localStorage.getItem(storageKey) || "";
-        const rowKeys = rows.map((row) => String(row.upsert_key || row.order_number || row.id || "")).filter(Boolean);
+        const rowKeys = rows.map((row) => String(row.upsert_key || row.order_number_display || row.order_number || "")).filter(Boolean);
         const lastSeenIndex = lastSeen ? rowKeys.indexOf(lastSeen) : -1;
-        const unseenKeys = new Set<string>(!lastSeen || lastSeenIndex < 0 ? [] : rowKeys.slice(0, lastSeenIndex));
+        const hasBaseline = lastSeenIndex >= 0;
+        const unseenKeys = new Set<string>(hasBaseline ? rowKeys.slice(0, lastSeenIndex) : []);
         const next = rows.slice(0, 50).map((row) => {
-          const key = String(row.upsert_key || row.order_number || row.id || "");
-          const title = `ออเดอร์ใหม่ ${row.order_number || key}`;
-          const detail = String(row.lab_product_display_text || "ยังไม่มี master_display_for_packer ใน Lab 88");
-          return { key, title, detail, time: row.order_time || row.order_time_display || null, seen: !unseenKeys.has(key) };
+          const key = String(row.upsert_key || row.order_number_display || row.order_number || "");
+          const orderNumber = String(row.order_number_display || row.order_number || key);
+          const title = `ออเดอร์ใหม่ ${orderNumber}`;
+          const detail = String(row.final_display_for_packer || row.final_product || row.order_fibo_product || row.telegram_product_display || "ยังไม่มีรายละเอียดสินค้า");
+          const time = row.order_time_display || row.order_time || row.order_time_bkk_iso || null;
+          return { key, title, detail, time, seen: !unseenKeys.has(key) };
         }).filter((item) => item.key);
         if (!cancelled) {
           setNotifications(next);
           setUnreadThreads(Array.from(unseenKeys).map((key) => {
-            const row = rows.find((item) => String(item.upsert_key || item.order_number || item.id || "") === key);
-            return { key, latestAt: row?.order_time || row?.order_time_display || null, customerName: `ออเดอร์ใหม่ ${row?.order_number || key}` };
+            const row = rows.find((item) => String(item.upsert_key || item.order_number_display || item.order_number || "") === key);
+            return { key, latestAt: row?.order_time_display || row?.order_time || row?.order_time_bkk_iso || null, customerName: `ออเดอร์ใหม่ ${row?.order_number_display || row?.order_number || key}` };
           }));
-          if (!lastSeen && rowKeys[0]) localStorage.setItem(storageKey, rowKeys[0]);
+          if ((!lastSeen || !hasBaseline) && rowKeys[0]) localStorage.setItem(storageKey, rowKeys[0]);
         }
       } catch { /* notification center must not block the app */ }
     };
