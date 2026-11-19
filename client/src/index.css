@@ -1592,6 +1592,10 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .mobile-inbox-page.mobile-inbox-themed > .mobile-inbox-header,
 .mobile-inbox-page.mobile-inbox-themed > .mobile-inbox-tabs { flex: 0 0 auto; position: relative; z-index: 2; }
 
+/* A customizer is a modal surface, never a second drawer underneath it. */
+.mobile-inbox-custom-panel { z-index: 9992 !important; }
+.mobile-inbox-custom-panel::before { content:""; position:fixed; z-index:-1; inset:0; background:rgba(0,0,0,.58); pointer-events:none; }
+
 /* Modal layer contract: one control surface at a time. */
 .mobile-inbox-custom-panel { z-index: 9992 !important; }
 .mobile-inbox-notification-panel { z-index: 80; }
