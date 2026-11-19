@@ -38,9 +38,6 @@ describe("Order Deck chat context", () => {
     expect(isSelectableCustomerMessage({ direction: "inbound", senderType: "system" })).toBe(false);
     expect(isSelectableCustomerMessage({ direction: "inbound", senderType: "page" })).toBe(false);
     expect(isSelectableCustomerMessage({ direction: "outbound", senderType: "customer" })).toBe(false);
-    expect(isSelectableCustomerMessage(null)).toBe(false);
-    expect(isSelectableCustomerMessage(undefined)).toBe(false);
-    expect(isSelectableCustomerMessage("not a message")).toBe(false);
   });
 
   it("caps imported text at 2,400 characters", () => {

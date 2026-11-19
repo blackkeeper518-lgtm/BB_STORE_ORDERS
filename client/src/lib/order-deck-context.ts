@@ -3,16 +3,8 @@ export type OrderDeckContextInput = {
   selectedCustomerMessage?: string | null;
 };
 
-export type SelectableCustomerMessage = {
-  direction: "inbound";
-  senderType: "customer";
-  [key: string]: unknown;
-};
-
-export function isSelectableCustomerMessage(message: unknown): message is SelectableCustomerMessage {
-  if (message === null || typeof message !== "object") return false;
-  const candidate = message as { direction?: unknown; senderType?: unknown };
-  return candidate.direction === "inbound" && candidate.senderType === "customer";
+export function isSelectableCustomerMessage(message: { direction?: unknown; senderType?: unknown }): boolean {
+  return message.direction === "inbound" && message.senderType === "customer";
 }
 
 export function buildOrderDeckContextMessage(

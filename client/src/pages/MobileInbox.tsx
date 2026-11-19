@@ -461,10 +461,9 @@ export default function MobileInbox() {
   const messages = [...(messagesQuery.data ?? []), ...optimisticMessages].filter(message => messageText(message).trim());
   const selectedOrderMessageText = selectedOrderMessage?.threadKey === selected?.key ? selectedOrderMessage.text : "";
   const openOrderDeck = () => { orderDeckFocusReturnRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null; setSummaryOpen(false); setOrderSummary(null); setOrderDeckOpen(true); };
-  const toggleOrderMessageSelection = (message: unknown) => {
-    if (!isSelectableCustomerMessage(message) || !selected) return;
+  const toggleOrderMessageSelection = (message: Record<string, any>) => {
     const text = String(message.text ?? message.message_text ?? "").trim();
-    if (!text) return;
+    if (!isSelectableCustomerMessage(message) || !text || !selected) return;
     const id = String(message.id ?? message.messageId ?? `${message.occurredAt ?? ""}:${text}`);
     const isAlreadySelected = selectedOrderMessage?.id === id && selectedOrderMessage.threadKey === selected.key;
     if (isAlreadySelected) {
