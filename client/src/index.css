@@ -1670,3 +1670,16 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .mobile-inbox-notification-actions { display:flex; align-items:center; gap:12px; }
 .mobile-inbox-notification-actions button { display:inline-flex !important; width:auto !important; height:auto !important; min-height:0 !important; align-items:center; gap:4px; padding:4px 0 !important; border:0 !important; border-radius:0 !important; background:transparent !important; color:var(--mobile-primary) !important; font-size:11px; font-weight:700; }
 .mobile-inbox-notification-actions button svg { display:none; }
+
+/* LINE room: match Facebook full-screen behavior and keep media clean. */
+.line-mobile-room { position:fixed; z-index:100; inset:0; width:100%; height:100dvh; background:var(--mobile-bg); }
+.line-mobile-room-header { padding-top:calc(8px + env(safe-area-inset-top)); }
+.line-message-media,.line-message-sticker { display:block; width:auto; max-width:min(100%,360px); max-height:48vh; margin:0; object-fit:contain; border:0 !important; border-radius:0 !important; box-shadow:none !important; }
+.line-mobile-message:has(.line-message-media),.line-mobile-message:has(.line-message-sticker) { padding:0; background:transparent; box-shadow:none; }
+.line-mobile-message:has(.line-message-media) time,.line-mobile-message:has(.line-message-sticker) time { margin:3px 4px 0; }
+@media (max-width:767px) {
+  .line-message-media,.line-message-sticker { max-width:min(82vw,360px); max-height:46vh; }
+  .line-mobile-room { overflow:hidden; }
+  .line-mobile-timeline { padding:12px 14px; }
+  .line-mobile-composer { padding-bottom:calc(9px + env(safe-area-inset-bottom)); }
+}
