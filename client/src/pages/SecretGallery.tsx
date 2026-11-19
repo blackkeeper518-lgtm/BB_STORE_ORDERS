@@ -706,157 +706,165 @@ export default function SecretGallery() {
           </div>
         </header>
         {view === "connect" ? <>
-        <Card className="neon-card project-room-card rounded-3xl border-cyan-400/20 bg-black/20">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-sm text-white">
-              <LockKeyhole className="h-4 w-4 text-cyan-300" />
-              ROOM 01 · ORDER CORE · HERMES / MULTIVERSE / SINGULARITY
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-3 md:grid-cols-3">
-            <Input
-              value={supabaseUrl}
-              onChange={e => setSupabaseUrl(e.target.value)}
-              placeholder="https://ชื่อโปรเจกต์.supabase.co"
-              className="border-fuchsia-400/20 bg-black/25 text-white"
-            />
-            <Input
-              type="password"
-              value={supabaseKey}
-              onChange={e => setSupabaseKey(e.target.value)}
-              placeholder="Anon / Publishable Key"
-              className="border-fuchsia-400/20 bg-black/25 text-white"
-            />
-            <Input
-              value={orderTable}
-              onChange={e => setOrderTable(e.target.value)}
-              placeholder="🗝️HERMES_ARCHIVE"
-              className="border-fuchsia-400/20 bg-black/25 font-mono text-white"
-            />
-            <div className="flex items-center gap-2 md:col-span-3">
-              <Button
-                onClick={() => void saveConnection()}
-                disabled={connectionBusy}
-                className="bg-gradient-to-r from-fuchsia-600 to-violet-700"
-              >
-                {connectionBusy ? "กำลังตรวจ…" : "บันทึกและทดสอบการเชื่อมต่อ"}
-              </Button>
-              <span className="text-xs text-white/50">{connectionMessage}</span>
+        <section className="space-y-4">
+          <div className="flex flex-wrap items-end justify-between gap-3 border-b border-rose-300/10 pb-3">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-rose-300/75">CHANNEL CONTROL · LINE / META</p>
+              <h2 className="mt-1 text-lg font-semibold text-white">จัดการช่องทางแชท</h2>
+              <p className="mt-1 text-xs text-white/50">ตั้งค่า LINE OA และสถานะ Facebook แยกจากการเชื่อมฐานข้อมูล</p>
             </div>
-            <div className="md:col-span-3"><ProjectRoomsPanel projectIndex={0} statuses={projectRoomStatuses} configured={Boolean(supabaseUrl.trim() && supabaseKey.trim())} busy={connectionBusy || projectRoomBusy === 0} onCheck={() => void checkProjectRooms(0)} /></div>
-          </CardContent>
-        </Card>
-        <div className="grid gap-5 xl:grid-cols-2">
-          <Card className="group project-room-card relative overflow-hidden rounded-3xl border-cyan-300/35 bg-[radial-gradient(ellipse_at_top_right,rgba(34,211,238,.2),transparent_42%),linear-gradient(135deg,rgba(7,22,47,.98),rgba(11,10,37,.96))] shadow-[0_0_34px_rgba(34,211,238,.16)] transition duration-300 hover:-translate-y-1 hover:border-cyan-200/70 hover:shadow-[0_0_50px_rgba(34,211,238,.3)]">
-            <div className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full border border-cyan-200/20 shadow-[0_0_45px_rgba(34,211,238,.35)]" />
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-sm text-cyan-100"><MessageCircle className="h-5 w-5 text-cyan-300" />ROOM 02 · CHAT CORE · MESSENGER</CardTitle>
-              <p className="text-xs leading-5 text-cyan-100/65">Chat ใช้ตาราง <span className="font-mono text-cyan-200">Cust_Chat⭐BINARY_xXx_STAR</span> และ <span className="font-mono text-cyan-200">Pg_Chat⭐BINARY_xXx_STAR</span> · Meta Page Token อยู่ใน <span className="font-mono text-cyan-200">🌈MILKY_WAY_xXx_TOKEN _PAGE</span> และอ่านเฉพาะฝั่ง server</p>
-            </CardHeader>
-            <CardContent className="grid gap-3">
-              <p className="text-xs leading-5 text-cyan-100/70">ChatHub อ่านผ่าน protected server route จากวิว 🌠BINARY_xXx_MATRIX เพียงจุดเดียว · ค่า Chat ที่กรอกด้านล่างเก็บใน browser นี้ และส่งให้ server เฉพาะคำขอ Chat</p>
-              <div className="grid gap-3 md:grid-cols-2">
-                <label className="grid gap-1 text-[11px] text-cyan-100/70">CHAT SUPABASE URL<Input value={chatUrl} onChange={event => setChatUrl(event.target.value)} placeholder="https://zxmczmgmtbnammtljdls.supabase.co" className="border-cyan-300/25 bg-black/35 text-white placeholder:text-cyan-100/30" /></label>
-                <label className="grid gap-1 text-[11px] text-cyan-100/70">CHAT SERVICE-ROLE KEY<Input type="password" autoComplete="new-password" value={chatServiceRoleKey} onChange={event => setChatServiceRoleKey(event.target.value)} placeholder="วาง service-role key ของโปรเจกต์ Chat" className="border-cyan-300/25 bg-black/35 font-mono text-white placeholder:text-cyan-100/30" /></label>
-              </div>
-              <div className="flex min-h-10 flex-wrap items-center gap-2">
-                <Button type="button" onClick={() => void saveAndCheckChatConnection()} disabled={chatBusy} className="w-56 justify-center bg-gradient-to-r from-cyan-400 via-blue-500 to-violet-600 text-[#06101e] shadow-[0_0_22px_rgba(34,211,238,.3)] hover:brightness-110">{chatBusy ? "กำลังตรวจ…" : "บันทึกและตรวจ Chat"}</Button>
-                <Button type="button" variant="outline" onClick={clearChatBrowserConnection} className="border-cyan-300/25 bg-black/20 text-cyan-100 hover:bg-cyan-300/10">ล้างค่า</Button>
-                <span className="min-h-5 text-xs text-cyan-100/70" aria-live="polite">{chatMessage}</span>
-              </div>
-              <p className="text-[10px] leading-4 text-cyan-100/45">เก็บเฉพาะ browser นี้ · ถ้าไม่กรอก ระบบจะไม่เรียกฐานข้อมูลแชท · ไม่ fallback ไป Main/Tracking หรือ table/token column อื่น</p>
-              <ProjectRoomsPanel projectIndex={1} statuses={projectRoomStatuses} configured={Boolean(chatUrl.trim() && chatServiceRoleKey.trim())} busy={chatBusy} onCheck={() => void saveAndCheckChatConnection()} />
-            </CardContent>
-          </Card>
-          <Card className="group project-room-card relative overflow-hidden rounded-3xl border-lime-300/35 bg-[radial-gradient(ellipse_at_top_right,rgba(132,204,22,.18),transparent_42%),linear-gradient(135deg,rgba(20,35,7,.98),rgba(8,18,18,.96))] shadow-[0_0_34px_rgba(132,204,22,.14)] xl:col-span-2">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-sm text-lime-100"><MessageCircle className="h-5 w-5 text-lime-300" />LINE OA MANAGER · หลายบัญชี</CardTitle>
-              <p className="text-xs leading-5 text-lime-100/65">เพิ่ม แก้ไข ทดสอบ เปิด/ปิด และลบ LINE OA จากหน้าเว็บได้เลย · Token และ Secret ไม่ถูกส่งกลับมาแสดงเต็มหลังบันทึก</p>
-            </CardHeader>
-            <CardContent className="grid gap-4">
-              <div className="grid gap-3 md:grid-cols-3">
-                <label className="grid gap-1 text-[11px] text-lime-100/70">ชื่อ OA<Input value={lineForm.channelName} onChange={event => setLineForm(current => ({ ...current, channelName: event.target.value }))} placeholder="เช่น SINGTO_ORDER" className="border-lime-300/25 bg-black/35 text-white" /></label>
-                <label className="grid gap-1 text-[11px] text-lime-100/70">Channel ID<Input value={lineForm.channelId} onChange={event => setLineForm(current => ({ ...current, channelId: event.target.value }))} placeholder="2012666328" className="border-lime-300/25 bg-black/35 font-mono text-white" /></label>
-                <label className="grid gap-1 text-[11px] text-lime-100/70">OA ID<Input value={lineForm.oaId} onChange={event => setLineForm(current => ({ ...current, oaId: event.target.value }))} placeholder="U..." className="border-lime-300/25 bg-black/35 font-mono text-white" /></label>
-                <label className="grid gap-1 text-[11px] text-lime-100/70 md:col-span-2">Channel Access Token<Input type="password" autoComplete="new-password" value={lineForm.accessToken} onChange={event => setLineForm(current => ({ ...current, accessToken: event.target.value }))} placeholder={lineForm.id ? "เว้นว่างเพื่อใช้ค่าเดิม" : "วาง Channel Access Token"} className="border-lime-300/25 bg-black/35 font-mono text-white" /></label>
-                <label className="grid gap-1 text-[11px] text-lime-100/70">Channel Secret<Input type="password" autoComplete="new-password" value={lineForm.channelSecret} onChange={event => setLineForm(current => ({ ...current, channelSecret: event.target.value }))} placeholder={lineForm.id ? "เว้นว่างเพื่อใช้ค่าเดิม" : "วาง Channel Secret"} className="border-lime-300/25 bg-black/35 font-mono text-white" /></label>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <label className="flex items-center gap-2 text-xs text-lime-100/70"><input type="checkbox" checked={lineForm.isActive} onChange={event => setLineForm(current => ({ ...current, isActive: event.target.checked }))} className="accent-lime-400" /> เปิดใช้งาน</label><label className="flex items-center gap-2 text-xs text-emerald-100/70"><input type="checkbox" checked={lineForm.isWebActive} onChange={event => setLineForm(current => ({ ...current, isWebActive: event.target.checked }))} className="accent-emerald-400" /> เว็บ ON</label>
-                <Button type="button" onClick={submitLineChannel} disabled={saveLineChannel.isPending} className="bg-lime-400 text-black hover:bg-lime-300">{saveLineChannel.isPending ? "กำลังบันทึก…" : lineForm.id ? "บันทึกการแก้ไข" : "เพิ่ม LINE OA"}</Button>
-                {lineForm.id ? <Button type="button" variant="outline" onClick={() => setLineForm({ channelId: "", channelName: "", oaId: "", accessToken: "", channelSecret: "", isActive: true })} className="border-lime-300/25 text-lime-100">ยกเลิกแก้ไข</Button> : null}
-                <span className="text-xs text-lime-100/70">{lineMessage}</span>
-              </div>
-              {lineChannelsQuery.isError ? <p className="rounded-xl border border-red-300/25 bg-red-400/10 p-3 text-xs text-red-200">โหลดรายการ LINE ไม่สำเร็จ: {lineChannelsQuery.error.message}</p> : null}
-              <div className="grid gap-2">
-                {(lineChannelsQuery.data as LineChannelRow[] | undefined)?.map(row => <div key={row.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-lime-300/15 bg-black/20 p-3">
-                  <div className="min-w-0"><p className="truncate text-sm font-semibold text-lime-100">{row.channel_name} <span className="ml-2 rounded-full bg-lime-400/15 px-2 py-0.5 text-[10px] text-lime-200">{row.is_active ? "ON" : "OFF"}</span></p><p className="mt-1 truncate font-mono text-[10px] text-lime-100/55">Channel {row.channel_id} · OA {row.oa_id} · แอป {row.is_active ? "ON" : "OFF"} · เว็บ {String(row.status_web ?? "ON").toUpperCase() === "OFF" ? "OFF" : "ON"} · Token {row.hasToken ? "บันทึกแล้ว" : "ยังไม่มี"}</p></div>
-                  <div className="flex flex-wrap gap-2"><Button type="button" size="sm" variant="outline" onClick={() => editLineChannel(row)} className="border-lime-300/25 text-lime-100">แก้ไข</Button><Button type="button" size="sm" variant="outline" onClick={() => toggleLineChannel.mutate({ id: row.id, isActive: !row.is_active, scope: "app" })} className="border-cyan-300/25 text-cyan-100">{row.is_active ? "แอป ON" : "แอป OFF"}</Button><Button type="button" size="sm" variant="outline" onClick={() => toggleLineChannel.mutate({ id: row.id, isActive: String(row.status_web ?? "ON").toUpperCase() === "OFF", scope: "web" })} className="border-emerald-300/25 text-emerald-100">{String(row.status_web ?? "ON").toUpperCase() === "OFF" ? "เว็บ OFF" : "เว็บ ON"}</Button><Button type="button" size="sm" variant="outline" onClick={() => { if (window.confirm(`ลบ ${row.channel_name} หรือไม่`)) deleteLineChannel.mutate({ id: row.id }); }} className="border-red-300/25 text-red-200"><Trash2 className="mr-1 h-3.5 w-3.5" />ลบ</Button></div>
-                </div>)}
-                {!lineChannelsQuery.isLoading && !lineChannelsQuery.data?.length ? <p className="rounded-xl border border-lime-300/10 p-4 text-center text-xs text-lime-100/50">ยังไม่มี LINE OA ในระบบ</p> : null}
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="group project-room-card relative overflow-hidden rounded-3xl border-blue-300/35 bg-[radial-gradient(ellipse_at_top_right,rgba(59,130,246,.2),transparent_42%),linear-gradient(135deg,rgba(8,24,54,.98),rgba(10,12,35,.96))] shadow-[0_0_34px_rgba(59,130,246,.16)] xl:col-span-2">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-sm text-blue-100"><Facebook className="h-5 w-5 text-blue-300" />FACEBOOK PAGE MANAGER · เว็บ ON/OFF</CardTitle>
-              <p className="text-xs leading-5 text-blue-100/65">จัดการสถานะเว็บของเพจ Facebook เหมือน LINE · ปิดแล้วเพจจะไม่แสดงใน ChatHub เว็บ แต่สถานะแอปยังใช้คอลัมน์เดิมแยกกัน</p>
-            </CardHeader>
-            <CardContent className="grid gap-3">
-              <div className="grid gap-3 md:grid-cols-2">
-                <label className="grid gap-1 text-[11px] text-blue-100/70">Page ID<Input value={facebookForm.pageId} onChange={event => setFacebookForm(current => ({ ...current, pageId: event.target.value }))} placeholder="Facebook Page ID" className="border-blue-300/25 bg-black/35 font-mono text-white" /></label>
-                <label className="grid gap-1 text-[11px] text-blue-100/70">ชื่อเพจ<Input value={facebookForm.pageName} onChange={event => setFacebookForm(current => ({ ...current, pageName: event.target.value }))} placeholder="ชื่อเพจ Facebook" className="border-blue-300/25 bg-black/35 text-white" /></label>
-                <label className="grid gap-1 text-[11px] text-blue-100/70 md:col-span-2">Page Access Token<Input type="password" autoComplete="new-password" value={facebookForm.accessToken} onChange={event => setFacebookForm(current => ({ ...current, accessToken: event.target.value }))} placeholder={facebookForm.pageId ? "เว้นว่างเพื่อใช้ Token เดิม" : "วาง Page Access Token"} className="border-blue-300/25 bg-black/35 font-mono text-white" /></label>
-              </div>
-              <div className="flex flex-wrap items-center gap-3">
-                <label className="flex items-center gap-2 text-xs text-cyan-100/75"><input type="checkbox" checked={facebookForm.enabledMobile} onChange={event => setFacebookForm(current => ({ ...current, enabledMobile: event.target.checked }))} className="accent-cyan-400" /> แอป ON</label>
-                <label className="flex items-center gap-2 text-xs text-emerald-100/75"><input type="checkbox" checked={facebookForm.enabledWeb} onChange={event => setFacebookForm(current => ({ ...current, enabledWeb: event.target.checked }))} className="accent-emerald-400" /> เว็บ ON</label>
-                <Button type="button" onClick={submitFacebookPage} disabled={saveFacebookPage.isPending} className="bg-blue-500 text-white hover:bg-blue-400">{saveFacebookPage.isPending ? "กำลังบันทึก…" : facebookForm.pageId && (facebookPagesQuery.data ?? []).some(page => page.pageId === facebookForm.pageId) ? "บันทึกการแก้ไข" : "เพิ่ม Facebook Page"}</Button>
-                {facebookForm.pageId ? <Button type="button" variant="outline" onClick={() => setFacebookForm({ pageId: "", pageName: "", accessToken: "", enabledMobile: true, enabledWeb: true })} className="border-blue-300/25 text-blue-100">ยกเลิกแก้ไข</Button> : null}
-                <span className="text-xs text-blue-100/70">{facebookMessage}</span>
-              </div>
-              {facebookPagesQuery.isError ? <p className="rounded-xl border border-amber-300/25 bg-amber-400/10 p-3 text-xs text-amber-100">โหลดเพจไม่ได้: {facebookPagesQuery.error.message} · ตรวจ Chat config ใน ROOM 02</p> : null}
-              {(facebookPagesQuery.data as FacebookPageRow[] | undefined)?.map(page => <div key={page.pageId} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-300/15 bg-black/20 p-3"><div className="min-w-0"><p className="truncate text-sm font-semibold text-blue-100">{page.pageName}</p><p className="mt-1 font-mono text-[10px] text-blue-100/55">Page {page.pageId} · แอป {page.enabledMobile ? "ON" : "OFF"} · เว็บ {page.enabledWeb ? "ON" : "OFF"}</p></div><div className="flex flex-wrap gap-2"><Button type="button" size="sm" variant="outline" onClick={() => editFacebookPage(page)} className="border-blue-300/25 text-blue-100">แก้ไข</Button><Button type="button" size="sm" variant="outline" disabled={setFacebookAppStatus.isPending} onClick={() => setFacebookAppStatus.mutate({ pageId: page.pageId, enabled: !page.enabledMobile })} className={page.enabledMobile ? "border-cyan-300/25 text-cyan-100" : "border-red-300/25 text-red-200"}>{page.enabledMobile ? "แอป ON" : "แอป OFF"}</Button><Button type="button" size="sm" variant="outline" disabled={setFacebookWebStatus.isPending} onClick={() => setFacebookWebStatus.mutate({ pageId: page.pageId, enabled: !page.enabledWeb })} className={page.enabledWeb ? "border-emerald-300/25 text-emerald-100" : "border-red-300/25 text-red-200"}>{page.enabledWeb ? "เว็บ ON" : "เว็บ OFF"}</Button><Button type="button" size="sm" variant="outline" onClick={() => { if (window.confirm(`ลบ ${page.pageName} หรือไม่`)) deleteFacebookPage.mutate({ pageId: page.pageId }); }} className="border-red-300/25 text-red-200"><Trash2 className="mr-1 h-3.5 w-3.5" />ลบ</Button></div></div>)}
-              {!facebookPagesQuery.isLoading && !facebookPagesQuery.data?.length ? <p className="rounded-xl border border-blue-300/10 p-4 text-center text-xs text-blue-100/50">ยังไม่พบเพจ Facebook หรือยังไม่ได้ตั้งค่า Chat ROOM 02</p> : null}
-            </CardContent>
-          </Card>
-          <Card className="group project-room-card relative overflow-hidden rounded-3xl border-fuchsia-300/35 bg-[radial-gradient(ellipse_at_top_right,rgba(244,114,182,.2),transparent_42%),linear-gradient(135deg,rgba(35,12,48,.98),rgba(15,9,35,.96))] shadow-[0_0_34px_rgba(217,70,239,.16)] transition duration-300 hover:-translate-y-1 hover:border-fuchsia-200/70 hover:shadow-[0_0_50px_rgba(217,70,239,.3)]">
-            <div className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full border border-fuchsia-200/20 shadow-[0_0_45px_rgba(217,70,239,.35)]" />
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-sm text-fuchsia-100"><PackageOpen className="h-5 w-5 text-fuchsia-300" />ROOM 03 · PARCEL RETURN · SHIPPING</CardTitle>
-              <p className="text-xs leading-5 text-fuchsia-100/65">พัสดุ คิวจับคู่ และประวัติส่งเลข · แยกจากฐานแชทและฐานออเดอร์</p>
-            </CardHeader>
-            <CardContent className="grid gap-3 md:grid-cols-2">
-              <label className="grid gap-1 text-[11px] text-fuchsia-100/70">PARCEL SUPABASE URL<Input value={parcelUrl} onChange={event => setParcelUrl(event.target.value)} placeholder="https://parcel-project.supabase.co" className="border-fuchsia-300/25 bg-black/35 text-white placeholder:text-fuchsia-100/30" /></label>
-              <label className="grid gap-1 text-[11px] text-fuchsia-100/70">PARCEL ANON / PUBLISHABLE KEY<Input type="password" value={parcelKey} onChange={event => setParcelKey(event.target.value)} placeholder="sb_publishable_… หรือ anon key" className="border-fuchsia-300/25 bg-black/35 font-mono text-white placeholder:text-fuchsia-100/30" /></label>
-              <div className="flex flex-wrap items-center gap-2 md:col-span-2">
-                <Button type="button" onClick={() => void saveLaneConnection(parcelUrl, parcelKey, setParcelBusy, setParcelMessage)} disabled={parcelBusy} className="bg-gradient-to-r from-fuchsia-500 via-violet-600 to-indigo-600 text-white shadow-[0_0_22px_rgba(217,70,239,.3)] hover:brightness-110">{parcelBusy ? "กำลังตรวจ…" : "บันทึก Parcel"}</Button>
-                <Button type="button" variant="outline" onClick={() => clearLaneConnection(setParcelUrl, setParcelKey, setParcelMessage)} className="border-fuchsia-300/25 bg-black/20 text-fuchsia-100 hover:bg-fuchsia-300/10">ล้าง</Button>
-                <span className="text-xs text-fuchsia-100/70">{parcelMessage}</span>
-              </div>
-              <p className="text-[10px] leading-4 text-fuchsia-100/45 md:col-span-2">ใส่เฉพาะ Anon/Publishable Key · ห้ามใส่ service-role หรือ secret key · ถ้าไม่กรอกจะใช้ Tracking เดิม</p>
+            <span className="rounded-full border border-rose-300/20 bg-rose-400/[0.06] px-3 py-1.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-rose-200/70">LINE OA · FACEBOOK</span>
+          </div>
+          <div className="grid gap-5 xl:grid-cols-2">
+            <Card className="project-room-card relative h-full min-w-0 overflow-hidden rounded-3xl border border-rose-300/20 bg-[#100a12] shadow-[0_18px_55px_rgba(0,0,0,.35)] transition duration-300 hover:-translate-y-0.5 hover:border-rose-300/45">
+              <CardHeader className="border-b border-rose-300/10 pb-4">
+                <CardTitle className="flex items-center gap-2 text-sm font-semibold text-rose-100"><MessageCircle className="h-5 w-5 text-lime-300" />LINE OA MANAGER · หลายบัญชี</CardTitle>
+                <p className="text-xs leading-5 text-lime-100/65">เพิ่ม แก้ไข ทดสอบ เปิด/ปิด และลบ LINE OA จากหน้าเว็บได้เลย · Token และ Secret ไม่ถูกส่งกลับมาแสดงเต็มหลังบันทึก</p>
+              </CardHeader>
+              <CardContent className="grid gap-4">
+                <div className="grid gap-3 md:grid-cols-3">
+                  <label className="grid gap-1 text-[11px] text-lime-100/70">ชื่อ OA<Input value={lineForm.channelName} onChange={event => setLineForm(current => ({ ...current, channelName: event.target.value }))} placeholder="เช่น SINGTO_ORDER" className="border-lime-300/25 bg-black/35 text-white" /></label>
+                  <label className="grid gap-1 text-[11px] text-lime-100/70">Channel ID<Input value={lineForm.channelId} onChange={event => setLineForm(current => ({ ...current, channelId: event.target.value }))} placeholder="2012666328" className="border-lime-300/25 bg-black/35 font-mono text-white" /></label>
+                  <label className="grid gap-1 text-[11px] text-lime-100/70">OA ID<Input value={lineForm.oaId} onChange={event => setLineForm(current => ({ ...current, oaId: event.target.value }))} placeholder="U..." className="border-lime-300/25 bg-black/35 font-mono text-white" /></label>
+                  <label className="grid gap-1 text-[11px] text-lime-100/70 md:col-span-2">Channel Access Token<Input type="password" autoComplete="new-password" value={lineForm.accessToken} onChange={event => setLineForm(current => ({ ...current, accessToken: event.target.value }))} placeholder={lineForm.id ? "เว้นว่างเพื่อใช้ค่าเดิม" : "วาง Channel Access Token"} className="border-lime-300/25 bg-black/35 font-mono text-white" /></label>
+                  <label className="grid gap-1 text-[11px] text-lime-100/70">Channel Secret<Input type="password" autoComplete="new-password" value={lineForm.channelSecret} onChange={event => setLineForm(current => ({ ...current, channelSecret: event.target.value }))} placeholder={lineForm.id ? "เว้นว่างเพื่อใช้ค่าเดิม" : "วาง Channel Secret"} className="border-lime-300/25 bg-black/35 font-mono text-white" /></label>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className="flex items-center gap-2 text-xs text-lime-100/70"><input type="checkbox" checked={lineForm.isActive} onChange={event => setLineForm(current => ({ ...current, isActive: event.target.checked }))} className="accent-lime-400" /> เปิดใช้งาน</label><label className="flex items-center gap-2 text-xs text-emerald-100/70"><input type="checkbox" checked={lineForm.isWebActive} onChange={event => setLineForm(current => ({ ...current, isWebActive: event.target.checked }))} className="accent-emerald-400" /> เว็บ ON</label>
+                  <Button type="button" onClick={submitLineChannel} disabled={saveLineChannel.isPending} className="bg-lime-400 text-black hover:bg-lime-300">{saveLineChannel.isPending ? "กำลังบันทึก…" : lineForm.id ? "บันทึกการแก้ไข" : "เพิ่ม LINE OA"}</Button>
+                  {lineForm.id ? <Button type="button" variant="outline" onClick={() => setLineForm({ channelId: "", channelName: "", oaId: "", accessToken: "", channelSecret: "", isActive: true })} className="border-lime-300/25 text-lime-100">ยกเลิกแก้ไข</Button> : null}
+                  <span className="text-xs text-lime-100/70">{lineMessage}</span>
+                </div>
+                {lineChannelsQuery.isError ? <p className="rounded-xl border border-red-300/25 bg-red-400/10 p-3 text-xs text-red-200">โหลดรายการ LINE ไม่สำเร็จ: {lineChannelsQuery.error.message}</p> : null}
+                <div className="grid gap-2">
+                  {(lineChannelsQuery.data as LineChannelRow[] | undefined)?.map(row => <div key={row.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-lime-300/15 bg-black/20 p-3">
+                    <div className="min-w-0"><p className="truncate text-sm font-semibold text-lime-100">{row.channel_name} <span className="ml-2 rounded-full bg-lime-400/15 px-2 py-0.5 text-[10px] text-lime-200">{row.is_active ? "ON" : "OFF"}</span></p><p className="mt-1 truncate font-mono text-[10px] text-lime-100/55">Channel {row.channel_id} · OA {row.oa_id} · แอป {row.is_active ? "ON" : "OFF"} · เว็บ {String(row.status_web ?? "ON").toUpperCase() === "OFF" ? "OFF" : "ON"} · Token {row.hasToken ? "บันทึกแล้ว" : "ยังไม่มี"}</p></div>
+                    <div className="flex flex-wrap gap-2"><Button type="button" size="sm" variant="outline" onClick={() => editLineChannel(row)} className="border-lime-300/25 text-lime-100">แก้ไข</Button><Button type="button" size="sm" variant="outline" onClick={() => toggleLineChannel.mutate({ id: row.id, isActive: !row.is_active, scope: "app" })} className="border-cyan-300/25 text-cyan-100">{row.is_active ? "แอป ON" : "แอป OFF"}</Button><Button type="button" size="sm" variant="outline" onClick={() => toggleLineChannel.mutate({ id: row.id, isActive: String(row.status_web ?? "ON").toUpperCase() === "OFF", scope: "web" })} className="border-emerald-300/25 text-emerald-100">{String(row.status_web ?? "ON").toUpperCase() === "OFF" ? "เว็บ OFF" : "เว็บ ON"}</Button><Button type="button" size="sm" variant="outline" onClick={() => { if (window.confirm(`ลบ ${row.channel_name} หรือไม่`)) deleteLineChannel.mutate({ id: row.id }); }} className="border-red-300/25 text-red-200"><Trash2 className="mr-1 h-3.5 w-3.5" />ลบ</Button></div>
+                  </div>)}
+                  {!lineChannelsQuery.isLoading && !lineChannelsQuery.data?.length ? <p className="rounded-xl border border-lime-300/10 p-4 text-center text-xs text-lime-100/50">ยังไม่มี LINE OA ในระบบ</p> : null}
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="project-room-card relative h-full min-w-0 overflow-hidden rounded-3xl border border-rose-300/20 bg-[#100a12] shadow-[0_18px_55px_rgba(0,0,0,.35)] transition duration-300 hover:-translate-y-0.5 hover:border-rose-300/45">
+              <CardHeader className="border-b border-rose-300/10 pb-4">
+                <CardTitle className="flex items-center gap-2 text-sm font-semibold text-rose-100"><Facebook className="h-5 w-5 text-blue-300" />FACEBOOK PAGE MANAGER · เว็บ ON/OFF</CardTitle>
+                <p className="text-xs leading-5 text-blue-100/65">จัดการสถานะเว็บของเพจ Facebook เหมือน LINE · ปิดแล้วเพจจะไม่แสดงใน ChatHub เว็บ แต่สถานะแอปยังใช้คอลัมน์เดิมแยกกัน</p>
+              </CardHeader>
+              <CardContent className="grid gap-3">
+                <div className="grid gap-3 md:grid-cols-2">
+                  <label className="grid gap-1 text-[11px] text-blue-100/70">Page ID<Input value={facebookForm.pageId} onChange={event => setFacebookForm(current => ({ ...current, pageId: event.target.value }))} placeholder="Facebook Page ID" className="border-blue-300/25 bg-black/35 font-mono text-white" /></label>
+                  <label className="grid gap-1 text-[11px] text-blue-100/70">ชื่อเพจ<Input value={facebookForm.pageName} onChange={event => setFacebookForm(current => ({ ...current, pageName: event.target.value }))} placeholder="ชื่อเพจ Facebook" className="border-blue-300/25 bg-black/35 text-white" /></label>
+                  <label className="grid gap-1 text-[11px] text-blue-100/70 md:col-span-2">Page Access Token<Input type="password" autoComplete="new-password" value={facebookForm.accessToken} onChange={event => setFacebookForm(current => ({ ...current, accessToken: event.target.value }))} placeholder={facebookForm.pageId ? "เว้นว่างเพื่อใช้ Token เดิม" : "วาง Page Access Token"} className="border-blue-300/25 bg-black/35 font-mono text-white" /></label>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <label className="flex items-center gap-2 text-xs text-cyan-100/75"><input type="checkbox" checked={facebookForm.enabledMobile} onChange={event => setFacebookForm(current => ({ ...current, enabledMobile: event.target.checked }))} className="accent-cyan-400" /> แอป ON</label>
+                  <label className="flex items-center gap-2 text-xs text-emerald-100/75"><input type="checkbox" checked={facebookForm.enabledWeb} onChange={event => setFacebookForm(current => ({ ...current, enabledWeb: event.target.checked }))} className="accent-emerald-400" /> เว็บ ON</label>
+                  <Button type="button" onClick={submitFacebookPage} disabled={saveFacebookPage.isPending} className="bg-blue-500 text-white hover:bg-blue-400">{saveFacebookPage.isPending ? "กำลังบันทึก…" : facebookForm.pageId && (facebookPagesQuery.data ?? []).some(page => page.pageId === facebookForm.pageId) ? "บันทึกการแก้ไข" : "เพิ่ม Facebook Page"}</Button>
+                  {facebookForm.pageId ? <Button type="button" variant="outline" onClick={() => setFacebookForm({ pageId: "", pageName: "", accessToken: "", enabledMobile: true, enabledWeb: true })} className="border-blue-300/25 text-blue-100">ยกเลิกแก้ไข</Button> : null}
+                  <span className="text-xs text-blue-100/70">{facebookMessage}</span>
+                </div>
+                {facebookPagesQuery.isError ? <p className="rounded-xl border border-amber-300/25 bg-amber-400/10 p-3 text-xs text-amber-100">โหลดเพจไม่ได้: {facebookPagesQuery.error.message} · ตรวจ Chat config ใน ROOM 02</p> : null}
+                {(facebookPagesQuery.data as FacebookPageRow[] | undefined)?.map(page => <div key={page.pageId} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-300/15 bg-black/20 p-3"><div className="min-w-0"><p className="truncate text-sm font-semibold text-blue-100">{page.pageName}</p><p className="mt-1 font-mono text-[10px] text-blue-100/55">Page {page.pageId} · แอป {page.enabledMobile ? "ON" : "OFF"} · เว็บ {page.enabledWeb ? "ON" : "OFF"}</p></div><div className="flex flex-wrap gap-2"><Button type="button" size="sm" variant="outline" onClick={() => editFacebookPage(page)} className="border-blue-300/25 text-blue-100">แก้ไข</Button><Button type="button" size="sm" variant="outline" disabled={setFacebookAppStatus.isPending} onClick={() => setFacebookAppStatus.mutate({ pageId: page.pageId, enabled: !page.enabledMobile })} className={page.enabledMobile ? "border-cyan-300/25 text-cyan-100" : "border-red-300/25 text-red-200"}>{page.enabledMobile ? "แอป ON" : "แอป OFF"}</Button><Button type="button" size="sm" variant="outline" disabled={setFacebookWebStatus.isPending} onClick={() => setFacebookWebStatus.mutate({ pageId: page.pageId, enabled: !page.enabledWeb })} className={page.enabledWeb ? "border-emerald-300/25 text-emerald-100" : "border-red-300/25 text-red-200"}>{page.enabledWeb ? "เว็บ ON" : "เว็บ OFF"}</Button><Button type="button" size="sm" variant="outline" onClick={() => { if (window.confirm(`ลบ ${page.pageName} หรือไม่`)) deleteFacebookPage.mutate({ pageId: page.pageId }); }} className="border-red-300/25 text-red-200"><Trash2 className="mr-1 h-3.5 w-3.5" />ลบ</Button></div></div>)}
+                {!facebookPagesQuery.isLoading && !facebookPagesQuery.data?.length ? <p className="rounded-xl border border-blue-300/10 p-4 text-center text-xs text-blue-100/50">ยังไม่พบเพจ Facebook หรือยังไม่ได้ตั้งค่า Chat ROOM 02</p> : null}
+              </CardContent>
+            </Card>
+          </div>
+        </section>
+        <section className="space-y-4 pt-3">
+          <div className="flex flex-wrap items-end justify-between gap-3 border-b border-rose-300/10 pb-3">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-rose-300/75">PROJECT CONNECTIONS · ROOMS 01–04</p>
+              <h2 className="mt-1 text-lg font-semibold text-white">การเชื่อมต่อฐานข้อมูล</h2>
+              <p className="mt-1 text-xs text-white/50">แต่ละ Room มี credential และผลตรวจตารางของตัวเอง</p>
+            </div>
+            <span className="rounded-full border border-rose-300/20 bg-rose-400/[0.06] px-3 py-1.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-rose-200/70">04 PROJECTS</span>
+          </div>
+          <div className="grid gap-5 xl:grid-cols-2">
+            <Card className="project-room-card relative h-full min-w-0 overflow-hidden rounded-3xl border border-rose-300/20 bg-[#100a12] shadow-[0_18px_55px_rgba(0,0,0,.35)] transition duration-300 hover:-translate-y-0.5 hover:border-rose-300/45">
+              <CardHeader className="border-b border-rose-300/10 pb-4">
+                <CardTitle className="flex items-center gap-2 text-sm font-semibold text-rose-100">
+                  <LockKeyhole className="h-4 w-4 text-cyan-300" />
+                  ROOM 01 · ORDER CORE · HERMES / MULTIVERSE / SINGULARITY
+                </CardTitle>
+                <p className="mt-2 text-xs leading-5 text-white/55">เชื่อมฐานคำสั่งซื้อและเลือกตารางออเดอร์หลักของระบบ</p>
+              </CardHeader>
+              <CardContent className="grid gap-4">
+                <div className="grid gap-3 md:grid-cols-2">
+                  <label className="grid gap-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-white/55">SUPABASE URL
+                    <Input value={supabaseUrl} onChange={e => setSupabaseUrl(e.target.value)} placeholder="https://ชื่อโปรเจกต์.supabase.co" className="border-white/10 bg-black/35 text-white placeholder:text-white/30 focus-visible:ring-rose-300/40" />
+                  </label>
+                  <label className="grid gap-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-white/55">ANON / PUBLISHABLE KEY
+                    <Input type="password" value={supabaseKey} onChange={e => setSupabaseKey(e.target.value)} placeholder="วาง Anon / Publishable Key" className="border-white/10 bg-black/35 font-mono text-white placeholder:text-white/30 focus-visible:ring-rose-300/40" />
+                  </label>
+                  <label className="grid gap-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-white/55 md:col-span-2">ORDER TABLE
+                    <Input value={orderTable} onChange={e => setOrderTable(e.target.value)} placeholder="🗝️HERMES_ARCHIVE" className="border-white/10 bg-black/35 font-mono text-white placeholder:text-white/30 focus-visible:ring-rose-300/40" />
+                  </label>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button onClick={() => void saveConnection()} disabled={connectionBusy} className="min-w-[180px] justify-center bg-gradient-to-r from-rose-500 via-fuchsia-500 to-violet-600 text-white shadow-[0_0_22px_rgba(255,49,87,.2)] hover:brightness-110">
+                    {connectionBusy ? "กำลังตรวจ…" : "บันทึกและทดสอบการเชื่อมต่อ"}
+                  </Button>
+                  <span className="text-xs text-white/55">{connectionMessage}</span>
+                </div>
+                <ProjectRoomsPanel projectIndex={0} statuses={projectRoomStatuses} configured={Boolean(supabaseUrl.trim() && supabaseKey.trim())} busy={connectionBusy || projectRoomBusy === 0} onCheck={() => void checkProjectRooms(0)} />
+              </CardContent>
+            </Card>
+            <Card className="project-room-card relative h-full min-w-0 overflow-hidden rounded-3xl border border-rose-300/20 bg-[#100a12] shadow-[0_18px_55px_rgba(0,0,0,.35)] transition duration-300 hover:-translate-y-0.5 hover:border-rose-300/45">
+              <CardHeader className="border-b border-rose-300/10 pb-4">
+                <CardTitle className="flex items-center gap-2 text-sm font-semibold text-rose-100"><MessageCircle className="h-5 w-5 text-cyan-300" />ROOM 02 · CHAT CORE · MESSENGER</CardTitle>
+                <p className="text-xs leading-5 text-white/55">Chat ใช้ตาราง <span className="font-mono text-cyan-200">Cust_Chat⭐BINARY_xXx_STAR</span> และ <span className="font-mono text-cyan-200">Pg_Chat⭐BINARY_xXx_STAR</span> · Meta Page Token อยู่ใน <span className="font-mono text-cyan-200">🌈MILKY_WAY_xXx_TOKEN _PAGE</span> และอ่านเฉพาะฝั่ง server</p>
+              </CardHeader>
+              <CardContent className="grid gap-4">
+                <p className="text-xs leading-5 text-cyan-100/70">ChatHub อ่านผ่าน protected server route จากวิว 🌠BINARY_xXx_MATRIX เพียงจุดเดียว · ค่า Chat ที่กรอกด้านล่างเก็บใน browser นี้ และส่งให้ server เฉพาะคำขอ Chat</p>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <label className="grid gap-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-white/55">CHAT SUPABASE URL<Input value={chatUrl} onChange={event => setChatUrl(event.target.value)} placeholder="https://zxmczmgmtbnammtljdls.supabase.co" className="border-white/10 bg-black/35 text-white placeholder:text-white/30 focus-visible:ring-rose-300/40" /></label>
+                  <label className="grid gap-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-white/55">CHAT SERVICE-ROLE KEY<Input type="password" autoComplete="new-password" value={chatServiceRoleKey} onChange={event => setChatServiceRoleKey(event.target.value)} placeholder="วาง service-role key ของโปรเจกต์ Chat" className="border-white/10 bg-black/35 font-mono text-white placeholder:text-white/30 focus-visible:ring-rose-300/40" /></label>
+                </div>
+                <div className="flex min-h-10 flex-wrap items-center gap-2">
+                  <Button type="button" onClick={() => void saveAndCheckChatConnection()} disabled={chatBusy} className="min-w-[180px] justify-center bg-gradient-to-r from-rose-500 via-fuchsia-500 to-violet-600 text-white shadow-[0_0_22px_rgba(255,49,87,.2)] hover:brightness-110">{chatBusy ? "กำลังตรวจ…" : "บันทึกและตรวจ Chat"}</Button>
+                  <Button type="button" variant="outline" onClick={clearChatBrowserConnection} className="border-white/10 bg-white/[0.035] text-white/65 hover:bg-white/[0.08]">ล้างค่า</Button>
+                  <span className="min-h-5 text-xs text-cyan-100/70" aria-live="polite">{chatMessage}</span>
+                </div>
+                <p className="text-[10px] leading-4 text-cyan-100/45">เก็บเฉพาะ browser นี้ · ถ้าไม่กรอก ระบบจะไม่เรียกฐานข้อมูลแชท · ไม่ fallback ไป Main/Tracking หรือ table/token column อื่น</p>
+                <ProjectRoomsPanel projectIndex={1} statuses={projectRoomStatuses} configured={Boolean(chatUrl.trim() && chatServiceRoleKey.trim())} busy={chatBusy} onCheck={() => void saveAndCheckChatConnection()} />
+              </CardContent>
+            </Card>
+            <Card className="project-room-card relative h-full min-w-0 overflow-hidden rounded-3xl border border-rose-300/20 bg-[#100a12] shadow-[0_18px_55px_rgba(0,0,0,.35)] transition duration-300 hover:-translate-y-0.5 hover:border-rose-300/45">
+              <CardHeader className="border-b border-rose-300/10 pb-4">
+                <CardTitle className="flex items-center gap-2 text-sm font-semibold text-rose-100"><PackageOpen className="h-5 w-5 text-fuchsia-300" />ROOM 03 · PARCEL RETURN · SHIPPING</CardTitle>
+                <p className="text-xs leading-5 text-white/55">พัสดุ คิวจับคู่ และประวัติส่งเลข · แยกจากฐานแชทและฐานออเดอร์</p>
+              </CardHeader>
+              <CardContent className="grid gap-3 md:grid-cols-2">
+                <label className="grid gap-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-white/55">PARCEL SUPABASE URL<Input value={parcelUrl} onChange={event => setParcelUrl(event.target.value)} placeholder="https://parcel-project.supabase.co" className="border-white/10 bg-black/35 text-white placeholder:text-white/30 focus-visible:ring-rose-300/40" /></label>
+                <label className="grid gap-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-white/55">PARCEL ANON / PUBLISHABLE KEY<Input type="password" value={parcelKey} onChange={event => setParcelKey(event.target.value)} placeholder="sb_publishable_… หรือ anon key" className="border-white/10 bg-black/35 font-mono text-white placeholder:text-white/30 focus-visible:ring-rose-300/40" /></label>
+                <div className="flex flex-wrap items-center gap-2 md:col-span-2">
+                  <Button type="button" onClick={() => void saveLaneConnection(parcelUrl, parcelKey, setParcelBusy, setParcelMessage)} disabled={parcelBusy} className="min-w-[180px] justify-center bg-gradient-to-r from-rose-500 via-fuchsia-500 to-violet-600 text-white shadow-[0_0_22px_rgba(255,49,87,.2)] hover:brightness-110">{parcelBusy ? "กำลังตรวจ…" : "บันทึก Parcel"}</Button>
+                  <Button type="button" variant="outline" onClick={() => clearLaneConnection(setParcelUrl, setParcelKey, setParcelMessage)} className="border-white/10 bg-white/[0.035] text-white/65 hover:bg-white/[0.08]">ล้าง</Button>
+                  <span className="text-xs text-fuchsia-100/70">{parcelMessage}</span>
+                </div>
+                <p className="text-[10px] leading-4 text-fuchsia-100/45 md:col-span-2">ใส่เฉพาะ Anon/Publishable Key · ห้ามใส่ service-role หรือ secret key · ถ้าไม่กรอกจะใช้ Tracking เดิม</p>
               <div className="md:col-span-2"><ProjectRoomsPanel projectIndex={2} statuses={projectRoomStatuses} configured={Boolean(parcelUrl.trim() && parcelKey.trim())} busy={parcelBusy || projectRoomBusy === 2} onCheck={() => void checkProjectRooms(2)} /></div>
             </CardContent>
-          </Card>
-        </div>
-        <Card className="group project-room-card relative overflow-hidden rounded-3xl border-emerald-300/35 bg-[radial-gradient(ellipse_at_top_right,rgba(52,211,153,.2),transparent_42%),linear-gradient(135deg,rgba(5,35,34,.98),rgba(8,12,31,.96))] shadow-[0_0_34px_rgba(52,211,153,.16)] transition duration-300 hover:-translate-y-1 hover:border-emerald-200/70 hover:shadow-[0_0_50px_rgba(52,211,153,.3)]">
-          <div className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full border border-emerald-200/20 shadow-[0_0_45px_rgba(52,211,153,.35)]" />
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-sm text-emerald-100"><ImagePlus className="h-5 w-5 text-emerald-300" />ROOM 04 · PRIVATE VAULT · ASSETS</CardTitle>
-            <p className="text-xs leading-5 text-emerald-100/65">คลังภาพ สคริปต์ บทความ และข้อมูลการตลาด · ล็อกใช้โต๊ะ <span className="font-mono text-emerald-200">sales_script_cards</span> และ bucket <span className="font-mono text-emerald-200">sales-script-images</span> ตายตัว</p>
-          </CardHeader>
-          <CardContent className="grid gap-3 md:grid-cols-2">
-            <label className="grid gap-1 text-[11px] text-emerald-100/70">PRIVATE VAULT SUPABASE URL<Input value={vaultUrl} onChange={event => setVaultUrl(event.target.value)} placeholder="https://vault-project.supabase.co" className="border-emerald-300/25 bg-black/35 text-white placeholder:text-emerald-100/30" /></label>
-            <label className="grid gap-1 text-[11px] text-emerald-100/70">PRIVATE VAULT ANON / PUBLISHABLE KEY<Input type="password" value={vaultKey} onChange={event => setVaultKey(event.target.value)} placeholder="sb_publishable_… หรือ anon key" className="border-emerald-300/25 bg-black/35 font-mono text-white placeholder:text-emerald-100/30" /></label>
-            <div className="flex flex-wrap items-center gap-2 md:col-span-2">
-              <Button type="button" onClick={() => void saveVaultConnection()} disabled={vaultBusy} className="bg-gradient-to-r from-emerald-400 via-cyan-500 to-blue-600 text-[#06101e] shadow-[0_0_22px_rgba(52,211,153,.3)] hover:brightness-110">{vaultBusy ? "กำลังตรวจ…" : "บันทึก Private Vault"}</Button>
-              <Button type="button" variant="outline" onClick={clearVaultConnection} className="border-emerald-300/25 bg-black/20 text-emerald-100 hover:bg-emerald-300/10">ล้าง</Button>
-              <span className="text-xs text-emerald-100/70">{vaultMessage}</span>
-            </div>
-            <p className="text-[10px] leading-4 text-emerald-100/45 md:col-span-2">ใส่เฉพาะ Anon/Publishable Key · ห้ามใส่ service-role · ตารางของภาพ สคริปต์ และบทความจะกำหนดแยกในแต่ละฟีเจอร์</p>
-            <div className="md:col-span-2"><ProjectRoomsPanel projectIndex={3} statuses={projectRoomStatuses} configured={Boolean(vaultUrl.trim() && vaultKey.trim())} busy={vaultBusy || projectRoomBusy === 3} onCheck={() => void checkProjectRooms(3)} /></div>
-          </CardContent>
-        </Card>
+            </Card>
+            <Card className="project-room-card relative h-full min-w-0 overflow-hidden rounded-3xl border border-rose-300/20 bg-[#100a12] shadow-[0_18px_55px_rgba(0,0,0,.35)] transition duration-300 hover:-translate-y-0.5 hover:border-rose-300/45">
+              <CardHeader className="border-b border-rose-300/10 pb-4">
+                <CardTitle className="flex items-center gap-2 text-sm font-semibold text-rose-100"><ImagePlus className="h-5 w-5 text-emerald-300" />ROOM 04 · PRIVATE VAULT · ASSETS</CardTitle>
+                <p className="text-xs leading-5 text-white/55">คลังภาพ สคริปต์ บทความ และข้อมูลการตลาด · ล็อกใช้โต๊ะ <span className="font-mono text-emerald-200">sales_script_cards</span> และ bucket <span className="font-mono text-emerald-200">sales-script-images</span> ตายตัว</p>
+              </CardHeader>
+              <CardContent className="grid gap-4 md:grid-cols-2">
+                <label className="grid gap-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-white/55">PRIVATE VAULT SUPABASE URL<Input value={vaultUrl} onChange={event => setVaultUrl(event.target.value)} placeholder="https://vault-project.supabase.co" className="border-white/10 bg-black/35 text-white placeholder:text-white/30 focus-visible:ring-rose-300/40" /></label>
+                <label className="grid gap-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-white/55">PRIVATE VAULT ANON / PUBLISHABLE KEY<Input type="password" value={vaultKey} onChange={event => setVaultKey(event.target.value)} placeholder="sb_publishable_… หรือ anon key" className="border-white/10 bg-black/35 font-mono text-white placeholder:text-white/30 focus-visible:ring-rose-300/40" /></label>
+                <div className="flex flex-wrap items-center gap-2 md:col-span-2">
+                  <Button type="button" onClick={() => void saveVaultConnection()} disabled={vaultBusy} className="min-w-[180px] justify-center bg-gradient-to-r from-rose-500 via-fuchsia-500 to-violet-600 text-white shadow-[0_0_22px_rgba(255,49,87,.2)] hover:brightness-110">{vaultBusy ? "กำลังตรวจ…" : "บันทึก Private Vault"}</Button>
+                  <Button type="button" variant="outline" onClick={clearVaultConnection} className="border-white/10 bg-white/[0.035] text-white/65 hover:bg-white/[0.08]">ล้าง</Button>
+                  <span className="text-xs text-white/55">{vaultMessage}</span>
+                </div>
+                <p className="text-[10px] leading-4 text-white/45 md:col-span-2">ใส่เฉพาะ Anon/Publishable Key · ห้ามใส่ service-role · ตารางของภาพ สคริปต์ และบทความจะกำหนดแยกในแต่ละฟีเจอร์</p>
+                <div className="md:col-span-2"><ProjectRoomsPanel projectIndex={3} statuses={projectRoomStatuses} configured={Boolean(vaultUrl.trim() && vaultKey.trim())} busy={vaultBusy || projectRoomBusy === 3} onCheck={() => void checkProjectRooms(3)} /></div>
+              </CardContent>
+            </Card>
+          </div>
+        </section>
         </> : null}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
