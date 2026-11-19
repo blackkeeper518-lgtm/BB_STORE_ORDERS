@@ -88,7 +88,7 @@ async function mediaForRow(row: Record<string, unknown>, token: string) {
 }
 
 async function readLineChannel(oa: string | undefined, credentials?: ChatSupabaseCredentials, surface: "web" | "mobile" = "web") {
-  const query = new URLSearchParams({ select: "channel_id,channel_name,oa_id,channel_access_token,is_active,status,status_web", is_active: "eq.true", limit: "1" });
+  const query = new URLSearchParams({ select: "channel_id,channel_name,oa_id,channel_access_token,is_active,status,status_web", limit: "1" });
   query.set(surface === "web" ? "status_web" : "status", "eq.ON");
   if (oa) query.set("oa_id", `eq.${oa}`);
   const rows = await supabaseGet<LineChannel[]>(`line_channels?${query.toString()}`, "chat", credentials);
@@ -129,7 +129,7 @@ async function readRows(credentials?: ChatSupabaseCredentials) {
 export async function fetchLineConversations(credentials?: ChatSupabaseCredentials, surface: "web" | "mobile" = "web"): Promise<LineConversation[]> {
   const rows = await readRows(credentials);
   const configuredChannels = await supabaseGet<Array<{ oa_id: string; is_active: boolean; status?: string | null; status_web?: string | null }>>("line_channels?select=oa_id,is_active,status,status_web&limit=500", "chat", credentials).catch(() => []);
-  const enabledOas = new Set(configuredChannels.filter(channel => channel.is_active !== false && String((surface === "web" ? channel.status_web : channel.status) ?? "ON").toUpperCase() !== "OFF").map(channel => channel.oa_id));
+  const enabledOas = new Set(configuredChannels.filter(channel => String((surface === "web" ? channel.status_web : channel.status) ?? "ON").toUpperCase() !== "OFF").map(channel => channel.oa_id));
   const hasConfiguredChannels = configuredChannels.length > 0;
   const channelCache = new Map<string, LineChannel | null>();
   const channelFor = async (oa: string) => {
