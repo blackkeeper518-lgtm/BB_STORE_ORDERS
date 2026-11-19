@@ -10,7 +10,8 @@ type OrderDeckFrameProps = {
   customerPhone: string;
   customerMessages: string[];
   importKey: number;
-  onProductImagesSelected?: (imageUrls: string[], productName?: string) => void;
+  onProductImagesSelected?: (imageUrls: string[], productName?: string) => void | Promise<void>;
+  roomStatus?: string;
   onClose: () => void;
 };
 
@@ -41,7 +42,7 @@ export function OrderDeckFrame(props: OrderDeckFrameProps) {
       if (event.source !== frameRef.current?.contentWindow || event.origin !== window.location.origin) return;
       if (event.data?.type !== "BB_ORDER_DECK_PRODUCT_IMAGES") return;
       const urls = Array.isArray(event.data.imageUrls)
-        ? event.data.imageUrls.filter((url: unknown): url is string => typeof url === "string" && /^https?:\/\//i.test(url)).slice(0, 4)
+        ? event.data.imageUrls.filter((url: unknown): url is string => typeof url === "string" && (/^https?:\/\//i.test(url) || (url.length <= 8_100_000 && /^data:image\/(?:png|jpeg|gif|webp);base64,/i.test(url)))).slice(0, 4)
         : [];
       if (urls.length) props.onProductImagesSelected?.(urls, typeof event.data.product === "string" ? event.data.product : undefined);
     };
@@ -54,6 +55,7 @@ export function OrderDeckFrame(props: OrderDeckFrameProps) {
       <div className="min-w-0">
         <p className="text-xs font-semibold tracking-[0.14em] text-violet-200">DRΛKSIDE · ORDER DECK</p>
         <p className="mt-1 truncate text-[10px] text-cyan-100/55">{props.pageName || "ไม่ระบุเพจ"} · {props.customerName || "ลูกค้า"}</p>
+        <p className="mt-1 flex items-center gap-1.5 text-[9px] text-emerald-200/75"><span aria-hidden="true">●</span><span>{props.roomStatus || "ห้องพร้อมใช้งาน"}</span><span className="text-cyan-100/35">· ROOM {props.threadId.slice(-6)}</span></p>
       </div>
       <div className="flex shrink-0 items-center gap-2">
         <Button type="button" size="sm" variant="outline" disabled={props.customerMessages.length === 0} onClick={() => sendContext(true)} className="chat-tool-action h-8 px-2" title="นำข้อความฝั่งลูกค้าจากห้องนี้เข้าเครื่องมือสรุปบิล">ดึงข้อความลูกค้า</Button>
