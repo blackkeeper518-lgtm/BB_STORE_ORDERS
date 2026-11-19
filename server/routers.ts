@@ -5,6 +5,7 @@ import { sendMetaMessage } from "./meta";
 import { assertChatPageEnabled, checkChatConnection, deleteChatPage, fetchChatMessageRows, fetchChatNotificationRows, fetchChatPages, fetchChatThreadRows, fetchParcelMappingQueue, purgeOldParcels, recordOutgoingChatMessage, saveChatPage, setChatPageAppStatus, setChatPageWebStatus, supabaseDelete, supabaseGet, supabasePatch, supabasePost } from "./supabase";
 import { checkLineConnection, fetchLineConversations, fetchLineMessages, sendLineText } from "./line";
 import * as db from "./db";
+import { generateOrderSummary } from "./order-summary";
 
 const ownerId = (ctx: { user: { id: number } | null }) => ctx.user?.id ?? 0;
 const kind = z.enum(["code", "sql", "workflow", "document", "config", "other"]);
@@ -41,6 +42,10 @@ async function persistLocalChatBestEffort(input: Parameters<typeof db.saveChatMe
 
 export const appRouter = router({
   health: publicProcedure.query(() => ({ ok: true, service: "drakside-system", time: new Date().toISOString() })),
+
+  orders: router({
+    generateSummary: protectedProcedure.input(z.object({ rawText: z.string().trim().min(1).max(12000), customerName: z.string().optional(), product: z.string().optional(), cod: z.string().optional() })).mutation(({ input }) => generateOrderSummary(input)),
+  }),
 
   auth: router({
     me: publicProcedure.query(({ ctx }) => ctx.user),
