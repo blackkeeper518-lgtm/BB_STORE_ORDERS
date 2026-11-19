@@ -1,4 +1,4 @@
-import { supabaseGet, supabasePatch, supabasePost, type ChatSupabaseCredentials } from "./supabase";
+import { recordOutgoingChatMessage, supabaseGet, supabasePatch, supabasePost, type ChatSupabaseCredentials } from "./supabase";
 
 export type LineConversation = {
   key: string;
@@ -203,7 +203,11 @@ export async function sendLineText(lineUserId: string, message: string, oa: stri
   if (!response.ok) throw new Error(`LINE ส่งข้อความไม่สำเร็จ (${response.status}): ${(await response.text()).slice(0, 300)}`);
   const now = new Date().toISOString();
   const outboundEventId = `outbound_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-  try { await supabasePost("line_messages", { channel: "line", source: "web", destination: oa || channel?.oa_id || null, oa_id: oa || channel?.oa_id || null, conversation_id: `line_${lineUserId}`, event_id: outboundEventId, webhook_event_id: outboundEventId, line_user_id: lineUserId, message_type: "text", message_text: message, text: message, direction: "outbound", speaker: "page", is_message_event: true, timestamp: now, created_at: now }, "chat", "return=minimal", credentials); } catch (error) { console.error("[line] sent but audit write failed", error); }
+  try {
+    const oaId = oa || channel?.oa_id || channel?.channel_id || "line";
+    await supabasePost("line_messages", { channel: "line", source: "web", destination: oaId, oa_id: oaId, conversation_id: `line_${lineUserId}`, event_id: outboundEventId, webhook_event_id: outboundEventId, line_user_id: lineUserId, message_type: "text", message_text: message, text: message, direction: "outbound", speaker: "page", is_message_event: true, timestamp: now, created_at: now }, "chat", "return=representation", credentials);
+    await recordOutgoingChatMessage({ pageId: channel?.channel_id || oaId, pageName: channel?.channel_name, threadId: lineUserId, recipientId: lineUserId, messageId: outboundEventId, text: message, occurredAt: new Date(now) }, credentials);
+  } catch (error) { console.error("[line] sent but chat audit write failed", error); }
   return { ok: true, line_user_id: lineUserId, text: message, sent_at: now };
 }
 
