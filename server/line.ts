@@ -1,4 +1,4 @@
-import { supabaseGet, supabasePost, type ChatSupabaseCredentials } from "./supabase";
+import { recordOutgoingChatMessage, supabaseGet, supabasePatch, supabasePost, type ChatSupabaseCredentials } from "./supabase";
 
 export type LineConversation = {
   key: string;
@@ -87,8 +87,9 @@ async function mediaForRow(row: Record<string, unknown>, token: string) {
   return { mediaUrl: null, stickerUrl: null, stickerId: null };
 }
 
-async function readLineChannel(oa: string | undefined, credentials?: ChatSupabaseCredentials) {
-  const query = new URLSearchParams({ select: "channel_id,channel_name,oa_id,channel_access_token", is_active: "eq.true", limit: "1" });
+async function readLineChannel(oa: string | undefined, credentials?: ChatSupabaseCredentials, surface: "web" | "mobile" = "web") {
+  const query = new URLSearchParams({ select: "channel_id,channel_name,oa_id,channel_access_token,is_active,status,status_web", limit: "1" });
+  query.set(surface === "web" ? "status_web" : "status", "eq.ON");
   if (oa) query.set("oa_id", `eq.${oa}`);
   const rows = await supabaseGet<LineChannel[]>(`line_channels?${query.toString()}`, "chat", credentials);
   return rows[0] ?? null;
@@ -125,12 +126,15 @@ async function readRows(credentials?: ChatSupabaseCredentials) {
   return supabaseGet<Array<Record<string, unknown>>>(`line_messages?${query.toString()}`, "chat", credentials);
 }
 
-export async function fetchLineConversations(credentials?: ChatSupabaseCredentials): Promise<LineConversation[]> {
+export async function fetchLineConversations(credentials?: ChatSupabaseCredentials, surface: "web" | "mobile" = "web"): Promise<LineConversation[]> {
   const rows = await readRows(credentials);
+  const configuredChannels = await supabaseGet<Array<{ oa_id: string; is_active: boolean; status?: string | null; status_web?: string | null }>>("line_channels?select=oa_id,is_active,status,status_web&limit=500", "chat", credentials).catch(() => []);
+  const enabledOas = new Set(configuredChannels.filter(channel => String((surface === "web" ? channel.status_web : channel.status) ?? "ON").toUpperCase() !== "OFF").map(channel => channel.oa_id));
+  const hasConfiguredChannels = configuredChannels.length > 0;
   const channelCache = new Map<string, LineChannel | null>();
   const channelFor = async (oa: string) => {
     if (!oa) return null;
-    if (!channelCache.has(oa)) channelCache.set(oa, await readLineChannel(oa, credentials).catch(() => null));
+    if (!channelCache.has(oa)) channelCache.set(oa, await readLineChannel(oa, credentials, surface).catch(() => null));
     return channelCache.get(oa) ?? null;
   };
   const map = new Map<string, LineConversation>();
@@ -139,6 +143,7 @@ export async function fetchLineConversations(credentials?: ChatSupabaseCredentia
     if (!lineUserId) continue;
     const conversation = conversationId(row);
     const channelOaId = oaId(row);
+    if (hasConfiguredChannels && (!channelOaId || !enabledOas.has(channelOaId))) continue;
     const key = `${channelOaId}:${conversation}`;
     const occurredAt = timestamp(row);
     const current = map.get(key) ?? { key, lineUserId, conversationId: conversation, oaId: channelOaId, oaName: channelOaId, displayName: text(row.display_name || row.customer_name || lineUserId), profilePictureUrl: text(row.profile_picture_url) || null, latestDirection: direction(row), latestAt: occurredAt, preview: messageText(row), messageCount: 0 };
@@ -157,7 +162,15 @@ export async function fetchLineConversations(credentials?: ChatSupabaseCredentia
   await Promise.all(conversations.map(async conversation => {
     if (conversation.displayName !== conversation.lineUserId && conversation.profilePictureUrl) return;
     const profile = await fetchLineProfile(conversation.lineUserId, conversation.oaId, credentials);
-    if (profile) { conversation.displayName = profile.displayName; conversation.profilePictureUrl = profile.profilePictureUrl; }
+    if (profile) {
+      conversation.displayName = profile.displayName;
+      conversation.profilePictureUrl = profile.profilePictureUrl;
+      try {
+        const userFilter = `line_user_id=eq.${encodeURIComponent(conversation.lineUserId)}`;
+        const oaFilter = conversation.oaId ? `&destination=eq.${encodeURIComponent(conversation.oaId)}` : "";
+        await supabasePatch(`line_messages?${userFilter}${oaFilter}`, { display_name: profile.displayName, profile_picture_url: profile.profilePictureUrl }, "chat", credentials);
+      } catch (error) { console.warn("[line] profile cache skipped", error); }
+    }
   }));
   return conversations.sort((a, b) => String(b.latestAt || "").localeCompare(String(a.latestAt || "")));
 }
@@ -189,6 +202,51 @@ export async function sendLineText(lineUserId: string, message: string, oa: stri
   const response = await fetch("https://api.line.me/v2/bot/message/push", { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ to: lineUserId, messages: [{ type: "text", text: message }] }) });
   if (!response.ok) throw new Error(`LINE ส่งข้อความไม่สำเร็จ (${response.status}): ${(await response.text()).slice(0, 300)}`);
   const now = new Date().toISOString();
-  try { await supabasePost("line_messages", { channel: "line", destination: oa || channel?.oa_id || null, conversation_id: `line_${lineUserId}`, line_user_id: lineUserId, message_type: "text", message_text: message, direction: "outbound", timestamp: now, created_at: now }, "chat", "return=minimal", credentials); } catch (error) { console.error("[line] sent but audit write failed", error); }
+  const outboundEventId = `outbound_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  try {
+    const oaId = oa || channel?.oa_id || channel?.channel_id || "line";
+    await supabasePost("line_messages", { channel: "line", source: "web", destination: oaId, oa_id: oaId, conversation_id: `line_${lineUserId}`, event_id: outboundEventId, webhook_event_id: outboundEventId, line_user_id: lineUserId, message_type: "text", message_text: message, text: message, direction: "outbound", speaker: "page", is_message_event: true, timestamp: now, created_at: now }, "chat", "return=representation", credentials);
+    await recordOutgoingChatMessage({ pageId: channel?.channel_id || oaId, pageName: channel?.channel_name, threadId: lineUserId, recipientId: lineUserId, messageId: outboundEventId, text: message, occurredAt: new Date(now) }, credentials);
+  } catch (error) { console.error("[line] sent but chat audit write failed", error); }
   return { ok: true, line_user_id: lineUserId, text: message, sent_at: now };
+}
+
+export async function saveLineInboundMessage(payload: Record<string, unknown>) {
+  const lineUserId = text(payload.line_user_id || payload.user_id);
+  const destination = text(payload.destination || payload.oa_id);
+  const messageTextValue = text(payload.message_text || payload.text);
+  const eventId = text(payload.event_id || payload.webhook_event_id || payload.message_id || payload.line_message_id);
+  if (!lineUserId || !destination || !eventId) throw new Error("LINE inbound payload ต้องมี line_user_id, destination และ event_id");
+  const occurredAt = text(payload.created_at) || new Date().toISOString();
+  const row = {
+    channel: "line",
+    source: "line",
+    destination,
+    oa_id: destination,
+    conversation_id: text(payload.conversation_id) || `line_${lineUserId}`,
+    event_id: eventId,
+    webhook_event_id: text(payload.webhook_event_id) || eventId,
+    event_type: text(payload.event_type) || "message",
+    event_timestamp: payload.event_timestamp ?? null,
+    line_user_id: lineUserId,
+    user_id: lineUserId,
+    source_type: payload.source_type ?? null,
+    group_id: payload.group_id ?? null,
+    room_id: payload.room_id ?? null,
+    line_message_id: payload.line_message_id ?? payload.message_id ?? null,
+    message_id: payload.message_id ?? payload.line_message_id ?? eventId,
+    message_type: text(payload.message_type) || "text",
+    message_text: messageTextValue || null,
+    text: messageTextValue || null,
+    reply_token: payload.reply_token ?? null,
+    direction: "inbound",
+    speaker: "customer",
+    display_name: payload.display_name ?? null,
+    profile_picture_url: payload.profile_picture_url ?? null,
+    raw_event: payload.raw_event ?? null,
+    raw_payload: payload.raw_payload ?? null,
+    is_message_event: true,
+    created_at: occurredAt,
+  };
+  return supabasePost<Array<Record<string, unknown>>>("line_messages", row, "chat", "resolution=ignore-duplicates,return=representation");
 }

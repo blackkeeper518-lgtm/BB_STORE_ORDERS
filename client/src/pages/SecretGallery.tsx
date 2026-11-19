@@ -8,6 +8,7 @@ import {
   Code2,
   FileCode2,
   FilePlus2,
+  Facebook,
   Home,
   ImagePlus,
   LockKeyhole,
@@ -66,6 +67,7 @@ const IMAGES_KEY = "nightops-secret-gallery-v1";
 const SOUND_KEY = "nightops-chat-sound-v1";
 type ChatSoundSettings = { enabled: boolean; tone: "ping" | "bell" | "pop"; volume: number; soundKey?: string };
 type SoundRow = { sound_key: string; name: string; event_type: string; storage_bucket: string | null; storage_path: string | null; mime_type: string | null; volume: number | null; is_enabled: boolean };
+type LineChannelRow = { id: number; channel_id: string; channel_name: string; oa_id: string; is_active: boolean; status?: string | null; status_web?: string | null; hasToken?: boolean };
 const DEFAULT_SOUND_SETTINGS: ChatSoundSettings = { enabled: true, tone: "ping", volume: 0.35 };
 const languageMeta: Record<
   CodeLanguage,
@@ -135,6 +137,15 @@ export default function SecretGallery() {
   const [soundRows, setSoundRows] = useState<SoundRow[]>([]);
   const [selectedSoundKey, setSelectedSoundKey] = useState("");
   const [soundListBusy, setSoundListBusy] = useState(false);
+  const [lineForm, setLineForm] = useState<{ id?: number; channelId: string; channelName: string; oaId: string; accessToken: string; channelSecret: string; isActive: boolean; isWebActive: boolean }>({ channelId: "", channelName: "", oaId: "", accessToken: "", channelSecret: "", isActive: true, isWebActive: true });
+  const [lineMessage, setLineMessage] = useState("");
+  const lineChannelsQuery = trpc.line.channels.useQuery(undefined, { enabled: unlocked, retry: false });
+  const saveLineChannel = trpc.line.saveChannel.useMutation({ onSuccess: () => { setLineMessage("บันทึก LINE OA แล้ว"); setLineForm({ channelId: "", channelName: "", oaId: "", accessToken: "", channelSecret: "", isActive: true, isWebActive: true }); void lineChannelsQuery.refetch(); }, onError: error => setLineMessage(error.message) });
+  const toggleLineChannel = trpc.line.toggleChannel.useMutation({ onSuccess: () => void lineChannelsQuery.refetch(), onError: error => setLineMessage(error.message) });
+  const deleteLineChannel = trpc.line.deleteChannel.useMutation({ onSuccess: () => { setLineMessage("ลบ LINE OA แล้ว"); void lineChannelsQuery.refetch(); }, onError: error => setLineMessage(error.message) });
+  const facebookPagesQuery = trpc.chat.pages.useQuery(undefined, { enabled: unlocked, retry: false });
+  const setFacebookAppStatus = trpc.chat.setPageAppStatus.useMutation({ onSuccess: () => void facebookPagesQuery.refetch() });
+  const setFacebookWebStatus = trpc.chat.setPageWebStatus.useMutation({ onSuccess: () => void facebookPagesQuery.refetch() });
   const soundFileRef = useRef<HTMLInputElement>(null);
   const [activeId, setActiveId] = useState<string | null>(
     () => readLocal<VaultDoc[]>(DOCS_KEY, [])[0]?.id ?? null
@@ -374,6 +385,8 @@ export default function SecretGallery() {
     setVaultKey("");
     setVaultMessage("ล้าง connection Private Vault แล้ว");
   };
+  const editLineChannel = (row: LineChannelRow) => setLineForm({ id: row.id, channelId: row.channel_id, channelName: row.channel_name, oaId: row.oa_id, accessToken: "", channelSecret: "", isActive: row.is_active, isWebActive: String(row.status_web ?? "ON").toUpperCase() !== "OFF" });
+  const submitLineChannel = () => { setLineMessage(""); saveLineChannel.mutate(lineForm); };
   const login = () => {
     if (password === ROOM_PASSWORD) {
       sessionStorage.setItem("nightops-gallery-unlocked", "1");
@@ -654,6 +667,46 @@ export default function SecretGallery() {
                 <span className="min-h-5 text-xs text-cyan-100/70" aria-live="polite">{chatMessage}</span>
               </div>
               <p className="text-[10px] leading-4 text-cyan-100/45">เก็บเฉพาะ browser นี้ · ถ้าไม่กรอก ระบบจะไม่เรียกฐานข้อมูลแชท · ไม่ fallback ไป Main/Tracking หรือ table/token column อื่น</p>
+            </CardContent>
+          </Card>
+          <Card className="group project-room-card relative overflow-hidden rounded-3xl border-lime-300/35 bg-[radial-gradient(ellipse_at_top_right,rgba(132,204,22,.18),transparent_42%),linear-gradient(135deg,rgba(20,35,7,.98),rgba(8,18,18,.96))] shadow-[0_0_34px_rgba(132,204,22,.14)] xl:col-span-2">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-sm text-lime-100"><MessageCircle className="h-5 w-5 text-lime-300" />LINE OA MANAGER · หลายบัญชี</CardTitle>
+              <p className="text-xs leading-5 text-lime-100/65">เพิ่ม แก้ไข ทดสอบ เปิด/ปิด และลบ LINE OA จากหน้าเว็บได้เลย · Token และ Secret ไม่ถูกส่งกลับมาแสดงเต็มหลังบันทึก</p>
+            </CardHeader>
+            <CardContent className="grid gap-4">
+              <div className="grid gap-3 md:grid-cols-3">
+                <label className="grid gap-1 text-[11px] text-lime-100/70">ชื่อ OA<Input value={lineForm.channelName} onChange={event => setLineForm(current => ({ ...current, channelName: event.target.value }))} placeholder="เช่น SINGTO_ORDER" className="border-lime-300/25 bg-black/35 text-white" /></label>
+                <label className="grid gap-1 text-[11px] text-lime-100/70">Channel ID<Input value={lineForm.channelId} onChange={event => setLineForm(current => ({ ...current, channelId: event.target.value }))} placeholder="2012666328" className="border-lime-300/25 bg-black/35 font-mono text-white" /></label>
+                <label className="grid gap-1 text-[11px] text-lime-100/70">OA ID<Input value={lineForm.oaId} onChange={event => setLineForm(current => ({ ...current, oaId: event.target.value }))} placeholder="U..." className="border-lime-300/25 bg-black/35 font-mono text-white" /></label>
+                <label className="grid gap-1 text-[11px] text-lime-100/70 md:col-span-2">Channel Access Token<Input type="password" autoComplete="new-password" value={lineForm.accessToken} onChange={event => setLineForm(current => ({ ...current, accessToken: event.target.value }))} placeholder={lineForm.id ? "เว้นว่างเพื่อใช้ค่าเดิม" : "วาง Channel Access Token"} className="border-lime-300/25 bg-black/35 font-mono text-white" /></label>
+                <label className="grid gap-1 text-[11px] text-lime-100/70">Channel Secret<Input type="password" autoComplete="new-password" value={lineForm.channelSecret} onChange={event => setLineForm(current => ({ ...current, channelSecret: event.target.value }))} placeholder={lineForm.id ? "เว้นว่างเพื่อใช้ค่าเดิม" : "วาง Channel Secret"} className="border-lime-300/25 bg-black/35 font-mono text-white" /></label>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="flex items-center gap-2 text-xs text-lime-100/70"><input type="checkbox" checked={lineForm.isActive} onChange={event => setLineForm(current => ({ ...current, isActive: event.target.checked }))} className="accent-lime-400" /> เปิดใช้งาน</label><label className="flex items-center gap-2 text-xs text-emerald-100/70"><input type="checkbox" checked={lineForm.isWebActive} onChange={event => setLineForm(current => ({ ...current, isWebActive: event.target.checked }))} className="accent-emerald-400" /> เว็บ ON</label>
+                <Button type="button" onClick={submitLineChannel} disabled={saveLineChannel.isPending} className="bg-lime-400 text-black hover:bg-lime-300">{saveLineChannel.isPending ? "กำลังบันทึก…" : lineForm.id ? "บันทึกการแก้ไข" : "เพิ่ม LINE OA"}</Button>
+                {lineForm.id ? <Button type="button" variant="outline" onClick={() => setLineForm({ channelId: "", channelName: "", oaId: "", accessToken: "", channelSecret: "", isActive: true })} className="border-lime-300/25 text-lime-100">ยกเลิกแก้ไข</Button> : null}
+                <span className="text-xs text-lime-100/70">{lineMessage}</span>
+              </div>
+              {lineChannelsQuery.isError ? <p className="rounded-xl border border-red-300/25 bg-red-400/10 p-3 text-xs text-red-200">โหลดรายการ LINE ไม่สำเร็จ: {lineChannelsQuery.error.message}</p> : null}
+              <div className="grid gap-2">
+                {(lineChannelsQuery.data as LineChannelRow[] | undefined)?.map(row => <div key={row.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-lime-300/15 bg-black/20 p-3">
+                  <div className="min-w-0"><p className="truncate text-sm font-semibold text-lime-100">{row.channel_name} <span className="ml-2 rounded-full bg-lime-400/15 px-2 py-0.5 text-[10px] text-lime-200">{row.is_active ? "ON" : "OFF"}</span></p><p className="mt-1 truncate font-mono text-[10px] text-lime-100/55">Channel {row.channel_id} · OA {row.oa_id} · แอป {row.is_active ? "ON" : "OFF"} · เว็บ {String(row.status_web ?? "ON").toUpperCase() === "OFF" ? "OFF" : "ON"} · Token {row.hasToken ? "บันทึกแล้ว" : "ยังไม่มี"}</p></div>
+                  <div className="flex flex-wrap gap-2"><Button type="button" size="sm" variant="outline" onClick={() => editLineChannel(row)} className="border-lime-300/25 text-lime-100">แก้ไข</Button><Button type="button" size="sm" variant="outline" onClick={() => toggleLineChannel.mutate({ id: row.id, isActive: !row.is_active, scope: "app" })} className="border-cyan-300/25 text-cyan-100">{row.is_active ? "แอป ON" : "แอป OFF"}</Button><Button type="button" size="sm" variant="outline" onClick={() => toggleLineChannel.mutate({ id: row.id, isActive: String(row.status_web ?? "ON").toUpperCase() === "OFF", scope: "web" })} className="border-emerald-300/25 text-emerald-100">{String(row.status_web ?? "ON").toUpperCase() === "OFF" ? "เว็บ OFF" : "เว็บ ON"}</Button><Button type="button" size="sm" variant="outline" onClick={() => { if (window.confirm(`ลบ ${row.channel_name} หรือไม่`)) deleteLineChannel.mutate({ id: row.id }); }} className="border-red-300/25 text-red-200"><Trash2 className="mr-1 h-3.5 w-3.5" />ลบ</Button></div>
+                </div>)}
+                {!lineChannelsQuery.isLoading && !lineChannelsQuery.data?.length ? <p className="rounded-xl border border-lime-300/10 p-4 text-center text-xs text-lime-100/50">ยังไม่มี LINE OA ในระบบ</p> : null}
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="group project-room-card relative overflow-hidden rounded-3xl border-blue-300/35 bg-[radial-gradient(ellipse_at_top_right,rgba(59,130,246,.2),transparent_42%),linear-gradient(135deg,rgba(8,24,54,.98),rgba(10,12,35,.96))] shadow-[0_0_34px_rgba(59,130,246,.16)] xl:col-span-2">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-sm text-blue-100"><Facebook className="h-5 w-5 text-blue-300" />FACEBOOK PAGE MANAGER · เว็บ ON/OFF</CardTitle>
+              <p className="text-xs leading-5 text-blue-100/65">จัดการสถานะเว็บของเพจ Facebook เหมือน LINE · ปิดแล้วเพจจะไม่แสดงใน ChatHub เว็บ แต่สถานะแอปยังใช้คอลัมน์เดิมแยกกัน</p>
+            </CardHeader>
+            <CardContent className="grid gap-2">
+              {facebookPagesQuery.isError ? <p className="rounded-xl border border-amber-300/25 bg-amber-400/10 p-3 text-xs text-amber-100">โหลดเพจไม่ได้: {facebookPagesQuery.error.message} · ตรวจ Chat config ใน ROOM 02</p> : null}
+              {(facebookPagesQuery.data ?? []).map(page => <div key={page.pageId} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-300/15 bg-black/20 p-3"><div className="min-w-0"><p className="truncate text-sm font-semibold text-blue-100">{page.pageName}</p><p className="mt-1 font-mono text-[10px] text-blue-100/55">Page {page.pageId} · แอป {page.enabledMobile ? "ON" : "OFF"} · เว็บ {page.enabledWeb ? "ON" : "OFF"}</p></div><div className="flex flex-wrap gap-2"><Button type="button" size="sm" variant="outline" disabled={setFacebookAppStatus.isPending} onClick={() => setFacebookAppStatus.mutate({ pageId: page.pageId, enabled: !page.enabledMobile })} className={page.enabledMobile ? "border-cyan-300/25 text-cyan-100" : "border-red-300/25 text-red-200"}>{page.enabledMobile ? "แอป ON" : "แอป OFF"}</Button><Button type="button" size="sm" variant="outline" disabled={setFacebookWebStatus.isPending} onClick={() => setFacebookWebStatus.mutate({ pageId: page.pageId, enabled: !page.enabledWeb })} className={page.enabledWeb ? "border-emerald-300/25 text-emerald-100" : "border-red-300/25 text-red-200"}>{page.enabledWeb ? "เว็บ ON" : "เว็บ OFF"}</Button></div></div>)}
+              {!facebookPagesQuery.isLoading && !facebookPagesQuery.data?.length ? <p className="rounded-xl border border-blue-300/10 p-4 text-center text-xs text-blue-100/50">ยังไม่พบเพจ Facebook หรือยังไม่ได้ตั้งค่า Chat ROOM 02</p> : null}
             </CardContent>
           </Card>
           <Card className="group project-room-card relative overflow-hidden rounded-3xl border-fuchsia-300/35 bg-[radial-gradient(ellipse_at_top_right,rgba(244,114,182,.2),transparent_42%),linear-gradient(135deg,rgba(35,12,48,.98),rgba(15,9,35,.96))] shadow-[0_0_34px_rgba(217,70,239,.16)] transition duration-300 hover:-translate-y-1 hover:border-fuchsia-200/70 hover:shadow-[0_0_50px_rgba(217,70,239,.3)]">

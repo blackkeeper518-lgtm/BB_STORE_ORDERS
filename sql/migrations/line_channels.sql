@@ -8,9 +8,14 @@ create table if not exists public.line_channels (
   channel_access_token text not null,
   channel_secret text,
   is_active boolean not null default true,
+  status text not null default 'ON',
+  status_web text not null default 'ON',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.line_channels add column if not exists status text not null default 'ON';
+alter table public.line_channels add column if not exists status_web text not null default 'ON';
 
 alter table public.line_channels enable row level security;
 alter table public.line_channels force row level security;

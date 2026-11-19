@@ -125,6 +125,10 @@ export async function setChatPageWebStatus(pageId: string, enabled: boolean, cre
   const query = `${encodeURIComponent(CHAT_PAGE_TOKEN_TABLE)}?page_id=eq.${encodeURIComponent(pageId)}`;
   return supabasePatch<Array<Record<string, unknown>>>(query, { status_web: enabled ? "ON" : "OFF" }, "chat", credentials);
 }
+export async function setChatPageAppStatus(pageId: string, enabled: boolean, credentials?: ChatSupabaseCredentials) {
+  const query = `${encodeURIComponent(CHAT_PAGE_TOKEN_TABLE)}?page_id=eq.${encodeURIComponent(pageId)}`;
+  return supabasePatch<Array<Record<string, unknown>>>(query, { status: enabled ? "ON" : "OFF" }, "chat", credentials);
+}
 export async function assertChatPageEnabled(pageId: string, credentials?: ChatSupabaseCredentials, surface: "web" | "mobile" = "web") {
   const activeIds = await getActiveChatPageIds(credentials, surface);
   if (activeIds && !activeIds.has(pageId.trim())) throw new Error("เพจนี้ถูกปิดใช้งานโดยผู้ดูแลระบบ");
@@ -185,6 +189,7 @@ export async function checkChatConnection(credentials?: ChatSupabaseCredentials)
 }
 export async function supabasePost<T>(path: string, body: unknown, project: SupabaseProject = "main", prefer?: string, browserChatCredentials?: ChatSupabaseCredentials): Promise<T> { const { baseUrl, key } = config(project, browserChatCredentials); const headers: Record<string, string> = { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" }; if (prefer) headers.Prefer = prefer; const response = await fetch(`${baseUrl}/rest/v1/${path}`, { method: "POST", headers, body: JSON.stringify(body) }); if (!response.ok) throw new Error(`Supabase returned HTTP ${response.status}: ${(await response.text()).slice(0, 300)}`); return response.json() as Promise<T>; }
 export async function supabasePatch<T>(path: string, body: unknown, project: SupabaseProject = "main", browserChatCredentials?: ChatSupabaseCredentials): Promise<T> { const { baseUrl, key } = config(project, browserChatCredentials); const response = await fetch(`${baseUrl}/rest/v1/${path.replace(/^\/+/, "")}`, { method: "PATCH", headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json", Prefer: "return=representation" }, body: JSON.stringify(body) }); if (!response.ok) throw new Error(`Supabase returned HTTP ${response.status}: ${(await response.text()).slice(0, 500)}`); const text = await response.text(); return (text ? JSON.parse(text) : []) as T; }
+export async function supabaseDelete<T>(path: string, project: SupabaseProject = "main", browserChatCredentials?: ChatSupabaseCredentials): Promise<T> { const { baseUrl, key } = config(project, browserChatCredentials); const response = await fetch(`${baseUrl}/rest/v1/${path.replace(/^\/+/, "")}`, { method: "DELETE", headers: { apikey: key, Authorization: `Bearer ${key}`, Prefer: "return=representation" } }); if (!response.ok) throw new Error(`Supabase returned HTTP ${response.status}: ${(await response.text()).slice(0, 500)}`); const text = await response.text(); return (text ? JSON.parse(text) : []) as T; }
 export async function recordOutgoingChatMessage(input: { portalKey?: string; chatLinkKey?: string; pageId: string; pageName?: string; threadId: string; recipientId: string; messageId?: string; text?: string; occurredAt?: Date }, credentials?: ChatSupabaseCredentials) {
   const occurredAt = input.occurredAt ?? new Date();
   const iso = occurredAt.toISOString();
