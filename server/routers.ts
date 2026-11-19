@@ -2,7 +2,7 @@ import { z } from "zod";
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { COOKIE_NAME } from "../shared/const";
 import { sendMetaMessage } from "./meta";
-import { assertChatPageEnabled, checkChatConnection, fetchChatMessageRows, fetchChatNotificationRows, fetchChatPages, fetchChatThreadRows, fetchParcelMappingQueue, purgeOldParcels, recordOutgoingChatMessage, setChatPageWebStatus, supabaseDelete, supabaseGet, supabasePatch, supabasePost } from "./supabase";
+import { assertChatPageEnabled, checkChatConnection, fetchChatMessageRows, fetchChatNotificationRows, fetchChatPages, fetchChatThreadRows, fetchParcelMappingQueue, purgeOldParcels, recordOutgoingChatMessage, setChatPageAppStatus, setChatPageWebStatus, supabaseDelete, supabaseGet, supabasePatch, supabasePost } from "./supabase";
 import { checkLineConnection, fetchLineConversations, fetchLineMessages, sendLineText } from "./line";
 import * as db from "./db";
 
@@ -54,6 +54,7 @@ export const appRouter = router({
     // redirect an admin away when an auth session has expired.
     connection: publicProcedure.query(({ ctx }) => checkChatConnection(requireBrowserChatConfig(ctx))),
     pages: protectedProcedure.query(({ ctx }) => fetchChatPages(requireBrowserChatConfig(ctx))),
+    setPageAppStatus: protectedProcedure.input(z.object({ pageId: z.string().min(1), enabled: z.boolean() })).mutation(({ input, ctx }) => setChatPageAppStatus(input.pageId, input.enabled, requireBrowserChatConfig(ctx))),
     setPageWebStatus: protectedProcedure.input(z.object({ pageId: z.string().min(1), enabled: z.boolean() })).mutation(({ input, ctx }) => setChatPageWebStatus(input.pageId, input.enabled, requireBrowserChatConfig(ctx))),
     threads: protectedProcedure.input(z.object({ surface: z.enum(["web", "mobile"]).default("web") }).optional()).query(({ input, ctx }) => fetchChatThreadRows(requireBrowserChatConfig(ctx), input?.surface ?? "web")),
     pollNotifications: protectedProcedure.input(z.object({ afterRowId: z.string().regex(/^\d+$/).nullable() })).mutation(({ input, ctx }) => fetchChatNotificationRows(input.afterRowId, requireBrowserChatConfig(ctx))),

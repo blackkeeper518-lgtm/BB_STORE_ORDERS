@@ -125,6 +125,10 @@ export async function setChatPageWebStatus(pageId: string, enabled: boolean, cre
   const query = `${encodeURIComponent(CHAT_PAGE_TOKEN_TABLE)}?page_id=eq.${encodeURIComponent(pageId)}`;
   return supabasePatch<Array<Record<string, unknown>>>(query, { status_web: enabled ? "ON" : "OFF" }, "chat", credentials);
 }
+export async function setChatPageAppStatus(pageId: string, enabled: boolean, credentials?: ChatSupabaseCredentials) {
+  const query = `${encodeURIComponent(CHAT_PAGE_TOKEN_TABLE)}?page_id=eq.${encodeURIComponent(pageId)}`;
+  return supabasePatch<Array<Record<string, unknown>>>(query, { status: enabled ? "ON" : "OFF" }, "chat", credentials);
+}
 export async function assertChatPageEnabled(pageId: string, credentials?: ChatSupabaseCredentials, surface: "web" | "mobile" = "web") {
   const activeIds = await getActiveChatPageIds(credentials, surface);
   if (activeIds && !activeIds.has(pageId.trim())) throw new Error("เพจนี้ถูกปิดใช้งานโดยผู้ดูแลระบบ");
