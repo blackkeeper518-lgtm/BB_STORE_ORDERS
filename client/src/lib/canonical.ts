@@ -338,9 +338,10 @@ export async function readCanonicalOrders(search = "", since: string | null = nu
   if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
 
   // n8n owns parsing, mapping, canonical selection and deduplication.
-  // The browser reads HERMES values as supplied and does not rebuild them.
+  // Read the live HERMES row shape instead of naming retired columns one by one.
+  // This keeps order control and notification polling compatible with schema pruning.
   const ordersResult = await api.from("🗝️HERMES_ARCHIVE")
-    .select(HERMES_DIRECT_ORDER_COLUMNS)
+    .select("*")
     .limit(ORDER_OPERATIONAL_LIMIT);
   if (ordersResult.error) fail(ordersResult.error);
 

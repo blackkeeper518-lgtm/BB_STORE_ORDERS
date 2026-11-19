@@ -224,7 +224,8 @@ export default function MobileInbox() {
         const keys = rows.map(row => String(row.upsert_key || row.order_number || row.id || "")).filter(Boolean);
         const index = lastSeen ? keys.indexOf(lastSeen) : -1;
         if (!cancelled) setOrderUnreadCount(!lastSeen || index < 0 ? 0 : index);
-        if (!lastSeen && keys[0]) localStorage.setItem(key, keys[0]);
+        // A deleted/rotated legacy key must become the new baseline, not a fake unread order.
+        if ((!lastSeen || index < 0) && keys[0]) localStorage.setItem(key, keys[0]);
       } catch { /* order badge is best effort */ }
     };
     void loadOrders();
