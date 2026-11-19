@@ -1598,4 +1598,19 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 
 /* Modal layer contract: one control surface at a time. */
 .mobile-inbox-custom-panel { z-index: 9992 !important; }
-.mobile-inbox-notification-panel { z-index: 80; }
+.mobile-inbox-page.mobile-inbox-themed > .mobile-inbox-notification-panel {
+  position: fixed !important;
+  z-index: 9980 !important;
+  top: calc(env(safe-area-inset-top) + 78px);
+  right: 12px;
+  left: 12px;
+}
+.mobile-inbox-page.mobile-inbox-themed > .mobile-inbox-conversation {
+  z-index: 9970 !important;
+}
+.mobile-inbox-page.mobile-inbox-themed > .mobile-inbox-drawer-scrim {
+  z-index: 9990 !important;
+}
+.mobile-inbox-page.mobile-inbox-themed > .mobile-inbox-drawer {
+  z-index: 9991 !important;
+}
