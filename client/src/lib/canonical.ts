@@ -54,8 +54,11 @@ export function getSupabaseConfig(camp: Camp = getActiveCamp(), project: Supabas
       }
     }
   } catch { /* invalid local value; try deployment defaults */ }
-  const url = project === "tracking" ? DEPLOYMENT_TRACKING_URL : project === "parcel" ? DEPLOYMENT_PARCEL_URL || DEPLOYMENT_TRACKING_URL : project === "vault" ? DEPLOYMENT_VAULT_URL : DEPLOYMENT_SUPABASE_URL;
-  const anonKey = project === "tracking" ? DEPLOYMENT_TRACKING_ANON_KEY : project === "parcel" ? DEPLOYMENT_PARCEL_ANON_KEY || DEPLOYMENT_TRACKING_ANON_KEY : project === "vault" ? DEPLOYMENT_VAULT_ANON_KEY : DEPLOYMENT_SUPABASE_ANON_KEY;
+  // Keep app themes/sounds on the existing main Supabase project when a
+  // separate Vault project is not provisioned. A dedicated Vault project can
+  // still override these values through VITE_VAULT_SUPABASE_* on Render.
+  const url = project === "tracking" ? DEPLOYMENT_TRACKING_URL : project === "parcel" ? DEPLOYMENT_PARCEL_URL || DEPLOYMENT_TRACKING_URL : project === "vault" ? DEPLOYMENT_VAULT_URL || DEPLOYMENT_SUPABASE_URL : DEPLOYMENT_SUPABASE_URL;
+  const anonKey = project === "tracking" ? DEPLOYMENT_TRACKING_ANON_KEY : project === "parcel" ? DEPLOYMENT_PARCEL_ANON_KEY || DEPLOYMENT_TRACKING_ANON_KEY : project === "vault" ? DEPLOYMENT_VAULT_ANON_KEY || DEPLOYMENT_SUPABASE_ANON_KEY : DEPLOYMENT_SUPABASE_ANON_KEY;
   return url && anonKey ? { url, anonKey, orderTable: project === "main" ? defaultOrderView(camp) : undefined } : null;
 }
 export function saveSupabaseConfig(config: SupabaseConfig, camp: Camp = getActiveCamp(), project: SupabaseProject = "main") {
