@@ -40,6 +40,11 @@ function profileKey(_camp: Camp, project: SupabaseProject) {
   return CONFIG_KEY;
 }
 export function getSupabaseConfig(camp: Camp = getActiveCamp(), project: SupabaseProject = "main"): SupabaseConfig | null {
+  const deploymentUrl = project === "tracking" ? DEPLOYMENT_TRACKING_URL : project === "parcel" ? DEPLOYMENT_PARCEL_URL || DEPLOYMENT_TRACKING_URL : project === "vault" ? DEPLOYMENT_VAULT_URL || DEPLOYMENT_SUPABASE_URL : DEPLOYMENT_SUPABASE_URL;
+  const deploymentAnonKey = project === "tracking" ? DEPLOYMENT_TRACKING_ANON_KEY : project === "parcel" ? DEPLOYMENT_PARCEL_ANON_KEY || DEPLOYMENT_TRACKING_ANON_KEY : project === "vault" ? DEPLOYMENT_VAULT_ANON_KEY || DEPLOYMENT_SUPABASE_ANON_KEY : DEPLOYMENT_SUPABASE_ANON_KEY;
+  // Render is the shared source of truth. Browser-local settings remain only
+  // as a compatibility fallback for older deployments without env values.
+  if (deploymentUrl && deploymentAnonKey) return { url: deploymentUrl, anonKey: deploymentAnonKey, orderTable: project === "main" ? defaultOrderView(camp) : undefined };
   try {
     const raw = localStorage.getItem(profileKey(camp, project));
     if (raw) {
@@ -57,9 +62,7 @@ export function getSupabaseConfig(camp: Camp = getActiveCamp(), project: Supabas
   // Keep app themes/sounds on the existing main Supabase project when a
   // separate Vault project is not provisioned. A dedicated Vault project can
   // still override these values through VITE_VAULT_SUPABASE_* on Render.
-  const url = project === "tracking" ? DEPLOYMENT_TRACKING_URL : project === "parcel" ? DEPLOYMENT_PARCEL_URL || DEPLOYMENT_TRACKING_URL : project === "vault" ? DEPLOYMENT_VAULT_URL || DEPLOYMENT_SUPABASE_URL : DEPLOYMENT_SUPABASE_URL;
-  const anonKey = project === "tracking" ? DEPLOYMENT_TRACKING_ANON_KEY : project === "parcel" ? DEPLOYMENT_PARCEL_ANON_KEY || DEPLOYMENT_TRACKING_ANON_KEY : project === "vault" ? DEPLOYMENT_VAULT_ANON_KEY || DEPLOYMENT_SUPABASE_ANON_KEY : DEPLOYMENT_SUPABASE_ANON_KEY;
-  return url && anonKey ? { url, anonKey, orderTable: project === "main" ? defaultOrderView(camp) : undefined } : null;
+  return deploymentUrl && deploymentAnonKey ? { url: deploymentUrl, anonKey: deploymentAnonKey, orderTable: project === "main" ? defaultOrderView(camp) : undefined } : null;
 }
 export function saveSupabaseConfig(config: SupabaseConfig, camp: Camp = getActiveCamp(), project: SupabaseProject = "main") {
   const clean = { url: config.url.trim().replace(/\/$/, ""), anonKey: config.anonKey.trim(), ...(project === "main" ? { orderTable: defaultOrderView(camp) } : {}) };

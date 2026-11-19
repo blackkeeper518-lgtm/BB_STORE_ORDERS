@@ -30,8 +30,10 @@ export async function createContext(
 
   const chatUrl = headerValue(opts.req.headers["x-chat-supabase-url"]);
   const chatServiceRoleKey = headerValue(opts.req.headers["x-chat-supabase-service-role-key"]);
-  const configuredChatUrl = chatUrl || process.env.CHAT_SUPABASE_URL?.trim() || "";
-  const configuredChatServiceRoleKey = chatServiceRoleKey || process.env.CHAT_SUPABASE_SERVICE_ROLE_KEY?.trim() || "";
+  // Render is the shared source of truth; browser values are only a legacy
+  // fallback for deployments that have not configured the server yet.
+  const configuredChatUrl = process.env.CHAT_SUPABASE_URL?.trim() || chatUrl || "";
+  const configuredChatServiceRoleKey = process.env.CHAT_SUPABASE_SERVICE_ROLE_KEY?.trim() || chatServiceRoleKey || "";
   const adminDeviceId = headerValue(opts.req.headers["x-admin-device-id"]).slice(0, 160);
   const userAgent = headerValue(opts.req.headers["user-agent"]).slice(0, 500);
 
