@@ -202,6 +202,7 @@ export async function sendLineText(lineUserId: string, message: string, oa: stri
   const response = await fetch("https://api.line.me/v2/bot/message/push", { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ to: lineUserId, messages: [{ type: "text", text: message }] }) });
   if (!response.ok) throw new Error(`LINE ส่งข้อความไม่สำเร็จ (${response.status}): ${(await response.text()).slice(0, 300)}`);
   const now = new Date().toISOString();
-  try { await supabasePost("line_messages", { channel: "line", destination: oa || channel?.oa_id || null, conversation_id: `line_${lineUserId}`, line_user_id: lineUserId, message_type: "text", message_text: message, direction: "outbound", timestamp: now, created_at: now }, "chat", "return=minimal", credentials); } catch (error) { console.error("[line] sent but audit write failed", error); }
+  const outboundEventId = `outbound_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  try { await supabasePost("line_messages", { channel: "line", source: "web", destination: oa || channel?.oa_id || null, oa_id: oa || channel?.oa_id || null, conversation_id: `line_${lineUserId}`, event_id: outboundEventId, webhook_event_id: outboundEventId, line_user_id: lineUserId, message_type: "text", message_text: message, text: message, direction: "outbound", speaker: "page", is_message_event: true, timestamp: now, created_at: now }, "chat", "return=minimal", credentials); } catch (error) { console.error("[line] sent but audit write failed", error); }
   return { ok: true, line_user_id: lineUserId, text: message, sent_at: now };
 }
