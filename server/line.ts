@@ -127,6 +127,9 @@ async function readRows(credentials?: ChatSupabaseCredentials) {
 
 export async function fetchLineConversations(credentials?: ChatSupabaseCredentials): Promise<LineConversation[]> {
   const rows = await readRows(credentials);
+  const configuredChannels = await supabaseGet<Array<{ oa_id: string; is_active: boolean; status?: string | null }>>("line_channels?select=oa_id,is_active,status&limit=500", "chat", credentials).catch(() => []);
+  const enabledOas = new Set(configuredChannels.filter(channel => channel.is_active !== false && String(channel.status ?? "ON").toUpperCase() !== "OFF").map(channel => channel.oa_id));
+  const hasConfiguredChannels = configuredChannels.length > 0;
   const channelCache = new Map<string, LineChannel | null>();
   const channelFor = async (oa: string) => {
     if (!oa) return null;
@@ -139,6 +142,7 @@ export async function fetchLineConversations(credentials?: ChatSupabaseCredentia
     if (!lineUserId) continue;
     const conversation = conversationId(row);
     const channelOaId = oaId(row);
+    if (hasConfiguredChannels && (!channelOaId || !enabledOas.has(channelOaId))) continue;
     const key = `${channelOaId}:${conversation}`;
     const occurredAt = timestamp(row);
     const current = map.get(key) ?? { key, lineUserId, conversationId: conversation, oaId: channelOaId, oaName: channelOaId, displayName: text(row.display_name || row.customer_name || lineUserId), profilePictureUrl: text(row.profile_picture_url) || null, latestDirection: direction(row), latestAt: occurredAt, preview: messageText(row), messageCount: 0 };
