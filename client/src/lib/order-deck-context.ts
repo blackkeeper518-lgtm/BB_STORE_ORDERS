@@ -38,6 +38,12 @@ export function getSelectedOrderMessageText(
 
 export function isSelectableCustomerMessage(message: unknown): message is SelectableCustomerMessage {
   if (!isBBChatCustomerMessage(message)) return false;
+  return typeof message.customer_message_text === "string"
+    && message.customer_message_text.trim().length > 0;
+}
+
+export function isImportableLatestCustomerMessage(message: unknown): message is SelectableCustomerMessage {
+  if (!isBBChatCustomerMessage(message)) return false;
   const text = String(message.customer_message_text ?? "").trim();
   const mediaPlaceholder = /^\[?(?:รูปภาพ|ภาพ|สติกเกอร์|สติ๊กเกอร์|ไฟล์แนบ|วิดีโอ|วีดีโอ)\]?$/iu.test(text)
     || /^(?:ส่งรูปภาพ|ส่งสติกเกอร์)$/iu.test(text);

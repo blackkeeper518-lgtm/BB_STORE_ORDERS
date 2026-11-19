@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildOrderDeckContextMessage, getLatestBBChatCustomerMessage, getSelectedOrderMessageText, isSelectableCustomerMessage } from "./order-deck-context";
+import { buildOrderDeckContextMessage, getLatestBBChatCustomerMessage, getSelectedOrderMessageText, isImportableLatestCustomerMessage, isSelectableCustomerMessage } from "./order-deck-context";
 
 describe("Order Deck chat context", () => {
   it("sends no page or customer data when the Order Deck is only opened", () => {
@@ -53,14 +53,15 @@ describe("Order Deck chat context", () => {
     const newest = { direction: "inbound", senderType: "customer", source_lane: "🌌BB_CHAT", customer_message_text: null };
 
     expect(getLatestBBChatCustomerMessage([older, pageReply, newest])).toBe(newest);
-    expect(isSelectableCustomerMessage(getLatestBBChatCustomerMessage([older, pageReply, newest]))).toBe(false);
+    expect(isImportableLatestCustomerMessage(getLatestBBChatCustomerMessage([older, pageReply, newest]))).toBe(false);
   });
 
   it("does not treat media placeholders or emoji-only messages as order text", () => {
     const base = { direction: "inbound", senderType: "customer", source_lane: "🌌BB_CHAT" };
-    expect(isSelectableCustomerMessage({ ...base, customer_message_text: "[รูปภาพ]" })).toBe(false);
-    expect(isSelectableCustomerMessage({ ...base, customer_message_text: "🙏✨" })).toBe(false);
-    expect(isSelectableCustomerMessage({ ...base, customer_message_text: "อภิโชค 0655310082" })).toBe(true);
+    expect(isImportableLatestCustomerMessage({ ...base, customer_message_text: "[รูปภาพ]" })).toBe(false);
+    expect(isImportableLatestCustomerMessage({ ...base, customer_message_text: "🙏✨" })).toBe(false);
+    expect(isImportableLatestCustomerMessage({ ...base, customer_message_text: "อภิโชค 0655310082" })).toBe(true);
+    expect(isSelectableCustomerMessage({ ...base, customer_message_text: "[รูปภาพ]" })).toBe(true);
   });
 
   it("reads selected text only when both a selection and active thread exist", () => {

@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { getActiveCamp, getSupabase, mapChatRowsToMessages, mapChatRowsToThreads, readCanonicalOrders, reconcileOptimisticMessages } from "@/lib/canonical";
 import { uploadChatImageToVault } from "@/lib/chat-image-upload";
-import { getLatestBBChatCustomerMessage, getSelectedOrderMessageText, isSelectableCustomerMessage } from "@/lib/order-deck-context";
+import { getLatestBBChatCustomerMessage, getSelectedOrderMessageText, isImportableLatestCustomerMessage } from "@/lib/order-deck-context";
 import { CHAT_BROWSER_CONFIG_EVENT, readBrowserChatConfig } from "@/lib/chat-config";
 import { CYBER_FRAME_EVENT, CYBER_FRAME_OPTIONS, readCyberFrame, readCyberFrameRooms, saveCyberFrameRoom } from "@/lib/cyber-frame";
 import { CYBER_THEME_PRESETS, readCyberTheme, saveCyberTheme, type CyberTheme } from "@/lib/theme-lab";
@@ -88,7 +88,7 @@ export default function MobileInbox() {
   const [orderSummary, setOrderSummary] = useState<{ orderNumber: string; customerName: string; phone: string; address: string; product: string; cod: string; copyText: string } | null>(null);
   const [orderDeckOpen, setOrderDeckOpen] = useState(false);
   const [selectedOrderMessage, setSelectedOrderMessage] = useState<SelectedOrderMessage | null>(null);
-  const [orderDeckMessageRequest, setOrderDeckMessageRequest] = useState<{ id: number; action: "import" | "clear" } | null>(null);
+  const [orderDeckMessageRequest, setOrderDeckMessageRequest] = useState<{ id: number } | null>(null);
   const orderDeckMessageRequestIdRef = useRef(0);
   const orderDeckDialogRef = useRef<HTMLDivElement>(null);
   const orderDeckFocusReturnRef = useRef<HTMLElement | null>(null);
@@ -470,15 +470,15 @@ export default function MobileInbox() {
     if (!selected) return;
     const latestCustomerMessage = getLatestBBChatCustomerMessage(messagesQuery.data ?? []);
     const requestId = ++orderDeckMessageRequestIdRef.current;
-    if (isSelectableCustomerMessage(latestCustomerMessage)) {
+    if (isImportableLatestCustomerMessage(latestCustomerMessage)) {
       const text = latestCustomerMessage.customer_message_text.trim();
       const id = String(latestCustomerMessage.id ?? latestCustomerMessage.messageId ?? `${latestCustomerMessage.occurredAt ?? ""}:${text}`);
       setSelectedOrderMessage({ id, threadKey: selected.key, text });
-      setOrderDeckMessageRequest({ id: requestId, action: "import" });
+      setOrderDeckMessageRequest({ id: requestId });
       setNotice("");
     } else {
       setSelectedOrderMessage(null);
-      setOrderDeckMessageRequest({ id: requestId, action: "clear" });
+      setOrderDeckMessageRequest(null);
       setNotice("ข้อความลูกค้าล่าสุดไม่มีข้อความตัวอักษรที่ใช้ทำบิลได้ · ระบบไม่ดึงข้อความเก่ามาแทน");
     }
     orderDeckFocusReturnRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -574,7 +574,7 @@ export default function MobileInbox() {
     {orderDeckOpen && selected && typeof document !== "undefined" ? createPortal(
       <div className="mobile-inbox-order-deck" role="presentation" onClick={() => setOrderDeckOpen(false)}>
         <div ref={orderDeckDialogRef} tabIndex={-1} className="mobile-inbox-order-deck-panel" role="dialog" aria-modal="true" aria-label={`สรุปออเดอร์ · ${selected.customerName || "ลูกค้า"}`} onClick={event => event.stopPropagation()}>
-          <OrderDeckFrame pageId={selected.pageId} pageName={selected.pageName || "ไม่ระบุเพจ"} threadId={selected.threadId} customerName={selected.customerName || "ลูกค้า"} customerPhone={String(selected.customerPhone || selected.phone || "")} selectedCustomerMessage={selectedOrderMessageText} messageRequest={orderDeckMessageRequest} onMessageRequestHandled={(id) => setOrderDeckMessageRequest(current => current?.id === id ? null : current)} roomStatus="กำลังดูห้อง" onProductImagesSelected={receiveProductImages} onClose={() => { setOrderDeckOpen(false); setOrderDeckMessageRequest(null); }} />
+          <OrderDeckFrame pageId={selected.pageId} pageName={selected.pageName || "ไม่ระบุเพจ"} threadId={selected.threadId} customerName={selected.customerName || "ลูกค้า"} customerPhone={String(selected.customerPhone || selected.phone || "")} selectedCustomerMessage={selectedOrderMessageText} messageMode="latest" messageRequest={orderDeckMessageRequest} onMessageRequestHandled={(id) => setOrderDeckMessageRequest(current => current?.id === id ? null : current)} roomStatus="กำลังดูห้อง" onProductImagesSelected={receiveProductImages} onClose={() => { setOrderDeckOpen(false); setOrderDeckMessageRequest(null); }} />
         </div>
       </div>,
       document.body,
