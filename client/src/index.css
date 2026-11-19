@@ -1617,3 +1617,19 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .mobile-inbox-page.mobile-inbox-themed > .mobile-inbox-drawer {
   z-index: 9991 !important;
 }
+
+/* LINE follows the same Meta-style room transition as Facebook: list stays behind, room owns the viewport. */
+.mobile-inbox-page.mobile-inbox-themed .mobile-line-embedded > .line-mobile-shell > .line-mobile-room {
+  position: fixed !important;
+  z-index: 9970 !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  min-height: 100dvh !important;
+  border-radius: 0 !important;
+  background: var(--mobile-bg) !important;
+}
+.mobile-inbox-page.mobile-inbox-themed .line-mobile-room-header {
+  height: calc(68px + env(safe-area-inset-top));
+  padding-top: calc(8px + env(safe-area-inset-top));
+}
