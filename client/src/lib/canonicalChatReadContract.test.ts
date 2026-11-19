@@ -81,7 +81,7 @@ describe("ChatHub read contract v5", () => {
     }
   });
 
-  it("checks all six renamed Chat objects without returning any token value", async () => {
+  it("checks all eleven Room 02 tables without returning token values or rows", async () => {
     vi.stubEnv("CHAT_SUPABASE_URL", "https://zxmczmgmtbnammtljdls.supabase.co");
     vi.stubEnv("CHAT_SUPABASE_SERVICE_ROLE_KEY", "test-chat-service-role-key");
     const requests: Array<{ url: string; init?: RequestInit }> = [];
@@ -91,12 +91,37 @@ describe("ChatHub read contract v5", () => {
     });
 
     const result = await checkChatConnection();
-    expect(result.checked).toHaveLength(6);
-    expect(requests).toHaveLength(6);
+    expect(result.checked).toHaveLength(11);
+    expect(result.results).toHaveLength(11);
+    expect(result.results.every(room => room.status === "ready")).toBe(true);
+    expect(requests).toHaveLength(11);
+    expect(requests.every(({ url }) => new URL(url).searchParams.get("limit") === "0")).toBe(true);
     expect(requests.some(({ url }) => url.includes(encodeURIComponent(CHAT_MATRIX_VIEW)))).toBe(true);
     expect(requests.some(({ url }) => url.includes(encodeURIComponent(CHAT_PAGE_TOKEN_TABLE)) && url.includes("select=page_id%2Caccess_token"))).toBe(true);
     expect(requests.every(({ init }) => (init?.headers as Record<string, string>).Authorization === "Bearer test-chat-service-role-key")).toBe(true);
     expect(JSON.stringify(result)).not.toContain("access_token");
+    expect(JSON.stringify(result)).not.toContain("test-chat-service-role-key");
+  });
+
+  it("returns per-table Chat status when one room cannot be read", async () => {
+    vi.stubEnv("CHAT_SUPABASE_URL", "https://zxmczmgmtbnammtljdls.supabase.co");
+    vi.stubEnv("CHAT_SUPABASE_SERVICE_ROLE_KEY", "test-chat-service-role-key");
+    const requests: string[] = [];
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL) => {
+      const url = String(input);
+      requests.push(url);
+      return url.includes("/rest/v1/line_channels?")
+        ? new Response("not found", { status: 404 })
+        : new Response("[]", { status: 200, headers: { "content-type": "application/json" } });
+    });
+
+    const result = await checkChatConnection();
+    expect(requests).toHaveLength(13); // ตารางที่อ่านไม่ได้ถูกลองซ้ำ 3 ครั้ง
+    expect(requests.filter(url => url.includes("/rest/v1/line_channels?")).length).toBe(3);
+    expect(result.checked).toHaveLength(10);
+    expect(result.results.find(room => room.name === "line_channels")).toEqual({ name: "line_channels", status: "error" });
+    expect(result.results.filter(room => room.status === "ready")).toHaveLength(10);
+    expect(JSON.stringify(result)).not.toContain("test-chat-service-role-key");
   });
 
   it("treats delivery_status as optional instead of requiring it in every row", () => {

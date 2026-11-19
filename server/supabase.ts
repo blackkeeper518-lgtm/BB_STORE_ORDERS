@@ -191,14 +191,30 @@ const CHAT_CONNECTION_CHECKS = [
   { name: CHAT_CUSTOMER_TABLE, columns: "id,page_id,thread_id,message_text,customer_message_text,phone" },
   { name: CHAT_PAGE_TABLE, columns: "id,page_id,thread_id,message_text,page_message_text" },
   { name: CHAT_PAGE_TOKEN_TABLE, columns: "page_id,access_token" },
+  { name: "delivery_pre_send_checks", columns: "*" },
+  { name: "delivery_red_zone_provinces", columns: "*" },
+  { name: "delivery_telegram_urgent_queue", columns: "*" },
+  { name: "line_channels", columns: "*" },
+  { name: "line_messages", columns: "*" },
+  { name: "🌓VAGABOND_xXx_DISMISS", columns: "*" },
+  { name: "🌠BINARY_xXx_MATRIX", columns: "*" },
+  { name: "🏴‍☠️SIRIUS_xXx_CRASH", columns: "*" },
 ] as const;
 export async function checkChatConnection(credentials?: ChatSupabaseCredentials) {
-  await Promise.all(CHAT_CONNECTION_CHECKS.map(({ name, columns }) => {
+  const results = await Promise.all(CHAT_CONNECTION_CHECKS.map(async ({ name, columns }) => {
     const query = new URLSearchParams({ select: columns, limit: "0" });
-    return supabaseGet<Array<Record<string, unknown>>>(`${encodeURIComponent(name)}?${query.toString()}`, "chat", credentials);
+    try {
+      await supabaseGet<Array<Record<string, unknown>>>(`${encodeURIComponent(name)}?${query.toString()}`, "chat", credentials);
+      return { name, status: "ready" as const };
+    } catch {
+      return { name, status: "error" as const };
+    }
   }));
-  // ส่งกลับเฉพาะชื่อ object; ห้ามส่ง page token หรือข้อมูลแชทออกจาก server
-  return { checked: CHAT_CONNECTION_CHECKS.map(({ name }) => name) };
+  // ส่งกลับเฉพาะชื่อและสถานะ object; ห้ามส่ง page token หรือข้อมูลแชทออกจาก server
+  return {
+    checked: results.filter(result => result.status === "ready").map(({ name }) => name),
+    results,
+  };
 }
 export async function supabasePost<T>(path: string, body: unknown, project: SupabaseProject = "main", prefer?: string, browserChatCredentials?: ChatSupabaseCredentials): Promise<T> { const { baseUrl, key } = config(project, browserChatCredentials); const headers: Record<string, string> = { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" }; if (prefer) headers.Prefer = prefer; const response = await fetch(`${baseUrl}/rest/v1/${path}`, { method: "POST", headers, body: JSON.stringify(body) }); if (!response.ok) throw new Error(`Supabase returned HTTP ${response.status}: ${(await response.text()).slice(0, 300)}`); return response.json() as Promise<T>; }
 export async function supabasePatch<T>(path: string, body: unknown, project: SupabaseProject = "main", browserChatCredentials?: ChatSupabaseCredentials): Promise<T> { const { baseUrl, key } = config(project, browserChatCredentials); const response = await fetch(`${baseUrl}/rest/v1/${path.replace(/^\/+/, "")}`, { method: "PATCH", headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json", Prefer: "return=representation" }, body: JSON.stringify(body) }); if (!response.ok) throw new Error(`Supabase returned HTTP ${response.status}: ${(await response.text()).slice(0, 500)}`); const text = await response.text(); return (text ? JSON.parse(text) : []) as T; }

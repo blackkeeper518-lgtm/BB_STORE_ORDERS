@@ -38,7 +38,7 @@ import Prism from "prismjs";
 import "prismjs/components/prism-sql";
 import "prismjs/components/prism-java";
 import "prismjs/components/prism-markdown";
-import ConnectSupabase from "./ConnectSupabase";
+import ProjectRoomsPanel, { PROJECT_ROOM_GROUPS, isPublicSupabaseAnonKey, projectRoomStatusKey, type ProjectRoomStates } from "@/components/ProjectRoomsPanel";
 import {
   clearSupabaseConfig,
   getActiveCamp,
@@ -124,6 +124,8 @@ export default function SecretGallery() {
   const [vaultKey, setVaultKey] = useState(vaultConnection?.anonKey || "");
   const [vaultMessage, setVaultMessage] = useState(vaultConnection ? "ตั้งค่าไว้ในเครื่องนี้แล้ว" : "");
   const [vaultBusy, setVaultBusy] = useState(false);
+  const [projectRoomStatuses, setProjectRoomStatuses] = useState<ProjectRoomStates>({});
+  const [projectRoomBusy, setProjectRoomBusy] = useState<number | null>(null);
   const [docs, setDocs] = useState<VaultDoc[]>(() => readLocal(DOCS_KEY, []));
   const [images, setImages] = useState<GalleryItem[]>(() =>
     readLocal(IMAGES_KEY, [])
@@ -287,6 +289,84 @@ export default function SecretGallery() {
     audio.volume = Math.max(0, Math.min(1, Number(selected.volume ?? soundSettings.volume)));
     await audio.play();
   };
+  const applyChatRoomResults = (results: Array<{ name: string; status: "ready" | "error" }>) => {
+    const resultsByName = new Map(results.map(result => [result.name, result]));
+    const next: ProjectRoomStates = {};
+    for (const room of PROJECT_ROOM_GROUPS[1].rooms) {
+      const result = resultsByName.get(room.table);
+      if (!result) {
+        next[projectRoomStatusKey(1, room.table)] = { kind: "error", detail: "ไม่พบผลตรวจจาก Server" };
+      } else if (result.status === "ready") {
+        next[projectRoomStatusKey(1, room.table)] = room.serverOnly
+          ? { kind: "server", detail: "ตรวจจาก Server แล้ว" }
+          : { kind: "ready", detail: "อ่านได้ · ตรวจจาก Server" };
+      } else {
+        next[projectRoomStatusKey(1, room.table)] = { kind: "error", detail: "Server ตรวจไม่ผ่าน" };
+      }
+    }
+    setProjectRoomStatuses(current => ({ ...current, ...next }));
+  };
+  const setProjectRoomsUnverified = (projectIndex: number, kind: "missing" | "unsafe", detail?: string) => {
+    const next: ProjectRoomStates = {};
+    for (const room of PROJECT_ROOM_GROUPS[projectIndex].rooms) {
+      next[projectRoomStatusKey(projectIndex, room.table)] = room.serverOnly
+        ? { kind: "server" }
+        : { kind, detail };
+    }
+    setProjectRoomStatuses(current => ({ ...current, ...next }));
+  };
+  const checkProjectRooms = async (projectIndex: 0 | 2 | 3) => {
+    const group = PROJECT_ROOM_GROUPS[projectIndex];
+    const credentials = projectIndex === 0
+      ? { url: supabaseUrl, key: supabaseKey }
+      : projectIndex === 2
+        ? { url: parcelUrl, key: parcelKey }
+        : { url: vaultUrl, key: vaultKey };
+    const url = credentials.url.trim().replace(/\/$/, "");
+    const key = credentials.key.trim();
+    if (!url || !key) {
+      setProjectRoomsUnverified(projectIndex, "missing");
+      return;
+    }
+    if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url)) {
+      setProjectRoomsUnverified(projectIndex, "unsafe", "URL Supabase ไม่ถูกต้อง");
+      return;
+    }
+    if (!isPublicSupabaseAnonKey(key)) {
+      setProjectRoomsUnverified(projectIndex, "unsafe", "ใช้ Anon/Publishable Key เท่านั้น");
+      return;
+    }
+
+    setProjectRoomBusy(projectIndex);
+    const starting: ProjectRoomStates = {};
+    for (const room of group.rooms) {
+      starting[projectRoomStatusKey(projectIndex, room.table)] = room.serverOnly ? { kind: "server" } : { kind: "loading" };
+    }
+    setProjectRoomStatuses(current => ({ ...current, ...starting }));
+    try {
+      const results = await Promise.all(group.rooms.filter(room => !room.serverOnly).map(async room => {
+        const id = projectRoomStatusKey(projectIndex, room.table);
+        try {
+          const response = await fetch(`${url}/rest/v1/${encodeURIComponent(room.table)}?select=*&limit=0`, {
+            method: "GET",
+            headers: { apikey: key, Authorization: `Bearer ${key}` },
+            cache: "no-store",
+          });
+          const state = response.ok
+            ? { kind: "ready", detail: "อ่านได้" } as const
+            : { kind: "error", detail: `HTTP ${response.status}` } as const;
+          return [id, state] as const;
+        } catch {
+          return [id, { kind: "error", detail: "เชื่อมต่อไม่สำเร็จ" }] as const;
+        }
+      }));
+      const completed: ProjectRoomStates = {};
+      for (const [id, state] of results) completed[id] = state;
+      setProjectRoomStatuses(current => ({ ...current, ...completed }));
+    } finally {
+      setProjectRoomBusy(current => current === projectIndex ? null : current);
+    }
+  };
   const saveConnection = async () => {
     setConnectionBusy(true);
     setConnectionMessage("");
@@ -340,12 +420,19 @@ export default function SecretGallery() {
   const saveAndCheckChatConnection = async () => {
     setChatBusy(true);
     setChatMessage("");
+    const pending: ProjectRoomStates = {};
+    for (const room of PROJECT_ROOM_GROUPS[1].rooms) {
+      pending[projectRoomStatusKey(1, room.table)] = room.serverOnly ? { kind: "server" } : { kind: "loading" };
+    }
+    setProjectRoomStatuses(current => ({ ...current, ...pending }));
     try {
       saveBrowserChatConfig({ url: chatUrl, serviceRoleKey: chatServiceRoleKey });
       const result = await chatConnectionQuery.refetch();
       if (result.error) throw result.error;
-      setChatMessage(`เชื่อมต่อแล้ว · ตรวจ ${result.data?.checked.length ?? 0} object จาก browser นี้`);
+      applyChatRoomResults(result.data?.results ?? []);
+      setChatMessage(`ผลตรวจจาก Server · อ่านได้ ${result.data?.checked.length ?? 0}/${PROJECT_ROOM_GROUPS[1].rooms.length} ตาราง`);
     } catch (e) {
+      applyChatRoomResults(PROJECT_ROOM_GROUPS[1].rooms.map(room => ({ name: room.table, status: "error" as const })));
       setChatMessage(e instanceof Error ? e.message : String(e));
     } finally {
       setChatBusy(false);
@@ -355,12 +442,14 @@ export default function SecretGallery() {
     clearBrowserChatConfig();
     setChatUrl("");
     setChatServiceRoleKey("");
+    setProjectRoomsUnverified(1, "missing");
     setChatMessage("ล้าง Chat config ของ browser นี้แล้ว · ระบบจะไม่เรียกฐานข้อมูลแชท");
   };
   const clearLaneConnection = (setUrl: (value: string) => void, setKey: (value: string) => void, setMessage: (value: string) => void) => {
     clearSupabaseConfig(camp, "parcel");
     setUrl("");
     setKey("");
+    setProjectRoomsUnverified(2, "missing");
     setMessage("ล้าง connection Parcel แล้ว · จะ fallback ไป Tracking เดิม");
   };
   const saveVaultConnection = async () => {
@@ -388,6 +477,7 @@ export default function SecretGallery() {
     clearSupabaseConfig(camp, "vault");
     setVaultUrl("");
     setVaultKey("");
+    setProjectRoomsUnverified(3, "missing");
     setVaultMessage("ล้าง connection Private Vault แล้ว");
   };
   const editLineChannel = (row: LineChannelRow) => setLineForm({ id: row.id, channelId: row.channel_id, channelName: row.channel_name, oaId: row.oa_id, accessToken: "", channelSecret: "", isActive: row.is_active, isWebActive: String(row.status_web ?? "ON").toUpperCase() !== "OFF" });
@@ -653,6 +743,7 @@ export default function SecretGallery() {
               </Button>
               <span className="text-xs text-white/50">{connectionMessage}</span>
             </div>
+            <div className="md:col-span-3"><ProjectRoomsPanel projectIndex={0} statuses={projectRoomStatuses} configured={Boolean(supabaseUrl.trim() && supabaseKey.trim())} busy={connectionBusy || projectRoomBusy === 0} onCheck={() => void checkProjectRooms(0)} /></div>
           </CardContent>
         </Card>
         <div className="grid gap-5 xl:grid-cols-2">
@@ -674,6 +765,7 @@ export default function SecretGallery() {
                 <span className="min-h-5 text-xs text-cyan-100/70" aria-live="polite">{chatMessage}</span>
               </div>
               <p className="text-[10px] leading-4 text-cyan-100/45">เก็บเฉพาะ browser นี้ · ถ้าไม่กรอก ระบบจะไม่เรียกฐานข้อมูลแชท · ไม่ fallback ไป Main/Tracking หรือ table/token column อื่น</p>
+              <ProjectRoomsPanel projectIndex={1} statuses={projectRoomStatuses} configured={Boolean(chatUrl.trim() && chatServiceRoleKey.trim())} busy={chatBusy} onCheck={() => void saveAndCheckChatConnection()} />
             </CardContent>
           </Card>
           <Card className="group project-room-card relative overflow-hidden rounded-3xl border-lime-300/35 bg-[radial-gradient(ellipse_at_top_right,rgba(132,204,22,.18),transparent_42%),linear-gradient(135deg,rgba(20,35,7,.98),rgba(8,18,18,.96))] shadow-[0_0_34px_rgba(132,204,22,.14)] xl:col-span-2">
@@ -743,6 +835,7 @@ export default function SecretGallery() {
                 <span className="text-xs text-fuchsia-100/70">{parcelMessage}</span>
               </div>
               <p className="text-[10px] leading-4 text-fuchsia-100/45 md:col-span-2">ใส่เฉพาะ Anon/Publishable Key · ห้ามใส่ service-role หรือ secret key · ถ้าไม่กรอกจะใช้ Tracking เดิม</p>
+              <div className="md:col-span-2"><ProjectRoomsPanel projectIndex={2} statuses={projectRoomStatuses} configured={Boolean(parcelUrl.trim() && parcelKey.trim())} busy={parcelBusy || projectRoomBusy === 2} onCheck={() => void checkProjectRooms(2)} /></div>
             </CardContent>
           </Card>
         </div>
@@ -761,6 +854,7 @@ export default function SecretGallery() {
               <span className="text-xs text-emerald-100/70">{vaultMessage}</span>
             </div>
             <p className="text-[10px] leading-4 text-emerald-100/45 md:col-span-2">ใส่เฉพาะ Anon/Publishable Key · ห้ามใส่ service-role · ตารางของภาพ สคริปต์ และบทความจะกำหนดแยกในแต่ละฟีเจอร์</p>
+            <div className="md:col-span-2"><ProjectRoomsPanel projectIndex={3} statuses={projectRoomStatuses} configured={Boolean(vaultUrl.trim() && vaultKey.trim())} busy={vaultBusy || projectRoomBusy === 3} onCheck={() => void checkProjectRooms(3)} /></div>
           </CardContent>
         </Card>
         </> : null}
@@ -841,9 +935,7 @@ export default function SecretGallery() {
           <CyberFrameVault />
           <CustomizationAdmin defaultType="frame" />
           </>
-        ) : view === "connect" ? (
-          <ConnectSupabase />
-        ) : view === "images" ? (
+        ) : view === "connect" ? null : view === "images" ? (
           <Card className="neon-card rounded-3xl border-fuchsia-500/20 bg-[#100817]">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base text-white">
