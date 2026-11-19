@@ -1,4 +1,4 @@
-import { supabaseGet, supabasePost, type ChatSupabaseCredentials } from "./supabase";
+import { supabaseGet, supabasePatch, supabasePost, type ChatSupabaseCredentials } from "./supabase";
 
 export type LineConversation = {
   key: string;
@@ -162,7 +162,15 @@ export async function fetchLineConversations(credentials?: ChatSupabaseCredentia
   await Promise.all(conversations.map(async conversation => {
     if (conversation.displayName !== conversation.lineUserId && conversation.profilePictureUrl) return;
     const profile = await fetchLineProfile(conversation.lineUserId, conversation.oaId, credentials);
-    if (profile) { conversation.displayName = profile.displayName; conversation.profilePictureUrl = profile.profilePictureUrl; }
+    if (profile) {
+      conversation.displayName = profile.displayName;
+      conversation.profilePictureUrl = profile.profilePictureUrl;
+      try {
+        const userFilter = `line_user_id=eq.${encodeURIComponent(conversation.lineUserId)}`;
+        const oaFilter = conversation.oaId ? `&destination=eq.${encodeURIComponent(conversation.oaId)}` : "";
+        await supabasePatch(`line_messages?${userFilter}${oaFilter}`, { display_name: profile.displayName, profile_picture_url: profile.profilePictureUrl }, "chat", credentials);
+      } catch (error) { console.warn("[line] profile cache skipped", error); }
+    }
   }));
   return conversations.sort((a, b) => String(b.latestAt || "").localeCompare(String(a.latestAt || "")));
 }
