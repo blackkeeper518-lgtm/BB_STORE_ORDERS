@@ -16,6 +16,7 @@ import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { extractMetaMessages, verifyMetaSignature } from "../meta";
 import { createAuditLog, saveChatMessage } from "../db";
+import { saveLineInboundMessage } from "../line";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -65,6 +66,23 @@ async function startServer() {
     } catch (error) {
       console.error("[Meta Webhook] ingestion failed:", error instanceof Error ? error.message : "unknown error");
       return res.sendStatus(500);
+    }
+  });
+  app.post(["/api/line/ingest", "/api/line/messages"], async (req, res) => {
+    const configuredToken = process.env.LINE_INGEST_TOKEN?.trim();
+    if (configuredToken && req.header("x-line-ingest-token") !== configuredToken) return res.sendStatus(403);
+    try {
+      const input = req.body && typeof req.body === "object" && "json" in req.body ? (req.body as { json?: unknown }).json : req.body;
+      const items = Array.isArray(input) ? input : [input];
+      const saved = [];
+      for (const item of items) {
+        if (!item || typeof item !== "object") continue;
+        saved.push(...await saveLineInboundMessage(item as Record<string, unknown>));
+      }
+      return res.status(200).json({ ok: true, saved: saved.length });
+    } catch (error) {
+      console.error("[LINE ingest] save failed:", error instanceof Error ? error.message : "unknown error");
+      return res.status(400).json({ ok: false, error: error instanceof Error ? error.message : "LINE ingest failed" });
     }
   });
   // tRPC API

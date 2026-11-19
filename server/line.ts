@@ -206,3 +206,43 @@ export async function sendLineText(lineUserId: string, message: string, oa: stri
   try { await supabasePost("line_messages", { channel: "line", source: "web", destination: oa || channel?.oa_id || null, oa_id: oa || channel?.oa_id || null, conversation_id: `line_${lineUserId}`, event_id: outboundEventId, webhook_event_id: outboundEventId, line_user_id: lineUserId, message_type: "text", message_text: message, text: message, direction: "outbound", speaker: "page", is_message_event: true, timestamp: now, created_at: now }, "chat", "return=minimal", credentials); } catch (error) { console.error("[line] sent but audit write failed", error); }
   return { ok: true, line_user_id: lineUserId, text: message, sent_at: now };
 }
+
+export async function saveLineInboundMessage(payload: Record<string, unknown>) {
+  const lineUserId = text(payload.line_user_id || payload.user_id);
+  const destination = text(payload.destination || payload.oa_id);
+  const messageTextValue = text(payload.message_text || payload.text);
+  const eventId = text(payload.event_id || payload.webhook_event_id || payload.message_id || payload.line_message_id);
+  if (!lineUserId || !destination || !eventId) throw new Error("LINE inbound payload ต้องมี line_user_id, destination และ event_id");
+  const occurredAt = text(payload.created_at) || new Date().toISOString();
+  const row = {
+    channel: "line",
+    source: "line",
+    destination,
+    oa_id: destination,
+    conversation_id: text(payload.conversation_id) || `line_${lineUserId}`,
+    event_id: eventId,
+    webhook_event_id: text(payload.webhook_event_id) || eventId,
+    event_type: text(payload.event_type) || "message",
+    event_timestamp: payload.event_timestamp ?? null,
+    line_user_id: lineUserId,
+    user_id: lineUserId,
+    source_type: payload.source_type ?? null,
+    group_id: payload.group_id ?? null,
+    room_id: payload.room_id ?? null,
+    line_message_id: payload.line_message_id ?? payload.message_id ?? null,
+    message_id: payload.message_id ?? payload.line_message_id ?? eventId,
+    message_type: text(payload.message_type) || "text",
+    message_text: messageTextValue || null,
+    text: messageTextValue || null,
+    reply_token: payload.reply_token ?? null,
+    direction: "inbound",
+    speaker: "customer",
+    display_name: payload.display_name ?? null,
+    profile_picture_url: payload.profile_picture_url ?? null,
+    raw_event: payload.raw_event ?? null,
+    raw_payload: payload.raw_payload ?? null,
+    is_message_event: true,
+    created_at: occurredAt,
+  };
+  return supabasePost<Array<Record<string, unknown>>>("line_messages", row, "chat", "resolution=ignore-duplicates,return=representation");
+}
