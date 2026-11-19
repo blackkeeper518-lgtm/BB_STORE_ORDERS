@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { buildOrderDeckContextMessage } from "@/lib/order-deck-context";
 
@@ -8,7 +8,8 @@ type OrderDeckFrameProps = {
   threadId: string;
   customerName: string;
   customerPhone: string;
-  selectedCustomerMessage: string;
+  customerMessages: string[];
+  importKey: number;
   onProductImagesSelected?: (imageUrls: string[], productName?: string) => void | Promise<void>;
   roomStatus?: string;
   onClose: () => void;
@@ -17,17 +18,13 @@ type OrderDeckFrameProps = {
 export function OrderDeckFrame(props: OrderDeckFrameProps) {
   const frameRef = useRef<HTMLIFrameElement>(null);
   const currentProps = useRef(props);
-  const [frameReady, setFrameReady] = useState(false);
   currentProps.current = props;
 
-  const sendContext = useCallback((importSelectedCustomerMessage = false) => {
+  const sendContext = useCallback((importCustomerMessages = false) => {
     const target = frameRef.current?.contentWindow;
     if (!target || typeof window === "undefined") return;
     target.postMessage(
-      buildOrderDeckContextMessage({
-        pageName: currentProps.current.pageName,
-        selectedCustomerMessage: currentProps.current.selectedCustomerMessage,
-      }, importSelectedCustomerMessage),
+      buildOrderDeckContextMessage(currentProps.current, importCustomerMessages),
       window.location.origin,
     );
   }, []);
@@ -35,6 +32,10 @@ export function OrderDeckFrame(props: OrderDeckFrameProps) {
   useEffect(() => {
     sendContext(false);
   }, [props.pageId, props.pageName, props.threadId, sendContext]);
+
+  useEffect(() => {
+    if (props.importKey > 0) sendContext(true);
+  }, [props.importKey, sendContext]);
 
   useEffect(() => {
     const receiveProductImages = (event: MessageEvent) => {
@@ -55,12 +56,9 @@ export function OrderDeckFrame(props: OrderDeckFrameProps) {
         <p className="text-xs font-semibold tracking-[0.14em] text-violet-200">DRΛKSIDE · ORDER DECK</p>
         <p className="mt-1 truncate text-[10px] text-cyan-100/55">{props.pageName || "ไม่ระบุเพจ"} · {props.customerName || "ลูกค้า"}</p>
         <p className="mt-1 flex items-center gap-1.5 text-[9px] text-emerald-200/75"><span aria-hidden="true">●</span><span>{props.roomStatus || "ห้องพร้อมใช้งาน"}</span><span className="text-cyan-100/35">· ROOM {props.threadId.slice(-6)}</span></p>
-        <p className="mt-1 max-w-[360px] truncate text-[9px] text-fuchsia-100/55" title={props.selectedCustomerMessage || "ยังไม่ได้เลือกข้อความจากแชท"}>
-          {props.selectedCustomerMessage ? `ข้อความที่เลือก: ${props.selectedCustomerMessage}` : "ยังไม่ได้เลือกข้อความจากแชท"}
-        </p>
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        <Button type="button" size="sm" variant="outline" disabled={!frameReady || !props.selectedCustomerMessage.trim()} onClick={() => sendContext(true)} className="chat-tool-action h-8 px-2" title="เติมชื่อเพจและแทนที่ข้อความเดิมด้วยข้อความที่เลือกเพียงอันเดียว">ดึงข้อมูลลูกค้า</Button>
+        <Button type="button" size="sm" variant="outline" disabled={props.customerMessages.length === 0} onClick={() => sendContext(true)} className="chat-tool-action h-8 px-2" title="นำข้อความฝั่งลูกค้าจากห้องนี้เข้าเครื่องมือสรุปบิล">ดึงข้อความลูกค้า</Button>
         <Button type="button" size="sm" variant="outline" onClick={props.onClose} className="chat-tool-action h-8 w-8 px-0" aria-label="ปิด Order Deck">✕</Button>
       </div>
     </div>
@@ -68,9 +66,9 @@ export function OrderDeckFrame(props: OrderDeckFrameProps) {
       ref={frameRef}
       src="/order-deck.html?embedded=1"
       title="DRΛKSIDE Order Deck — เครื่องมือสรุปบิล"
-      onLoad={() => { setFrameReady(true); sendContext(false); }}
+      onLoad={() => sendContext(currentProps.current.importKey > 0)}
       className="min-h-0 w-full flex-1 rounded-lg border border-violet-300/15 bg-[#0b0b15]"
     />
-    <p className="shrink-0 text-[9px] leading-4 text-cyan-100/40">เปิดแผงไม่ดึงข้อมูล · เลือกข้อความในแชท แล้วกด “ดึงข้อมูลลูกค้า” เพื่อเติมชื่อเพจและแทนที่ข้อความเดิมด้วยข้อความนั้นเพียงอันเดียว · ไม่ส่งแชทอัตโนมัติ</p>
+    <p className="shrink-0 text-[9px] leading-4 text-cyan-100/40">ดึงเฉพาะข้อความฝั่งลูกค้า · ตรวจข้อมูลก่อนคัดลอก · ไม่บันทึกออเดอร์และไม่ส่งแชทอัตโนมัติ</p>
   </section>;
 }

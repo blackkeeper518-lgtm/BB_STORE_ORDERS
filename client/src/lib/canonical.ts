@@ -690,8 +690,7 @@ function normalizeChatReadRows(sourceRows: any[]) {
     // เพราะบางรอบ n8n ใส่ speaker ผิดแถวจนข้อความลูกค้าถูกตีเป็นข้อความเพจ
     const rawSpeaker = asText(row.speaker).trim().toLowerCase();
     const isCustomer = row._source_table === "Cust_Chat⭐BINARY_xXx_STAR";
-    const isSystem = /^(system|notification|event|bot|automation|automated)$/i.test(rawSpeaker);
-    const speaker = isSystem ? "system" : isCustomer ? "customer" : isPage ? "page"
+    const speaker = isCustomer ? "customer" : isPage ? "page"
       : rawSpeaker && /^(page|เพจ|admin|แอดมิน|outbound|เจ้าหน้าที่)$/i.test(rawSpeaker) ? "page" : "customer";
     const isPageSpeaker = speaker === "page";
     const sideMessageText = asText(isPageSpeaker ? row.page_message_text : row.customer_message_text).trim();
@@ -866,8 +865,7 @@ export function mapChatRowsToThreads(sourceRows: any[]) {
         current.pageMessageTimeTh = row.time_th || row.message_time_display || null;
       }
     }
-    const timelineSpeakerLabel = row._speaker === "page" ? "[เพจ]" : row._speaker === "system" ? "[ระบบ]" : "[ลูกค้า]";
-    current.chatTimeline.push(`${timelineSpeakerLabel} ${row._text || (row._hasAttachment ? "[ไฟล์แนบ]" : "")}`);
+    current.chatTimeline.push(`${row._speaker === "page" ? "[เพจ]" : "[ลูกค้า]"} ${row._text || (row._hasAttachment ? "[ไฟล์แนบ]" : "")}`);
     // Tracking fields are supplied directly on either room-side table; keep the newest non-empty value.
     for (const field of ["tracking_number", "order_number", "order_number_display", "shipping_carrier", "facebook_tracking_message", "drakside_tracking_message", "source_lane", "delivery_status", "tracking_created_at", "tracking_number_created_at", "tracking_time", "tracking_at", "tracking_sent_at", "facebook_tracking_sent_at", "sent_at", "pickup_date"]) {
       if (row[field] != null && String(row[field]).trim()) current[field] = row[field];

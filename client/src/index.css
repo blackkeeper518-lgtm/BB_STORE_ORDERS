@@ -1033,12 +1033,8 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .mobile-inbox-conversation-header strong { color:#172b34; font-size:16px; }
 .mobile-inbox-conversation-header small { margin-top:3px; color:#7b8d91; font-size:11px; }
 .mobile-inbox-timeline { min-height:0; flex:1; overflow-y:auto; padding:18px 14px; background:#f1f6f5; }
-.mobile-inbox-message-row { display:flex; flex-direction:column; align-items:flex-start; margin:4px 0; }
-.mobile-inbox-message-row.is-outgoing { align-items:flex-end; }
-.mobile-inbox-message-select { display:inline-flex; align-items:center; gap:4px; min-height:24px; margin:4px 0 0 6px; padding:3px 8px; border:1px solid rgba(157,124,255,.32); border-radius:999px; background:rgba(19,14,34,.78); color:#c7b7ff; font-size:10px; font-weight:600; line-height:1.2; cursor:pointer; transition:background .16s ease,border-color .16s ease,color .16s ease; }
-.mobile-inbox-message-select:hover,.mobile-inbox-message-select.is-selected { border-color:rgba(255,79,154,.6); background:rgba(255,79,154,.13); color:#ffe0ef; }
-.mobile-inbox-message-select:focus-visible { outline:2px solid #f58bc3; outline-offset:2px; }
-.mobile-inbox-message.is-selected-for-order { outline:2px solid rgba(255,79,154,.75); outline-offset:2px; }
+.mobile-inbox-message-row { display:flex; justify-content:flex-start; margin:4px 0; }
+.mobile-inbox-message-row.is-outgoing { justify-content:flex-end; }
 .mobile-inbox-message { max-width:82%; border-radius:18px 18px 18px 5px; padding:10px 13px 7px; background:#fff; color:#243b43; box-shadow:0 1px 3px rgba(30,66,72,.1); }
 .mobile-inbox-message-row.is-outgoing .mobile-inbox-message { border-radius:18px 18px 5px 18px; background:#d9f2e8; }
 .mobile-inbox-message p { margin:0; white-space:pre-wrap; overflow-wrap:anywhere; font-size:15px; line-height:1.45; }
@@ -1486,9 +1482,6 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .mobile-inbox-page.mobile-inbox-themed .mobile-inbox-timeline::before { content:""; position:absolute; inset:0; pointer-events:none; opacity:.35; background-image:radial-gradient(circle,rgba(255,255,255,.8) 0 1px,transparent 1.5px); background-size:97px 121px; animation:mobile-inbox-star-drift 24s linear infinite; }
 .mobile-inbox-page.mobile-inbox-themed .mobile-inbox-message { position:relative; border:1px solid color-mix(in srgb, var(--depth-primary) 22%, transparent); border-radius:16px 16px 16px 4px; background:linear-gradient(145deg, color-mix(in srgb, var(--depth-surface) 94%, #000), color-mix(in srgb, var(--depth-primary) 7%, var(--depth-bg))); color:#eaf3ff; box-shadow:0 8px 20px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04); }
 .mobile-inbox-page.mobile-inbox-themed .mobile-inbox-message-row.is-outgoing .mobile-inbox-message { border-color:color-mix(in srgb, var(--depth-accent) 56%, transparent); border-radius:16px 16px 4px 16px; background:linear-gradient(135deg, color-mix(in srgb, var(--depth-primary) 34%, var(--depth-surface)), color-mix(in srgb, var(--depth-accent) 30%, var(--depth-surface))); box-shadow:0 8px 24px color-mix(in srgb, var(--depth-accent) 16%, transparent), inset 0 1px 0 rgba(255,255,255,.1); }
-.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-message-select { border-color:color-mix(in srgb, var(--depth-primary) 42%, transparent); background:color-mix(in srgb, var(--depth-surface) 88%, transparent); color:var(--depth-primary); }
-.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-message-select:hover,.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-message-select.is-selected { border-color:color-mix(in srgb, var(--depth-accent) 75%, transparent); background:color-mix(in srgb, var(--depth-primary) 18%, var(--depth-surface)); color:#fff; }
-.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-message.is-selected-for-order { outline-color:var(--depth-primary); }
 .mobile-inbox-page.mobile-inbox-themed .mobile-inbox-composer { border-color:color-mix(in srgb, var(--depth-primary) 24%, transparent); background:linear-gradient(180deg, color-mix(in srgb, var(--depth-surface) 96%, #000), var(--depth-bg)); box-shadow:0 -12px 28px rgba(0,0,0,.3); }
 .mobile-inbox-page.mobile-inbox-themed .mobile-inbox-compose-row > button { border:1px solid color-mix(in srgb, var(--depth-primary) 28%, transparent); background:color-mix(in srgb, var(--depth-surface) 90%, transparent); color:var(--depth-primary); }
 .mobile-inbox-page.mobile-inbox-themed .mobile-inbox-compose-row > button:last-child { background:linear-gradient(135deg, var(--depth-primary), var(--depth-accent)); color:#090611; box-shadow:0 0 18px color-mix(in srgb, var(--depth-primary) 34%, transparent); }
