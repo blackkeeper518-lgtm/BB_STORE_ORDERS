@@ -1606,6 +1606,9 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
   left: 12px;
 }
 .mobile-inbox-page.mobile-inbox-themed > .mobile-inbox-conversation {
+  position: fixed !important;
+  inset: 0 !important;
+  display: flex !important;
   z-index: 9970 !important;
 }
 .mobile-inbox-page.mobile-inbox-themed > .mobile-inbox-drawer-scrim {
