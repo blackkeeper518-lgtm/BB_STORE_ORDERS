@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildOrderDeckContextMessage, getSelectedOrderMessageText, isSelectableCustomerMessage } from "./order-deck-context";
+import { buildOrderDeckContextMessage, getLatestBBChatCustomerMessage, getSelectedOrderMessageText, isSelectableCustomerMessage } from "./order-deck-context";
 
 describe("Order Deck chat context", () => {
   it("sends no page or customer data when the Order Deck is only opened", () => {
@@ -45,6 +45,22 @@ describe("Order Deck chat context", () => {
     expect(isSelectableCustomerMessage(null)).toBe(false);
     expect(isSelectableCustomerMessage(undefined)).toBe(false);
     expect(isSelectableCustomerMessage("not a message")).toBe(false);
+  });
+
+  it("uses only the newest BB_CHAT customer row and does not fall back when its text is missing", () => {
+    const older = { direction: "inbound", senderType: "customer", source_lane: "🌌BB_CHAT", customer_message_text: "ที่อยู่เก่ากว่า" };
+    const pageReply = { direction: "outbound", senderType: "page", source_lane: "🌌BB_CHAT", page_message_text: "ขอที่อยู่ค่ะ" };
+    const newest = { direction: "inbound", senderType: "customer", source_lane: "🌌BB_CHAT", customer_message_text: null };
+
+    expect(getLatestBBChatCustomerMessage([older, pageReply, newest])).toBe(newest);
+    expect(isSelectableCustomerMessage(getLatestBBChatCustomerMessage([older, pageReply, newest]))).toBe(false);
+  });
+
+  it("does not treat media placeholders or emoji-only messages as order text", () => {
+    const base = { direction: "inbound", senderType: "customer", source_lane: "🌌BB_CHAT" };
+    expect(isSelectableCustomerMessage({ ...base, customer_message_text: "[รูปภาพ]" })).toBe(false);
+    expect(isSelectableCustomerMessage({ ...base, customer_message_text: "🙏✨" })).toBe(false);
+    expect(isSelectableCustomerMessage({ ...base, customer_message_text: "อภิโชค 0655310082" })).toBe(true);
   });
 
   it("reads selected text only when both a selection and active thread exist", () => {

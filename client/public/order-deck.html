@@ -893,6 +893,18 @@ renderScripts();renderFiles();$('code').value='-- เขียน SQL, Java, Mar
     if(event.source!==parent||event.origin!==location.origin)return;
     const message=event.data;
     if(!message||message.type!=='BB_ORDER_DECK_CONTEXT')return;
+    if(message.clearSelectedCustomerMessage===true){
+      clearTimeout(raw.parseTimer);
+      raw.readOnly=false;
+      raw.value='';
+      raw.style.height='';
+      raw.classList.remove('order-bill-emitted');
+      raw.closest('.order-box')?.classList.remove('bill-emitted');
+      billEmitted=false;
+      copyButton.textContent=floatingCopyButton.textContent='🧾 สรุปบิล · คัดลอก';
+      document.querySelector('.bottom-tab[data-tab="tab-order"]')?.click();
+      return;
+    }
     if(message.importSelectedCustomerMessage!==true)return;
     const selectedCustomerMessage=typeof message.selectedCustomerMessage==='string'
       ?message.selectedCustomerMessage.trim().slice(0,2400)

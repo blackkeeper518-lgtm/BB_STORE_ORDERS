@@ -11,6 +11,23 @@ export type SelectableCustomerMessage = {
   [key: string]: unknown;
 };
 
+export function isBBChatCustomerMessage(message: unknown): message is Record<string, unknown> {
+  if (message === null || typeof message !== "object") return false;
+  const candidate = message as { direction?: unknown; senderType?: unknown; source_lane?: unknown };
+  return candidate.direction === "inbound"
+    && candidate.senderType === "customer"
+    && candidate.source_lane === "🌌BB_CHAT";
+}
+
+export function getLatestBBChatCustomerMessage(messages: readonly unknown[]): unknown {
+  // Canonical chat messages are chronologically sorted; keep the newest customer row even when its text is blank.
+  let latest: unknown = null;
+  for (const message of messages) {
+    if (isBBChatCustomerMessage(message)) latest = message;
+  }
+  return latest;
+}
+
 export function getSelectedOrderMessageText(
   selection: { threadKey?: string | null; text?: unknown } | null | undefined,
   activeThreadKey: string | null | undefined,
@@ -20,13 +37,11 @@ export function getSelectedOrderMessageText(
 }
 
 export function isSelectableCustomerMessage(message: unknown): message is SelectableCustomerMessage {
-  if (message === null || typeof message !== "object") return false;
-  const candidate = message as { direction?: unknown; senderType?: unknown; source_lane?: unknown; customer_message_text?: unknown };
-  return candidate.direction === "inbound"
-    && candidate.senderType === "customer"
-    && candidate.source_lane === "🌌BB_CHAT"
-    && typeof candidate.customer_message_text === "string"
-    && candidate.customer_message_text.trim().length > 0;
+  if (!isBBChatCustomerMessage(message)) return false;
+  const text = String(message.customer_message_text ?? "").trim();
+  const mediaPlaceholder = /^\[?(?:รูปภาพ|ภาพ|สติกเกอร์|สติ๊กเกอร์|ไฟล์แนบ|วิดีโอ|วีดีโอ)\]?$/iu.test(text)
+    || /^(?:ส่งรูปภาพ|ส่งสติกเกอร์)$/iu.test(text);
+  return text.length > 0 && /[\p{L}\p{N}]/u.test(text) && !mediaPlaceholder;
 }
 
 export function buildOrderDeckContextMessage(
