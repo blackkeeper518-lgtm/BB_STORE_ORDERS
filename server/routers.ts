@@ -2,7 +2,7 @@ import { z } from "zod";
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { COOKIE_NAME } from "../shared/const";
 import { sendMetaMessage } from "./meta";
-import { assertChatPageEnabled, checkChatConnection, fetchChatMessageRows, fetchChatNotificationRows, fetchChatPages, fetchChatThreadRows, fetchParcelMappingQueue, purgeOldParcels, recordOutgoingChatMessage, setChatPageWebStatus, supabaseGet, supabasePost } from "./supabase";
+import { assertChatPageEnabled, checkChatConnection, fetchChatMessageRows, fetchChatNotificationRows, fetchChatPages, fetchChatThreadRows, fetchParcelMappingQueue, purgeOldParcels, recordOutgoingChatMessage, setChatPageWebStatus, supabaseDelete, supabaseGet, supabasePatch, supabasePost } from "./supabase";
 import { checkLineConnection, fetchLineConversations, fetchLineMessages, sendLineText } from "./line";
 import * as db from "./db";
 
@@ -94,6 +94,23 @@ export const appRouter = router({
   }),
 
   line: router({
+    channels: adminProcedure.query(async () => {
+      const rows = await supabaseGet<Array<Record<string, unknown>>>("line_channels?select=id,channel_id,channel_name,oa_id,is_active,status,created_at,updated_at&order=created_at.desc", "chat", requireServerChatConfig());
+      return rows.map(row => ({ ...row, hasToken: Boolean(row.channel_access_token) }));
+    }),
+    saveChannel: adminProcedure.input(z.object({ id: z.number().int().positive().optional(), channelId: z.string().trim().min(1).max(100), channelName: z.string().trim().min(1).max(160), oaId: z.string().trim().min(1).max(160), accessToken: z.string().trim().max(1000).optional(), channelSecret: z.string().trim().max(500).optional(), isActive: z.boolean().default(true) })).mutation(async ({ input }) => {
+      const body: Record<string, unknown> = { channel_id: input.channelId, channel_name: input.channelName, oa_id: input.oaId, is_active: input.isActive, status: input.isActive ? "ON" : "OFF", updated_at: new Date().toISOString() };
+      if (input.accessToken) body.channel_access_token = input.accessToken;
+      if (input.channelSecret) body.channel_secret = input.channelSecret;
+      const credentials = requireServerChatConfig();
+      if (input.id) return (await supabasePatch<Array<Record<string, unknown>>>(`line_channels?id=eq.${input.id}`, body, "chat", credentials))[0] ?? null;
+      if (!input.accessToken) throw new Error("เพิ่ม LINE ใหม่ต้องใส่ Channel Access Token");
+      if (!input.channelSecret) throw new Error("เพิ่ม LINE ใหม่ต้องใส่ Channel Secret");
+      return (await supabasePost<Array<Record<string, unknown>>>("line_channels", { ...body, channel_access_token: input.accessToken, channel_secret: input.channelSecret }, "chat", "return=representation", credentials))[0] ?? null;
+    }),
+    testChannel: adminProcedure.input(z.object({ oaId: z.string().trim().min(1) })).query(({ input }) => checkLineConnection(input.oaId, requireServerChatConfig())),
+    toggleChannel: adminProcedure.input(z.object({ id: z.number().int().positive(), isActive: z.boolean() })).mutation(({ input }) => supabasePatch(`line_channels?id=eq.${input.id}`, { is_active: input.isActive, status: input.isActive ? "ON" : "OFF", updated_at: new Date().toISOString() }, "chat", requireServerChatConfig())),
+    deleteChannel: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(({ input }) => supabaseDelete(`line_channels?id=eq.${input.id}`, "chat", requireServerChatConfig())),
     status: protectedProcedure.input(z.object({ oaId: z.string().optional() }).optional()).query(({ input, ctx }) => checkLineConnection(input?.oaId, requireBrowserChatConfig(ctx))),
     conversations: protectedProcedure.query(({ ctx }) => fetchLineConversations(requireBrowserChatConfig(ctx))),
     messages: protectedProcedure.input(z.object({ conversationId: z.string().min(1), lineUserId: z.string().min(1), oaId: z.string().optional() })).query(({ input, ctx }) => fetchLineMessages(input.conversationId, input.lineUserId, input.oaId ?? "", requireBrowserChatConfig(ctx))),
