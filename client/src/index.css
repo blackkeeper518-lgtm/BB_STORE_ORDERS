@@ -1633,3 +1633,16 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
   height: calc(68px + env(safe-area-inset-top));
   padding-top: calc(8px + env(safe-area-inset-top));
 }
+
+.mobile-inbox-notification-actions { display:flex; align-items:center; gap:5px; }
+.mobile-inbox-notification-actions button { display:inline-flex; align-items:center; gap:4px; min-height:30px; border:1px solid color-mix(in srgb,var(--mobile-primary) 22%,transparent); border-radius:8px; padding:4px 7px; background:rgba(255,255,255,.05); color:var(--mobile-muted); font-size:10px; }
+.mobile-inbox-notification-actions button:hover { border-color:var(--mobile-primary); color:var(--mobile-text); }
+.mobile-inbox-notification-actions svg { width:14px; height:14px; }
+.mobile-inbox-notification-list button small { display:flex; align-items:center; gap:4px; }
+.mobile-inbox-notification-list button small svg { width:12px; height:12px; color:#4d9cff; }
+.mobile-inbox-platform-badge { display:inline-flex; align-items:center; gap:3px; color:#72b0ff; }
+.mobile-inbox-platform-badge svg { width:12px; height:12px; }
+.mobile-inbox-thread-tags time { margin-left:auto; color:var(--mobile-muted); }
+.line-mobile-search.cyber-frame-card { --panel:var(--mobile-surface); --cyan:var(--mobile-primary); --pink:var(--mobile-accent); --purple:#a855f7; --lime:#8cff00; --glow:.9; --speed:1; --radius:14px; min-height:48px; height:48px; overflow:visible; animation:neon-frame-pulse 2.8s ease-in-out infinite !important; }
+.line-mobile-platform-badge { display:inline-flex; align-items:center; gap:4px; color:#62ef9a; }
+.line-mobile-platform-badge svg { width:12px; height:12px; }
