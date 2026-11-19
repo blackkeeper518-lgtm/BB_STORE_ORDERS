@@ -358,6 +358,19 @@ describe("ChatHub read contract v5", () => {
     expect(message.text).toBe("ลูกค้าทักมาก่อน ขอเช็กค่าส่งหน่อยค่ะ");
   });
 
+  it("preserves explicit system speakers so they cannot be selected as customer messages", () => {
+    const [message] = mapChatRowsToMessages([{
+      _source_table: CHAT_CUSTOMER_TABLE,
+      page_id: "page-1",
+      thread_id: "thread-1",
+      speaker: "system",
+      message_text: "ข้อความแจ้งเตือนของระบบ",
+    }]);
+
+    expect(message.senderType).toBe("system");
+    expect(message.direction).toBe("inbound");
+  });
+
   it("splits customer and page latest fields when staggered flows write one summary row", () => {
     const messages = mapChatRowsToMessages([{
       _source_table: CHAT_PAGE_TABLE,
