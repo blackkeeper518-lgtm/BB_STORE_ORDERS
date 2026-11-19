@@ -205,7 +205,7 @@ export async function sendLineText(lineUserId: string, message: string, oa: stri
   const outboundEventId = `outbound_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
   try {
     const oaId = oa || channel?.oa_id || channel?.channel_id || "line";
-    await supabasePost("line_messages", { channel: "line", source: "web", destination: oaId, oa_id: oaId, conversation_id: `line_${lineUserId}`, event_id: outboundEventId, webhook_event_id: outboundEventId, line_user_id: lineUserId, message_type: "text", message_text: message, text: message, direction: "outbound", speaker: "page", is_message_event: true, timestamp: now, created_at: now }, "chat", "return=representation", credentials);
+    await supabasePost("line_messages", { channel: "line", source: "web", destination: oaId, oa_id: oaId, conversation_id: `line_${lineUserId}`, event_id: outboundEventId, webhook_event_id: outboundEventId, line_user_id: lineUserId, message_type: "text", message_text: message, text: message, direction: "outbound", speaker: "page", is_message_event: true, created_at: now }, "chat", "return=representation", credentials);
     await recordOutgoingChatMessage({ pageId: channel?.channel_id || oaId, pageName: channel?.channel_name, threadId: lineUserId, recipientId: lineUserId, messageId: outboundEventId, text: message, occurredAt: new Date(now) }, credentials);
   } catch (error) { console.error("[line] sent but chat audit write failed", error); }
   return { ok: true, line_user_id: lineUserId, text: message, sent_at: now };
