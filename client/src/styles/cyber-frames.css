@@ -106,6 +106,44 @@
 .cyber-frame-f40{border:2px solid transparent;background:linear-gradient(135deg,#122435,#1e142f) padding-box,conic-gradient(from var(--angle),var(--cyan),#e6feff,var(--purple),var(--pink),var(--lime),var(--cyan)) border-box;animation:orbit calc(7s * var(--speed)) linear infinite;box-shadow:-7px 0 calc(30px * var(--glow)) #00e5ff40,7px 0 calc(30px * var(--glow)) #ff00d940}
 .cyber-frame-f40:before{content:"";position:absolute;inset:5px;border:1px solid #ffffff30;border-radius:calc(var(--radius) - 4px);pointer-events:none}
 .cyber-frame-f40:after{content:"";position:absolute;inset:-7px;border:1px solid #9c89ff50;border-radius:calc(var(--radius) + 5px);pointer-events:none}
+.cyber-frame-f41{border:1px solid #67f7db99;background:linear-gradient(120deg,#062b3a,var(--panel),#351548);box-shadow:0 0 18px #67f7db28,inset 0 0 18px #c084fc12;animation:aurora calc(5s * var(--speed)) ease-in-out infinite}
+.cyber-frame-f42{border:1px solid #ff8edcaa;box-shadow:0 0 16px #ff5bc933,inset 0 0 14px #fff0fa14;animation:softPulse calc(2.8s * var(--speed)) ease-in-out infinite}
+.cyber-frame-f43{border:1px solid #54d9ff99;background:linear-gradient(100deg,#052b43,var(--panel),#062d35);overflow:hidden}.cyber-frame-f43:after{content:"";position:absolute;top:-2px;bottom:-2px;width:34%;background:linear-gradient(90deg,transparent,#8fffff66,transparent);animation:current calc(4s * var(--speed)) linear infinite;pointer-events:none}
+.cyber-frame-f44{border:1px solid #c084fcaa;background:radial-gradient(circle at 85% 15%,#e879f933,transparent 35%),var(--panel);box-shadow:0 0 20px #a855f733;animation:bloom calc(4.5s * var(--speed)) ease-in-out infinite}
+.cyber-frame-f45{border:1px solid #9de7ff80;background:linear-gradient(135deg,#0d1c36,var(--panel));box-shadow:0 0 18px #60a5fa26}.cyber-frame-f45:before{content:"✦  ·  ✧  ·  ✦";position:absolute;inset:5px;color:#d8f7ff55;font-size:10px;letter-spacing:18px;white-space:nowrap;animation:stars calc(4s * var(--speed)) linear infinite;pointer-events:none}
+.cyber-frame-f46{border:1px solid #5ee7ff80;overflow:hidden}.cyber-frame-f46:after{content:"";position:absolute;top:0;bottom:0;left:-35%;width:35%;background:linear-gradient(90deg,transparent,#fff9,#ff5bd455,transparent);transform:skewX(-18deg);animation:ribbon calc(3.5s * var(--speed)) linear infinite;pointer-events:none}
+.cyber-frame-f47{border:1px solid #67f7bd99;background:linear-gradient(135deg,#0b332e,var(--panel));box-shadow:0 0 18px #34d3992b;animation:softPulse calc(3.2s * var(--speed)) ease-in-out infinite}
+.cyber-frame-f48{border:1px solid #c4b5fd80;background:linear-gradient(135deg,#ffffff0d,#a78bfa12),var(--panel);backdrop-filter:blur(12px);box-shadow:inset 0 1px 0 #fff4,0 0 18px #818cf826;animation:glassGlow calc(4s * var(--speed)) ease-in-out infinite}
+.cyber-frame-f49{border:1px solid #38bdf880;background:repeating-linear-gradient(90deg,transparent 0 8px,#38bdf812 9px 10px),var(--panel);background-size:100% 100%;animation:pixelShift calc(3s * var(--speed)) steps(4) infinite}
+.cyber-frame-f50{border:2px solid transparent;background:linear-gradient(var(--panel),var(--panel)) padding-box,linear-gradient(120deg,#ff5bcc,#62e8ff,#ff9ee8) border-box;box-shadow:0 0 22px #ff5bcb33;animation:colorBreathe calc(4s * var(--speed)) ease-in-out infinite}
+.cyber-frame-f51{border:1px solid #ffd166aa;box-shadow:0 0 18px #ffb62933,inset 0 0 16px #ffd16612;animation:halo calc(6s * var(--speed)) linear infinite}
+.cyber-frame-f52{border:1px solid #739bff99;background:linear-gradient(145deg,#17285b,var(--panel));box-shadow:0 0 18px #4169e133;animation:velvet calc(4.5s * var(--speed)) ease-in-out infinite}
+.cyber-frame-f53{border:1px solid transparent;background:linear-gradient(var(--panel),var(--panel)) padding-box,linear-gradient(90deg,#60a5fa,#c084fc,#fb7185,#5eead4) border-box;animation:prismWave calc(5s * var(--speed)) linear infinite}
+.cyber-frame-f54{border:1px solid #fb7185aa;box-shadow:0 0 17px #f43f5e33;animation:cherry calc(1.9s * var(--speed)) ease-in-out infinite}
+.cyber-frame-f55{border:1px solid #a5b4fc99;box-shadow:inset 0 0 0 4px var(--panel),inset 0 0 0 5px #818cf833}.cyber-frame-f55:before{content:"";position:absolute;inset:5px;border:1px dotted #c4b5fd66;border-radius:inherit;animation:orbit calc(8s * var(--speed)) linear infinite;pointer-events:none}
+.cyber-frame-f56{border:1px solid #f9a8d4aa;background:radial-gradient(circle at 15% 20%,#fff 0 1px,transparent 2px),radial-gradient(circle at 80% 72%,#f9a8d4 0 1px,transparent 2px),var(--panel);background-size:31px 37px,47px 41px,auto;box-shadow:0 0 22px #f9a8d433;animation:dust calc(5s * var(--speed)) ease-in-out infinite}
+.cyber-frame-f57{border:1px solid #86efac99;background:linear-gradient(135deg,#123d37,#351b3c,var(--panel));box-shadow:0 0 20px #34d3992e;animation:tropical calc(4s * var(--speed)) ease-in-out infinite}
+.cyber-frame-f58{border:1px solid #818cfc99;background:radial-gradient(circle at 20% 20%,#fff 0 1px,transparent 2px),radial-gradient(circle at 80% 75%,#818cfc 0 1px,transparent 2px),#0a1025;background-size:43px 51px,57px 61px,auto;animation:spaceDrift calc(7s * var(--speed)) linear infinite}
+.cyber-frame-f59{border:1px solid #dbeafeaa;box-shadow:0 0 14px #e0f2fe33,inset 0 0 12px #fff1;overflow:hidden}.cyber-frame-f59:after{content:"";position:absolute;inset:-20%;background:linear-gradient(110deg,transparent 42%,#fff8 49%,transparent 56%);animation:chrome calc(4s * var(--speed)) linear infinite;pointer-events:none}
+.cyber-frame-f60{border:2px solid transparent;background:linear-gradient(var(--panel),var(--panel)) padding-box,conic-gradient(from var(--angle),#60a5fa,#f0abfc,#fb7185,#5eead4,#60a5fa) border-box;box-shadow:0 0 25px #c084fc3d,0 0 45px #60a5fa18;animation:orbit calc(6s * var(--speed)) linear infinite}
+@keyframes aurora{0%,100%{filter:hue-rotate(0deg) brightness(1)}50%{filter:hue-rotate(28deg) brightness(1.18)}}
+@keyframes softPulse{0%,100%{box-shadow:0 0 10px #ff5bc922}50%{box-shadow:0 0 26px #ff5bc955,inset 0 0 18px #ffffff18}}
+@keyframes current{from{left:-35%}to{left:100%}}
+@keyframes bloom{0%,100%{background-position:0 0}50%{background-position:18px -10px;filter:brightness(1.12)}}
+@keyframes stars{from{transform:translateX(-18px);opacity:.3}50%{opacity:.9}to{transform:translateX(18px);opacity:.3}}
+@keyframes ribbon{from{left:-35%}to{left:125%}}
+@keyframes glassGlow{0%,100%{box-shadow:inset 0 1px 0 #fff3,0 0 10px #818cf818}50%{box-shadow:inset 0 1px 0 #fff7,0 0 28px #818cf84c}}
+@keyframes pixelShift{0%,100%{background-position:0 0}50%{background-position:9px 0}}
+@keyframes colorBreathe{0%,100%{filter:saturate(1)}50%{filter:saturate(1.35) brightness(1.1)}}
+@keyframes halo{to{filter:hue-rotate(360deg)}}
+@keyframes velvet{0%,100%{background-position:0 0}50%{background-position:20px -12px;box-shadow:0 0 30px #4169e155}}
+@keyframes prismWave{to{background-position:200% 0}}
+@keyframes cherry{0%,100%{filter:brightness(1)}50%{filter:brightness(1.3)}}
+@keyframes dust{0%,100%{background-position:0 0,0 0,0 0}50%{background-position:8px -6px,-7px 5px,0 0}}
+@keyframes tropical{0%,100%{filter:hue-rotate(0deg)}50%{filter:hue-rotate(25deg) brightness(1.15)}}
+@keyframes spaceDrift{to{background-position:43px 51px,-57px -61px,0 0}}
+@keyframes chrome{from{transform:translateX(-50%) rotate(10deg)}to{transform:translateX(50%) rotate(10deg)}}
+@media (prefers-reduced-motion:reduce){.cyber-frame-f41,.cyber-frame-f42,.cyber-frame-f43,.cyber-frame-f44,.cyber-frame-f45,.cyber-frame-f46,.cyber-frame-f47,.cyber-frame-f48,.cyber-frame-f49,.cyber-frame-f50,.cyber-frame-f51,.cyber-frame-f52,.cyber-frame-f53,.cyber-frame-f54,.cyber-frame-f55,.cyber-frame-f56,.cyber-frame-f57,.cyber-frame-f58,.cyber-frame-f59,.cyber-frame-f60{animation:none!important}}
 
 @property --angle{syntax:"<angle>";initial-value:0deg;inherits:false}
 @keyframes orbit{to{--angle:360deg}}

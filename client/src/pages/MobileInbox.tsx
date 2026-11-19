@@ -145,8 +145,10 @@ export default function MobileInbox() {
       if (!api) return;
       const result = await api.from("app_chat_frames").select("frame_key,name,is_enabled,sort_order").eq("is_enabled", true).order("sort_order", { ascending: true });
       if (cancelled || result.error || !Array.isArray(result.data) || !result.data.length) return;
-      const next = result.data.map(row => { const raw = String(row.frame_key ?? "").trim().toLowerCase(); const match = raw.match(/^f(\d+)$/); return { id: match ? `f${match[1].padStart(2, "0")}` : raw, name: String(row.name ?? raw) }; }).filter(option => option.id);
-      if (next.length) setFrameOptions(next);
+      const databaseFrames = result.data.map(row => { const raw = String(row.frame_key ?? "").trim().toLowerCase(); const match = raw.match(/^f(\d+)$/); return { id: match ? `f${match[1].padStart(2, "0")}` : raw, name: String(row.name ?? raw) }; }).filter(option => option.id);
+      const merged = new Map<string, { id: string; name: string }>(CYBER_FRAME_OPTIONS.map(option => [option.id, { id: option.id, name: option.name }]));
+      databaseFrames.forEach(option => merged.set(option.id, option));
+      setFrameOptions(Array.from(merged.values()));
     };
     void loadFrames();
     return () => { cancelled = true; };
