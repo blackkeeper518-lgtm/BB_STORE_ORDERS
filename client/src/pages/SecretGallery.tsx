@@ -138,7 +138,7 @@ export default function SecretGallery() {
   const [soundListBusy, setSoundListBusy] = useState(false);
   const [lineForm, setLineForm] = useState<{ id?: number; channelId: string; channelName: string; oaId: string; accessToken: string; channelSecret: string; isActive: boolean }>({ channelId: "", channelName: "", oaId: "", accessToken: "", channelSecret: "", isActive: true });
   const [lineMessage, setLineMessage] = useState("");
-  const lineChannelsQuery = trpc.line.channels.useQuery(undefined, { enabled: unlocked && view === "connect", retry: false });
+  const lineChannelsQuery = trpc.line.channels.useQuery(undefined, { enabled: unlocked, retry: false });
   const saveLineChannel = trpc.line.saveChannel.useMutation({ onSuccess: () => { setLineMessage("บันทึก LINE OA แล้ว"); setLineForm({ channelId: "", channelName: "", oaId: "", accessToken: "", channelSecret: "", isActive: true }); void lineChannelsQuery.refetch(); }, onError: error => setLineMessage(error.message) });
   const toggleLineChannel = trpc.line.toggleChannel.useMutation({ onSuccess: () => void lineChannelsQuery.refetch(), onError: error => setLineMessage(error.message) });
   const deleteLineChannel = trpc.line.deleteChannel.useMutation({ onSuccess: () => { setLineMessage("ลบ LINE OA แล้ว"); void lineChannelsQuery.refetch(); }, onError: error => setLineMessage(error.message) });
