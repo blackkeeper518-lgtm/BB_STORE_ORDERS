@@ -10,6 +10,7 @@ type OrderDeckFrameProps = {
   customerPhone: string;
   customerMessages: string[];
   importKey: number;
+  onProductImagesSelected?: (imageUrls: string[], productName?: string) => void;
   onClose: () => void;
 };
 
@@ -34,6 +35,19 @@ export function OrderDeckFrame(props: OrderDeckFrameProps) {
   useEffect(() => {
     if (props.importKey > 0) sendContext(true);
   }, [props.importKey, sendContext]);
+
+  useEffect(() => {
+    const receiveProductImages = (event: MessageEvent) => {
+      if (event.source !== frameRef.current?.contentWindow || event.origin !== window.location.origin) return;
+      if (event.data?.type !== "BB_ORDER_DECK_PRODUCT_IMAGES") return;
+      const urls = Array.isArray(event.data.imageUrls)
+        ? event.data.imageUrls.filter((url: unknown): url is string => typeof url === "string" && /^https?:\/\//i.test(url)).slice(0, 4)
+        : [];
+      if (urls.length) props.onProductImagesSelected?.(urls, typeof event.data.product === "string" ? event.data.product : undefined);
+    };
+    window.addEventListener("message", receiveProductImages);
+    return () => window.removeEventListener("message", receiveProductImages);
+  }, [props.onProductImagesSelected]);
 
   return <section className="flex h-full min-h-0 min-w-0 flex-col gap-2 bg-[#080b14] p-3">
     <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-violet-300/15 pb-3">
