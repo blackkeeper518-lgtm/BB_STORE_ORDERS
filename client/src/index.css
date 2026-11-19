@@ -1646,3 +1646,27 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .line-mobile-search.cyber-frame-card { --panel:var(--mobile-surface); --cyan:var(--mobile-primary); --pink:var(--mobile-accent); --purple:#a855f7; --lime:#8cff00; --glow:.9; --speed:1; --radius:14px; min-height:48px; height:48px; overflow:visible; animation:neon-frame-pulse 2.8s ease-in-out infinite !important; }
 .line-mobile-platform-badge { display:inline-flex; align-items:center; gap:4px; color:#62ef9a; }
 .line-mobile-platform-badge svg { width:12px; height:12px; }
+
+/* Search is a control, not a moving chat card: keep its frame and label stable. */
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-search.cyber-frame-card,
+.mobile-inbox-page.mobile-inbox-themed .line-mobile-search.cyber-frame-card { animation:none !important; transform:none !important; }
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-search.cyber-frame-card::before,
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-search.cyber-frame-card::after,
+.mobile-inbox-page.mobile-inbox-themed .line-mobile-search.cyber-frame-card::before,
+.mobile-inbox-page.mobile-inbox-themed .line-mobile-search.cyber-frame-card::after { animation:none !important; transform:none !important; pointer-events:none; }
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-search > svg,
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-search > input,
+.mobile-inbox-page.mobile-inbox-themed .line-mobile-search > svg,
+.mobile-inbox-page.mobile-inbox-themed .line-mobile-search > input { position:relative; z-index:5; }
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-search::after { z-index:4; pointer-events:none; white-space:nowrap; }
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-search.cyber-frame-card,
+.mobile-inbox-page.mobile-inbox-themed .line-mobile-search.cyber-frame-card { width:auto; max-width:calc(100% - 36px); box-sizing:border-box; }
+@media (max-width:767px) {
+  .mobile-inbox-page.mobile-inbox-themed .mobile-inbox-search.cyber-frame-card,
+  .mobile-inbox-page.mobile-inbox-themed .line-mobile-search.cyber-frame-card { max-width:calc(100% - 28px); }
+}
+
+/* Notification controls are text actions; tapping anywhere else dismisses the panel. */
+.mobile-inbox-notification-actions { display:flex; align-items:center; gap:12px; }
+.mobile-inbox-notification-actions button { display:inline-flex !important; width:auto !important; height:auto !important; min-height:0 !important; align-items:center; gap:4px; padding:4px 0 !important; border:0 !important; border-radius:0 !important; background:transparent !important; color:var(--mobile-primary) !important; font-size:11px; font-weight:700; }
+.mobile-inbox-notification-actions button svg { display:none; }
