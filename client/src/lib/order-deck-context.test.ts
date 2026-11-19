@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildOrderDeckContextMessage, isSelectableCustomerMessage } from "./order-deck-context";
+import { buildOrderDeckContextMessage, getSelectedOrderMessageText, isSelectableCustomerMessage } from "./order-deck-context";
 
 describe("Order Deck chat context", () => {
   it("sends no page or customer data when the Order Deck is only opened", () => {
@@ -45,6 +45,15 @@ describe("Order Deck chat context", () => {
     expect(isSelectableCustomerMessage(null)).toBe(false);
     expect(isSelectableCustomerMessage(undefined)).toBe(false);
     expect(isSelectableCustomerMessage("not a message")).toBe(false);
+  });
+
+  it("reads selected text only when both a selection and active thread exist", () => {
+    const selection = { threadKey: "thread-1", text: "ที่อยู่ลูกค้า" };
+    expect(getSelectedOrderMessageText(null, undefined)).toBe("");
+    expect(getSelectedOrderMessageText(null, "thread-1")).toBe("");
+    expect(getSelectedOrderMessageText(selection, undefined)).toBe("");
+    expect(getSelectedOrderMessageText(selection, "thread-2")).toBe("");
+    expect(getSelectedOrderMessageText(selection, "thread-1")).toBe("ที่อยู่ลูกค้า");
   });
 
   it("caps imported text at 2,400 characters", () => {

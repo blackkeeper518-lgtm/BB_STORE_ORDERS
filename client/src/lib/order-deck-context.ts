@@ -11,6 +11,14 @@ export type SelectableCustomerMessage = {
   [key: string]: unknown;
 };
 
+export function getSelectedOrderMessageText(
+  selection: { threadKey?: string | null; text?: unknown } | null | undefined,
+  activeThreadKey: string | null | undefined,
+): string {
+  if (!selection || !activeThreadKey || selection.threadKey !== activeThreadKey) return "";
+  return String(selection.text ?? "");
+}
+
 export function isSelectableCustomerMessage(message: unknown): message is SelectableCustomerMessage {
   if (message === null || typeof message !== "object") return false;
   const candidate = message as { direction?: unknown; senderType?: unknown; source_lane?: unknown; customer_message_text?: unknown };

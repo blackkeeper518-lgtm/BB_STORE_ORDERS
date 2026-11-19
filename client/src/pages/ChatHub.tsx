@@ -7,7 +7,7 @@ import { useIsMobile } from "@/hooks/useMobile";
 import { getSupabase, mapChatRowsToMessages, mapChatRowsToThreads, reconcileOptimisticMessages } from "@/lib/canonical";
 import { uploadChatImageToVault } from "@/lib/chat-image-upload";
 import { buildMetaConversationUrl } from "@/lib/meta-inbox";
-import { isSelectableCustomerMessage } from "@/lib/order-deck-context";
+import { getSelectedOrderMessageText, isSelectableCustomerMessage } from "@/lib/order-deck-context";
 import { CHAT_BROWSER_CONFIG_EVENT, readBrowserChatConfig } from "@/lib/chat-config";
 import { CYBER_FRAME_EVENT, CYBER_FRAME_OPTIONS, readCyberFrame, readCyberFrameRooms, saveCyberFrameRoom } from "@/lib/cyber-frame";
 import { trpc } from "@/lib/trpc";
@@ -205,7 +205,7 @@ export default function ChatHub() {
     refetchOnReconnect: false,
     select: mapChatRowsToMessages,
   });
-  const selectedOrderMessageText = selectedOrderMessage?.threadKey === selected?.key ? selectedOrderMessage.text : "";
+  const selectedOrderMessageText = getSelectedOrderMessageText(selectedOrderMessage, selected?.key);
   useEffect(() => {
     setOptimisticMessages([]);
     optimisticMessageIdRef.current = null;

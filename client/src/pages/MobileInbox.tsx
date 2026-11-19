@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { getActiveCamp, getSupabase, mapChatRowsToMessages, mapChatRowsToThreads, readCanonicalOrders, reconcileOptimisticMessages } from "@/lib/canonical";
 import { uploadChatImageToVault } from "@/lib/chat-image-upload";
-import { isSelectableCustomerMessage } from "@/lib/order-deck-context";
+import { getSelectedOrderMessageText, isSelectableCustomerMessage } from "@/lib/order-deck-context";
 import { CHAT_BROWSER_CONFIG_EVENT, readBrowserChatConfig } from "@/lib/chat-config";
 import { CYBER_FRAME_EVENT, CYBER_FRAME_OPTIONS, readCyberFrame, readCyberFrameRooms, saveCyberFrameRoom } from "@/lib/cyber-frame";
 import { CYBER_THEME_PRESETS, readCyberTheme, saveCyberTheme, type CyberTheme } from "@/lib/theme-lab";
@@ -462,7 +462,7 @@ export default function MobileInbox() {
     setNotificationSoundEnabled(next);
   };
   const messages = [...(messagesQuery.data ?? []), ...optimisticMessages].filter(message => messageText(message).trim());
-  const selectedOrderMessageText = selectedOrderMessage?.threadKey === selected?.key ? selectedOrderMessage.text : "";
+  const selectedOrderMessageText = getSelectedOrderMessageText(selectedOrderMessage, selected?.key);
   const openOrderDeck = () => { orderDeckFocusReturnRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null; setSummaryOpen(false); setOrderSummary(null); setOrderDeckOpen(true); };
   const toggleOrderMessageSelection = (message: unknown) => {
     if (!isSelectableCustomerMessage(message) || !selected) return;
