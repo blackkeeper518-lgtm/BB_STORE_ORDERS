@@ -5,6 +5,7 @@ export type LineConversation = {
   lineUserId: string;
   conversationId: string;
   oaId: string;
+  oaName: string;
   displayName: string;
   profilePictureUrl: string | null;
   latestDirection: "inbound" | "outbound";
@@ -126,6 +127,12 @@ async function readRows(credentials?: ChatSupabaseCredentials) {
 
 export async function fetchLineConversations(credentials?: ChatSupabaseCredentials): Promise<LineConversation[]> {
   const rows = await readRows(credentials);
+  const channelCache = new Map<string, LineChannel | null>();
+  const channelFor = async (oa: string) => {
+    if (!oa) return null;
+    if (!channelCache.has(oa)) channelCache.set(oa, await readLineChannel(oa, credentials).catch(() => null));
+    return channelCache.get(oa) ?? null;
+  };
   const map = new Map<string, LineConversation>();
   for (const row of rows) {
     const lineUserId = userId(row);
@@ -134,7 +141,7 @@ export async function fetchLineConversations(credentials?: ChatSupabaseCredentia
     const channelOaId = oaId(row);
     const key = `${channelOaId}:${conversation}`;
     const occurredAt = timestamp(row);
-    const current = map.get(key) ?? { key, lineUserId, conversationId: conversation, oaId: channelOaId, displayName: text(row.display_name || row.customer_name || lineUserId), profilePictureUrl: text(row.profile_picture_url) || null, latestDirection: direction(row), latestAt: occurredAt, preview: messageText(row), messageCount: 0 };
+    const current = map.get(key) ?? { key, lineUserId, conversationId: conversation, oaId: channelOaId, oaName: channelOaId, displayName: text(row.display_name || row.customer_name || lineUserId), profilePictureUrl: text(row.profile_picture_url) || null, latestDirection: direction(row), latestAt: occurredAt, preview: messageText(row), messageCount: 0 };
     current.messageCount += 1;
     if (!current.latestAt && occurredAt) current.latestAt = occurredAt;
     if (!current.preview) current.preview = messageText(row);
@@ -143,6 +150,10 @@ export async function fetchLineConversations(credentials?: ChatSupabaseCredentia
     map.set(key, current);
   }
   const conversations = Array.from(map.values());
+  await Promise.all(conversations.map(async conversation => {
+    const channel = await channelFor(conversation.oaId);
+    if (channel?.channel_name) conversation.oaName = channel.channel_name;
+  }));
   await Promise.all(conversations.map(async conversation => {
     if (conversation.displayName !== conversation.lineUserId && conversation.profilePictureUrl) return;
     const profile = await fetchLineProfile(conversation.lineUserId, conversation.oaId, credentials);
