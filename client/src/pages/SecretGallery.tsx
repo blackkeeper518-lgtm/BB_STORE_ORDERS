@@ -68,6 +68,7 @@ const SOUND_KEY = "nightops-chat-sound-v1";
 type ChatSoundSettings = { enabled: boolean; tone: "ping" | "bell" | "pop"; volume: number; soundKey?: string };
 type SoundRow = { sound_key: string; name: string; event_type: string; storage_bucket: string | null; storage_path: string | null; mime_type: string | null; volume: number | null; is_enabled: boolean };
 type LineChannelRow = { id: number; channel_id: string; channel_name: string; oa_id: string; is_active: boolean; status?: string | null; status_web?: string | null; hasToken?: boolean };
+type FacebookPageRow = { pageId: string; pageName: string; status?: string | null; statusWeb?: string | null; enabledMobile: boolean; enabledWeb: boolean };
 const DEFAULT_SOUND_SETTINGS: ChatSoundSettings = { enabled: true, tone: "ping", volume: 0.35 };
 const languageMeta: Record<
   CodeLanguage,
@@ -139,6 +140,8 @@ export default function SecretGallery() {
   const [soundListBusy, setSoundListBusy] = useState(false);
   const [lineForm, setLineForm] = useState<{ id?: number; channelId: string; channelName: string; oaId: string; accessToken: string; channelSecret: string; isActive: boolean; isWebActive: boolean }>({ channelId: "", channelName: "", oaId: "", accessToken: "", channelSecret: "", isActive: true, isWebActive: true });
   const [lineMessage, setLineMessage] = useState("");
+  const [facebookForm, setFacebookForm] = useState<{ pageId: string; pageName: string; accessToken: string; enabledMobile: boolean; enabledWeb: boolean }>({ pageId: "", pageName: "", accessToken: "", enabledMobile: true, enabledWeb: true });
+  const [facebookMessage, setFacebookMessage] = useState("");
   const lineChannelsQuery = trpc.line.channels.useQuery(undefined, { enabled: unlocked, retry: false });
   const saveLineChannel = trpc.line.saveChannel.useMutation({ onSuccess: () => { setLineMessage("บันทึก LINE OA แล้ว"); setLineForm({ channelId: "", channelName: "", oaId: "", accessToken: "", channelSecret: "", isActive: true, isWebActive: true }); void lineChannelsQuery.refetch(); }, onError: error => setLineMessage(error.message) });
   const toggleLineChannel = trpc.line.toggleChannel.useMutation({ onSuccess: () => void lineChannelsQuery.refetch(), onError: error => setLineMessage(error.message) });
@@ -146,6 +149,8 @@ export default function SecretGallery() {
   const facebookPagesQuery = trpc.chat.pages.useQuery(undefined, { enabled: unlocked, retry: false });
   const setFacebookAppStatus = trpc.chat.setPageAppStatus.useMutation({ onSuccess: () => void facebookPagesQuery.refetch() });
   const setFacebookWebStatus = trpc.chat.setPageWebStatus.useMutation({ onSuccess: () => void facebookPagesQuery.refetch() });
+  const saveFacebookPage = trpc.chat.savePage.useMutation({ onSuccess: () => { setFacebookMessage("บันทึก Facebook Page แล้ว"); setFacebookForm({ pageId: "", pageName: "", accessToken: "", enabledMobile: true, enabledWeb: true }); void facebookPagesQuery.refetch(); }, onError: error => setFacebookMessage(error.message) });
+  const deleteFacebookPage = trpc.chat.deletePage.useMutation({ onSuccess: () => { setFacebookMessage("ลบ Facebook Page แล้ว"); void facebookPagesQuery.refetch(); }, onError: error => setFacebookMessage(error.message) });
   const soundFileRef = useRef<HTMLInputElement>(null);
   const [activeId, setActiveId] = useState<string | null>(
     () => readLocal<VaultDoc[]>(DOCS_KEY, [])[0]?.id ?? null
@@ -387,6 +392,8 @@ export default function SecretGallery() {
   };
   const editLineChannel = (row: LineChannelRow) => setLineForm({ id: row.id, channelId: row.channel_id, channelName: row.channel_name, oaId: row.oa_id, accessToken: "", channelSecret: "", isActive: row.is_active, isWebActive: String(row.status_web ?? "ON").toUpperCase() !== "OFF" });
   const submitLineChannel = () => { setLineMessage(""); saveLineChannel.mutate(lineForm); };
+  const editFacebookPage = (page: FacebookPageRow) => setFacebookForm({ pageId: page.pageId, pageName: page.pageName, accessToken: "", enabledMobile: page.enabledMobile, enabledWeb: page.enabledWeb });
+  const submitFacebookPage = () => { setFacebookMessage(""); saveFacebookPage.mutate(facebookForm); };
   const login = () => {
     if (password === ROOM_PASSWORD) {
       sessionStorage.setItem("nightops-gallery-unlocked", "1");
@@ -703,9 +710,21 @@ export default function SecretGallery() {
               <CardTitle className="flex items-center gap-2 text-sm text-blue-100"><Facebook className="h-5 w-5 text-blue-300" />FACEBOOK PAGE MANAGER · เว็บ ON/OFF</CardTitle>
               <p className="text-xs leading-5 text-blue-100/65">จัดการสถานะเว็บของเพจ Facebook เหมือน LINE · ปิดแล้วเพจจะไม่แสดงใน ChatHub เว็บ แต่สถานะแอปยังใช้คอลัมน์เดิมแยกกัน</p>
             </CardHeader>
-            <CardContent className="grid gap-2">
+            <CardContent className="grid gap-3">
+              <div className="grid gap-3 md:grid-cols-2">
+                <label className="grid gap-1 text-[11px] text-blue-100/70">Page ID<Input value={facebookForm.pageId} onChange={event => setFacebookForm(current => ({ ...current, pageId: event.target.value }))} placeholder="Facebook Page ID" className="border-blue-300/25 bg-black/35 font-mono text-white" /></label>
+                <label className="grid gap-1 text-[11px] text-blue-100/70">ชื่อเพจ<Input value={facebookForm.pageName} onChange={event => setFacebookForm(current => ({ ...current, pageName: event.target.value }))} placeholder="ชื่อเพจ Facebook" className="border-blue-300/25 bg-black/35 text-white" /></label>
+                <label className="grid gap-1 text-[11px] text-blue-100/70 md:col-span-2">Page Access Token<Input type="password" autoComplete="new-password" value={facebookForm.accessToken} onChange={event => setFacebookForm(current => ({ ...current, accessToken: event.target.value }))} placeholder={facebookForm.pageId ? "เว้นว่างเพื่อใช้ Token เดิม" : "วาง Page Access Token"} className="border-blue-300/25 bg-black/35 font-mono text-white" /></label>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <label className="flex items-center gap-2 text-xs text-cyan-100/75"><input type="checkbox" checked={facebookForm.enabledMobile} onChange={event => setFacebookForm(current => ({ ...current, enabledMobile: event.target.checked }))} className="accent-cyan-400" /> แอป ON</label>
+                <label className="flex items-center gap-2 text-xs text-emerald-100/75"><input type="checkbox" checked={facebookForm.enabledWeb} onChange={event => setFacebookForm(current => ({ ...current, enabledWeb: event.target.checked }))} className="accent-emerald-400" /> เว็บ ON</label>
+                <Button type="button" onClick={submitFacebookPage} disabled={saveFacebookPage.isPending} className="bg-blue-500 text-white hover:bg-blue-400">{saveFacebookPage.isPending ? "กำลังบันทึก…" : facebookForm.pageId && (facebookPagesQuery.data ?? []).some(page => page.pageId === facebookForm.pageId) ? "บันทึกการแก้ไข" : "เพิ่ม Facebook Page"}</Button>
+                {facebookForm.pageId ? <Button type="button" variant="outline" onClick={() => setFacebookForm({ pageId: "", pageName: "", accessToken: "", enabledMobile: true, enabledWeb: true })} className="border-blue-300/25 text-blue-100">ยกเลิกแก้ไข</Button> : null}
+                <span className="text-xs text-blue-100/70">{facebookMessage}</span>
+              </div>
               {facebookPagesQuery.isError ? <p className="rounded-xl border border-amber-300/25 bg-amber-400/10 p-3 text-xs text-amber-100">โหลดเพจไม่ได้: {facebookPagesQuery.error.message} · ตรวจ Chat config ใน ROOM 02</p> : null}
-              {(facebookPagesQuery.data ?? []).map(page => <div key={page.pageId} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-300/15 bg-black/20 p-3"><div className="min-w-0"><p className="truncate text-sm font-semibold text-blue-100">{page.pageName}</p><p className="mt-1 font-mono text-[10px] text-blue-100/55">Page {page.pageId} · แอป {page.enabledMobile ? "ON" : "OFF"} · เว็บ {page.enabledWeb ? "ON" : "OFF"}</p></div><div className="flex flex-wrap gap-2"><Button type="button" size="sm" variant="outline" disabled={setFacebookAppStatus.isPending} onClick={() => setFacebookAppStatus.mutate({ pageId: page.pageId, enabled: !page.enabledMobile })} className={page.enabledMobile ? "border-cyan-300/25 text-cyan-100" : "border-red-300/25 text-red-200"}>{page.enabledMobile ? "แอป ON" : "แอป OFF"}</Button><Button type="button" size="sm" variant="outline" disabled={setFacebookWebStatus.isPending} onClick={() => setFacebookWebStatus.mutate({ pageId: page.pageId, enabled: !page.enabledWeb })} className={page.enabledWeb ? "border-emerald-300/25 text-emerald-100" : "border-red-300/25 text-red-200"}>{page.enabledWeb ? "เว็บ ON" : "เว็บ OFF"}</Button></div></div>)}
+              {(facebookPagesQuery.data as FacebookPageRow[] | undefined)?.map(page => <div key={page.pageId} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-300/15 bg-black/20 p-3"><div className="min-w-0"><p className="truncate text-sm font-semibold text-blue-100">{page.pageName}</p><p className="mt-1 font-mono text-[10px] text-blue-100/55">Page {page.pageId} · แอป {page.enabledMobile ? "ON" : "OFF"} · เว็บ {page.enabledWeb ? "ON" : "OFF"}</p></div><div className="flex flex-wrap gap-2"><Button type="button" size="sm" variant="outline" onClick={() => editFacebookPage(page)} className="border-blue-300/25 text-blue-100">แก้ไข</Button><Button type="button" size="sm" variant="outline" disabled={setFacebookAppStatus.isPending} onClick={() => setFacebookAppStatus.mutate({ pageId: page.pageId, enabled: !page.enabledMobile })} className={page.enabledMobile ? "border-cyan-300/25 text-cyan-100" : "border-red-300/25 text-red-200"}>{page.enabledMobile ? "แอป ON" : "แอป OFF"}</Button><Button type="button" size="sm" variant="outline" disabled={setFacebookWebStatus.isPending} onClick={() => setFacebookWebStatus.mutate({ pageId: page.pageId, enabled: !page.enabledWeb })} className={page.enabledWeb ? "border-emerald-300/25 text-emerald-100" : "border-red-300/25 text-red-200"}>{page.enabledWeb ? "เว็บ ON" : "เว็บ OFF"}</Button><Button type="button" size="sm" variant="outline" onClick={() => { if (window.confirm(`ลบ ${page.pageName} หรือไม่`)) deleteFacebookPage.mutate({ pageId: page.pageId }); }} className="border-red-300/25 text-red-200"><Trash2 className="mr-1 h-3.5 w-3.5" />ลบ</Button></div></div>)}
               {!facebookPagesQuery.isLoading && !facebookPagesQuery.data?.length ? <p className="rounded-xl border border-blue-300/10 p-4 text-center text-xs text-blue-100/50">ยังไม่พบเพจ Facebook หรือยังไม่ได้ตั้งค่า Chat ROOM 02</p> : null}
             </CardContent>
           </Card>

@@ -121,6 +121,19 @@ export async function fetchChatPages(credentials?: ChatSupabaseCredentials) {
   const rows = await supabaseGet<Array<Record<string, unknown>>>(`${encodeURIComponent(CHAT_PAGE_TOKEN_TABLE)}?${query.toString()}`, "chat", credentials);
   return rows.map(row => ({ pageId: String(row.page_id ?? "").trim(), pageName: String(row.page_name ?? "ไม่ระบุเพจ").trim() || "ไม่ระบุเพจ", status: row.status ?? null, statusWeb: row.status_web ?? row.status ?? null, enabledMobile: isChatStatusEnabled(row.status), enabledWeb: isChatStatusEnabled(effectiveWebStatus(row)) })).filter(row => row.pageId);
 }
+export async function saveChatPage(input: { pageId: string; pageName: string; accessToken?: string; enabledMobile: boolean; enabledWeb: boolean }, credentials?: ChatSupabaseCredentials) {
+  const pageId = input.pageId.trim();
+  const body: Record<string, unknown> = { page_id: pageId, page_name: input.pageName.trim(), status: input.enabledMobile ? "ON" : "OFF", status_web: input.enabledWeb ? "ON" : "OFF", updated_at: new Date().toISOString() };
+  if (input.accessToken?.trim()) body.access_token = input.accessToken.trim();
+  const query = `${encodeURIComponent(CHAT_PAGE_TOKEN_TABLE)}?page_id=eq.${encodeURIComponent(pageId)}`;
+  const existing = await supabaseGet<Array<Record<string, unknown>>>(`${query}&select=page_id`, "chat", credentials);
+  if (existing.length) return (await supabasePatch<Array<Record<string, unknown>>>(query, body, "chat", credentials))[0] ?? null;
+  if (!body.access_token) throw new Error("เพิ่มเพจใหม่ต้องใส่ Page Access Token");
+  return (await supabasePost<Array<Record<string, unknown>>>(encodeURIComponent(CHAT_PAGE_TOKEN_TABLE), body, "chat", "return=representation", credentials))[0] ?? null;
+}
+export async function deleteChatPage(pageId: string, credentials?: ChatSupabaseCredentials) {
+  return supabaseDelete<Array<Record<string, unknown>>>(`${encodeURIComponent(CHAT_PAGE_TOKEN_TABLE)}?page_id=eq.${encodeURIComponent(pageId)}`, "chat", credentials);
+}
 export async function setChatPageWebStatus(pageId: string, enabled: boolean, credentials?: ChatSupabaseCredentials) {
   const query = `${encodeURIComponent(CHAT_PAGE_TOKEN_TABLE)}?page_id=eq.${encodeURIComponent(pageId)}`;
   return supabasePatch<Array<Record<string, unknown>>>(query, { status_web: enabled ? "ON" : "OFF" }, "chat", credentials);

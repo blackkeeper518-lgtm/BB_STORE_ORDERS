@@ -2,7 +2,7 @@ import { z } from "zod";
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { COOKIE_NAME } from "../shared/const";
 import { sendMetaMessage } from "./meta";
-import { assertChatPageEnabled, checkChatConnection, fetchChatMessageRows, fetchChatNotificationRows, fetchChatPages, fetchChatThreadRows, fetchParcelMappingQueue, purgeOldParcels, recordOutgoingChatMessage, setChatPageAppStatus, setChatPageWebStatus, supabaseDelete, supabaseGet, supabasePatch, supabasePost } from "./supabase";
+import { assertChatPageEnabled, checkChatConnection, deleteChatPage, fetchChatMessageRows, fetchChatNotificationRows, fetchChatPages, fetchChatThreadRows, fetchParcelMappingQueue, purgeOldParcels, recordOutgoingChatMessage, saveChatPage, setChatPageAppStatus, setChatPageWebStatus, supabaseDelete, supabaseGet, supabasePatch, supabasePost } from "./supabase";
 import { checkLineConnection, fetchLineConversations, fetchLineMessages, sendLineText } from "./line";
 import * as db from "./db";
 
@@ -54,6 +54,8 @@ export const appRouter = router({
     // redirect an admin away when an auth session has expired.
     connection: publicProcedure.query(({ ctx }) => checkChatConnection(requireBrowserChatConfig(ctx))),
     pages: protectedProcedure.query(({ ctx }) => fetchChatPages(requireBrowserChatConfig(ctx))),
+    savePage: adminProcedure.input(z.object({ pageId: z.string().trim().min(1), pageName: z.string().trim().min(1), accessToken: z.string().optional(), enabledMobile: z.boolean().default(true), enabledWeb: z.boolean().default(true) })).mutation(({ input }) => saveChatPage(input, requireServerChatConfig())),
+    deletePage: adminProcedure.input(z.object({ pageId: z.string().trim().min(1) })).mutation(({ input }) => deleteChatPage(input.pageId, requireServerChatConfig())),
     setPageAppStatus: protectedProcedure.input(z.object({ pageId: z.string().min(1), enabled: z.boolean() })).mutation(({ input, ctx }) => setChatPageAppStatus(input.pageId, input.enabled, requireBrowserChatConfig(ctx))),
     setPageWebStatus: protectedProcedure.input(z.object({ pageId: z.string().min(1), enabled: z.boolean() })).mutation(({ input, ctx }) => setChatPageWebStatus(input.pageId, input.enabled, requireBrowserChatConfig(ctx))),
     threads: protectedProcedure.input(z.object({ surface: z.enum(["web", "mobile"]).default("web") }).optional()).query(({ input, ctx }) => fetchChatThreadRows(requireBrowserChatConfig(ctx), input?.surface ?? "web")),
