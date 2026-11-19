@@ -371,32 +371,13 @@ body.visual-theme .parcel-panel .postal-state.loading:before{color:var(--visual-
 .product-import-target,.product-import-destination{display:grid;gap:5px;min-width:0}.product-import-target>span,.product-import-destination>span{color:var(--muted,#93a2c9);font:9px 'JetBrains Mono',monospace;letter-spacing:.08em}.product-import-target select{width:100%;min-height:38px;border:1px solid rgba(72,240,255,.24);border-radius:8px;background:#0d1428;color:#effaff;padding:7px;font:11px 'Noto Sans Thai'}.product-import-destination{min-height:38px;align-content:center;border:1px solid rgba(72,240,255,.15);border-radius:8px;padding:5px 9px}.product-import-destination strong{color:#d7fbff;font:600 11px 'JetBrains Mono',monospace}.product-import-destination small{color:#96a9c7;font-size:9px}.product-import-status{margin-top:9px;color:#9bc8d7;font-size:10px;line-height:1.6}.product-import-queue{margin-top:10px}.product-import-empty{border:1px dashed rgba(72,240,255,.16);border-radius:9px;padding:11px;color:#8092b0;font-size:10px;text-align:center}.product-import-queue-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin:8px 0;color:#91a7bd;font-size:10px}.product-import-queue-toolbar>span{margin-right:auto}.product-import-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,155px),1fr));gap:8px;max-height:56vh;overflow:auto;padding:2px}.product-import-item{position:relative;display:grid;grid-template-columns:auto minmax(0,1fr);gap:7px 8px;align-items:center;min-width:0;padding:7px;border:1px solid rgba(72,240,255,.15);border-radius:9px;background:rgba(6,12,29,.68)}.product-import-item.is-saved{border-color:rgba(96,238,174,.28)}.product-import-item:not(.is-saved){cursor:pointer;user-select:none}.product-import-item:not(.is-saved) img{pointer-events:none}.product-import-item.is-selected{border-color:#55edff;box-shadow:0 0 0 2px rgba(85,237,255,.48),0 0 22px rgba(40,222,255,.46),inset 0 0 16px rgba(40,222,255,.11);animation:product-import-glow 1.15s ease-in-out infinite alternate}@keyframes product-import-glow{from{box-shadow:0 0 0 1px rgba(85,237,255,.38),0 0 10px rgba(40,222,255,.22),inset 0 0 8px rgba(40,222,255,.06)}to{box-shadow:0 0 0 2px rgba(85,237,255,.68),0 0 25px rgba(40,222,255,.62),inset 0 0 20px rgba(40,222,255,.15)}}@media(prefers-reduced-motion:reduce){.product-import-item.is-selected{animation:none}}.product-import-item input{grid-column:1;grid-row:1;width:16px;height:16px;accent-color:#48f0ff}.product-import-item img{grid-column:2;grid-row:1;width:100%;height:92px;border-radius:6px;object-fit:cover;background:#090e1e}.product-import-item-info{grid-column:1/-1;display:grid;gap:3px;min-width:0}.product-import-item-info strong,.product-import-item-info small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.product-import-item-info strong{color:#e5f8ff;font-size:10px}.product-import-item-info small{color:#93a2ba;font-size:9px}.product-import-item-status{grid-column:1/-1;color:#9fd6e2;font-size:9px}.product-import-item.is-saved .product-import-item-status{color:#8df3bf}.product-import-item a{grid-column:1/-1;color:#6ceaff;font-size:9px;text-decoration:underline;overflow-wrap:anywhere}
 @media(max-width:760px){.product-import-controls{grid-template-columns:1fr 1fr}.product-import-controls>#saveSelectedProductImages{grid-column:1/-1;width:100%}.product-import-grid{grid-template-columns:repeat(2,minmax(0,1fr));max-height:46vh}}
 </style>
-<style id="room-status-drawer-styles">
-.room-status-strip{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 16px;border-bottom:1px solid rgba(255,79,154,.14);background:linear-gradient(90deg,rgba(255,49,125,.055),rgba(79,215,255,.035),transparent)}
-.room-status-trigger{display:flex;align-items:center;gap:10px;min-width:0;padding:8px 12px;border:1px solid rgba(255,79,154,.32);border-radius:14px;background:linear-gradient(110deg,rgba(255,49,125,.15),rgba(102,77,255,.12));color:#fff;text-align:left;box-shadow:0 0 20px rgba(255,49,125,.08);cursor:pointer}
-.room-status-trigger:hover,.room-status-trigger:focus-visible{border-color:rgba(255,104,172,.72);box-shadow:0 0 24px rgba(255,49,125,.18);outline:none}
-.room-status-trigger-icon{display:grid;place-items:center;width:32px;height:32px;flex:none;border-radius:10px;background:rgba(255,49,125,.16);color:#ff75b4;font-size:16px}
-.room-status-trigger-copy{display:grid;min-width:0;gap:2px}.room-status-trigger-copy small{color:#ff9ec9;font:600 8px/1.3 'IBM Plex Mono',monospace;letter-spacing:.16em}.room-status-trigger-copy strong{overflow:hidden;color:#fff;font-size:11px;text-overflow:ellipsis;white-space:nowrap}
-.room-status-trigger-chevron{margin-left:auto;color:#f5a2ca;font-size:15px}.room-status-strip>p{margin:0;color:rgba(222,204,230,.48);font-size:9px;text-align:right}
-.room-status-backdrop{position:fixed;z-index:209;inset:0;background:rgba(5,3,12,.7);backdrop-filter:blur(4px);opacity:0;visibility:hidden;transition:opacity .22s ease,visibility .22s ease}.room-status-backdrop.is-open{opacity:1;visibility:visible}
-.room-status-drawer{position:fixed;z-index:210;top:0;right:0;bottom:0;display:flex;width:min(94vw,480px);flex-direction:column;gap:0;padding:calc(env(safe-area-inset-top) + 18px) 16px calc(env(safe-area-inset-bottom) + 16px);overflow:hidden;border-left:1px solid rgba(255,79,154,.35);background:radial-gradient(ellipse at 0 0,rgba(255,49,125,.11),transparent 42%),linear-gradient(155deg,#140b17,#090811 62%,#0a1018);box-shadow:-22px 0 64px rgba(0,0,0,.55),-3px 0 25px rgba(255,49,125,.1);transform:translateX(105%);transition:transform .26s cubic-bezier(.2,.8,.2,1);visibility:hidden}
-.room-status-drawer.is-open{transform:translateX(0);visibility:visible}.room-status-drawer-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:2px 0 14px;border-bottom:1px solid rgba(255,79,154,.2)}.room-status-drawer-head small{color:#ff84b9;font:600 9px/1.4 'IBM Plex Mono',monospace;letter-spacing:.18em}.room-status-drawer-head h2{margin:5px 0 0;color:#fff;font-size:20px;letter-spacing:-.03em}.room-status-drawer-actions{display:flex;gap:7px}.room-status-drawer-actions button{min-width:34px;height:34px;padding:0 10px;border:1px solid rgba(255,79,154,.26);border-radius:10px;background:rgba(255,49,125,.08);color:#ffe9f4;font-size:10px;cursor:pointer}.room-status-drawer-hint{margin:11px 0;color:rgba(224,211,230,.57);font-size:10px;line-height:1.6}.room-status-scroll{min-height:0;overflow:auto;padding:0 2px 12px;overscroll-behavior:contain}.room-status-zone{margin-top:12px;padding:12px;border:1px solid rgba(255,79,154,.17);border-radius:15px;background:linear-gradient(135deg,rgba(255,49,125,.055),rgba(55,37,79,.08))}.room-status-zone h3{margin:0 0 9px;color:#ffb1d0;font:600 9px/1.4 'IBM Plex Mono',monospace;letter-spacing:.16em}.room-status-list{display:grid;gap:7px}.room-status-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;padding:10px;border:1px solid rgba(255,255,255,.055);border-radius:11px;background:rgba(0,0,0,.2)}.room-status-main{min-width:0}.room-status-main strong{display:block;overflow:hidden;color:#f8edf5;font-size:11px;text-overflow:ellipsis;white-space:nowrap}.room-status-main code{display:block;margin-top:3px;overflow:hidden;color:rgba(178,220,233,.58);font:9px/1.4 'IBM Plex Mono',monospace;text-overflow:ellipsis;white-space:nowrap}.room-status-badge{max-width:112px;padding:5px 7px;border:1px solid rgba(180,180,200,.18);border-radius:999px;color:#bdbbc9;font-size:8px;font-weight:700;text-align:center;white-space:nowrap}.room-status-badge.is-loading{border-color:rgba(74,220,255,.35);color:#8deaff}.room-status-badge.is-ready{border-color:rgba(72,225,166,.38);background:rgba(72,225,166,.08);color:#8df3c7}.room-status-badge.is-error{border-color:rgba(255,106,137,.35);background:rgba(255,106,137,.07);color:#ff9dae}.room-status-badge.is-server{border-color:rgba(200,156,255,.35);color:#d6b8ff}
-@media(max-width:560px){.room-status-strip{padding:8px 10px}.room-status-strip>p{max-width:44%;font-size:8px}.room-status-drawer{width:100vw;border-left:0;border-radius:0}.room-status-drawer-head h2{font-size:18px}}
-</style>
+
 </head>
 <body><div class="deep-space" aria-hidden="true"><div class="nebula one"></div><div class="nebula two"></div><div class="nebula three"></div><div class="planet"></div><i class="shooting-star a"></i><i class="shooting-star b"></i><i class="shooting-star c"></i></div><main class="wrap">
 <header class="brand">
 <div class="naga" style="width:12px;height:72px;border-radius:8px;border:1px solid rgba(72,240,255,.5);box-shadow:0 0 18px rgba(72,240,255,.25);background:linear-gradient(180deg,rgba(72,240,255,.2),rgba(168,121,255,.22));position:relative;flex:none"><span style="position:absolute;left:3px;right:3px;top:7px;height:4px;border-radius:4px;background:#dffcff;box-shadow:0 0 10px #48f0ff"></span><span style="position:absolute;left:3px;right:3px;bottom:7px;height:4px;border-radius:4px;background:#dffcff;box-shadow:0 0 10px #a879ff"></span></div>
 <div><h1>DK DRAKSIDE</h1><div class="subtitle">การตลาดแห่งความมืด <span style="color:#53e9ff">• SPACE VAULT</span></div></div><div class="live-clock" aria-live="off"><div class="clock-time" id="clockTime">--:--:--</div><div class="clock-date" id="clockDate">กำลังโหลดวันที่…</div><div class="clock-dot">● LIVE • BANGKOK TIME</div></div>
 </header>
-<section class="room-status-strip" aria-label="สถานะการเชื่อมต่อฐานข้อมูล"><button id="roomStatusToggle" type="button" class="room-status-trigger" aria-expanded="false" aria-controls="roomStatusDrawer"><span class="room-status-trigger-icon" aria-hidden="true">⌘</span><span class="room-status-trigger-copy"><small>DATA ROOMS · PROJECTS 1–4</small><strong id="roomStatusSummary">แตะเพื่อดูสถานะการเชื่อมต่อ</strong></span><span class="room-status-trigger-chevron" aria-hidden="true">⌄</span></button><p>เปิดแผงเพื่อดูห้อง/ตารางแยกตามโปรเจกต์</p></section>
-<div id="roomStatusBackdrop" class="room-status-backdrop" aria-hidden="true"></div>
-<aside id="roomStatusDrawer" class="room-status-drawer" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="roomStatusTitle"><header class="room-status-drawer-head"><div><small>DATABASE CONTROL · PROJECTS 1–4</small><h2 id="roomStatusTitle">สถานะห้อง / ตาราง</h2></div><div class="room-status-drawer-actions"><button id="roomStatusRefresh" type="button" title="ตรวจสถานะอีกครั้ง">ตรวจซ้ำ</button><button id="roomStatusClose" type="button" aria-label="ปิดสถานะห้อง">✕</button></div></header><p class="room-status-drawer-hint">ตรวจสิทธิ์อ่านแยกตามโปรเจกต์ · ไม่แสดง key และไม่เขียนข้อมูล · secret/token tables จะแสดงว่าอยู่ฝั่ง Server เท่านั้น</p><div class="room-status-scroll">
-<section class="room-status-zone"><h3><span id="roomStatusProjectLabel1">PROJECT 1</span><span id="roomStatusProjectCount1"></span></h3><div id="roomStatusProject1" class="room-status-list"></div></section>
-<section class="room-status-zone"><h3><span id="roomStatusProjectLabel2">PROJECT 2</span><span id="roomStatusProjectCount2"></span></h3><div id="roomStatusProject2" class="room-status-list"></div></section>
-<section class="room-status-zone"><h3><span id="roomStatusProjectLabel3">PROJECT 3</span><span id="roomStatusProjectCount3"></span></h3><div id="roomStatusProject3" class="room-status-list"></div></section>
-<section class="room-status-zone"><h3><span id="roomStatusProjectLabel4">PROJECT 4</span><span id="roomStatusProjectCount4"></span></h3><div id="roomStatusProject4" class="room-status-list"></div></section>
-</div></aside>
 <div class="layout"><section id="tab-scripts" class="tab-page">
 <section class="panel"><div class="panel-head"><span class="eyebrow">CUSTOMER SCRIPTS</span><button class="btn small" id="addScript">＋ เพิ่มสคริปต์</button></div><div class="body"><p class="hint">แตะปุ่มเพื่อคัดลอกทันที · แก้ไขเป็นรายสคริปต์ · ไฟล์อยู่ถัดลงมา</p><div class="script-list" id="scripts"></div><div class="tiny-clear"><button id="clearVault">ล้างข้อมูลในเครื่อง</button></div></div><div class="section-gap" style="border-top:1px solid rgba(105,225,255,.12);padding-top:14px"><div class="panel-head" style="padding:0 0 11px;border:0"><span class="eyebrow">MY FILES</span><span class="badge" id="fileCount">0 FILES</span></div><div class="file-list" id="files"></div></div></section></section><section id="tab-products" class="tab-page active">
 <section class="panel image-panel"><div class="panel-head product-head"><span class="eyebrow">PRODUCT IMAGE SHORTCUTS</span><div class="product-toolbar"><select id="adPageSelect" class="select" aria-label="เพจโฆษณา"></select><button class="btn small" id="addAdPage">＋ เพจ</button><button class="btn small" id="chooseAdProducts">เลือกสินค้า</button><button class="btn small" id="editActiveProduct" disabled>แก้ไขสินค้า</button><span class="badge" id="imageCount">0 IMAGES</span></div></div><div class="body"><p class="hint">กดชื่อสินค้าเพื่อคัดลอกรูป · เลือกสินค้าให้แต่ละเพจ แล้วดูไฟนีออนของสินค้าที่ใช้</p><div class="product-tabs" id="productTabs"></div><div class="image-categories" id="imageCategories"></div></div></section>
@@ -1621,125 +1602,6 @@ document.querySelectorAll('.bottom-tab').forEach(button=>button.addEventListener
   restoreCodeDraft();
   renderCodeBlocks();
   if (draftRestored) setAutosave('● กู้คืนร่างอัตโนมัติแล้ว');
-})();
-</script><script id="room-status-drawer-script">
-(()=>{
-  const trigger=document.getElementById('roomStatusToggle'),drawer=document.getElementById('roomStatusDrawer'),backdrop=document.getElementById('roomStatusBackdrop'),closeButton=document.getElementById('roomStatusClose'),refreshButton=document.getElementById('roomStatusRefresh'),summary=document.getElementById('roomStatusSummary');
-  const groups=[
-    {index:0,rooms:[
-      {table:'thailand_address_master',name:'ฐานที่อยู่ไทย'},
-      {table:'🌀SINGULARITY_xXx_EXCHANGE',name:'Chat / Exchange'},
-      {table:'🌌MULTIVERSE_xXx_NEXUS',name:'Telegram Nexus'},
-      {table:'🌍GALACTIC_GATEWAY_TOKEN',name:'Gateway Token',serverOnly:true},
-      {table:'🌟GENESIS_xXx_HISTORY',name:'ประวัติรายการ'},
-      {table:'💀THANATOS_xXx_DEATH_NOTE',name:'Death Note'},
-      {table:'🔸PARADOX_xXx_EXCHANGE',name:'Order Exchange'},
-      {table:'🗝️HERMES_ARCHIVE',name:'Order Control'},
-      {table:'🛒product_master',name:'Product Master'},
-      {table:'🛰️PIONEER_xXx_CAPSULE',name:'Pioneer Capsule'},
-      {table:'🪐ANDROMEDA_xXx_SENT',name:'Andromeda Sent'}
-    ]},
-    {index:1,rooms:[
-      {table:'Cust_Chat⭐BINARY_xXx_STAR',name:'Customer Chat'},
-      {table:'Pg_Chat⭐BINARY_xXx_STAR',name:'Page Chat'},
-      {table:'delivery_pre_send_checks',name:'ตรวจสอบก่อนส่ง'},
-      {table:'delivery_red_zone_provinces',name:'จังหวัดพื้นที่เสี่ยง'},
-      {table:'delivery_telegram_urgent_queue',name:'คิว Telegram ด่วน'},
-      {table:'line_channels',name:'LINE Channels'},
-      {table:'line_messages',name:'LINE Messages'},
-      {table:'🌈MILKY_WAY_xXx_TOKEN _PAGE',name:'Milky Way Token Page',serverOnly:true},
-      {table:'🌓VAGABOND_xXx_DISMISS',name:'Vagabond Dismiss'},
-      {table:'🌠BINARY_xXx_MATRIX',name:'Binary Matrix'},
-      {table:'🏴‍☠️SIRIUS_xXx_CRASH',name:'Sirius Crash'}
-    ]},
-    {index:2,rooms:[
-      {table:'page_tokens_vault',name:'Page Tokens Vault',serverOnly:true},
-      {table:'parcels',name:'พัสดุ'},
-      {table:'sales_script_cards',name:'Script Cards'},
-      {table:'thailand_address_master',name:'ฐานที่อยู่ไทย'},
-      {table:'⛩️VOID_xXx_GATEWAYz',name:'Void Gateway'},
-      {table:'📓DEAD_xXx_NOTE',name:'Dead Note'},
-      {table:'🔮SHADOW_xXx_RECALL',name:'Shadow Recall'},
-      {table:'🛒product_master',name:'Product Master'},
-      {table:'🦅ROGUE_xXx_SHIPPINGz',name:'Rogue Shipping'},
-      {table:'🧿BB_xXx_ORDERCONTROL',name:'BB Order Control'}
-    ]},
-    {index:3,rooms:[
-      {table:'app_chat_frames',name:'กรอบแชท'},
-      {table:'app_customization_selections',name:'การปรับแต่งแอป'},
-      {table:'app_sounds',name:'เสียงแจ้งเตือน'},
-      {table:'app_themes',name:'ธีมแอป'},
-      {table:'sales_script_cards',name:'Script Cards'}
-    ]}
-  ];
-  const allRooms=groups.flatMap(group=>group.rooms.map(room=>({...room,projectIndex:group.index,id:`${group.index}:${room.table}`})));
-  const states=new Map(allRooms.map(room=>[room.id,{state:'idle',label:'ยังไม่ตรวจ'}]));
-  let checkId=0;
-  function isSafeBrowserAnonKey(value){
-    const key=String(value||'').trim();
-    if(/^sb_publishable_[A-Za-z0-9_-]+$/.test(key))return true;
-    const parts=key.split('.');if(parts.length!==3)return false;
-    try{const segment=parts[1].replace(/-/g,'+').replace(/_/g,'/');const payload=JSON.parse(atob(segment.padEnd(Math.ceil(segment.length/4)*4,'=')));return payload.role==='anon';}catch{return false;}
-  }
-  function projectConfig(index){
-    try{const saved=JSON.parse(localStorage.getItem('drak-supabase-config-v2')||'{}');const project=Array.isArray(saved.projects)?saved.projects[index]:null;if(!project)return null;const url=String(project.url||'').trim().replace(/\/+$/,'');const anonKey=String(project.anonKey||'').trim().replace(/^Bearer\s+/i,'').replace(/^['"]|['"]$/g,'').replace(/[\r\n\t\s]+/g,'');const label=String(project.label||'');let parsed;try{parsed=new URL(url)}catch{return {url,label,unsafe:true}}if(parsed.protocol!=='https:'||!parsed.hostname.endsWith('.supabase.co')||!isSafeBrowserAnonKey(anonKey))return {url,label,unsafe:true};return url&&anonKey?{url,anonKey,label,unsafe:false}:null;}catch{return null;}
-  }
-  function render(){
-    for(const group of groups){
-      const target=document.getElementById(`roomStatusProject${group.index+1}`);if(!target)continue;target.replaceChildren();
-      const ready=group.rooms.filter(room=>!room.serverOnly&&states.get(`${group.index}:${room.table}`)?.state==='ready').length;
-      const checkable=group.rooms.filter(room=>!room.serverOnly).length;
-      const counter=document.getElementById(`roomStatusProjectCount${group.index+1}`);if(counter)counter.textContent=`${ready}/${checkable} อ่านได้`;
-      const label=document.getElementById(`roomStatusProjectLabel${group.index+1}`);const config=projectConfig(group.index);if(label)label.textContent=`PROJECT ${group.index+1}${config?.label?` · ${config.label}`:''}`;
-      for(const room of group.rooms){
-        const row=document.createElement('article');row.className='room-status-row';
-        const main=document.createElement('div');main.className='room-status-main';
-        const title=document.createElement('strong');title.textContent=room.name;
-        const table=document.createElement('code');table.textContent=room.table;
-        main.append(title,table);
-        const state=states.get(`${group.index}:${room.table}`)||{state:'idle',label:'ยังไม่ตรวจ'};
-        const badge=document.createElement('span');badge.className=`room-status-badge is-${state.state}`;badge.textContent=state.label;badge.setAttribute('aria-label',`โปรเจกต์ ${group.index+1} · ${room.name}: ${state.label}`);
-        row.append(main,badge);target.append(row);
-      }
-    }
-  }
-  async function checkStatuses(){
-    const request=++checkId;
-    for(const group of groups){
-      const config=projectConfig(group.index);
-      for(const room of group.rooms){
-        const id=`${group.index}:${room.table}`;
-        if(room.serverOnly)states.set(id,{state:'server',label:'Server only'});
-        else if(!config)states.set(id,{state:'missing',label:'ยังไม่เชื่อมโปรเจกต์'});
-        else if(config.unsafe)states.set(id,{state:'error',label:'ใช้ anon/public key เท่านั้น'});
-        else states.set(id,{state:'loading',label:'กำลังตรวจ'});
-      }
-    }
-    if(summary)summary.textContent='กำลังตรวจสถานะ 4 โปรเจกต์…';render();
-    const queue=allRooms.filter(room=>{const config=projectConfig(room.projectIndex);return !room.serverOnly&&config&&!config.unsafe});let cursor=0;
-    const worker=async()=>{while(cursor<queue.length){const room=queue[cursor++];const id=room.id;const config=projectConfig(room.projectIndex);if(!config||config.unsafe)continue;try{const query=new URLSearchParams({select:'*',limit:'0'});const response=await fetch(`${config.url}/rest/v1/${encodeURIComponent(room.table)}?${query.toString()}`,{method:'GET',cache:'no-store',headers:{apikey:config.anonKey,Authorization:`Bearer ${config.anonKey}`,Accept:'application/json'}});if(request!==checkId)return;states.set(id,response.ok?{state:'ready',label:'อ่านได้'}:{state:'error',label:`HTTP ${response.status}`});}catch{if(request!==checkId)return;states.set(id,{state:'error',label:'เชื่อมต่อไม่ได้'});}render();}};
-    await Promise.all(Array.from({length:Math.min(6,queue.length)},()=>worker()));
-    if(request!==checkId)return;
-    const configured=groups.filter(group=>{const config=projectConfig(group.index);return !!config&&!config.unsafe}).length;
-    const ready=allRooms.filter(room=>!room.serverOnly&&states.get(room.id)?.state==='ready').length;
-    const checkable=allRooms.filter(room=>{const config=projectConfig(room.projectIndex);return !room.serverOnly&&config&&!config.unsafe}).length;
-    if(summary)summary.textContent=`${ready}/${checkable} ตารางอ่านได้ · ${configured}/4 โปรเจกต์`;
-  }
-  function setOpen(open){
-    if(!drawer||!backdrop||!trigger)return;drawer.classList.toggle('is-open',open);backdrop.classList.toggle('is-open',open);drawer.setAttribute('aria-hidden',String(!open));backdrop.setAttribute('aria-hidden',String(!open));trigger.setAttribute('aria-expanded',String(open));document.body.classList.toggle('room-status-open',open);
-    if(open){void checkStatuses();requestAnimationFrame(()=>document.getElementById('roomStatusClose')?.focus());}else trigger.focus();
-  }
-  trigger?.addEventListener('click',()=>setOpen(!drawer?.classList.contains('is-open')));document.getElementById('roomStatusClose')?.addEventListener('click',()=>setOpen(false));backdrop?.addEventListener('click',()=>setOpen(false));document.getElementById('roomStatusRefresh')?.addEventListener('click',()=>void checkStatuses());window.addEventListener('keydown',event=>{
-    if(!drawer?.classList.contains('is-open'))return;
-    if(event.key==='Escape'){event.preventDefault();setOpen(false);return;}
-    if(event.key!=='Tab')return;
-    const focusable=Array.from(drawer.querySelectorAll('button:not([disabled]),a[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'));
-    if(!focusable.length){event.preventDefault();return;}
-    const first=focusable[0],last=focusable[focusable.length-1],active=document.activeElement;
-    if(event.shiftKey&&(active===first||!drawer.contains(active))){event.preventDefault();last.focus();}
-    else if(!event.shiftKey&&(active===last||!drawer.contains(active))){event.preventDefault();first.focus();}
-  },true);
-  render();
 })();
 </script>
 </body></html>
