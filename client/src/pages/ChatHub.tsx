@@ -312,9 +312,10 @@ export default function ChatHub() {
     setOrderDeckOpen(true);
     setSummaryOpen(false);
   };
-  const toggleOrderMessageSelection = (message: Record<string, any>) => {
+  const toggleOrderMessageSelection = (message: unknown) => {
+    if (!isSelectableCustomerMessage(message) || !selected) return;
     const text = stripSpeakerPrefix(String(message.text ?? message.message_text ?? "")).trim();
-    if (!isSelectableCustomerMessage(message) || !text || !selected) return;
+    if (!text) return;
     const id = String(message.id ?? message.messageId ?? `${message.occurredAt ?? ""}:${text}`);
     const isAlreadySelected = selectedOrderMessage?.id === id && selectedOrderMessage.threadKey === selected.key;
     if (isAlreadySelected) {
