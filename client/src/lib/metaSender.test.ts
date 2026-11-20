@@ -48,7 +48,7 @@ describe("sendMetaMessage", () => {
 
     const tokenLookup = new URL(requests[0].url);
     expect(tokenLookup.pathname).toBe(`/rest/v1/${tokenTablePath}`);
-    expect(tokenLookup.searchParams.get("select")).toBe("page_id,page_name,access_token");
+    expect(tokenLookup.searchParams.get("select")).toBe("page_id,page_name,access_token,status,status_web");
     expect(tokenLookup.searchParams.get("page_id")).toBe("eq.page-123");
     expect(tokenLookup.searchParams.has("portal_key")).toBe(false);
 

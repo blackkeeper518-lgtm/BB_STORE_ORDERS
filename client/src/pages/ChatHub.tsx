@@ -7,6 +7,7 @@ import { useIsMobile } from "@/hooks/useMobile";
 import { getSupabase, mapChatRowsToMessages, mapChatRowsToThreads, reconcileOptimisticMessages } from "@/lib/canonical";
 import { uploadChatImageToVault } from "@/lib/chat-image-upload";
 import { buildMetaConversationUrl } from "@/lib/meta-inbox";
+import { metaTransientSendNotice } from "@/lib/meta-send-notice";
 import { getSelectedOrderMessageText, isSelectableCustomerMessage } from "@/lib/order-deck-context";
 import { CHAT_BROWSER_CONFIG_EVENT, readBrowserChatConfig } from "@/lib/chat-config";
 import { CYBER_FRAME_EVENT, CYBER_FRAME_OPTIONS, readCyberFrame, readCyberFrameRooms, saveCyberFrameRoom } from "@/lib/cyber-frame";
@@ -54,7 +55,6 @@ function displayMessageText(message: Record<string, any> | null | undefined) {
 function isPageTimelineLine(line: string) { return /\[\s*เพจ\s*\]?\s*[:：]?/i.test(line); }
 function isCustomerTimelineLine(line: string) { return /\[\s*ลูกค้า\s*\]?\s*[:：]?/i.test(line); }
 function isThreadControlConflict(message: string) { return /META_THREAD_CONTROL_CONFLICT|another app|currently controlling|ควบคุมเธรด|แอพอื่นกำลังควบคุม/i.test(message); }
-function isTransientMetaInternal(message: string) { return /META_TRANSIENT_INTERNAL|2018012|code=-1/i.test(message); }
 function hasTimeSlotLabel(thread: Record<string, any>) { return Boolean(String(thread.timeSlotLabel ?? "").trim()); }
 function isOrderRoom(thread: Record<string, any>) { return Number(thread.currentThreadTotalBills ?? 0) > 0; }
 function hasTrackingOver24Hours(thread: Record<string, any>) {
@@ -299,7 +299,8 @@ export default function ChatHub() {
     },
     onError: error => {
       setDeliveryStatus("failed");
-      setReplyNotice(error.message || "ส่งข้อความไม่สำเร็จ");
+      const message = error.message || "ส่งข้อความไม่สำเร็จ";
+      setReplyNotice(metaTransientSendNotice(message) ?? message);
       const failedId = optimisticMessageIdRef.current;
       if (failedId) setOptimisticMessages(current => current.filter(message => message.id !== failedId));
       optimisticMessageIdRef.current = null;

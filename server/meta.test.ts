@@ -80,4 +80,39 @@ describe("Meta Page surface status", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+
+  it("does not retry Meta internal error -1/2018012 and preserves its trace id", async () => {
+    const requests: string[] = [];
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      requests.push(url);
+      if (url.includes("/rest/v1/")) {
+        return new Response(JSON.stringify([{
+          page_id: "page-123",
+          access_token: "test-page-token",
+          status: "ON",
+          status_web: "ON",
+        }]), { status: 200, headers: { "content-type": "application/json" } });
+      }
+      return new Response(JSON.stringify({
+        error: {
+          message: "เกิดข้อผิดพลาดภายในที่ไม่คาดคิด",
+          code: -1,
+          error_subcode: 2018012,
+          fbtrace_id: "AjDHu3AfyLzVj5wjsj8Rwuz",
+        },
+      }), { status: 500, headers: { "content-type": "application/json" } });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(sendMetaMessage({
+      pageId: "page-123",
+      recipientId: "customer-1",
+      text: "ทดสอบอย่าส่งซ้ำ",
+      surface: "web",
+    }, credentials)).rejects.toThrow("META_TRANSIENT_INTERNAL: เกิดข้อผิดพลาดภายในที่ไม่คาดคิด (code=-1, subcode=2018012, trace=AjDHu3AfyLzVj5wjsj8Rwuz)");
+
+    expect(requests.filter(url => url.includes("graph.facebook.com"))).toHaveLength(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
 });

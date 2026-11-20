@@ -8,6 +8,7 @@ import { CHAT_BROWSER_CONFIG_EVENT, readBrowserChatConfig } from "@/lib/chat-con
 import { CYBER_FRAME_EVENT, CYBER_FRAME_OPTIONS, readCyberFrame, readCyberFrameRooms, saveCyberFrameRoom } from "@/lib/cyber-frame";
 import { CYBER_THEME_PRESETS, readCyberTheme, saveCyberTheme, type CyberTheme } from "@/lib/theme-lab";
 import { CHAT_NOTIFICATION_EVENT, countUnreadChatMessages, isChatNotificationSoundEnabled, markChatNotificationsRead, playChatNotificationSound, readChatNotificationState, reconcileChatNotificationRows, setChatNotificationSound, setChatNotificationSoundEnabled, unlockChatNotificationAudio, writeChatNotificationState, type ChatNotification } from "@/lib/chat-notifications";
+import { metaTransientSendNotice } from "@/lib/meta-send-notice";
 import { trpc } from "@/lib/trpc";
 import { OrderDeckFrame } from "@/components/chat/OrderDeckFrame";
 import MobileStockPanel from "@/components/chat/MobileStockPanel";
@@ -332,7 +333,8 @@ export default function MobileInbox() {
       const failedId = optimisticMessageIdRef.current;
       if (failedId) setOptimisticMessages(current => current.filter(message => message.id !== failedId));
       optimisticMessageIdRef.current = null;
-      setNotice(error.message || "ส่งไม่สำเร็จ");
+      const message = error.message || "ส่งไม่สำเร็จ";
+      setNotice(metaTransientSendNotice(message) ?? message);
       void Promise.all([messagesQuery.refetch(), threadsQuery.refetch()]);
     },
   });
