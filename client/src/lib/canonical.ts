@@ -491,13 +491,13 @@ export async function markBbOrderSentByKey(upsertKey: string, sourceTable: "🗝
   return row;
 }
 
-export type StockProduct = { id: number; sku: string; label: string; thName: string; emoji: string; price: number | null; stockQty: number; stockStatus: string | null; adminAvailability: string | null; outOfStockJoke: string | null; stockNotice: string | null; inventoryId: number | string | null };
+export type StockProduct = { id: number; sku: string; label: string; thName: string; emoji: string; category: string; price: number | null; stockQty: number; stockStatus: string | null; adminAvailability: string | null; outOfStockJoke: string | null; stockNotice: string | null; inventoryId: number | string | null };
 
 export async function readStockProducts(): Promise<StockProduct[]> {
   const api = getStockRoomClient();
   // ROOM 04 holds the admin-facing stock view; physical quantity stays in stock_qty.
   const { data: products, error } = await api.from("🛒product_master")
-    .select("id,master_sku,th_name,name_standard,master_display_for_packer,display_for_packer,emoji,unit_price,stock_qty,stock_status,admin_availability,stock_notice")
+    .select("id,master_sku,th_name,name_standard,master_display_for_packer,display_for_packer,emoji,category,unit_price,stock_qty,stock_status,admin_availability,stock_notice")
     .order("master_sku");
   if (error) fail(error);
   return (products ?? []).map((p: any) => {
@@ -509,6 +509,7 @@ export async function readStockProducts(): Promise<StockProduct[]> {
       label: p.master_display_for_packer ?? p.display_for_packer ?? p.name_standard ?? p.th_name ?? sku,
       thName: p.th_name ?? p.name_standard ?? "",
       emoji: p.emoji ?? "📦",
+      category: String(p.category ?? ""),
       price: num(p.unit_price),
       stockQty,
       stockStatus: p.stock_status ?? null,

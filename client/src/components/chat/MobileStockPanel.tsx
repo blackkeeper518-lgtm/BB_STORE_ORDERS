@@ -8,6 +8,28 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 type MobileStockPanelProps = { onClose: () => void };
 type StockFilter = "all" | "in" | "out";
+type StockFamily = "hot" | "cold" | "fruit" | "standard";
+
+function getStockFamily(item: { category: string; sku: string; thName: string; label: string; emoji: string }): StockFamily {
+  const category = item.category.toLocaleLowerCase("th-TH");
+  const text = `${item.sku} ${item.thName} ${item.label}`.toLocaleLowerCase("th-TH");
+  if (/(สายร้อน|ร้อน|hot|warm|fire|flame|sun)/i.test(`${category} ${text}`)) return "hot";
+  if (/(สายเย็น|เย็น|cold|ice|frost|snow|cool)/i.test(`${category} ${text}`)) return "cold";
+  if (/(สายผลไม้|ผลไม้|fruit|grape|strawberry|watermelon|apple|mango|pineapple)/i.test(`${category} ${text}`) || /[🍇🍓🍉🍏🍎🥭🍍]/u.test(item.emoji)) return "fruit";
+  return "standard";
+}
+
+function getStockPattern(item: { thName: string; label: string; emoji: string }): string {
+  if (/[🍇🍓🍉🍏🍎🥭🍍]/u.test(item.emoji)) return item.emoji;
+  const text = `${item.thName} ${item.label}`.toLocaleLowerCase("th-TH");
+  if (/องุ่น|grape/u.test(text)) return "🍇";
+  if (/สตรอเบอร์รี|สตรอว์เบอร์รี|strawberry/u.test(text)) return "🍓";
+  if (/แตงโม|watermelon/u.test(text)) return "🍉";
+  if (/แอปเปิล|แอปเปิ้ล|apple/u.test(text)) return "🍏";
+  if (/มะม่วง|mango/u.test(text)) return "🥭";
+  if (/สับปะรด|pineapple/u.test(text)) return "🍍";
+  return "🍇";
+}
 
 export default function MobileStockPanel({ onClose }: MobileStockPanelProps) {
   const queryClient = useQueryClient();
@@ -78,10 +100,11 @@ export default function MobileStockPanel({ onClose }: MobileStockPanelProps) {
         {!productsQuery.isLoading && !productsQuery.isError && products.length === 0 ? <div className="mobile-stock-state">ไม่พบสินค้าในรายการนี้</div> : null}
         {products.map(item => {
           const state = classifyStockAvailability(item.stockStatus, item.stockQty, item.adminAvailability);
+          const family = getStockFamily(item);
           const isInStock = state === "in";
           const label = state === "in" ? "มีสินค้า" : state === "out" ? "หมด" : "ยังไม่กำหนด";
           return (
-            <article key={`${item.id}-${item.sku}`} className="mobile-stock-card">
+            <article key={`${item.id}-${item.sku}`} className="mobile-stock-card" data-stock-family={family} data-stock-pattern={family === "fruit" ? getStockPattern(item) : item.emoji}>
               <div className="mobile-stock-card-main">
                 <span className="mobile-stock-emoji" aria-hidden="true">{item.emoji || "📦"}</span>
                 <div className="min-w-0 flex-1">
