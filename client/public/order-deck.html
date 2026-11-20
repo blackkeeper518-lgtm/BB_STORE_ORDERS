@@ -856,6 +856,7 @@ renderScripts();renderFiles();$('code').value='-- เขียน SQL, Java, Mar
   let hasParsedRaw=false;
   let billEmitted=false;
   let selectedMultiplier=1;
+  let activeProduct=null;
   const fields={number:$('orderNumber'),when:$('orderWhen'),page:$('orderPage'),cod:$('orderCod'),carrier:$('orderCarrier'),name:$('orderCustomerName'),phone:$('orderPhone'),address:$('orderAddress'),items:$('orderItems')};
   const trackingNumber=$('orderTrackingNumber'),trackingPreview=$('orderTrackingPreview'),trackingCopy=$('orderTrackingCopy');
   const trackingSearch=$('orderTrackingSearch'),trackingSearchButton=$('orderTrackingSearchButton'),trackingSearchStatus=$('orderTrackingSearchStatus'),trackingLookupResults=$('orderTrackingLookupResults'),trackingMessageChoices=$('orderTrackingMessageChoices');
@@ -920,8 +921,8 @@ renderScripts();renderFiles();$('code').value='-- เขียน SQL, Java, Mar
     if(match){qty=Math.max(1,Number(match[1])||1);explicitQty=true;text=text.slice(0,match.index).trim();}
     return {query:text,qty,explicitQty,normalized:normalizeProductText(text)};
   }
-  function syncMultiplierButtons(){multiplierRoot.querySelectorAll('button').forEach(button=>{const active=Number(button.dataset.multiplier)===selectedMultiplier&&selectedMultiplier!==1;button.classList.toggle('is-active',active);button.setAttribute('aria-pressed',String(active));});}
-  function buildMultiplierButtons(){for(const quantity of [2,3,4,5]){const button=document.createElement('button');button.type='button';button.className='order-multiplier-btn';button.textContent=`x${quantity}`;button.dataset.multiplier=String(quantity);button.setAttribute('aria-pressed','false');button.addEventListener('click',()=>{selectedMultiplier=quantity;syncMultiplierButtons();renderProductResults();});multiplierRoot.append(button);}}
+  function syncMultiplierButtons(){multiplierRoot.querySelectorAll('button').forEach(button=>{const multiplier=Number(button.dataset.multiplier);const active=activeProduct?activeProduct.qty===multiplier:selectedMultiplier===multiplier&&selectedMultiplier!==1;button.classList.toggle('is-active',active);button.setAttribute('aria-pressed',String(active));});}
+  function buildMultiplierButtons(){for(const quantity of [2,3,4,5]){const button=document.createElement('button');button.type='button';button.className='order-multiplier-btn';button.textContent=`x${quantity}`;button.dataset.multiplier=String(quantity);button.setAttribute('aria-pressed','false');button.addEventListener('click',()=>{if(activeProduct&&selectedProducts.includes(activeProduct)){activeProduct.qty=quantity;selectedMultiplier=1;renderCart();status(`ปรับ ${activeProduct.th_name} เป็น ${quantity} คอต. · ยอด COD ${money(fields.cod.value)} บาท`);}else{selectedMultiplier=quantity;syncMultiplierButtons();renderProductResults();}});multiplierRoot.append(button);}}
   function findProducts(query){
     const q=normalizeProductText(query);if(!q)return [];
     if(q==='ม')return productCatalog.filter(product=>normalizeProductText(product.brand)==='mond').slice(0,12);
@@ -937,15 +938,16 @@ renderScripts();renderFiles();$('code').value='-- เขียน SQL, Java, Mar
   function cartLine(product){return `${product.emoji||''}${product.emoji?' ':''}${product.master_sku}${product.th_name?` (${product.th_name})`:''} x ${product.qty} คอต.`;}
   function renderCart(){
     cartRoot.replaceChildren();
+    syncMultiplierButtons();
     if(!selectedProducts.length){fields.items.value='';fields.cod.value='0';refreshPreview();return;}
     for(const product of selectedProducts){
       const row=document.createElement('div');row.className='order-cart-row';
       const name=document.createElement('div');name.className='order-cart-name';name.textContent=`${product.emoji||''} ${product.master_sku} (${product.th_name})`;
       const sub=document.createElement('small');sub.textContent=`${money(product.unit_price)} บาท/คอต` ;name.append(sub);
       const qty=document.createElement('input');qty.className='order-cart-qty';qty.type='number';qty.min='1';qty.step='1';qty.value=String(product.qty);qty.setAttribute('aria-label',`จำนวน ${product.th_name}`);
-      qty.addEventListener('change',()=>{product.qty=Math.max(1,parseInt(qty.value,10)||1);renderCart();});
+      qty.addEventListener('change',()=>{product.qty=Math.max(1,parseInt(qty.value,10)||1);activeProduct=product;selectedMultiplier=1;renderCart();});
       const subtotal=document.createElement('span');subtotal.className='order-cart-subtotal';subtotal.textContent=`${money(product.unit_price*product.qty)} ฿`;
-      const remove=document.createElement('button');remove.type='button';remove.className='order-cart-remove';remove.textContent='×';remove.title='นำสินค้าออก';remove.addEventListener('click',()=>{const index=selectedProducts.indexOf(product);if(index>=0)selectedProducts.splice(index,1);renderCart();});
+      const remove=document.createElement('button');remove.type='button';remove.className='order-cart-remove';remove.textContent='×';remove.title='นำสินค้าออก';remove.addEventListener('click',()=>{const index=selectedProducts.indexOf(product);if(index>=0)selectedProducts.splice(index,1);if(activeProduct===product)activeProduct=null;renderCart();});
       row.append(name,qty,subtotal,remove);cartRoot.append(row);
     }
     fields.items.value=selectedProducts.map(cartLine).join('\n');
@@ -955,7 +957,8 @@ renderScripts();renderFiles();$('code').value='-- เขียน SQL, Java, Mar
   function addProduct(product,qty=1){
     const existing=selectedProducts.find(item=>item.master_sku===product.master_sku);
     if(existing)existing.qty+=qty;else selectedProducts.push({...product,qty});
-    selectedMultiplier=1;syncMultiplierButtons();renderCart();productSearch.value='';productResults.replaceChildren();status(`เพิ่ม ${product.th_name} × ${qty} · ยอด COD ${money(fields.cod.value)} บาท`);
+    activeProduct=existing||selectedProducts[selectedProducts.length-1]||null;
+    selectedMultiplier=1;syncMultiplierButtons();renderCart();productSearch.value='';productResults.replaceChildren();status(`เพิ่ม ${product.th_name} × ${qty} · กด x2–x5 เพื่อปรับจำนวนได้ · ยอด COD ${money(fields.cod.value)} บาท`);
   }
   function renderProductResults(){
     productResults.replaceChildren();
@@ -1002,7 +1005,7 @@ renderScripts();renderFiles();$('code').value='-- เขียน SQL, Java, Mar
   $('orderCarrierToggle').addEventListener('click',()=>toggleChoiceMenu('orderCarrierChoices','orderCarrierToggle'));
   document.addEventListener('click',event=>{if(!event.target.closest('.order-selector'))closeChoiceMenus();});
   document.addEventListener('keydown',event=>{if(event.key==='Escape')closeChoiceMenus();});
-  productSearch.addEventListener('input',renderProductResults);
+  productSearch.addEventListener('input',()=>{activeProduct=null;syncMultiplierButtons();renderProductResults();});
   const phoneRegex=/(?:\+?66[\s().-]?[689](?:[\s().-]*\d){8}|0[689](?:[\s().-]*\d){8})/g;
   const cleanPhone=value=>{
     let digits=String(value||'').replace(/\D/g,'');
@@ -1205,7 +1208,7 @@ renderScripts();renderFiles();$('code').value='-- เขียน SQL, Java, Mar
     syncChoices();
     refreshPreview();status('แยกข้อมูลแล้ว · ตรวจช่องที่อ่านไม่ชัวร์ก่อนคัดลอก');
   }
-  raw.addEventListener('input',()=>{clearTimeout(raw.parseTimer);billEmitted=false;hasParsedRaw=false;fields.number.value='';selectedProducts.length=0;selectedMultiplier=1;syncMultiplierButtons();productSearch.value='';productResults.replaceChildren();renderCart();raw.classList.remove('order-bill-emitted');raw.closest('.order-box').classList.remove('bill-emitted');raw.style.height='';copyButton.textContent=floatingCopyButton.textContent='🧾 สรุปบิล · คัดลอก';raw.parseTimer=setTimeout(applyParse,250)});
+  raw.addEventListener('input',()=>{clearTimeout(raw.parseTimer);billEmitted=false;hasParsedRaw=false;fields.number.value='';selectedProducts.length=0;selectedMultiplier=1;activeProduct=null;syncMultiplierButtons();productSearch.value='';productResults.replaceChildren();renderCart();raw.classList.remove('order-bill-emitted');raw.closest('.order-box').classList.remove('bill-emitted');raw.style.height='';copyButton.textContent=floatingCopyButton.textContent='🧾 สรุปบิล · คัดลอก';raw.parseTimer=setTimeout(applyParse,250)});
   Object.values(fields).forEach(field=>field.addEventListener('input',()=>{syncChoices();refreshPreview();}));
   $('copyCustomerName').addEventListener('click',()=>{const name=fields.name.value.trim();if(!name){status('ยังไม่มีชื่อผู้รับให้คัดลอก');return;}copyText(name,'คัดลอกชื่อผู้รับแล้ว')});
   fields.page.addEventListener('input',syncChoices);fields.carrier.addEventListener('input',syncChoices);
@@ -1230,8 +1233,8 @@ renderScripts();renderFiles();$('code').value='-- เขียน SQL, Java, Mar
   trackingCopy.addEventListener('click',()=>{const message=trackingChoiceRequired?selectedTrackingMessage:buildTrackingNotice();if(!trackingNumber.value.trim()||!message)return;copyText(message,'คัดลอกข้อความจากคอลัมน์ที่เลือกแล้ว')});
   raw.addEventListener('input',()=>{trackingNumber.value='';selectedTrackingMessage='';$('orderTrackingDetails').open=false;refreshTrackingNotice()});
   $('orderClear').addEventListener('click',()=>{trackingNumber.value='';selectedTrackingMessage='';$('orderTrackingDetails').open=false;refreshTrackingNotice()});
-  copyButton.addEventListener('click',()=>{clearTimeout(raw.parseTimer);if(!billEmitted&&raw.value.trim()&&!hasParsedRaw)applyParse();if(!fields.number.value.trim())fields.number.value=newOrderNumber();if(!fields.when.value.trim())fields.when.value=thaiNow();refreshPreview();const bill=preview.value;raw.value=bill;raw.readOnly=true;billEmitted=true;raw.style.height='auto';raw.style.height=`${Math.min(Math.max(raw.scrollHeight,82),250)}px`;const box=raw.closest('.order-box');box.classList.remove('bill-emitted');void box.offsetWidth;box.classList.add('bill-emitted');setTimeout(()=>box.classList.remove('bill-emitted'),2200);copyButton.textContent=floatingCopyButton.textContent='✓ สรุปแล้ว · คัดลอกอีก';raw.scrollIntoView({behavior:'smooth',block:'nearest'});copyText(bill,'สรุปบิลและคัดลอกแล้ว · พร้อมวางส่งลูกค้า')});
-  $('orderClear').addEventListener('click',()=>{clearTimeout(raw.parseTimer);raw.value='';raw.readOnly=false;raw.style.height='';billEmitted=false;hasParsedRaw=false;selectedProducts.length=0;selectedMultiplier=1;productSearch.value='';raw.closest('.order-box').classList.remove('bill-emitted');copyButton.textContent=floatingCopyButton.textContent='🧾 สรุปบิล · คัดลอก';Object.values(fields).forEach(field=>field.value='');fields.when.value=thaiNow();fields.carrier.value=carrierOptions[3];fields.cod.value='0';syncMultiplierButtons();renderCart();renderProductResults();syncChoices();closeChoiceMenus();refreshPreview();raw.focus();status('ล้างบิลแล้ว · พร้อมรับออเดอร์ถัดไป')});
+  copyButton.addEventListener('click',()=>{clearTimeout(raw.parseTimer);if(!billEmitted&&raw.value.trim()&&!hasParsedRaw)applyParse();if(!fields.number.value.trim())fields.number.value=newOrderNumber();if(!fields.when.value.trim())fields.when.value=thaiNow();refreshPreview();const bill=preview.value;raw.value=bill;raw.readOnly=true;billEmitted=true;raw.style.height='auto';raw.style.height=`${Math.min(Math.max(raw.scrollHeight,82),250)}px`;const box=raw.closest('.order-box');box.classList.remove('bill-emitted');void box.offsetWidth;box.classList.add('bill-emitted');setTimeout(()=>box.classList.remove('bill-emitted'),2200);copyButton.textContent=floatingCopyButton.textContent='✓ สรุปแล้ว · คัดลอกอีก';raw.scrollIntoView({behavior:'smooth',block:'nearest'});copyText(bill,'สรุปบิลแล้ว · ข้อความอยู่ในช่องตอบกลับเพื่อตรวจสอบ (ยังไม่ส่ง)');if(window.parent!==window)window.parent.postMessage({type:'BB_ORDER_DECK_ORDER_SUMMARY',summary:bill},location.origin)});
+  $('orderClear').addEventListener('click',()=>{clearTimeout(raw.parseTimer);raw.value='';raw.readOnly=false;raw.style.height='';billEmitted=false;hasParsedRaw=false;selectedProducts.length=0;selectedMultiplier=1;activeProduct=null;productSearch.value='';raw.closest('.order-box').classList.remove('bill-emitted');copyButton.textContent=floatingCopyButton.textContent='🧾 สรุปบิล · คัดลอก';Object.values(fields).forEach(field=>field.value='');fields.when.value=thaiNow();fields.carrier.value=carrierOptions[3];fields.cod.value='0';syncMultiplierButtons();renderCart();renderProductResults();syncChoices();closeChoiceMenus();refreshPreview();raw.focus();status('ล้างบิลแล้ว · พร้อมรับออเดอร์ถัดไป')});
   $('orderCheckPostal').addEventListener('click',()=>{
     const address=fields.address.value.trim();
     if(!address){status('ยังไม่มีที่อยู่ให้ตรวจ');return;}

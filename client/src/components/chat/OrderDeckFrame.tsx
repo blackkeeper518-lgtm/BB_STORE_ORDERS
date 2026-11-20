@@ -13,6 +13,7 @@ type OrderDeckFrameProps = {
   messageRequest?: { id: number } | null;
   onMessageRequestHandled?: (id: number) => void;
   onProductImagesSelected?: (imageUrls: string[], productName?: string) => void | Promise<void>;
+  onSummaryReady?: (summary: string) => void;
   roomStatus?: string;
   onClose: () => void;
 };
@@ -49,17 +50,22 @@ export function OrderDeckFrame(props: OrderDeckFrameProps) {
   }, [props.pageId, props.pageName, props.threadId, sendContext]);
 
   useEffect(() => {
-    const receiveProductImages = (event: MessageEvent) => {
+    const receiveDeckMessage = (event: MessageEvent) => {
       if (event.source !== frameRef.current?.contentWindow || event.origin !== window.location.origin) return;
+      if (event.data?.type === "BB_ORDER_DECK_ORDER_SUMMARY") {
+        const summary = typeof event.data.summary === "string" ? event.data.summary.trim().slice(0, 20_000) : "";
+        if (summary) currentProps.current.onSummaryReady?.(summary);
+        return;
+      }
       if (event.data?.type !== "BB_ORDER_DECK_PRODUCT_IMAGES") return;
       const urls = Array.isArray(event.data.imageUrls)
         ? event.data.imageUrls.filter((url: unknown): url is string => typeof url === "string" && (/^https?:\/\//i.test(url) || (url.length <= 8_100_000 && /^data:image\/(?:png|jpeg|gif|webp);base64,/i.test(url)))).slice(0, 4)
         : [];
-      if (urls.length) props.onProductImagesSelected?.(urls, typeof event.data.product === "string" ? event.data.product : undefined);
+      if (urls.length) currentProps.current.onProductImagesSelected?.(urls, typeof event.data.product === "string" ? event.data.product : undefined);
     };
-    window.addEventListener("message", receiveProductImages);
-    return () => window.removeEventListener("message", receiveProductImages);
-  }, [props.onProductImagesSelected]);
+    window.addEventListener("message", receiveDeckMessage);
+    return () => window.removeEventListener("message", receiveDeckMessage);
+  }, []);
 
   return <section className="flex h-full min-h-0 min-w-0 flex-col gap-2 bg-[#080b14] p-3">
     <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-violet-300/15 pb-3">

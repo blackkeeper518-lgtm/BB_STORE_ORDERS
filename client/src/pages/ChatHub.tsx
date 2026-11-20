@@ -584,6 +584,7 @@ export default function ChatHub() {
         customerName={selected.customerName ?? ""}
         customerPhone={String(selected.phone ?? selected.customerPhone ?? selected.extracted_phone ?? "")}
         selectedCustomerMessage={selectedOrderMessageText}
+        onSummaryReady={summary => { setReplyText(summary); setOrderDeckOpen(false); setReplyNotice("สรุปบิลอยู่ในช่องตอบกลับแล้ว · ตรวจสอบก่อนกดส่ง"); }}
         onClose={() => setOrderDeckOpen(false)}
       /> : null}
     </aside> : null}
