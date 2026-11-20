@@ -58,7 +58,7 @@ export default function MobileInbox() {
   const [selectedKey, setSelectedKey] = useState<string | null>(() => typeof window === "undefined" ? null : localStorage.getItem(SELECTED_ROOM_KEY));
   const [pageFilter, setPageFilter] = useState("all");
   const [platform, setPlatform] = useState<"facebook" | "line">("facebook");
-  const [filter, setFilter] = useState<"all" | "ordered" | "tracking">("all");
+  const [filter, setFilter] = useState<"all" | "ordered" | "tracking" | "unread">("all");
   const [openRoom, setOpenRoom] = useState(false);
   const [replyText, setReplyText] = useState("");
   const [replyImages, setReplyImages] = useState<Array<{ url: string; sendUrl: string; name: string }>>([]);
@@ -137,7 +137,11 @@ export default function MobileInbox() {
     return () => { window.removeEventListener("storage", refresh); window.removeEventListener(CHAT_BROWSER_CONFIG_EVENT, refresh); };
   }, []);
   useEffect(() => {
-    const sync = () => setChatUnreadCount(countUnreadChatMessages(readChatNotificationState(readBrowserChatConfig()?.url)));
+    const sync = () => {
+      const state = readChatNotificationState(readBrowserChatConfig()?.url);
+      setChatUnreadCount(countUnreadChatMessages(state));
+      setChatNotificationItems(state.pending);
+    };
     sync();
     window.addEventListener(CHAT_NOTIFICATION_EVENT, sync);
     window.addEventListener("storage", sync);
@@ -291,21 +295,24 @@ export default function MobileInbox() {
     if (catalog.length) return catalog.filter(page => page.enabledMobile).map(page => [page.pageId, page.pageName] as [string, string]);
     return Array.from(new Map(threads.filter(thread => thread.pageId && thread.pageName && thread.pageName !== "ไม่ระบุเพจ").map(thread => [thread.pageId, thread.pageName])).entries());
   }, [pageCatalogQuery.data, threads]);
+  const unreadThreadKeys = useMemo(() => new Set(chatNotificationItems.map(item => item.threadKey)), [chatNotificationItems]);
   const filteredThreads = useMemo(() => {
     const query = search.trim().toLowerCase();
     return threads.filter(thread => {
       const text = [thread.customerName, thread.pageName, thread.preview, thread.searchText, thread.latestOrderNumber].join(" ").toLowerCase();
       const isOrdered = Boolean(thread.timeSlotLabel || thread.orderTodayActive);
       const hasTracking = Boolean(String(thread.tracking_number ?? "").trim());
-      return (pageFilter === "all" || thread.pageId === pageFilter) && (!query || text.includes(query)) && (filter === "all" || (filter === "ordered" ? isOrdered : hasTracking));
+      const isUnread = unreadThreadKeys.has(thread.key);
+      return (pageFilter === "all" || thread.pageId === pageFilter) && (!query || text.includes(query)) && (filter === "all" || (filter === "ordered" ? isOrdered : filter === "tracking" ? hasTracking : isUnread));
     });
-  }, [threads, search, filter, pageFilter]);
+  }, [threads, search, filter, pageFilter, unreadThreadKeys]);
   const visibleChatNotifications = useMemo(
     () => pageFilter === "all" ? chatNotificationItems : chatNotificationItems.filter(item => item.pageId === pageFilter),
     [chatNotificationItems, pageFilter],
   );
   const visibleChatUnreadCount = useMemo(() => visibleChatNotifications.reduce((total, item) => total + Math.max(0, Number(item.count) || 0), 0), [visibleChatNotifications]);
-  const selected = filteredThreads.find(thread => thread.key === selectedKey) ?? filteredThreads[0];
+  const visibleUnreadRoomCount = useMemo(() => new Set(visibleChatNotifications.map(item => item.threadKey)).size, [visibleChatNotifications]);
+  const selected = (openRoom ? threads : filteredThreads).find(thread => thread.key === selectedKey) ?? filteredThreads[0];
   const selectedPageId = selected?.pageId ?? "";
   const selectedThreadId = selected?.threadId ?? "";
   const selectedCustomerId = selected?.customerId ?? "";
@@ -354,7 +361,14 @@ export default function MobileInbox() {
       if (timelineRef.current) timelineRef.current.scrollTop = timelineRef.current.scrollHeight;
     });
   }, [openRoom, messagesQuery.data?.length, optimisticMessages.length]);
+  const markThreadNotificationsRead = (threadKey: string) => {
+    const state = readChatNotificationState(browserChatConfig?.url);
+    const next = markChatNotificationsRead(state, threadKey);
+    writeChatNotificationState(next, browserChatConfig?.url);
+    setChatNotificationItems(next.pending);
+  };
   const selectRoom = (thread: Thread) => {
+    markThreadNotificationsRead(thread.key);
     setSelectedKey(thread.key);
     setSelectedOrderMessage(null);
     setOrderDeckMessageRequest(null);
@@ -564,8 +578,8 @@ export default function MobileInbox() {
     <div className="mobile-inbox-tabs"><button type="button" className="platform-facebook is-active" aria-label={`Facebook ${filteredThreads.length} ห้อง`}><Facebook /><span>Facebook</span><b className="mobile-inbox-tab-count">{filteredThreads.length}</b></button><button type="button" className="platform-line" onClick={() => setPlatform("line")} aria-label={`LINE ${lineConversationsQuery.data?.length ?? 0} ห้อง`}><MessageCircle /><span>LINE</span><b className="mobile-inbox-tab-count">{lineConversationsQuery.data?.length ?? 0}</b></button></div>
     <section className="mobile-inbox-list-panel">
       <div className={`mobile-inbox-search cyber-frame-card cyber-frame-${cyberFrameRooms[selectedKey || ""] || cyberFrame}`}><Search /><Input value={search} onChange={event => setSearch(event.target.value)} placeholder="ค้นหาชื่อลูกค้าหรือข้อความ…" /></div>
-      <div className="mobile-inbox-filters"><select aria-label="เลือกเพจ" value={pageFilter} onChange={event => setPageFilter(event.target.value)}><option value="all">ทุกเพจ</option>{availablePages.map(([pageId, pageName]) => <option key={pageId} value={pageId}>{pageName}</option>)}</select>{([ ["all", "ทั้งหมด"], ["ordered", "ออเดอร์"], ["tracking", "เลขพัสดุ"] ] as const).map(([value, label]) => <button key={value} type="button" className={filter === value ? "is-active" : ""} onClick={() => setFilter(value)}>{label}</button>)}</div>
-      {!hasConfig ? <div className="mobile-inbox-empty"><MessageCircle /><p>ยังไม่ได้ตั้งค่า Chat ใน ROOM 02</p><button type="button" onClick={() => setLocation("/secret-gallery")}>ไปตั้งค่า</button></div> : threadsQuery.isLoading ? <div className="mobile-inbox-empty"><LoaderCircle className="animate-spin" /><p>กำลังโหลดข้อความ…</p></div> : filteredThreads.length === 0 ? <div className="mobile-inbox-empty"><MessageCircle /><p>ไม่พบห้องแชท</p></div> : <div className="mobile-inbox-threads">{filteredThreads.map(thread => <button type="button" key={thread.key} onClick={() => selectRoom(thread)} className={`mobile-inbox-thread ${selected?.key === thread.key ? "is-selected" : ""}`}><span className="mobile-inbox-avatar">{profileAvatar(thread)}</span><span className="mobile-inbox-thread-body"><span className="mobile-inbox-thread-top"><strong>{thread.customerName || ""}</strong><time>{timeLabel(thread.latestAt)}</time></span><span className="mobile-inbox-thread-preview">{thread.preview || "ยังไม่มีข้อความ"}</span><span className="mobile-inbox-thread-tags"><span className="mobile-inbox-platform-badge" aria-label="Facebook"><Facebook /> Facebook</span><span>{thread.pageName || "ไม่ระบุเพจ"}</span><time>{timeLabel(thread.latestAt)}</time>{thread.unread ? <b>ใหม่</b> : null}{thread.orderCount > 0 ? <b>ออเดอร์</b> : null}</span></span></button>)}</div>}
+      <div className="mobile-inbox-filters"><select aria-label="เลือกเพจ" value={pageFilter} onChange={event => setPageFilter(event.target.value)}><option value="all">ทุกเพจ</option>{availablePages.map(([pageId, pageName]) => <option key={pageId} value={pageId}>{pageName}</option>)}</select>{([ ["all", "ทั้งหมด"], ["ordered", "ออเดอร์"], ["tracking", "เลขพัสดุ"], ["unread", `ยังไม่อ่าน ${visibleUnreadRoomCount}`] ] as const).map(([value, label]) => <button key={value} type="button" className={filter === value ? "is-active" : ""} onClick={() => setFilter(value)}>{label}</button>)}</div>
+      {!hasConfig ? <div className="mobile-inbox-empty"><MessageCircle /><p>ยังไม่ได้ตั้งค่า Chat ใน ROOM 02</p><button type="button" onClick={() => setLocation("/secret-gallery")}>ไปตั้งค่า</button></div> : threadsQuery.isLoading ? <div className="mobile-inbox-empty"><LoaderCircle className="animate-spin" /><p>กำลังโหลดข้อความ…</p></div> : filteredThreads.length === 0 ? <div className="mobile-inbox-empty"><MessageCircle /><p>{filter === "unread" ? "ไม่มีห้องที่ยังไม่อ่าน" : "ไม่พบห้องแชท"}</p></div> : <div className="mobile-inbox-threads">{filteredThreads.map(thread => <button type="button" key={thread.key} onClick={() => selectRoom(thread)} className={`mobile-inbox-thread ${selected?.key === thread.key ? "is-selected" : ""}`}><span className="mobile-inbox-avatar">{profileAvatar(thread)}</span><span className="mobile-inbox-thread-body"><span className="mobile-inbox-thread-top"><strong>{thread.customerName || ""}</strong><time>{timeLabel(thread.latestAt)}</time></span><span className="mobile-inbox-thread-preview">{thread.preview || "ยังไม่มีข้อความ"}</span><span className="mobile-inbox-thread-tags"><span className="mobile-inbox-platform-badge" aria-label="Facebook"><Facebook /> Facebook</span><span>{thread.pageName || "ไม่ระบุเพจ"}</span>{unreadThreadKeys.has(thread.key) ? <b>ยังไม่อ่าน</b> : null}{thread.orderCount > 0 ? <b>ออเดอร์</b> : null}</span></span></button>)}</div>}
     </section>
     <nav className="mobile-inbox-bottom-nav"><button type="button" className="is-active" onClick={returnToInbox}><MessagesSquare /><span>ข้อความ</span></button><button type="button" onClick={() => { returnToInbox(); requestAnimationFrame(() => document.querySelector<HTMLInputElement>(".mobile-inbox-search input")?.focus()); }}><Search /><span>ค้นหา</span></button><button type="button" onClick={openDrawer}><Menu /><span>เมนู</span></button></nav>
     {openRoom && selected ? <div className="mobile-inbox-conversation"><div className="mobile-inbox-conversation-shell"><header className="mobile-inbox-conversation-header"><button type="button" aria-label="กลับไปหน้ารวมแชท" onClick={closeRoom}><ArrowLeft /></button><span className="mobile-inbox-avatar">{profileAvatar(selected)}</span><div className="min-w-0 flex-1"><strong className="block truncate">{selected.customerName || ""}</strong><small>{selected.pageName || "ไม่ระบุเพจ"}</small></div><button type="button" onClick={openOrderDeck} disabled={messagesQuery.isLoading} className="mobile-inbox-order-summary-button" aria-label="ดึงข้อความลูกค้าล่าสุดแล้วเปิดสรุปบิล" title="ดึงข้อความลูกค้าล่าสุดจาก 🌌BB_CHAT แล้วเปิดสรุปบิล"><Clipboard /><span>ดึงล่าสุด · บิล</span></button></header><div ref={timelineRef} onScroll={event => { const node = event.currentTarget; stickTimelineToBottomRef.current = node.scrollHeight - node.scrollTop - node.clientHeight < 48; }} className="mobile-inbox-timeline">{messages.length ? messages.map(message => { const outgoing = message.direction === "outbound" || message.senderType === "page"; const text = messageText(message); const images = imageUrls(message.attachmentsJson); const mediaOnly = images.length > 0 && (!text.trim() || /^\[รูปภาพ\]$|^ส่งรูปภาพ$/i.test(text.trim())); const roomFrame = cyberFrameRooms[selected.key] || cyberFrame; return (
