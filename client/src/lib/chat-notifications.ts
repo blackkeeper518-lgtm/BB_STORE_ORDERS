@@ -24,6 +24,9 @@ export type ChatNotificationState = {
 
 export const CHAT_NOTIFICATION_STATE_KEY = "bb-chat-notification-state-v2";
 export const CHAT_NOTIFICATION_EVENT = "bb-chat-notifications-updated";
+export const CHAT_NOTIFICATION_SETTINGS_EVENT = "bb-chat-notification-settings-updated";
+export const CHAT_NOTIFICATION_PAGE_SETTINGS_KEY = "bb-chat-notification-page-settings-v1";
+export const CHAT_NOTIFICATION_PAGE_SOUNDS_KEY = "bb-chat-notification-page-sounds-v1";
 export const CHAT_SOUND_KEY = "nightops-chat-sound-v1";
 const CUSTOMER_TABLE = "Cust_Chat⭐BINARY_xXx_STAR";
 const PAGE_TABLE = "Pg_Chat⭐BINARY_xXx_STAR";
@@ -31,6 +34,60 @@ const PAGE_TABLE = "Pg_Chat⭐BINARY_xXx_STAR";
 function stateStorageKey(projectUrl?: string): string {
   const project = projectUrl?.trim().replace(/\/+$/, "").toLowerCase() || "default";
   return `${CHAT_NOTIFICATION_STATE_KEY}:${encodeURIComponent(project)}`;
+}
+
+function pageSettingsStorageKey(projectUrl?: string): string {
+  const project = projectUrl?.trim().replace(/\/+$/, "").toLowerCase() || "default";
+  return `${CHAT_NOTIFICATION_PAGE_SETTINGS_KEY}:${encodeURIComponent(project)}`;
+}
+
+function pageSoundsStorageKey(projectUrl?: string): string {
+  const project = projectUrl?.trim().replace(/\/+$/, "").toLowerCase() || "default";
+  return `${CHAT_NOTIFICATION_PAGE_SOUNDS_KEY}:${encodeURIComponent(project)}`;
+}
+
+export function readChatNotificationPageSettings(projectUrl?: string): Record<string, boolean> {
+  if (typeof window === "undefined") return {};
+  try {
+    const value: unknown = JSON.parse(window.localStorage.getItem(pageSettingsStorageKey(projectUrl)) || "{}");
+    if (!isRecord(value)) return {};
+    return Object.fromEntries(Object.entries(value).filter((entry): entry is [string, boolean] => typeof entry[0] === "string" && typeof entry[1] === "boolean"));
+  } catch {
+    return {};
+  }
+}
+
+export function readChatNotificationPageSounds(projectUrl?: string): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  try {
+    const value: unknown = JSON.parse(window.localStorage.getItem(pageSoundsStorageKey(projectUrl)) || "{}");
+    if (!isRecord(value)) return {};
+    return Object.fromEntries(Object.entries(value).filter((entry): entry is [string, string] => typeof entry[0] === "string" && typeof entry[1] === "string" && entry[1].trim().length > 0));
+  } catch { return {}; }
+}
+
+export function resolveChatNotificationSoundKey(pageId: string, pageSounds: Record<string, string>, fallbackSoundKey?: string): string | undefined {
+  return pageSounds[pageId] || fallbackSoundKey;
+}
+
+export function setChatNotificationPageSound(pageId: string, soundKey: string | null, projectUrl?: string): void {
+  const id = pageId.trim();
+  if (typeof window === "undefined" || !id) return;
+  try {
+    const settings = readChatNotificationPageSounds(projectUrl);
+    if (soundKey) settings[id] = soundKey;
+    else delete settings[id];
+    window.localStorage.setItem(pageSoundsStorageKey(projectUrl), JSON.stringify(settings));
+    window.dispatchEvent(new Event(CHAT_NOTIFICATION_SETTINGS_EVENT));
+  } catch { /* Keep settings usable when browser storage is unavailable. */ }
+}
+
+export function isChatNotificationPageEnabled(pageId: string, settings: Record<string, boolean>): boolean {
+  return settings[pageId] !== false;
+}
+
+export function filterChatNotificationsForEnabledPages<T extends Pick<ChatNotification, "pageId">>(items: T[], settings: Record<string, boolean>): T[] {
+  return items.filter(item => isChatNotificationPageEnabled(item.pageId, settings));
 }
 
 function emptyState(): ChatNotificationState {
@@ -84,6 +141,23 @@ export function writeChatNotificationState(state: ChatNotificationState, project
     window.dispatchEvent(new Event(CHAT_NOTIFICATION_EVENT));
   } catch {
     // Notifications continue in memory if storage is unavailable or full.
+  }
+}
+
+export function setChatNotificationPageEnabled(pageId: string, enabled: boolean, projectUrl?: string): void {
+  const id = pageId.trim();
+  if (typeof window === "undefined" || !id) return;
+  try {
+    const settings = readChatNotificationPageSettings(projectUrl);
+    settings[id] = enabled;
+    window.localStorage.setItem(pageSettingsStorageKey(projectUrl), JSON.stringify(settings));
+    if (!enabled) {
+      const state = readChatNotificationState(projectUrl);
+      writeChatNotificationState({ ...state, pending: state.pending.filter(item => item.pageId !== id) }, projectUrl);
+    }
+    window.dispatchEvent(new Event(CHAT_NOTIFICATION_SETTINGS_EVENT));
+  } catch {
+    // Keep the UI responsive even when browser storage is unavailable.
   }
 }
 
@@ -283,10 +357,12 @@ export async function unlockChatNotificationAudio(): Promise<void> {
   }
 }
 
-export function playChatNotificationSound(): void {
+export function playChatNotificationSound(pageId?: string, projectUrl?: string): void {
   const settings = readSoundSettings();
   if (!settings.enabled) return;
-  void playConfiguredSound(settings).then(played => { if (!played) playSynthNotificationSound(settings); });
+  const pageSoundKey = pageId ? resolveChatNotificationSoundKey(pageId, readChatNotificationPageSounds(projectUrl), settings.soundKey) : settings.soundKey;
+  const selectedSettings = { ...settings, soundKey: pageSoundKey };
+  void playConfiguredSound(selectedSettings).then(played => { if (!played) playSynthNotificationSound(selectedSettings); });
 }
 
 function playSynthNotificationSound(settings: ReturnType<typeof readSoundSettings>): void {

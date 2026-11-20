@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   countUnreadChatMessages,
+  filterChatNotificationsForEnabledPages,
+  isChatNotificationPageEnabled,
   markChatNotificationsRead,
   reconcileChatNotificationRows,
+  resolveChatNotificationSoundKey,
   type ChatNotificationState,
 } from "./chat-notifications";
 
@@ -129,5 +132,33 @@ describe("chat notification reconciliation", () => {
     expect(firstBatch.state.cursorRowId).toBe("902");
     expect(resumed.newMessageCount).toBe(1);
     expect(resumed.state.cursorRowId).toBe("903");
+  });
+});
+
+describe("per-page chat notification settings", () => {
+  it("keeps existing pages enabled unless explicitly disabled", () => {
+    expect(isChatNotificationPageEnabled("page-1", {})).toBe(true);
+    expect(isChatNotificationPageEnabled("page-1", { "page-1": true })).toBe(true);
+    expect(isChatNotificationPageEnabled("page-1", { "page-1": false })).toBe(false);
+  });
+
+  it("filters only notifications from pages explicitly switched off", () => {
+    const items = [
+      { pageId: "page-1", threadKey: "page-1:thread-1" },
+      { pageId: "page-2", threadKey: "page-2:thread-2" },
+    ];
+    expect(filterChatNotificationsForEnabledPages(items, { "page-1": false })).toEqual([items[1]]);
+  });
+});
+
+describe("per-page chat notification sounds", () => {
+  it("uses a page-specific sound without changing the default sound for other pages", () => {
+    const pageSounds = { "page-1": "bell-page" };
+    expect(resolveChatNotificationSoundKey("page-1", pageSounds, "default-ping")).toBe("bell-page");
+    expect(resolveChatNotificationSoundKey("page-2", pageSounds, "default-ping")).toBe("default-ping");
+  });
+
+  it("falls back to the global default when no global sound is configured", () => {
+    expect(resolveChatNotificationSoundKey("page-2", {}, undefined)).toBeUndefined();
   });
 });

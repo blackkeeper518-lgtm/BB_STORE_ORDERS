@@ -12,7 +12,7 @@ import { PRESENTATION_MODE } from "@shared/presentation";
 import { getActiveCamp, getSupabaseConfig, readCanonicalOrders, type Camp } from "@/lib/canonical";
 import { CHAT_BROWSER_CONFIG_EVENT, readBrowserChatConfig } from "@/lib/chat-config";
 import { trpc } from "@/lib/trpc";
-import { CHAT_NOTIFICATION_EVENT, countUnreadChatMessages, isChatNotificationSoundEnabled, markChatNotificationsRead, playChatNotificationSound, readChatNotificationState, reconcileChatNotificationRows, setChatNotificationSoundEnabled, unlockChatNotificationAudio, writeChatNotificationState, type ChatNotification } from "@/lib/chat-notifications";
+import { CHAT_NOTIFICATION_EVENT, countUnreadChatMessages, filterChatNotificationsForEnabledPages, isChatNotificationSoundEnabled, markChatNotificationsRead, playChatNotificationSound, readChatNotificationPageSettings, readChatNotificationState, reconcileChatNotificationRows, setChatNotificationSoundEnabled, unlockChatNotificationAudio, writeChatNotificationState, type ChatNotification } from "@/lib/chat-notifications";
 import { THEME_LAB_EVENT, prepareThemeCss, readThemeLab, themeRoomFromPath } from "@/lib/theme-lab";
 
 const menuItems = [
@@ -141,14 +141,19 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
       const response = await pollNotifications({ afterRowId: current.cursorRowId });
       if (cancelled) return;
       const result = reconcileChatNotificationRows(current, response.rows, Date.now(), response.cursorRowId);
-      writeChatNotificationState(result.state, browserChatConfig?.url);
-      setChatNotificationState(result.state);
-      if (!result.newMessageCount) return;
-      playChatNotificationSound();
+      const pageSettings = readChatNotificationPageSettings(browserChatConfig?.url);
+      const changed = filterChatNotificationsForEnabledPages(result.changed, pageSettings);
+      const nextState = { ...result.state, pending: filterChatNotificationsForEnabledPages(result.state.pending, pageSettings) };
+      writeChatNotificationState(nextState, browserChatConfig?.url);
+      setChatNotificationState(nextState);
+      if (!changed.length) return;
+      Array.from(new Set(changed.map(item => item.pageId))).forEach((pageId, index) => {
+        window.setTimeout(() => playChatNotificationSound(pageId, browserChatConfig?.url), index * 220);
+      });
       if (document.visibilityState !== "hidden" || typeof Notification === "undefined" || Notification.permission !== "granted") return;
-      const newest = result.changed[result.changed.length - 1];
+      const newest = changed[changed.length - 1];
       if (!newest) return;
-      const systemNotification = new Notification(`ข้อความใหม่ ${result.newMessageCount} รายการ`, {
+      const systemNotification = new Notification(`ข้อความใหม่ ${changed.length} รายการ`, {
         body: `${newest.customerName} · ${newest.pageName}: ${newest.message}`,
         tag: `bb-chat:${newest.threadKey}`,
         icon: "/favicon.ico",

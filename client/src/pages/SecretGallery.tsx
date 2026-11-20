@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
+  Bell,
   Check,
   Clipboard,
   ClipboardCopy,
@@ -47,7 +48,8 @@ import {
   saveSupabaseConfig,
 } from "@/lib/canonical";
 import { trpc } from "@/lib/trpc";
-import { clearBrowserChatConfig, readBrowserChatConfig, saveBrowserChatConfig } from "@/lib/chat-config";
+import { CHAT_BROWSER_CONFIG_EVENT, clearBrowserChatConfig, readBrowserChatConfig, saveBrowserChatConfig } from "@/lib/chat-config";
+import { CHAT_NOTIFICATION_SETTINGS_EVENT, readChatNotificationPageSettings, readChatNotificationPageSounds, setChatNotificationPageEnabled, setChatNotificationPageSound } from "@/lib/chat-notifications";
 import { CyberFrameVault } from "@/components/CyberFrameVault";
 import { CustomizationAdmin } from "@/components/CustomizationAdmin";
 
@@ -113,6 +115,23 @@ export default function SecretGallery() {
   const savedBrowserChatConfig = readBrowserChatConfig();
   const [chatUrl, setChatUrl] = useState(savedBrowserChatConfig?.url || "");
   const [chatServiceRoleKey, setChatServiceRoleKey] = useState(savedBrowserChatConfig?.serviceRoleKey || "");
+  const [notificationPageSettings, setNotificationPageSettings] = useState(() => readChatNotificationPageSettings(savedBrowserChatConfig?.url));
+  const [notificationPageSounds, setNotificationPageSounds] = useState(() => readChatNotificationPageSounds(savedBrowserChatConfig?.url));
+  useEffect(() => {
+    const refreshNotificationPageSettings = () => {
+      const projectUrl = readBrowserChatConfig()?.url;
+      setNotificationPageSettings(readChatNotificationPageSettings(projectUrl));
+      setNotificationPageSounds(readChatNotificationPageSounds(projectUrl));
+    };
+    window.addEventListener("storage", refreshNotificationPageSettings);
+    window.addEventListener(CHAT_BROWSER_CONFIG_EVENT, refreshNotificationPageSettings);
+    window.addEventListener(CHAT_NOTIFICATION_SETTINGS_EVENT, refreshNotificationPageSettings);
+    return () => {
+      window.removeEventListener("storage", refreshNotificationPageSettings);
+      window.removeEventListener(CHAT_BROWSER_CONFIG_EVENT, refreshNotificationPageSettings);
+      window.removeEventListener(CHAT_NOTIFICATION_SETTINGS_EVENT, refreshNotificationPageSettings);
+    };
+  }, []);
   const chatConnectionQuery = trpc.chat.connection.useQuery(undefined, { enabled: false, retry: false });
   const parcelConnection = getSupabaseConfig(camp, "parcel");
   const [parcelUrl, setParcelUrl] = useState(parcelConnection?.url || "");
@@ -236,7 +255,7 @@ export default function SecretGallery() {
   useEffect(() => {
     localStorage.setItem(SOUND_KEY, JSON.stringify({ ...soundSettings, soundKey: selectedSoundKey || undefined }));
   }, [selectedSoundKey, soundSettings]);
-  const loadSoundRows = useCallback(async () => {
+  const loadSoundRows = useCallback(async (chooseDefault = false) => {
     const api = getSupabase("vault");
     if (!api) return;
     setSoundListBusy(true);
@@ -244,11 +263,11 @@ export default function SecretGallery() {
     if (!result.error) {
       const nextRows = (result.data ?? []) as SoundRow[];
       setSoundRows(nextRows);
-      setSelectedSoundKey(current => current && nextRows.some(row => row.sound_key === current) ? current : nextRows[0]?.sound_key ?? "");
+      if (chooseDefault) setSelectedSoundKey(current => current && nextRows.some(row => row.sound_key === current) ? current : nextRows[0]?.sound_key ?? "");
     }
     setSoundListBusy(false);
   }, []);
-  useEffect(() => { if (view === "sound" && unlocked) void loadSoundRows(); }, [loadSoundRows, view, unlocked]);
+  useEffect(() => { if ((view === "sound" || view === "connect") && unlocked) void loadSoundRows(view === "sound"); }, [loadSoundRows, view, unlocked]);
   const uploadSoundFile = async () => {
     const file = soundFile;
     if (!file) { setSoundUploadMessage("เลือกไฟล์เสียงก่อนครับ"); return; }
@@ -272,7 +291,7 @@ export default function SecretGallery() {
       setSoundUploadMessage(`บันทึกแล้ว · ${name}`);
       setSoundFile(null); setSoundName("");
       if (soundFileRef.current) soundFileRef.current.value = "";
-      await loadSoundRows();
+      await loadSoundRows(true);
     } catch (error) {
       setSoundUploadMessage(`โยนไฟล์ไม่สำเร็จ: ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -747,8 +766,8 @@ export default function SecretGallery() {
             </Card>
             <Card className="project-room-card relative h-full min-w-0 overflow-hidden rounded-3xl border border-rose-300/20 bg-[#100a12] shadow-[0_18px_55px_rgba(0,0,0,.35)] transition duration-300 hover:-translate-y-0.5 hover:border-rose-300/45">
               <CardHeader className="border-b border-rose-300/10 pb-4">
-                <CardTitle className="flex items-center gap-2 text-sm font-semibold text-rose-100"><Facebook className="h-5 w-5 text-blue-300" />FACEBOOK PAGE MANAGER · เว็บ ON/OFF</CardTitle>
-                <p className="text-xs leading-5 text-blue-100/65">จัดการสถานะเว็บของเพจ Facebook เหมือน LINE · ปิดแล้วเพจจะไม่แสดงใน ChatHub เว็บ แต่สถานะแอปยังใช้คอลัมน์เดิมแยกกัน</p>
+                <CardTitle className="flex items-center gap-2 text-sm font-semibold text-rose-100"><Facebook className="h-5 w-5 text-blue-300" />FACEBOOK PAGE MANAGER · WEB / NOTIFICATIONS</CardTitle>
+                <p className="text-xs leading-5 text-blue-100/65">ตั้งค่าแอปและเว็บแยกกัน · ปิดแจ้งเตือนได้โดยไม่ซ่อนเพจ และเลือกเสียงแยกแต่ละเพจได้ · ค่านี้บันทึกไว้ใน browser นี้</p>
               </CardHeader>
               <CardContent className="grid gap-3">
                 <div className="grid gap-3 md:grid-cols-2">
@@ -764,7 +783,7 @@ export default function SecretGallery() {
                   <span className="text-xs text-blue-100/70">{facebookMessage}</span>
                 </div>
                 {facebookPagesQuery.isError ? <p className="rounded-xl border border-amber-300/25 bg-amber-400/10 p-3 text-xs text-amber-100">โหลดเพจไม่ได้: {facebookPagesQuery.error.message} · ตรวจ Chat config ใน ROOM 02</p> : null}
-                {(facebookPagesQuery.data as FacebookPageRow[] | undefined)?.map(page => <div key={page.pageId} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-300/15 bg-black/20 p-3"><div className="min-w-0"><p className="truncate text-sm font-semibold text-blue-100">{page.pageName}</p><p className="mt-1 font-mono text-[10px] text-blue-100/55">Page {page.pageId} · แอป {page.enabledMobile ? "ON" : "OFF"} · เว็บ {page.enabledWeb ? "ON" : "OFF"}</p></div><div className="flex flex-wrap gap-2"><Button type="button" size="sm" variant="outline" onClick={() => editFacebookPage(page)} className="border-blue-300/25 text-blue-100">แก้ไข</Button><Button type="button" size="sm" variant="outline" disabled={setFacebookAppStatus.isPending} onClick={() => setFacebookAppStatus.mutate({ pageId: page.pageId, enabled: !page.enabledMobile })} className={page.enabledMobile ? "border-cyan-300/25 text-cyan-100" : "border-red-300/25 text-red-200"}>{page.enabledMobile ? "แอป ON" : "แอป OFF"}</Button><Button type="button" size="sm" variant="outline" disabled={setFacebookWebStatus.isPending} onClick={() => setFacebookWebStatus.mutate({ pageId: page.pageId, enabled: !page.enabledWeb })} className={page.enabledWeb ? "border-emerald-300/25 text-emerald-100" : "border-red-300/25 text-red-200"}>{page.enabledWeb ? "เว็บ ON" : "เว็บ OFF"}</Button><Button type="button" size="sm" variant="outline" onClick={() => { if (window.confirm(`ลบ ${page.pageName} หรือไม่`)) deleteFacebookPage.mutate({ pageId: page.pageId }); }} className="border-red-300/25 text-red-200"><Trash2 className="mr-1 h-3.5 w-3.5" />ลบ</Button></div></div>)}
+                {(facebookPagesQuery.data as FacebookPageRow[] | undefined)?.map(page => <div key={page.pageId} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-300/15 bg-black/20 p-3"><div className="min-w-0"><p className="truncate text-sm font-semibold text-blue-100">{page.pageName}</p><p className="mt-1 font-mono text-[10px] text-blue-100/55">Page {page.pageId} · แอป {page.enabledMobile ? "ON" : "OFF"} · เว็บ {page.enabledWeb ? "ON" : "OFF"}</p></div><div className="flex flex-wrap gap-2"><Button type="button" size="sm" variant="outline" onClick={() => editFacebookPage(page)} className="border-blue-300/25 text-blue-100">แก้ไข</Button><Button type="button" size="sm" variant="outline" disabled={setFacebookAppStatus.isPending} onClick={() => setFacebookAppStatus.mutate({ pageId: page.pageId, enabled: !page.enabledMobile })} className={page.enabledMobile ? "border-cyan-300/25 text-cyan-100" : "border-red-300/25 text-red-200"}>{page.enabledMobile ? "แอป ON" : "แอป OFF"}</Button><Button type="button" size="sm" variant="outline" disabled={setFacebookWebStatus.isPending} onClick={() => setFacebookWebStatus.mutate({ pageId: page.pageId, enabled: !page.enabledWeb })} className={page.enabledWeb ? "border-emerald-300/25 text-emerald-100" : "border-red-300/25 text-red-200"}>{page.enabledWeb ? "เว็บ ON" : "เว็บ OFF"}</Button><Button type="button" size="sm" variant="outline" onClick={() => { const enabled = notificationPageSettings[page.pageId] !== false; setChatNotificationPageEnabled(page.pageId, !enabled, savedBrowserChatConfig?.url); setNotificationPageSettings(readChatNotificationPageSettings(savedBrowserChatConfig?.url)); }} className={notificationPageSettings[page.pageId] !== false ? "border-amber-300/25 text-amber-100" : "border-red-300/25 text-red-200"}><Bell className="mr-1 h-3.5 w-3.5" />แจ้งเตือน {notificationPageSettings[page.pageId] !== false ? "ON" : "OFF"}</Button><label className="flex items-center gap-1.5 text-[10px] text-blue-100/75"><Volume2 className="h-3.5 w-3.5" /><span className="sr-only">เสียงแจ้งเตือน {page.pageName}</span><select aria-label={`เสียงแจ้งเตือน ${page.pageName}`} value={notificationPageSounds[page.pageId] || ""} onChange={event => { const soundKey = event.target.value || null; setChatNotificationPageSound(page.pageId, soundKey, savedBrowserChatConfig?.url); setNotificationPageSounds(readChatNotificationPageSounds(savedBrowserChatConfig?.url)); }} className="max-w-40 rounded-md border border-blue-300/25 bg-[#100a12] px-2 py-1.5 text-[10px] text-blue-50"><option value="">ใช้เสียงค่าเริ่มต้น</option>{soundRows.filter(sound => sound.event_type === "new_message" || sound.event_type === "custom").map(sound => <option key={sound.sound_key} value={sound.sound_key}>{sound.name}</option>)}</select></label><Button type="button" size="sm" variant="outline" onClick={() => { if (window.confirm(`ลบ ${page.pageName} หรือไม่`)) deleteFacebookPage.mutate({ pageId: page.pageId }); }} className="border-red-300/25 text-red-200"><Trash2 className="mr-1 h-3.5 w-3.5" />ลบ</Button></div></div>)}
                 {!facebookPagesQuery.isLoading && !facebookPagesQuery.data?.length ? <p className="rounded-xl border border-blue-300/10 p-4 text-center text-xs text-blue-100/50">ยังไม่พบเพจ Facebook หรือยังไม่ได้ตั้งค่า Chat ROOM 02</p> : null}
               </CardContent>
             </Card>
