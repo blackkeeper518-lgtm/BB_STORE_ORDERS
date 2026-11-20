@@ -81,7 +81,7 @@ export const appRouter = router({
       let finalResult: Awaited<ReturnType<typeof sendMetaMessage>> | undefined;
       for (const item of outgoing) {
         try {
-          const result = await sendMetaMessage({ pageId: input.pageId, recipientId: input.recipientId, text: item.text, imageUrl: item.imageUrl, stickerId: item.stickerId }, credentials);
+          const result = await sendMetaMessage({ pageId: input.pageId, recipientId: input.recipientId, text: item.text, imageUrl: item.imageUrl, stickerId: item.stickerId, surface: input.surface ?? "web" }, credentials);
           item.result = result;
           finalResult = result;
         } catch (error) {
