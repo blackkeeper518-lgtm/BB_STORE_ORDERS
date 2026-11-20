@@ -20,22 +20,22 @@ export default function MobileStockPanel({ onClose }: MobileStockPanelProps) {
     refetchInterval: 60_000,
   });
   const availability = useMutation({
-    mutationFn: ({ item, available }: { item: NonNullable<typeof productsQuery.data>[number]; available: boolean }) =>
-      setInventoryAvailability({ productId: item.id, sku: item.sku, available, currentQty: item.stockQty }),
+    mutationFn: ({ item, available }: { item: NonNullable<typeof productsQuery.data>[number]; available: boolean | null }) =>
+      setInventoryAvailability({ productId: item.id, sku: item.sku, available }),
     onSuccess: async (_result, variables) => {
-      setNotice(`บันทึก ${variables.item.sku} แล้ว · ฐานข้อมูลอัปเดตป้ายสถานะและหัวข้อความให้อัตโนมัติ`);
+      setNotice(variables.available == null ? `กลับไปใช้สถานะจากจำนวนจริงของ ${variables.item.sku} แล้ว` : `บันทึกสถานะผู้ดูแลของ ${variables.item.sku} แล้ว · จำนวนจริงไม่เปลี่ยน`);
       await queryClient.invalidateQueries({ queryKey: ["canonical-stock"] });
     },
     onError: error => setNotice(error instanceof Error ? `บันทึกไม่สำเร็จ: ${error.message}` : "บันทึกสถานะไม่สำเร็จ"),
   });
 
   const allProducts = productsQuery.data ?? [];
-  const inStockCount = allProducts.filter(item => classifyStockAvailability(item.stockStatus, item.stockQty) === "in").length;
-  const outOfStockCount = allProducts.filter(item => classifyStockAvailability(item.stockStatus, item.stockQty) === "out").length;
+  const inStockCount = allProducts.filter(item => classifyStockAvailability(item.stockStatus, item.stockQty, item.adminAvailability) === "in").length;
+  const outOfStockCount = allProducts.filter(item => classifyStockAvailability(item.stockStatus, item.stockQty, item.adminAvailability) === "out").length;
   const products = useMemo(() => {
     const query = search.trim().toLocaleLowerCase("th-TH");
     return allProducts.filter(item => {
-      const availability = classifyStockAvailability(item.stockStatus, item.stockQty);
+      const availability = classifyStockAvailability(item.stockStatus, item.stockQty, item.adminAvailability);
       const matchesFilter = filter === "all" || availability === filter;
       const matchesSearch = `${item.sku} ${item.thName} ${item.label}`.toLocaleLowerCase("th-TH").includes(query);
       return matchesFilter && matchesSearch;
@@ -47,7 +47,7 @@ export default function MobileStockPanel({ onClose }: MobileStockPanelProps) {
       <header className="mobile-inbox-theme-panel-head mobile-stock-panel-head">
         <div className="min-w-0">
           <strong className="flex items-center gap-2"><Boxes className="h-4 w-4" />คลังสินค้า</strong>
-          <small>คลังเดียวกับหน้าเว็บ · 🛒product_master · สถานะมี/หมด</small>
+          <small>ROOM 04 · 🛒product_master · สถานะผู้ดูแลแยกจากจำนวนจริง</small>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <Button type="button" variant="outline" size="icon" aria-label="รีเฟรชคลังสินค้า" onClick={() => void productsQuery.refetch()} disabled={productsQuery.isFetching} className="h-9 w-9 border-white/10 bg-white/[0.04] text-white">
@@ -68,16 +68,16 @@ export default function MobileStockPanel({ onClose }: MobileStockPanelProps) {
             <button key={value} type="button" aria-pressed={filter === value} onClick={() => setFilter(value)} className={filter === value ? "is-active" : ""}>{label}</button>
           ))}
         </div>
-        <p className="mobile-stock-source-note">ตั้งสถานะมีของ = 999 · หมด = 0 · ไม่ใช่จำนวนชิ้นจริง</p>
+        <p className="mobile-stock-source-note">ปุ่มมีของ/หมดแก้เฉพาะ admin_availability · stock_qty คือจำนวนจริงที่ trigger ใช้กับหัวบิลไดนามิก และไม่ถูกแก้จากปุ่มนี้</p>
       </div>
 
       {notice ? <p className={`mobile-stock-notice ${notice.startsWith("บันทึกไม่สำเร็จ") ? "is-error" : ""}`} role="status">{notice}</p> : null}
       <div className="mobile-stock-list">
         {productsQuery.isLoading ? <div className="mobile-stock-state"><LoaderCircle className="h-5 w-5 animate-spin" />กำลังโหลดคลังสินค้า…</div> : null}
-        {productsQuery.isError ? <div className="mobile-stock-state is-error">โหลดคลังไม่สำเร็จ: {productsQuery.error instanceof Error ? productsQuery.error.message : "ตรวจการเชื่อมต่อ Supabase หลัก"}</div> : null}
+        {productsQuery.isError ? <div className="mobile-stock-state is-error">โหลดคลังไม่สำเร็จ: {productsQuery.error instanceof Error ? productsQuery.error.message : "ตรวจการเชื่อมต่อ ROOM 04 และคอลัมน์ admin_availability"}</div> : null}
         {!productsQuery.isLoading && !productsQuery.isError && products.length === 0 ? <div className="mobile-stock-state">ไม่พบสินค้าในรายการนี้</div> : null}
         {products.map(item => {
-          const state = classifyStockAvailability(item.stockStatus, item.stockQty);
+          const state = classifyStockAvailability(item.stockStatus, item.stockQty, item.adminAvailability);
           const isInStock = state === "in";
           const label = state === "in" ? "มีของ" : state === "out" ? "หมด" : "ยังไม่กำหนด";
           return (
@@ -86,7 +86,7 @@ export default function MobileStockPanel({ onClose }: MobileStockPanelProps) {
                 <span className="mobile-stock-emoji" aria-hidden="true">{item.emoji || "📦"}</span>
                 <div className="min-w-0 flex-1">
                   <strong>{item.thName || item.label || item.sku}</strong>
-                  <small>{item.sku}</small>
+                  <small>{item.sku} · คงเหลือจริง {item.stockQty}</small>
                 </div>
                 <span className={`mobile-stock-status ${state === "in" ? "is-in" : state === "out" ? "is-out" : "is-unknown"}`}>{label}</span>
               </div>
@@ -94,6 +94,7 @@ export default function MobileStockPanel({ onClose }: MobileStockPanelProps) {
                 <button type="button" aria-pressed={isInStock} disabled={availability.isPending} onClick={() => { setNotice(""); availability.mutate({ item, available: true }); }} className={isInStock ? "is-in" : ""}><Check className="h-4 w-4" />มีของ</button>
                 <button type="button" aria-pressed={state === "out"} disabled={availability.isPending} onClick={() => { setNotice(""); availability.mutate({ item, available: false }); }} className={state === "out" ? "is-out" : ""}><X className="h-4 w-4" />หมด</button>
               </div>
+              {item.adminAvailability ? <button type="button" disabled={availability.isPending} onClick={() => { setNotice(""); availability.mutate({ item, available: null }); }} className="mt-2 text-xs text-cyan-200/80 underline decoration-cyan-200/30 underline-offset-2">ใช้สถานะจากจำนวนจริง</button> : null}
             </article>
           );
         })}

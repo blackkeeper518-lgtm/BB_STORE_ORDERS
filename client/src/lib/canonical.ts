@@ -31,6 +31,8 @@ const DEPLOYMENT_VAULT_URL = String(import.meta.env.VITE_VAULT_SUPABASE_URL ?? "
 const DEPLOYMENT_VAULT_ANON_KEY = String(import.meta.env.VITE_VAULT_SUPABASE_ANON_KEY ?? "").trim();
 const clients: Partial<Record<SupabaseProject, SupabaseClient>> = {};
 const clientSignatures: Partial<Record<SupabaseProject, string>> = {};
+let room04StockClient: SupabaseClient | null = null;
+let room04StockClientSignature = "";
 export function getActiveCamp(): Camp { return DEPLOYMENT_CAMP; }
 export function setActiveCamp(_camp: Camp) { for (const project of ["main", "tracking", "parcel", "vault"] as const) { delete clients[project]; delete clientSignatures[project]; } }
 function profileKey(_camp: Camp, project: SupabaseProject) {
@@ -40,8 +42,8 @@ function profileKey(_camp: Camp, project: SupabaseProject) {
   return CONFIG_KEY;
 }
 export function getSupabaseConfig(camp: Camp = getActiveCamp(), project: SupabaseProject = "main"): SupabaseConfig | null {
-  const deploymentUrl = project === "tracking" ? DEPLOYMENT_TRACKING_URL : project === "parcel" ? DEPLOYMENT_PARCEL_URL || DEPLOYMENT_TRACKING_URL : project === "vault" ? DEPLOYMENT_VAULT_URL || DEPLOYMENT_SUPABASE_URL : DEPLOYMENT_SUPABASE_URL;
-  const deploymentAnonKey = project === "tracking" ? DEPLOYMENT_TRACKING_ANON_KEY : project === "parcel" ? DEPLOYMENT_PARCEL_ANON_KEY || DEPLOYMENT_TRACKING_ANON_KEY : project === "vault" ? DEPLOYMENT_VAULT_ANON_KEY || DEPLOYMENT_SUPABASE_ANON_KEY : DEPLOYMENT_SUPABASE_ANON_KEY;
+  const deploymentUrl = project === "tracking" ? DEPLOYMENT_TRACKING_URL : project === "parcel" ? DEPLOYMENT_PARCEL_URL || DEPLOYMENT_TRACKING_URL : project === "vault" ? DEPLOYMENT_VAULT_URL : DEPLOYMENT_SUPABASE_URL;
+  const deploymentAnonKey = project === "tracking" ? DEPLOYMENT_TRACKING_ANON_KEY : project === "parcel" ? DEPLOYMENT_PARCEL_ANON_KEY || DEPLOYMENT_TRACKING_ANON_KEY : project === "vault" ? DEPLOYMENT_VAULT_ANON_KEY : DEPLOYMENT_SUPABASE_ANON_KEY;
   // Render is the shared source of truth. Browser-local settings remain only
   // as a compatibility fallback for older deployments without env values.
   if (deploymentUrl && deploymentAnonKey) return { url: deploymentUrl, anonKey: deploymentAnonKey, orderTable: project === "main" ? defaultOrderView(camp) : undefined };
@@ -59,18 +61,31 @@ export function getSupabaseConfig(camp: Camp = getActiveCamp(), project: Supabas
       }
     }
   } catch { /* invalid local value; try deployment defaults */ }
-  // Keep app themes/sounds on the existing main Supabase project when a
-  // separate Vault project is not provisioned. A dedicated Vault project can
-  // still override these values through VITE_VAULT_SUPABASE_* on Render.
+  // Vault UI settings saved in this browser must take precedence over the
+  // legacy main-project fallback; a dedicated deployment Vault still wins above.
+  if (project === "vault") {
+    try {
+      const raw = localStorage.getItem(VAULT_CONFIG_KEY);
+      if (raw) {
+        const value = JSON.parse(raw) as Partial<SupabaseConfig>;
+        if (value.url && value.anonKey) return { url: value.url.replace(/\/$/, ""), anonKey: value.anonKey };
+      }
+    } catch { /* invalid Vault profile; continue to legacy fallback */ }
+    return DEPLOYMENT_SUPABASE_URL && DEPLOYMENT_SUPABASE_ANON_KEY
+      ? { url: DEPLOYMENT_SUPABASE_URL, anonKey: DEPLOYMENT_SUPABASE_ANON_KEY }
+      : null;
+  }
   return deploymentUrl && deploymentAnonKey ? { url: deploymentUrl, anonKey: deploymentAnonKey, orderTable: project === "main" ? defaultOrderView(camp) : undefined } : null;
 }
 export function saveSupabaseConfig(config: SupabaseConfig, camp: Camp = getActiveCamp(), project: SupabaseProject = "main") {
   const clean = { url: config.url.trim().replace(/\/$/, ""), anonKey: config.anonKey.trim(), ...(project === "main" ? { orderTable: defaultOrderView(camp) } : {}) };
   localStorage.setItem(profileKey(camp, project), JSON.stringify(clean));
   delete clients[project]; delete clientSignatures[project];
+  if (project === "vault") { room04StockClient = null; room04StockClientSignature = ""; }
 }
 export function clearSupabaseConfig(camp: Camp = getActiveCamp(), project: SupabaseProject = "main") {
   localStorage.removeItem(profileKey(camp, project)); delete clients[project]; delete clientSignatures[project];
+  if (project === "vault") { room04StockClient = null; room04StockClientSignature = ""; }
 }
 export function getSupabase(project: SupabaseProject = "main") {
   const config = getSupabaseConfig(getActiveCamp(), project);
@@ -82,10 +97,29 @@ export function getSupabase(project: SupabaseProject = "main") {
   }
   return clients[project] ?? null;
 }
+function getRoom04StockClient() {
+  let config: SupabaseConfig | null = null;
+  if (DEPLOYMENT_VAULT_URL && DEPLOYMENT_VAULT_ANON_KEY) {
+    config = { url: DEPLOYMENT_VAULT_URL, anonKey: DEPLOYMENT_VAULT_ANON_KEY };
+  } else {
+    try {
+      const raw = localStorage.getItem(VAULT_CONFIG_KEY);
+      if (raw) {
+        const value = JSON.parse(raw) as Partial<SupabaseConfig>;
+        if (value.url && value.anonKey) config = { url: value.url.replace(/\/$/, ""), anonKey: value.anonKey };
+      }
+    } catch { /* invalid ROOM 04 profile */ }
+  }
+  if (!config) fail({ message: "ยังไม่ได้เชื่อม ROOM 04 · ตั้งค่า Private Vault ใน Secret Gallery ก่อน" });
+  const signature = `${config.url}|${config.anonKey}`;
+  if (!room04StockClient || signature !== room04StockClientSignature) {
+    room04StockClient = createClient(config.url, config.anonKey);
+    room04StockClientSignature = signature;
+  }
+  return room04StockClient;
+}
 function getStockRoomClient() {
-  const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase หลัก: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  return api;
+  return getRoom04StockClient();
 }
 export const supabase = { from: (table: string) => { const api = getSupabase(); if (!api) throw new Error("ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key"); return api.from(table); } } as any;
 function fail(error: any): never { throw new Error(error?.message || "Supabase connection failed"); }
@@ -457,14 +491,13 @@ export async function markBbOrderSentByKey(upsertKey: string, sourceTable: "🗝
   return row;
 }
 
-export type StockProduct = { id: number; sku: string; label: string; thName: string; emoji: string; price: number | null; stockQty: number; stockStatus: string | null; outOfStockJoke: string | null; stockNotice: string | null; inventoryId: number | string | null };
+export type StockProduct = { id: number; sku: string; label: string; thName: string; emoji: string; price: number | null; stockQty: number; stockStatus: string | null; adminAvailability: string | null; outOfStockJoke: string | null; stockNotice: string | null; inventoryId: number | string | null };
 
 export async function readStockProducts(): Promise<StockProduct[]> {
   const api = getStockRoomClient();
-  // Keep using the same primary Supabase source as the existing Stock Room page.
-  // 999/0 are availability flags, not physical counts.
+  // ROOM 04 holds the admin-facing stock view; physical quantity stays in stock_qty.
   const { data: products, error } = await api.from("🛒product_master")
-    .select("id,master_sku,th_name,name_standard,master_display_for_packer,display_for_packer,emoji,unit_price,stock_qty,stock_status,stock_notice")
+    .select("id,master_sku,th_name,name_standard,master_display_for_packer,display_for_packer,emoji,unit_price,stock_qty,stock_status,admin_availability,stock_notice")
     .order("master_sku");
   if (error) fail(error);
   return (products ?? []).map((p: any) => {
@@ -479,6 +512,7 @@ export async function readStockProducts(): Promise<StockProduct[]> {
       price: num(p.unit_price),
       stockQty,
       stockStatus: p.stock_status ?? null,
+      adminAvailability: p.admin_availability ?? null,
       outOfStockJoke: null,
       stockNotice: p.stock_notice ?? null,
       inventoryId: null,
@@ -486,26 +520,17 @@ export async function readStockProducts(): Promise<StockProduct[]> {
   });
 }
 
-export async function updateInventoryStock(input: { productId: number; sku: string; stockQty: number }) {
+export async function setInventoryAvailability(input: { productId: number; sku: string; available: boolean | null }) {
   const api = getStockRoomClient();
-  const stockQty = Number(input.stockQty) > 0 ? 999 : 0;
-  // The database trigger sets stock_status/status/stock_notice/chosen_header from stock_qty.
+  const adminAvailability = input.available == null ? null : input.available ? "IN_STOCK" : "OUT_OF_STOCK";
   const { data, error } = await api.from("🛒product_master")
-    .update({ stock_qty: stockQty })
+    .update({ admin_availability: adminAvailability })
     .eq("id", input.productId)
     .eq("master_sku", input.sku)
-    .select("id,master_sku,stock_qty,stock_status");
+    .select("id,master_sku,stock_qty,stock_status,admin_availability");
   if (error) fail(error);
-  if (!data?.length) fail({ message: `อัปเดต ${input.sku} ไม่สำเร็จ: ไม่พบรายการหรือไม่มีสิทธิ์แก้ไขในคลังหลัก` });
-  return { ...input, stockQty, stockStatus: String(data[0].stock_status ?? "") };
-}
-
-export async function setInventoryAvailability(input: { productId: number; sku: string; available: boolean; currentQty?: number }) {
-  return updateInventoryStock({
-    productId: input.productId,
-    sku: input.sku,
-    stockQty: input.available ? 999 : 0,
-  });
+  if (!data?.length) fail({ message: `อัปเดต ${input.sku} ไม่สำเร็จ: ไม่พบรายการหรือไม่มีสิทธิ์แก้ไขใน ROOM 04` });
+  return { ...input, stockQty: num(data[0].stock_qty) ?? 0, stockStatus: String(data[0].stock_status ?? ""), adminAvailability: data[0].admin_availability ?? null };
 }
 
 const GENESIS_HISTORY_COLUMNS = [

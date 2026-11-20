@@ -58,6 +58,7 @@ export const PROJECT_ROOM_GROUPS: { title: string; rooms: ProjectRoom[] }[] = [
   {
     title: "ROOM 04 · PRIVATE VAULT",
     rooms: [
+      { table: "🛒product_master", label: "Product Master · คลังสินค้า" },
       { table: "app_chat_frames", label: "กรอบแชท" },
       { table: "app_customization_selections", label: "การปรับแต่งแอป" },
       { table: "app_sounds", label: "เสียงแจ้งเตือน" },
