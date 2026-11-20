@@ -82,6 +82,11 @@ export function getSupabase(project: SupabaseProject = "main") {
   }
   return clients[project] ?? null;
 }
+function getStockRoomClient() {
+  const api = getSupabase();
+  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase หลัก: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
+  return api;
+}
 export const supabase = { from: (table: string) => { const api = getSupabase(); if (!api) throw new Error("ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key"); return api.from(table); } } as any;
 function fail(error: any): never { throw new Error(error?.message || "Supabase connection failed"); }
 function num(v: any) { const n = Number(v); return v == null || v === "" || !Number.isFinite(n) ? null : n; }
@@ -455,10 +460,9 @@ export async function markBbOrderSentByKey(upsertKey: string, sourceTable: "🗝
 export type StockProduct = { id: number; sku: string; label: string; thName: string; emoji: string; price: number | null; stockQty: number; stockStatus: string | null; outOfStockJoke: string | null; stockNotice: string | null; inventoryId: number | string | null };
 
 export async function readStockProducts(): Promise<StockProduct[]> {
-  const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  // Stock Room is intentionally a Product Master room for now.
-  // It does not read inventory and it never deducts stock from orders.
+  const api = getStockRoomClient();
+  // Keep using the same primary Supabase source as the existing Stock Room page.
+  // 999/0 are availability flags, not physical counts.
   const { data: products, error } = await api.from("🛒product_master")
     .select("id,master_sku,th_name,name_standard,master_display_for_packer,display_for_packer,emoji,unit_price,stock_qty,stock_status,stock_notice")
     .order("master_sku");
@@ -474,7 +478,7 @@ export async function readStockProducts(): Promise<StockProduct[]> {
       emoji: p.emoji ?? "📦",
       price: num(p.unit_price),
       stockQty,
-      stockStatus: p.stock_status ?? (stockQty > 0 ? "IN_STOCK" : "OUT_OF_STOCK"),
+      stockStatus: p.stock_status ?? null,
       outOfStockJoke: null,
       stockNotice: p.stock_notice ?? null,
       inventoryId: null,
@@ -482,21 +486,25 @@ export async function readStockProducts(): Promise<StockProduct[]> {
   });
 }
 
-export async function updateInventoryStock(input: { productId: number; sku: string; stockQty: number; stockStatus?: "IN_STOCK" | "OUT_OF_STOCK" }) {
-  const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  const stockQty = Math.max(0, Math.trunc(Number(input.stockQty) || 0));
-  const stockStatus = input.stockStatus ?? (stockQty > 0 ? "IN_STOCK" : "OUT_OF_STOCK");
-  const { error } = await api.from("🛒product_master").update({ stock_qty: stockQty, stock_status: stockStatus, updated_at: new Date().toISOString() }).eq("id", input.productId);
+export async function updateInventoryStock(input: { productId: number; sku: string; stockQty: number }) {
+  const api = getStockRoomClient();
+  const stockQty = Number(input.stockQty) > 0 ? 999 : 0;
+  // The database trigger sets stock_status/status/stock_notice/chosen_header from stock_qty.
+  const { data, error } = await api.from("🛒product_master")
+    .update({ stock_qty: stockQty })
+    .eq("id", input.productId)
+    .eq("master_sku", input.sku)
+    .select("id,master_sku,stock_qty,stock_status");
   if (error) fail(error);
-  return { ...input, stockQty, stockStatus };
+  if (!data?.length) fail({ message: `อัปเดต ${input.sku} ไม่สำเร็จ: ไม่พบรายการหรือไม่มีสิทธิ์แก้ไขในคลังหลัก` });
+  return { ...input, stockQty, stockStatus: String(data[0].stock_status ?? "") };
 }
 
-export async function setInventoryAvailability(input: { productId: number; sku: string; available: boolean; currentQty: number }) {
+export async function setInventoryAvailability(input: { productId: number; sku: string; available: boolean; currentQty?: number }) {
   return updateInventoryStock({
-    ...input,
-    stockQty: input.available ? Math.max(1, input.currentQty || 1) : 0,
-    stockStatus: input.available ? "IN_STOCK" : "OUT_OF_STOCK",
+    productId: input.productId,
+    sku: input.sku,
+    stockQty: input.available ? 999 : 0,
   });
 }
 
