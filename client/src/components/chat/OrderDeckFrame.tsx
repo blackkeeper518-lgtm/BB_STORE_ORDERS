@@ -13,6 +13,8 @@ type OrderDeckFrameProps = {
   messageRequest?: { id: number } | null;
   onMessageRequestHandled?: (id: number) => void;
   onProductImagesSelected?: (imageUrls: string[], productName?: string) => void | Promise<void>;
+  onProductIndexReady?: (products: Array<{ product: string; terms: string[] }>) => void;
+  productImagesRequest?: { id: number; product: string } | null;
   onSummaryReady?: (summary: string) => void;
   roomStatus?: string;
   onClose: () => void;
@@ -37,6 +39,12 @@ export function OrderDeckFrame(props: OrderDeckFrameProps) {
     );
   }, []);
 
+  const requestProductIndex = useCallback(() => {
+    const target = frameRef.current?.contentWindow;
+    if (!target || typeof window === "undefined") return;
+    target.postMessage({ type: "BB_ORDER_DECK_REQUEST_PRODUCT_INDEX" }, window.location.origin);
+  }, []);
+
   useEffect(() => {
     const request = props.messageRequest;
     if (!frameReady || !request || handledMessageRequestId.current === request.id) return;
@@ -50,8 +58,23 @@ export function OrderDeckFrame(props: OrderDeckFrameProps) {
   }, [props.pageId, props.pageName, props.threadId, sendContext]);
 
   useEffect(() => {
+    const request = props.productImagesRequest;
+    if (!frameReady || !request) return;
+    frameRef.current?.contentWindow?.postMessage({ type: "BB_ORDER_DECK_REQUEST_PRODUCT_IMAGES", product: request.product }, window.location.origin);
+  }, [frameReady, props.productImagesRequest?.id, props.productImagesRequest?.product]);
+
+  useEffect(() => {
     const receiveDeckMessage = (event: MessageEvent) => {
       if (event.source !== frameRef.current?.contentWindow || event.origin !== window.location.origin) return;
+      if (event.data?.type === "BB_ORDER_DECK_PRODUCT_INDEX") {
+        const products = Array.isArray(event.data.products)
+          ? event.data.products.filter((item: unknown): item is { product: string; terms: unknown[] } => Boolean(item && typeof item === "object" && typeof (item as { product?: unknown }).product === "string" && Array.isArray((item as { terms?: unknown }).terms)))
+            .map((item: { product: string; terms: unknown[] }) => ({ product: item.product.slice(0, 120), terms: item.terms.filter((term): term is string => typeof term === "string").slice(0, 32).map(term => term.slice(0, 160)) }))
+            .slice(0, 500)
+          : [];
+        currentProps.current.onProductIndexReady?.(products);
+        return;
+      }
       if (event.data?.type === "BB_ORDER_DECK_ORDER_SUMMARY") {
         const summary = typeof event.data.summary === "string" ? event.data.summary.trim().slice(0, 20_000) : "";
         if (summary) currentProps.current.onSummaryReady?.(summary);
@@ -86,7 +109,7 @@ export function OrderDeckFrame(props: OrderDeckFrameProps) {
       ref={frameRef}
       src="/order-deck.html?embedded=1"
       title="DRΛKSIDE Order Deck — เครื่องมือสรุปบิล"
-      onLoad={() => { setFrameReady(true); sendContext(false); }}
+      onLoad={() => { setFrameReady(true); sendContext(false); requestProductIndex(); }}
       className="min-h-0 w-full flex-1 rounded-lg border border-violet-300/15 bg-[#0b0b15]"
     />
     <p className="shrink-0 text-[9px] leading-4 text-cyan-100/40">{props.messageMode === "latest" ? "ปุ่ม “ดึงล่าสุด · บิล” จะนำข้อความลูกค้าล่าสุดที่ใช้ได้เข้าร่างเมื่อกดเท่านั้น · ข้อความภาพ/สติ๊กเกอร์จะไม่ใช้ข้อความเก่าทดแทน · ไม่ส่งแชทอัตโนมัติ" : "เปิดแผงไม่ดึงข้อมูล · เลือกข้อความในแชท แล้วกด “ดึงข้อมูลลูกค้า” เพื่อเติมชื่อเพจและแทนที่ข้อความเดิมด้วยข้อความนั้นเพียงอันเดียว · ไม่ส่งแชทอัตโนมัติ"}</p>

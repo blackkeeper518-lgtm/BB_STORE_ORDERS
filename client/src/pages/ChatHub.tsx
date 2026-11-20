@@ -104,6 +104,9 @@ export default function ChatHub() {
   const [statusFilter, setStatusFilter] = useState<"all" | "ordered" | "tracking_over_24h">("all");
   const [replyText, setReplyText] = useState("");
   const [replyImages, setReplyImages] = useState<Array<{ url: string; sendUrl: string; name: string }>>([]);
+  const [deckImageProducts, setDeckImageProducts] = useState<Array<{ product: string; terms: string[] }>>([]);
+  const [productImagesRequest, setProductImagesRequest] = useState<{ id: number; product: string } | null>(null);
+  const productImagesRequestId = useRef(0);
   const [imageUploading, setImageUploading] = useState(false);
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [stickerId, setStickerId] = useState("");
@@ -440,6 +443,66 @@ export default function ChatHub() {
       setImageUploading(false);
     }
   };
+  const handleDeckProductImagesSelected = async (imageUrls: string[], productName?: string) => {
+    if (sendReply.isPending || imageUploading) {
+      setReplyNotice("รอให้การส่งหรืออัปโหลดภาพปัจจุบันเสร็จก่อน");
+      return;
+    }
+    const remaining = Math.max(0, 4 - replyImages.length);
+    if (!remaining) { setReplyNotice("แนบภาพได้สูงสุด 4 ภาพต่อข้อความ · เอาภาพเดิมออกก่อนเพิ่มสินค้า"); return; }
+    const existing = new Set(replyImages.map(image => image.sendUrl || image.url));
+    const productLabel = productName?.trim() || "สินค้า";
+    if (replyImages.some(image => image.name.startsWith(`${productLabel}-`))) { setReplyNotice(`ภาพ ${productLabel} อยู่ในช่องรอส่งแล้ว`); return; }
+    const unique = imageUrls.filter((url, index) => typeof url === "string" && !existing.has(url) && imageUrls.indexOf(url) === index);
+    const chosen = unique.slice(0, remaining);
+    if (!chosen.length) { setReplyNotice("ภาพสินค้านี้อยู่ในช่องรอส่งแล้ว"); return; }
+
+    const pending: Array<{ url: string; sendUrl: string; name: string }> = [];
+    const files: File[] = [];
+    const invalidCount = chosen.filter(url => !/^https?:\/\//i.test(url) && !/^data:image\/(?:png|jpeg|gif|webp);base64,/i.test(url)).length;
+    chosen.forEach((url, index) => {
+      if (/^https?:\/\//i.test(url)) {
+        pending.push({ url, sendUrl: url, name: `${productLabel}-${index + 1}` });
+        return;
+      }
+      const match = url.match(/^data:(image\/(?:png|jpeg|gif|webp));base64,([\s\S]+)$/i);
+      if (!match) return;
+      try {
+        const binary = window.atob(match[2]);
+        const bytes = Uint8Array.from(binary, character => character.charCodeAt(0));
+        const mime = match[1].toLowerCase();
+        const extension = mime === "image/jpeg" ? "jpg" : mime.slice("image/".length);
+        files.push(new File([bytes], `${productLabel}-${index + 1}.${extension}`, { type: mime }));
+      } catch { /* Ignore malformed data URLs and report them below. */ }
+    });
+
+    const failures: string[] = [];
+    if (files.length) {
+      const vaultClient = getSupabase("vault");
+      if (!vaultClient) failures.push("ไม่พบ ROOM 04 · PRIVATE VAULT สำหรับเตรียมภาพจาก Deck");
+      else {
+        setImageUploading(true);
+        setReplyNotice(`กำลังเตรียมภาพ ${productLabel}…`);
+        for (const file of files) {
+          if (file.size > 6_000_000) { failures.push(`${file.name} เกิน 6 MB`); continue; }
+          try {
+            const uploaded = await uploadChatImageToVault(vaultClient, file);
+            pending.push({ url: uploaded.url, sendUrl: uploaded.url, name: file.name });
+          } catch (error) {
+            failures.push(error instanceof Error ? error.message : "อัปโหลดภาพไม่สำเร็จ");
+          }
+        }
+        setImageUploading(false);
+      }
+    }
+
+    if (pending.length) setReplyImages(current => [...current, ...pending].slice(0, 4));
+    const limitNote = unique.length > remaining ? " · เพิ่มได้เท่าที่เหลือให้ครบ 4 ภาพ" : "";
+    const failureNote = failures.length || invalidCount ? ` · บางภาพเพิ่มไม่ได้${failures.length ? `: ${failures[0]}` : ""}` : "";
+    setReplyNotice(pending.length
+      ? `เพิ่มภาพ ${productLabel} ${pending.length} ภาพลงช่องรอส่งแล้ว · ตรวจสอบก่อนกดส่ง${limitNote}${failureNote}`
+      : `ยังเพิ่มภาพ ${productLabel} ไม่สำเร็จ${failureNote}`);
+  };
   const handleComposerPaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
     const files = Array.from(event.clipboardData.items)
       .filter(item => item.kind === "file" && item.type.startsWith("image/"))
@@ -450,6 +513,23 @@ export default function ChatHub() {
     void handleImageUpload(files);
   };
   const addEmoji = (emoji: string) => setReplyText(current => `${current}${current ? " " : ""}${emoji}`);
+  const productSuggestions = useMemo(() => {
+    const normalize = (value: string) => value.normalize("NFC").toLocaleLowerCase("th-TH").replace(/[\u200B-\u200F\uFEFF]/g, "").replace(/[^\p{L}\p{N}]/gu, "");
+    const whole = normalize(replyText);
+    const lastToken = normalize(replyText.trim().split(/\s+/).at(-1) || "");
+    if (!whole || (!lastToken && !whole)) return [];
+    return deckImageProducts.map(entry => {
+      const terms = [...new Set([entry.product, ...entry.terms].map(normalize).filter(term => term.length >= 2))];
+      const score = terms.reduce((best, term) => Math.max(best, whole.includes(term) ? 100 + Math.min(term.length, 30) : lastToken.length >= 2 && term.includes(lastToken) ? 50 + Math.min(lastToken.length, 30) : 0), 0);
+      return { ...entry, score };
+    }).filter(entry => entry.score > 0).sort((a, b) => b.score - a.score || a.product.localeCompare(b.product, "th")).slice(0, 4);
+  }, [deckImageProducts, replyText]);
+  const requestDeckProductImages = (product: string) => {
+    productImagesRequestId.current += 1;
+    setProductImagesRequest({ id: productImagesRequestId.current, product });
+    setOrderDeckOpen(true);
+    setReplyNotice(`กำลังเพิ่มภาพ ${product} ลงช่องรอส่ง…`);
+  };
   const copySummary = async () => {
     if (!replyText.trim()) return;
     await navigator.clipboard.writeText(replyText);
@@ -467,6 +547,7 @@ export default function ChatHub() {
   const composer = <div className="flex min-h-0 flex-1 flex-col justify-end overflow-hidden border-t border-cyan-300/20 pt-2">
     <input ref={fileInputRef} type="file" multiple accept="image/jpeg,image/png,image/gif,image/webp" className="hidden" onChange={event => { handleImageUpload(Array.from(event.target.files ?? [])); event.currentTarget.value = ""; }} />
     {emojiPickerOpen ? <div role="group" aria-label="เลือกอีโมจิ" className="mb-2 flex flex-wrap gap-1 rounded-xl border border-cyan-300/15 bg-[#0a111b] p-2">{["😊", "😂", "😍", "🥰", "👍", "🙏", "❤️", "🎉", "📦", "✨"].map(emoji => <button key={emoji} type="button" onClick={() => { addEmoji(emoji); setEmojiPickerOpen(false); }} className="flex h-9 w-9 items-center justify-center rounded-lg text-xl hover:bg-cyan-300/10" aria-label={`เพิ่มอีโมจิ ${emoji}`}>{emoji}</button>)}</div> : null}
+    {productSuggestions.length ? <div role="list" aria-label="สินค้าจาก Order Deck ที่ตรงกับข้อความ" className="mb-1 flex max-w-full flex-wrap justify-start gap-1.5">{productSuggestions.map(item => <button key={item.product} type="button" role="listitem" onClick={() => requestDeckProductImages(item.product)} disabled={imageUploading || sendReply.isPending || replyImages.length >= 4} className="flex max-w-[220px] items-center gap-2 rounded-xl border border-cyan-300/25 bg-[#0b1924]/95 px-2.5 py-1.5 text-left shadow-[0_0_16px_rgba(34,211,238,.12)] transition hover:border-cyan-200/60 hover:bg-cyan-300/10 disabled:opacity-40" title={`เพิ่มภาพ ${item.product} ลงช่องรอส่ง`}><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-emerald-300/20 bg-emerald-300/[0.07] text-[10px] text-emerald-200">IMG</span><span className="min-w-0"><span className="block truncate text-[11px] font-semibold text-cyan-50">{item.product}</span><span className="block text-[9px] text-cyan-100/55">แตะเพื่อเตรียมภาพ · ยังไม่ส่ง</span></span></button>)}</div> : null}
     <div className="flex min-w-0 items-end gap-1.5 rounded-xl border border-cyan-300/20 bg-[#0a111b] p-1.5 sm:gap-2 sm:p-2">
       <Button type="button" aria-label="แนบรูปภาพ" title={imageUploading ? "กำลังอัปโหลด…" : "แนบรูปภาพ"} variant="ghost" onClick={() => fileInputRef.current?.click()} disabled={imageUploading || sendReply.isPending || replyImages.length >= 4} className="h-10 w-10 shrink-0 rounded-lg p-0 text-cyan-100/75 hover:bg-cyan-300/10 hover:text-cyan-100"><Paperclip className="h-5 w-5" /></Button>
       <Textarea ref={replyTextareaRef} value={replyText} onChange={event => setReplyText(event.target.value)} placeholder={selectedCustomerId ? "พิมพ์ข้อความ…" : "ไม่พบ Customer PSID ของห้องนี้"} disabled={!selectedCustomerId} className="field-sizing-fixed h-20 max-h-[136px] min-h-20 min-w-0 flex-1 resize-none overflow-y-auto border-0 bg-transparent px-2 py-2 text-sm leading-6 text-white placeholder:text-cyan-100/35 focus-visible:ring-0 focus-visible:ring-offset-0" onPaste={handleComposerPaste} onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing && event.nativeEvent.keyCode !== 229) { event.preventDefault(); sendCurrentReply(); } }} />
@@ -584,6 +665,9 @@ export default function ChatHub() {
         customerName={selected.customerName ?? ""}
         customerPhone={String(selected.phone ?? selected.customerPhone ?? selected.extracted_phone ?? "")}
         selectedCustomerMessage={selectedOrderMessageText}
+        onProductImagesSelected={handleDeckProductImagesSelected}
+        onProductIndexReady={setDeckImageProducts}
+        productImagesRequest={productImagesRequest}
         onSummaryReady={summary => { setReplyText(summary); setOrderDeckOpen(false); setReplyNotice("สรุปบิลอยู่ในช่องตอบกลับแล้ว · ตรวจสอบก่อนกดส่ง"); }}
         onClose={() => setOrderDeckOpen(false)}
       /> : null}
