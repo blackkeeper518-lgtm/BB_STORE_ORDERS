@@ -12,7 +12,7 @@ import { PRESENTATION_MODE } from "@shared/presentation";
 import { getActiveCamp, getSupabaseConfig, readCanonicalOrders, type Camp } from "@/lib/canonical";
 import { CHAT_BROWSER_CONFIG_EVENT, readBrowserChatConfig } from "@/lib/chat-config";
 import { trpc } from "@/lib/trpc";
-import { CHAT_NOTIFICATION_EVENT, countUnreadChatMessages, filterChatNotificationsForEnabledPages, isChatNotificationSoundEnabled, markChatNotificationsRead, playChatNotificationSound, readChatNotificationPageSettings, readChatNotificationState, reconcileChatNotificationRows, setChatNotificationSoundEnabled, unlockChatNotificationAudio, writeChatNotificationState, type ChatNotification } from "@/lib/chat-notifications";
+import { CHAT_NOTIFICATION_EVENT, CHAT_NOTIFICATION_SETTINGS_EVENT, countUnreadChatMessages, filterChatNotificationsForEnabledPages, isChatNotificationSoundEnabled, markChatNotificationsRead, playChatNotificationSound, readChatNotificationPageSettings, readChatNotificationState, reconcileChatNotificationRows, setChatNotificationSoundEnabled, unlockChatNotificationAudio, writeChatNotificationState, type ChatNotification } from "@/lib/chat-notifications";
 import { THEME_LAB_EVENT, prepareThemeCss, readThemeLab, themeRoomFromPath } from "@/lib/theme-lab";
 
 const menuItems = [
@@ -57,13 +57,14 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
   const [unreadThreads, setUnreadThreads] = useState<Array<{ key: string; latestAt: string | null; customerName: string | null }>>([]);
   const [browserChatConfig, setBrowserChatConfig] = useState(() => readBrowserChatConfig());
   const [chatNotificationState, setChatNotificationState] = useState(() => readChatNotificationState(browserChatConfig?.url));
-  const chatNotifications = chatNotificationState.pending;
+  const [chatNotificationPageSettings, setChatNotificationPageSettings] = useState(() => readChatNotificationPageSettings(browserChatConfig?.url));
+  const chatNotifications = filterChatNotificationsForEnabledPages(chatNotificationState.pending, chatNotificationPageSettings);
   const [soundEnabled, setSoundEnabled] = useState(() => isChatNotificationSoundEnabled());
   const [camp, setCamp] = useState<Camp>(getActiveCamp());
   const hasBrowserChatConfig = Boolean(browserChatConfig?.url && browserChatConfig.serviceRoleKey);
   const pollNotificationsMutation = trpc.chat.pollNotifications.useMutation();
   const pollNotifications = pollNotificationsMutation.mutateAsync;
-  const chatUnreadCount = countUnreadChatMessages(chatNotificationState);
+  const chatUnreadCount = countUnreadChatMessages({ ...chatNotificationState, pending: chatNotifications });
   const newNotificationCount = chatUnreadCount + unreadThreads.length;
   useEffect(() => {
     const applyThemeLab = () => {
@@ -121,13 +122,16 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
   useEffect(() => {
     const sync = () => {
       setChatNotificationState(readChatNotificationState(browserChatConfig?.url));
+      setChatNotificationPageSettings(readChatNotificationPageSettings(browserChatConfig?.url));
       setSoundEnabled(isChatNotificationSoundEnabled());
     };
     sync();
     window.addEventListener(CHAT_NOTIFICATION_EVENT, sync);
+    window.addEventListener(CHAT_NOTIFICATION_SETTINGS_EVENT, sync);
     window.addEventListener("storage", sync);
     return () => {
       window.removeEventListener(CHAT_NOTIFICATION_EVENT, sync);
+      window.removeEventListener(CHAT_NOTIFICATION_SETTINGS_EVENT, sync);
       window.removeEventListener("storage", sync);
     };
   }, [browserChatConfig?.url]);
