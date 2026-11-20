@@ -246,7 +246,7 @@ export default function MobileInbox() {
   }, []);
   const chatConfiguredQuery = trpc.chat.configured.useQuery(undefined, { enabled: !hasBrowserConfig, staleTime: 60_000, retry: false });
   const hasConfig = hasBrowserConfig || Boolean(chatConfiguredQuery.data?.configured);
-  const threadsQuery = trpc.chat.threads.useQuery({ surface: "mobile" }, { enabled: hasConfig, staleTime: 0, refetchInterval: false, refetchOnWindowFocus: false, refetchOnReconnect: false, select: mapChatRowsToThreads });
+  const threadsQuery = trpc.chat.threads.useQuery({ surface: "mobile" }, { enabled: hasConfig && platform === "facebook", staleTime: 0, refetchInterval: 30_000, refetchIntervalInBackground: false, refetchOnWindowFocus: true, refetchOnReconnect: true, select: mapChatRowsToThreads });
   const pageCatalogQuery = trpc.chat.pages.useQuery(undefined, { enabled: hasConfig, staleTime: 0, refetchInterval: false, refetchOnWindowFocus: false, retry: false });
   const lineConversationsQuery = trpc.line.conversations.useQuery({ surface: "mobile" }, { staleTime: 0, refetchInterval: false, refetchOnWindowFocus: false, refetchOnReconnect: false, retry: false });
   const threads = threadsQuery.data ?? [];
@@ -316,7 +316,7 @@ export default function MobileInbox() {
   const selectedPageId = selected?.pageId ?? "";
   const selectedThreadId = selected?.threadId ?? "";
   const selectedCustomerId = selected?.customerId ?? "";
-  const messagesQuery = trpc.chat.messages.useQuery({ pageId: selectedPageId, threadId: selectedThreadId, surface: "mobile" }, { enabled: hasConfig && Boolean(selectedPageId && selectedThreadId), staleTime: 0, refetchInterval: false, refetchOnWindowFocus: false, refetchOnReconnect: false, select: mapChatRowsToMessages });
+  const messagesQuery = trpc.chat.messages.useQuery({ pageId: selectedPageId, threadId: selectedThreadId, surface: "mobile" }, { enabled: hasConfig && platform === "facebook" && openRoom && Boolean(selectedPageId && selectedThreadId), staleTime: 0, refetchInterval: 15_000, refetchIntervalInBackground: false, refetchOnWindowFocus: true, refetchOnReconnect: true, select: mapChatRowsToMessages });
   const refreshInbox = () => { void Promise.all([threadsQuery.refetch(), lineConversationsQuery.refetch(), messagesQuery.refetch()]); };
   const optimisticMessageIdRef = useRef<string | null>(null);
   const sendReply = trpc.chat.sendReply.useMutation({

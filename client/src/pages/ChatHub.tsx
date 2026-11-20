@@ -164,9 +164,10 @@ export default function ChatHub() {
   const threadsQuery = trpc.chat.threads.useQuery({ surface: "web" }, {
     enabled: hasBrowserChatConfig,
     staleTime: 0,
-    refetchInterval: false,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
     select: mapChatRowsToThreads,
   });
   const pageCatalogQuery = trpc.chat.pages.useQuery(undefined, { enabled: hasBrowserChatConfig, staleTime: 0, refetchInterval: false, refetchOnWindowFocus: false, retry: false });
@@ -200,9 +201,10 @@ export default function ChatHub() {
   const messagesQuery = trpc.chat.messages.useQuery({ pageId: selectedPageId, threadId: selectedThreadId, surface: "web" }, {
     enabled: hasBrowserChatConfig && Boolean(selectedPageId && selectedThreadId),
     staleTime: 0,
-    refetchInterval: false,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
+    refetchInterval: 15_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
     select: mapChatRowsToMessages,
   });
   const selectedOrderMessageText = getSelectedOrderMessageText(selectedOrderMessage, selected?.key);
