@@ -43,7 +43,7 @@ export default function MobileStockPanel({ onClose }: MobileStockPanelProps) {
   }, [allProducts, filter, search]);
 
   return (
-    <section className="mobile-inbox-custom-panel mobile-inbox-stock-panel" role="dialog" aria-modal="true" aria-label="คลังสินค้า">
+    <section className="mobile-inbox-custom-panel mobile-inbox-stock-panel" role="dialog" aria-modal="true" aria-label="คลังสินค้า" onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
       <header className="mobile-inbox-theme-panel-head mobile-stock-panel-head">
         <div className="min-w-0">
           <strong className="flex items-center gap-2"><Boxes className="h-4 w-4" />คลังสินค้า</strong>
@@ -68,7 +68,7 @@ export default function MobileStockPanel({ onClose }: MobileStockPanelProps) {
             <button key={value} type="button" aria-pressed={filter === value} onClick={() => setFilter(value)} className={filter === value ? "is-active" : ""}>{label}</button>
           ))}
         </div>
-        <p className="mobile-stock-source-note">ปุ่มมีของ/หมดแก้เฉพาะ admin_availability · stock_qty คือจำนวนจริงที่ trigger ใช้กับหัวบิลไดนามิก และไม่ถูกแก้จากปุ่มนี้</p>
+        <p className="mobile-stock-source-note">ปุ่มมี/หมดเปลี่ยนเฉพาะสถานะผู้ดูแล · จำนวนจริงยังใช้กับ trigger และหัวบิล</p>
       </div>
 
       {notice ? <p className={`mobile-stock-notice ${notice.startsWith("บันทึกไม่สำเร็จ") ? "is-error" : ""}`} role="status">{notice}</p> : null}
@@ -79,7 +79,7 @@ export default function MobileStockPanel({ onClose }: MobileStockPanelProps) {
         {products.map(item => {
           const state = classifyStockAvailability(item.stockStatus, item.stockQty, item.adminAvailability);
           const isInStock = state === "in";
-          const label = state === "in" ? "มีของ" : state === "out" ? "หมด" : "ยังไม่กำหนด";
+          const label = state === "in" ? "มีสินค้า" : state === "out" ? "หมด" : "ยังไม่กำหนด";
           return (
             <article key={`${item.id}-${item.sku}`} className="mobile-stock-card">
               <div className="mobile-stock-card-main">
