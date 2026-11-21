@@ -124,4 +124,4 @@ select
   telegram_change_alert_web,
   telegram_message_web
 from
-  "🛰️PIONEER_xXx_CAPSULE" c;
+  "🛰️PIONEER_xXx_CAPSULE";
