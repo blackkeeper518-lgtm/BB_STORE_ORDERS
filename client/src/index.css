@@ -2419,3 +2419,26 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .global-theme-runtime .daily-order-summary-room .text-violet-100 {
   color: color-mix(in srgb, var(--global-accent) 72%, var(--global-text)) !important;
 }
+
+/* Mobile inbox viewport guard: keep content clear of status/navigation bars. */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .mobile-inbox-page {
+    min-height: 100svh;
+    height: 100dvh;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    box-sizing: border-box;
+  }
+  .mobile-inbox-list-panel {
+    min-height: 0;
+    overflow: hidden;
+  }
+  .mobile-inbox-composer {
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+  }
+  .mobile-inbox-bottom-nav {
+    min-height: 64px;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    box-sizing: border-box;
+  }
+}
