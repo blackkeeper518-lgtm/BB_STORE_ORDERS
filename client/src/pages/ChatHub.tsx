@@ -283,8 +283,21 @@ export default function ChatHub() {
   const availableToolValues = toolValues.filter(item => String(item.value ?? "").trim());
   const chatEvidenceQuery = trpc.orders.chatEvidence.useQuery({ pageId: selectedPageId, threadId: selectedThreadId }, { enabled: Boolean(selectedPageId && selectedThreadId && orderDetailOpen), refetchInterval: 60_000 });
   const totalMessages = useMemo(() => threads.reduce((total, thread) => total + thread.messageCount, 0), [threads]);
+  const verifySentMessage = async (sentText: string) => {
+    const target = sentText.trim();
+    if (!target) return false;
+    try {
+      const refreshed = await messagesQuery.refetch();
+      return (refreshed.data ?? []).some((message: any) => {
+        const body = String(message?.text ?? message?.message_text ?? message?.messageText ?? "").trim();
+        if (body !== target) return false;
+        const at = new Date(message?.occurredAt ?? message?.createdAt ?? 0).getTime();
+        return Number.isFinite(at) && at >= Date.now() - 120_000;
+      });
+    } catch { return false; }
+  };
   const sendReply = trpc.chat.sendReply.useMutation({
-    onMutate: () => { setDeliveryStatus("sending"); setReplyNotice("กำลังส่งไปยัง Facebook…"); },
+    onMutate: () => { setDeliveryStatus("sending"); setReplyNotice(""); },
     onSuccess: result => {
       const historyFailed = result.chatHistoryPersisted === false;
       setDeliveryStatus(historyFailed ? "warning" : "sent");
@@ -295,20 +308,29 @@ export default function ChatHub() {
         setOptimisticMessages(current => current.map(message => message.id === optimisticMessageIdRef.current ? { ...message, messageId: result.message_id } : message));
       }
       if (replyImages.length > 0) setProductFloatDismissed(true);
-      setReplyText("");
-      setReplyImages([]);
       setEmojiPickerOpen(false);
       setStickerId("");
       void Promise.all([messagesQuery.refetch(), threadsQuery.refetch()]);
     },
-    onError: error => {
-      setDeliveryStatus("failed");
-      const message = error.message || "ส่งข้อความไม่สำเร็จ";
-      setReplyNotice(metaTransientSendNotice(message) ?? message);
+    onError: (error, variables) => {
       const failedId = optimisticMessageIdRef.current;
       if (failedId) setOptimisticMessages(current => current.filter(message => message.id !== failedId));
       optimisticMessageIdRef.current = null;
+      const raw = error.message || "ส่งข้อความไม่สำเร็จ";
+      const sentText = String((variables as { text?: string } | undefined)?.text ?? "");
       void Promise.all([messagesQuery.refetch(), threadsQuery.refetch()]);
+      if (!metaTransientSendNotice(raw)) { setDeliveryStatus("failed"); setReplyNotice(raw); return; }
+      // Meta code -1 / subcode 2018012 = internal error ฝั่ง Meta · ตรวจก่อนแล้วค่อยเตือน
+      setDeliveryStatus("sending");
+      setReplyNotice("");
+      window.setTimeout(() => {
+        void verifySentMessage(sentText).then(delivered => {
+          if (delivered) { setDeliveryStatus("sent"); return; }
+          setDeliveryStatus("warning");
+          setReplyNotice("ยังไม่ยืนยันการส่ง · ตรวจใน Business Suite");
+          if (sentText) setReplyText(current => (current.trim() ? current : sentText));
+        });
+      }, 1_500);
     },
   });
   const generateSummary = trpc.orders.generateSummary.useMutation({ onSuccess: result => { setSummary(result); setSummaryText(""); setReplyText(result.copyText); } });
@@ -438,7 +460,7 @@ export default function ChatHub() {
 
   const sendCurrentReply = () => {
     const text = replyText.trim();
-    if (sendReply.isPending || !selectedPageId || !selectedThreadId || (!text && replyImages.length === 0)) return;
+    if (!selectedPageId || !selectedThreadId || (!text && replyImages.length === 0)) return;
     if (!selectedCustomerId) { setDeliveryStatus("failed"); setReplyNotice("ห้องนี้ยังไม่มี Customer PSID จึงยังส่งข้อความไม่ได้"); return; }
     const optimisticId = `optimistic-${Date.now()}`;
     optimisticMessageIdRef.current = optimisticId;
@@ -453,6 +475,9 @@ export default function ChatHub() {
       text: text || undefined,
       imageUrls: replyImages.map(image => image.sendUrl || image.url),
     });
+    setReplyText("");
+    setReplyImages([]);
+    setReplyNotice("");
   };
   const handleImageUpload = async (input?: File | File[]) => {
     const files = (Array.isArray(input) ? input : input ? [input] : []).slice(0, 4 - replyImages.length);

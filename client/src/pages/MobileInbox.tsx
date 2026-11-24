@@ -308,24 +308,45 @@ export default function MobileInbox() {
   const messagesQuery = trpc.chat.messages.useQuery({ pageId: selectedPageId, threadId: selectedThreadId, surface: "mobile" }, { enabled: hasConfig && platform === "facebook" && openRoom && Boolean(selectedPageId && selectedThreadId), staleTime: 0, refetchInterval: 8_000, refetchIntervalInBackground: false, refetchOnWindowFocus: true, refetchOnReconnect: true, select: mapChatRowsToMessages });
   const refreshInbox = () => { void Promise.all([threadsQuery.refetch(), lineConversationsQuery.refetch(), messagesQuery.refetch()]); };
   const optimisticMessageIdRef = useRef<string | null>(null);
+  const verifySentMessage = async (sentText: string) => {
+    const target = sentText.trim();
+    if (!target) return false;
+    try {
+      const refreshed = await messagesQuery.refetch();
+      return (refreshed.data ?? []).some(message => {
+        if (messageText(message).trim() !== target) return false;
+        const at = new Date(message.occurredAt ?? 0).getTime();
+        return Number.isFinite(at) && at >= Date.now() - 120_000;
+      });
+    } catch { return false; }
+  };
   const sendReply = trpc.chat.sendReply.useMutation({
-    onMutate: () => setNotice("กำลังส่งไปยัง Facebook…"),
+    onMutate: () => setNotice(""),
     onSuccess: result => {
       setOptimisticMessages(current => current.map(message => message.id === optimisticMessageIdRef.current ? { ...message, messageId: result.message_id } : message));
       if (replyImages.length > 0) setProductDockDismissed(true);
       else if (replyText.trim()) setProductDockCollapsed(true);
-      setReplyText("");
-      setReplyImages([]);
-      setNotice("ส่งแล้ว");
+      setNotice("");
       void Promise.all([messagesQuery.refetch(), threadsQuery.refetch()]);
     },
-    onError: error => {
+    onError: (error, variables) => {
       const failedId = optimisticMessageIdRef.current;
       if (failedId) setOptimisticMessages(current => current.filter(message => message.id !== failedId));
       optimisticMessageIdRef.current = null;
-      const message = error.message || "ส่งไม่สำเร็จ";
-      setNotice(metaTransientSendNotice(message) ?? message);
+      const raw = error.message || "ส่งไม่สำเร็จ";
+      const sentText = String((variables as { text?: string } | undefined)?.text ?? "");
       void Promise.all([messagesQuery.refetch(), threadsQuery.refetch()]);
+      if (!metaTransientSendNotice(raw)) { setNotice(raw); return; }
+      // Meta code -1 / subcode 2018012 = internal error ฝั่ง Meta · ข้อความมักเข้าปกติ
+      // จึงไม่ขึ้นเตือนทันที: ตรวจก่อนว่าข้อความเข้าจริงหรือไม่
+      setNotice("");
+      window.setTimeout(() => {
+        void verifySentMessage(sentText).then(delivered => {
+          if (delivered) return;
+          setNotice("ยังไม่ยืนยันการส่ง · ตรวจใน Business Suite");
+          if (sentText) setReplyText(current => (current.trim() ? current : sentText));
+        });
+      }, 1_500);
     },
   });
   const generateSummary = trpc.orders.generateSummary.useMutation({
@@ -431,12 +452,15 @@ export default function MobileInbox() {
   };
   const send = () => {
     const text = replyText.trim();
-    if (sendReply.isPending || !selectedPageId || !selectedThreadId || (!text && replyImages.length === 0)) return;
+    if (!selectedPageId || !selectedThreadId || (!text && replyImages.length === 0)) return;
     if (!selectedCustomerId) { setNotice("ห้องนี้ยังไม่มี Customer PSID"); return; }
     const optimisticId = `optimistic-${Date.now()}`;
     optimisticMessageIdRef.current = optimisticId;
     setOptimisticMessages(current => [...current, { id: optimisticId, text: text || "ส่งรูปภาพ", message_text: text, direction: "outbound", senderType: "page", side: "right", occurredAt: new Date().toISOString(), attachmentsJson: replyImages.length ? JSON.stringify(replyImages.map(image => ({ url: image.url }))) : "[]" }]);
     sendReply.mutate({ pageId: selectedPageId, pageName: selected?.pageName ?? undefined, portalKey: selected?.portalKey ?? undefined, chatLinkKey: selected?.chatLinkKey ?? undefined, threadId: selectedThreadId, recipientId: selectedCustomerId, text: text || undefined, imageUrls: replyImages.map(image => image.sendUrl || image.url), surface: "mobile" });
+    setReplyText("");
+    setReplyImages([]);
+    setNotice("");
   };
   const chooseTheme = (preset: CyberTheme) => {
     const next = { ...cyberTheme, ...preset, preset: preset.preset };
