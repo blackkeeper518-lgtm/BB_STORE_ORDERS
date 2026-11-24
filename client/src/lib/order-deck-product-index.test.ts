@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { isUsableDeckProductImageUrl, selectFeaturedDeckImageProducts } from "./order-deck-product-index";
+import { MAX_FEATURED_DECK_IMAGE_PRODUCTS, isUsableDeckProductImageUrl, selectFeaturedDeckImageProducts } from "./order-deck-product-index";
 
 const root = process.cwd();
 const chatHub = readFileSync(resolve(root, "client/src/pages/ChatHub.tsx"), "utf8");
@@ -11,8 +11,8 @@ const deckSource = readFileSync(resolve(root, "client/public/order-deck.html"), 
 const deckFrame = readFileSync(resolve(root, "client/src/components/chat/OrderDeckFrame.tsx"), "utf8");
 
 describe("Order Deck floating product shortcuts", () => {
-  it("shows only Deck-highlighted products with usable images and caps the dock at eight", () => {
-    const products = Array.from({ length: 10 }, (_, index) => ({
+  it("shows only Deck-highlighted products with usable images and caps the dock at thirty", () => {
+    const products = Array.from({ length: 35 }, (_, index) => ({
       product: `product-${index}`,
       terms: [],
       imageUrls: [`https://cdn.example/${index}.jpg`],
@@ -25,7 +25,7 @@ describe("Order Deck floating product shortcuts", () => {
     );
 
     expect(selectFeaturedDeckImageProducts(products).map(item => item.product)).toEqual(
-      Array.from({ length: 8 }, (_, index) => `product-${index}`),
+      Array.from({ length: MAX_FEATURED_DECK_IMAGE_PRODUCTS }, (_, index) => `product-${index}`),
     );
   });
 
@@ -49,9 +49,11 @@ describe("Order Deck floating product shortcuts", () => {
     expect(deckSource).toContain("window.parent.postMessage({type:'ST_ORDER_DECK_PRODUCT_IMAGES'");
   });
 
-  it("passes local images from pinned editor records through the Deck index and iframe bridge", () => {
+  it("keeps local pinned images available while sending lightweight previews through the Deck index", () => {
     expect(deckSource).toContain("const embeddedPinnedImage=featured&&imageUrl.length<=8100000");
-    expect(deckSource).toContain("const imageUrls=remoteImage||embeddedPinnedImage?[imageUrl]:[]");
+    expect(deckSource).toContain("const imageUrls=remoteImage?[imageUrl]:(embeddedPinnedImage?[await productDockThumbnail(imageUrl)].filter(Boolean):[])");
+    expect(deckSource).toContain("canvas.toDataURL('image/webp',.55)");
+    expect(deckSource).toContain("productDockThumbnailActive<3");
     expect(deckFrame).toContain("isUsableDeckProductImageUrl(url)");
   });
 
@@ -97,6 +99,7 @@ describe("Order Deck floating product shortcuts", () => {
     expect(mobileDock).toContain("📌 สินค้าไฮไลท์");
     expect(mobileDock).toContain("className=\"mobile-inbox-product-dock__reopen\"");
     expect(mobileDock).toContain("onClick={() => onSelect(item.product)}");
+    expect(mobileDock).toContain('loading="lazy" decoding="async"');
     expect(mobileDock).toContain("onClick={onToggleCollapsed}");
   });
 

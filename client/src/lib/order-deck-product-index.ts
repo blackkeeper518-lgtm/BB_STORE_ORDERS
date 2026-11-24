@@ -5,6 +5,8 @@ export type DeckImageProduct = {
   featured: boolean;
 };
 
+export const MAX_FEATURED_DECK_IMAGE_PRODUCTS = 30;
+
 const MAX_EMBEDDED_IMAGE_URL_LENGTH = 8_100_000;
 
 export function isUsableDeckProductImageUrl(url: string): boolean {
@@ -15,5 +17,5 @@ export function isUsableDeckProductImageUrl(url: string): boolean {
 export function selectFeaturedDeckImageProducts(products: readonly DeckImageProduct[]): DeckImageProduct[] {
   return products
     .filter(item => item.featured && item.imageUrls.some(isUsableDeckProductImageUrl))
-    .slice(0, 8);
+    .slice(0, MAX_FEATURED_DECK_IMAGE_PRODUCTS);
 }

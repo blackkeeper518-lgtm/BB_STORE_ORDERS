@@ -523,12 +523,50 @@ function openScript(id){editingId=id;const s=scripts.find(x=>x.id===id);$('modal
 function highlight(){const text=$('code').value,lang=$('kind').value;let h=escapeHtml(text);if(lang==='sql'||lang==='java'){h=h.replace(/(\/\/.*|--.*)$/gm,'<span class="token-comment">$1</span>').replace(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/g,'<span class="token-str">$1</span>').replace(/\b(SELECT|FROM|WHERE|AND|OR|ORDER|BY|LIMIT|INSERT|INTO|VALUES|UPDATE|SET|DELETE|JOIN|CREATE|TABLE|DROP|ALTER|PRIMARY|KEY|NOT|NULL|AS|GROUP|HAVING|RETURN|PUBLIC|PRIVATE|STATIC|VOID|CLASS|NEW|INT|STRING|BOOLEAN|IF|ELSE|FOR|WHILE|IMPORT|PACKAGE|TRUE|FALSE)\b/gi,'<span class="token-key">$1</span>').replace(/\b\d+(?:\.\d+)?\b/g,'<span class="token-num">$&</span>')}else if(lang==='markdown'){h=h.replace(/^(#{1,6} .*|> .*|[-*] .*)$/gm,'<span class="token-mark">$1</span>').replace(/(\*\*.*?\*\*)/g,'<span class="token-key">$1</span>')}$('highlight').innerHTML=h+'\n';$('lineCount').textContent=(text.match(/\n/g)||[]).length+1+' บรรทัด'}$('code').addEventListener('input',highlight);$('code').addEventListener('scroll',()=>{$('highlight').scrollTop=$('code').scrollTop;$('highlight').scrollLeft=$('code').scrollLeft});$('kind').onchange=()=>{$('modeBadge').textContent=$('kind').value.toUpperCase();if(currentFile){$('filename').value='';currentFile=null}highlight()};
 function renderFiles(){$('files').innerHTML='';$('fileCount').textContent=files.length+' FILES';if(!files.length){$('files').innerHTML='<div class="empty" style="grid-column:1/-1">ยังไม่มีไฟล์ · เขียนโค้ดหรือโน้ตแล้วกดบันทึกเป็นไฟล์</div>';return}files.forEach(f=>{const card=document.createElement('div');card.className='file-card';card.innerHTML=`<div class="file-name" title="${escapeHtml(f.name)}">${escapeHtml(f.name)}</div><div class="file-kind"><span>${escapeHtml(f.kind)}</span><span>${new Date(f.updated).toLocaleDateString('th-TH')}</span></div><div class="file-actions"><button class="btn small open">เปิด</button><button class="btn small quiet download">ดาวน์โหลด</button><button class="btn small quiet remove">×</button></div>`;card.querySelector('.open').onclick=()=>loadFile(f.id);card.querySelector('.download').onclick=()=>downloadFile(f);card.querySelector('.remove').onclick=()=>{if(confirm('ลบไฟล์ '+f.name+' ?')){files=files.filter(x=>x.id!==f.id);saveFiles();renderFiles();status('ลบไฟล์แล้ว')}};$('files').append(card)})}function saveFiles(){localStorage.setItem('drak-files-v2',JSON.stringify(files))}function loadFile(id){const f=files.find(x=>x.id===id);if(!f)return;currentFile=f.id;$('filename').value=f.name;$('kind').value=f.kind;$('modeBadge').textContent=f.kind.toUpperCase();$('code').value=f.content;highlight();window.scrollTo({top:0,behavior:'smooth'});status('เปิดไฟล์ '+f.name)}function downloadFile(f){const blob=new Blob([f.content],{type:'text/plain;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=f.name;a.click();URL.revokeObjectURL(a.href)}$('saveFile').onclick=()=>{const kind=$('kind').value,ext={sql:'sql',java:'java',markdown:'md',note:'txt',txt:'txt'}[kind],name=$('filename').value.trim()||`untitled-${Date.now()}.${ext}`;let f=currentFile&&files.find(x=>x.id===currentFile);if(f){f.name=name;f.kind=kind;f.content=$('code').value;f.updated=Date.now()}else{f={id:'f'+Date.now(),name,kind,content:$('code').value,updated:Date.now()};files.unshift(f);currentFile=f.id}$('filename').value=name;saveFiles();renderFiles();status('บันทึก '+name+' แล้ว')};$('newFile').onclick=()=>{currentFile=null;$('filename').value='';$('code').value='';highlight();$('filename').focus()};$('clearVault').onclick=()=>{if(confirm('ลบไฟล์และโน้ตที่บันทึกไว้ในเบราว์เซอร์นี้หรือไม่? สคริปต์จะยังคงอยู่')){files=[];localStorage.removeItem('drak-files-v2');renderFiles();status('ลบไฟล์แล้ว')}};
 let images=[];const imageDbPromise=new Promise((resolve,reject)=>{if(!('indexedDB'in window)){reject(new Error('เบราว์เซอร์ไม่มี IndexedDB'));return}const req=indexedDB.open('drakside-image-vault',1);req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains('images'))req.result.createObjectStore('images',{keyPath:'id'})};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)});function imageStore(mode,action,value){return imageDbPromise.then(db=>new Promise((resolve,reject)=>{const tx=db.transaction('images',mode),store=tx.objectStore('images'),req=action==='all'?store.getAll():action==='put'?store.put(value):action==='delete'?store.delete(value):store.clear();req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);tx.onabort=()=>reject(tx.error)}))}function saveImages(){return Promise.resolve()}async function loadImages(){try{images=await imageStore('readonly','all');if(!images.length){const old=read('drak-images-v1',[]);if(old.length){images=old;for(const im of old)await imageStore('readwrite','put',im);localStorage.removeItem('drak-images-v1')}}renderImages()}catch(e){status('เปิดคลังภาพไม่ได้: '+(e.message||'เบราว์เซอร์ไม่รองรับ'));renderImages()}}let imageProducts=read('drak-image-products-v1',['ทั่วไป']);if(!Array.isArray(imageProducts)||!imageProducts.length)imageProducts=['ทั่วไป'];let productGroups=read('drak-product-group-assignments-v1',{});if(!productGroups||typeof productGroups!=='object')productGroups={};let productInfo=read('drak-product-info-v1',{});if(!productInfo||typeof productInfo!=='object')productInfo={};let activeProductTab='ทั้งหมด',activeImageProduct=imageProducts[0]||'ทั่วไป',editingProduct='';function productLaneEvidence(name){const info=productInfo[name]||{};const blocks=Array.isArray(info.blocks)?info.blocks:[];const imageNames=images.filter(im=>(im.product||'ทั่วไป')===name).map(im=>im.name||'');return [name,info.name,info.description,...blocks.flatMap(block=>[block.title,block.content]),...imageNames].filter(Boolean).join(' ')}function inferredProductLane(name){return inferProductLaneFromText(productLaneEvidence(name))}function groupOf(name){return productGroups[name]||inferredProductLane(name)||''}function isUnclassifiedProduct(name){return !groupOf(name)}function imageForProduct(name){return images.filter(im=>(im.product||'ทั่วไป')===name).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)))}function productPayload(name){const info=productInfo[name]||{};const texts=(Array.isArray(info.texts)?info.texts:[]).filter(x=>typeof x==='string'&&x.trim()).slice(0,3);return {product:name,textVariants:texts,productInfo:{name:info.name||name,price:info.price||'',description:info.description||'',blocks:Array.isArray(info.blocks)?info.blocks:[]},imageUrls:imageForProduct(name).slice(0,1).map(im=>im.vaultUrl||im.src).filter(Boolean)}}function notifyParentProductSelected(name){if(window.parent===window)return;const payload=productPayload(name);window.parent.postMessage({type:'ST_ORDER_DECK_PRODUCT_SELECTED',...payload},window.location.origin)}function notifyParentProductImages(name){const pics=imageForProduct(name).slice(0,1);if(!pics.length||window.parent===window)return;window.parent.postMessage({type:'ST_ORDER_DECK_PRODUCT_IMAGES',product:name,imageUrls:pics.map(im=>im.vaultUrl||im.src).filter(Boolean).slice(0,4)},window.location.origin)}
+  const productDockThumbnailCache=new Map(),productDockThumbnailQueue=[];
+  let productDockThumbnailActive=0;
+  function drainProductDockThumbnailQueue(){
+    while(productDockThumbnailActive<3&&productDockThumbnailQueue.length){
+      const job=productDockThumbnailQueue.shift();
+      productDockThumbnailActive++;
+      Promise.resolve().then(job).finally(()=>{productDockThumbnailActive--;drainProductDockThumbnailQueue()});
+    }
+  }
+  function productDockThumbnail(imageUrl){
+    if(!/^data:image\//i.test(imageUrl)||imageUrl.length<=32000)return Promise.resolve(imageUrl);
+    if(productDockThumbnailCache.has(imageUrl))return productDockThumbnailCache.get(imageUrl);
+    let resolvePreview;
+    const pending=new Promise(resolve=>{resolvePreview=resolve});
+    productDockThumbnailCache.set(imageUrl,pending);
+    productDockThumbnailQueue.push(()=>new Promise(resolveJob=>{
+      const image=new Image();
+      const finish=preview=>{resolvePreview(preview);resolveJob()};
+      image.decoding='async';
+      image.onload=()=>{
+        try{
+          const width=image.naturalWidth||image.width,height=image.naturalHeight||image.height;
+          const scale=Math.min(1,96/Math.max(width,height));
+          const canvas=document.createElement('canvas');
+          canvas.width=Math.max(1,Math.round(width*scale));
+          canvas.height=Math.max(1,Math.round(height*scale));
+          const context=canvas.getContext('2d');
+          if(!context){finish(imageUrl.length<=120000?imageUrl:'');return}
+          context.drawImage(image,0,0,canvas.width,canvas.height);
+          finish(canvas.toDataURL('image/webp',.55));
+        }catch{finish(imageUrl.length<=120000?imageUrl:'')}
+      };
+      image.onerror=()=>finish(imageUrl.length<=120000?imageUrl:'');
+      image.src=imageUrl;
+    }));
+    drainProductDockThumbnailQueue();
+    return pending;
+  }
   let lastProductIndexSignature='',activeChatPageName='',activeChatPageId='';
-  function notifyParentProductIndex(pageName=activeChatPageName,pageId=activeChatPageId){
+  async function notifyParentProductIndex(pageName=activeChatPageName,pageId=activeChatPageId){
     if(window.parent===window)return;
     const matchingCollection=adPages.find(page=>adPageNameKey(page.name)===adPageNameKey(pageName))||currentAdPage();
     const pinnedNames=new Set(adPages.flatMap(page=>Array.isArray(page.selected)?page.selected.filter(name=>typeof name==='string'):[]));
-    const products=imageProducts.slice(0,500).map(name=>{
+    const products=await Promise.all(imageProducts.slice(0,500).map(async name=>{
       const info=productInfo[name]||{};
       const blocks=Array.isArray(info.blocks)?info.blocks:[];
       const detail=[info.name,...blocks.flatMap(block=>[block.title,block.content])].filter(Boolean).join('\n');
@@ -542,9 +580,10 @@ let images=[];const imageDbPromise=new Promise((resolve,reject)=>{if(!('indexedD
       const imageUrl=String(imageSource||'');
       const remoteImage=/^https:\/\//i.test(imageUrl);
       const embeddedPinnedImage=featured&&imageUrl.length<=8100000&&/^data:image\/(?:png|jpeg|gif|webp);base64,[A-Za-z0-9+/]+=*$/i.test(imageUrl);
-      const imageUrls=remoteImage||embeddedPinnedImage?[imageUrl]:[];
+      const imageUrls=remoteImage?[imageUrl]:(embeddedPinnedImage?[await productDockThumbnail(imageUrl)].filter(Boolean):[]);
       return {product:name,terms:[...new Set(terms)].slice(0,32),imageUrls,featured};
-    });
+    }));
+    if(pageName!==activeChatPageName||pageId!==activeChatPageId)return;
     const responsePageId=typeof pageId==='string'?pageId:'';
     const signature=JSON.stringify({pageId:responsePageId,collectionId:matchingCollection?.id||'',products});
     if(signature===lastProductIndexSignature)return;
