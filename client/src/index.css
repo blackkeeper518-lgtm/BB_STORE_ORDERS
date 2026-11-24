@@ -1356,7 +1356,7 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
   .mobile-inbox-theme-swatch { padding:7px 6px; font-size:9px; }
   .mobile-inbox-install-button { height:31px; padding:0 7px; font-size:9px; }
   .mobile-inbox-install-button svg { width:14px; height:14px; }
-  .mobile-inbox-conversation-header { height:64px; padding:8px 11px; gap:9px; }
+  .mobile-inbox-conversation-header { --mobile-inbox-top-clearance:max(40px,calc(env(safe-area-inset-top) + 8px)); height:calc(64px + var(--mobile-inbox-top-clearance)); min-height:calc(64px + var(--mobile-inbox-top-clearance)); padding:calc(8px + var(--mobile-inbox-top-clearance)) 11px 8px; gap:9px; }
   .mobile-inbox-conversation-header > button { width:34px; height:34px; }
   .mobile-inbox-conversation-header > button svg { width:18px; height:18px; }
   .mobile-inbox-conversation-header .mobile-inbox-avatar { width:38px; height:38px; font-size:15px; }
@@ -1804,7 +1804,7 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .mobile-inbox-order-deck { position:fixed !important; z-index:2147483000 !important; inset:0 !important; display:flex !important; align-items:center; justify-content:center; padding:max(8px,env(safe-area-inset-top)) 8px max(8px,env(safe-area-inset-bottom)); background:rgba(4,4,13,.78); backdrop-filter:blur(8px); overscroll-behavior:contain; }
 .mobile-inbox-order-deck-panel { position:relative; z-index:1; display:flex; width:min(100%,760px); height:min(100%,960px); min-height:0; overflow:hidden; border:1px solid rgba(173,114,255,.42); border-radius:20px; background:#080b14; box-shadow:0 24px 90px rgba(0,0,0,.65),0 0 34px rgba(173,114,255,.16); }
 .mobile-inbox-order-deck-panel > section { width:100%; height:100%; min-height:0; }
-@media(max-width:560px){.mobile-inbox-order-deck{padding:max(6px,env(safe-area-inset-top)) 6px max(6px,env(safe-area-inset-bottom));}.mobile-inbox-order-deck-panel{width:100%;height:100%;border-radius:16px;}}
+@media(max-width:560px){.mobile-inbox-order-deck{--mobile-inbox-top-clearance:max(40px,calc(env(safe-area-inset-top) + 8px));padding:var(--mobile-inbox-top-clearance) 6px max(8px,env(safe-area-inset-bottom));}.mobile-inbox-order-deck-panel{width:100%;height:calc(100dvh - var(--mobile-inbox-top-clearance) - max(8px,env(safe-area-inset-bottom)));border-radius:16px;}}
 
 
 /* Mobile stock room: compact neon modal with a scrollable product list. */
