@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { MAX_FEATURED_DECK_IMAGE_PRODUCTS, isUsableDeckProductImageUrl, selectFeaturedDeckImageProducts } from "./order-deck-product-index";
+import { MAX_FEATURED_DECK_IMAGE_PRODUCTS, applySharedDeckHighlights, isUsableDeckProductImageUrl, selectFeaturedDeckImageProducts } from "./order-deck-product-index";
 
 const root = process.cwd();
 const chatHub = readFileSync(resolve(root, "client/src/pages/ChatHub.tsx"), "utf8");
@@ -24,9 +24,22 @@ describe("Order Deck floating product shortcuts", () => {
       { product: "local-only", terms: [], imageUrls: ["blob:https://app.example/image"], featured: true },
     );
 
+    expect(MAX_FEATURED_DECK_IMAGE_PRODUCTS).toBe(30);
     expect(selectFeaturedDeckImageProducts(products).map(item => item.product)).toEqual(
-      Array.from({ length: MAX_FEATURED_DECK_IMAGE_PRODUCTS }, (_, index) => `product-${index}`),
+      Array.from({ length: 30 }, (_, index) => `product-${index}`),
     );
+  });
+
+  it("keeps local featured flags until cloud settings are configured, then follows the shared names", () => {
+    const products = [
+      { product: "legacy-local", terms: [], imageUrls: ["https://cdn.example/local.jpg"], featured: true },
+      { product: "cloud-shared", terms: [], imageUrls: ["https://cdn.example/cloud.jpg"], featured: false },
+    ];
+    expect(applySharedDeckHighlights(products, { configured: false, productNames: [] })).toEqual(products);
+    expect(applySharedDeckHighlights(products, { configured: true, productNames: ["cloud-shared"] }).map(item => [item.product, item.featured])).toEqual([
+      ["legacy-local", false],
+      ["cloud-shared", true],
+    ]);
   });
 
   it("allows a pinned local editor image through the dock and rejects unsafe or oversized data URLs", () => {
@@ -47,6 +60,11 @@ describe("Order Deck floating product shortcuts", () => {
     expect(chatHub).toContain("onClick={() => requestProductImagesFromDeck(item.product)}");
     expect(deckFrame).toContain('type: "ST_ORDER_DECK_REQUEST_PRODUCT_IMAGES"');
     expect(deckSource).toContain("window.parent.postMessage({type:'ST_ORDER_DECK_PRODUCT_IMAGES'");
+    expect(deckSource).toContain("ST_ORDER_DECK_FEATURED_PRODUCTS_UPDATED");
+    expect(deckSource).toContain("ST_ORDER_DECK_APPLY_FEATURED_PRODUCTS");
+    expect(deckFrame).toContain("onFeaturedProductsChange");
+    expect(chatHub).toContain("onFeaturedProductsChange={saveSharedProductHighlights}");
+    expect(mobileInbox).toContain("onFeaturedProductsChange={saveSharedProductHighlights}");
   });
 
   it("keeps local pinned images available while sending lightweight previews through the Deck index", () => {

@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { COOKIE_NAME } from "../shared/const";
 import { sendMetaMessage } from "./meta";
-import { assertChatPageEnabled, canStaffExecuteProjectQuery, canStaffUploadVaultStorage, checkChatConnection, checkServerProject, deleteChatPage, executeProjectQuery, executeVaultStorage, fetchChatMessageRows, fetchChatNotificationRows, fetchChatPages, fetchChatThreadRows, fetchParcelMappingQueue, getServerProjectStatus, lookupParcelByPhone, purgeOldParcels, recordOutgoingChatMessage, saveChatPage, setChatPageAppStatus, setChatPageWebStatus, supabaseDelete, supabaseGet, supabasePatch, supabasePost } from "./supabase";
+import { assertChatPageEnabled, canStaffExecuteProjectQuery, canStaffUploadVaultStorage, checkChatConnection, checkServerProject, deleteChatPage, executeProjectQuery, executeVaultStorage, fetchChatMessageRows, fetchChatNotificationRows, fetchChatPages, fetchChatThreadRows, fetchParcelMappingQueue, getServerProjectStatus, lookupParcelByPhone, purgeOldParcels, recordOutgoingChatMessage, saveChatPage, setChatPageAppStatus, setChatPageWebStatus, supabaseDelete, supabaseGet, supabasePatch, supabasePost, fetchChatProductHighlights, saveChatProductHighlights } from "./supabase";
 import { checkLineConnection, fetchLineConversations, fetchLineMessages, sendLineText } from "./line";
 import * as db from "./db";
 import { generateOrderSummary } from "./order-summary";
@@ -74,6 +74,8 @@ export const appRouter = router({
   }),
 
   chat: router({
+    productHighlights: protectedProcedure.query(() => fetchChatProductHighlights("BB_STORE_ORDERS")),
+    saveProductHighlights: adminProcedure.input(z.object({ productNames: z.array(z.string().trim().min(1).max(120)).max(30) })).mutation(({ input }) => saveChatProductHighlights("BB_STORE_ORDERS", input.productNames)),
     configured: publicProcedure.query(({ ctx }) => ({ configured: Boolean(process.env.CHAT_SUPABASE_URL?.trim() && process.env.CHAT_SUPABASE_SERVICE_ROLE_KEY?.trim()) })),
     // Connection test only verifies the configured Supabase objects. Reading rooms
     // and sending replies remain protected below, but saving/testing config must not

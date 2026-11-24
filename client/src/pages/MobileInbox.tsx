@@ -4,7 +4,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { extractChatImageUrls, getActiveCamp, getSupabase, mapChatRowsToMessages, mapChatRowsToThreads, readCanonicalOrders, reconcileOptimisticMessages } from "@/lib/canonical";
 import { uploadChatImageToVault } from "@/lib/chat-image-upload";
 import { getLatestBBChatCustomerMessage, getSelectedOrderMessageText, isImportableLatestCustomerMessage } from "@/lib/order-deck-context";
-import { selectFeaturedDeckImageProducts } from "@/lib/order-deck-product-index";
+import { applySharedDeckHighlights, selectFeaturedDeckImageProducts } from "@/lib/order-deck-product-index";
+import { useChatProductHighlights } from "@/hooks/useChatProductHighlights";
 import { CYBER_FRAME_EVENT, CYBER_FRAME_OPTIONS, readCyberFrame, readCyberFrameRooms, saveCyberFrameRoom } from "@/lib/cyber-frame";
 import { CYBER_THEME_PRESETS, readCyberTheme, saveCyberTheme, type CyberTheme } from "@/lib/theme-lab";
 import { CHAT_NOTIFICATION_EVENT, countUnreadChatMessages, isChatNotificationSoundEnabled, markChatNotificationsRead, playChatNotificationSound, readChatNotificationState, reconcileChatNotificationRows, setChatNotificationSound, setChatNotificationSoundEnabled, unlockChatNotificationAudio, writeChatNotificationState, type ChatNotification } from "@/lib/chat-notifications";
@@ -482,7 +483,8 @@ export default function MobileInbox() {
   };
   const messages = [...(messagesQuery.data ?? []), ...optimisticMessages].filter(message => messageText(message).trim());
   const selectedOrderMessageText = getSelectedOrderMessageText(selectedOrderMessage, selected?.key);
-  const featuredImageProducts = useMemo(() => selectFeaturedDeckImageProducts(deckImageProducts), [deckImageProducts]);
+  const { settings: sharedProductHighlights, saveProductNames: saveSharedProductHighlights } = useChatProductHighlights();
+  const featuredImageProducts = useMemo(() => selectFeaturedDeckImageProducts(applySharedDeckHighlights(deckImageProducts, sharedProductHighlights)), [deckImageProducts, sharedProductHighlights]);
   const requestProductImagesFromDeck = (product: string) => {
     productImagesRequestIdRef.current += 1;
     setProductImagesRequest({ id: productImagesRequestIdRef.current, product });
@@ -606,7 +608,7 @@ export default function MobileInbox() {
     </section>
     <nav className="mobile-inbox-bottom-nav"><button type="button" className="is-active" onClick={returnToInbox}><MessagesSquare /><span>ข้อความ</span></button><button type="button" onClick={() => { returnToInbox(); requestAnimationFrame(() => document.querySelector<HTMLInputElement>(".mobile-inbox-search input")?.focus()); }}><Search /><span>ค้นหา</span></button><button type="button" onClick={openDrawer}><Menu /><span>เมนู</span></button></nav>
     {openRoom && selected ? <div className="mobile-inbox-deck-bridge" aria-hidden="true">
-      <OrderDeckFrame pageId={selectedPageId} pageName={selected.pageName || "ไม่ระบุเพจ"} threadId={selectedThreadId} customerName={selected.customerName || "ลูกค้า"} customerPhone={String(selected.customerPhone || selected.phone || "")} selectedCustomerMessage={selectedOrderMessageText} messageMode="latest" roomStatus="พร้อมใช้งาน" onProductImagesSelected={receiveProductImages} onProductIndexReady={setDeckImageProducts} productImagesRequest={productImagesRequest} onClose={() => {}} />
+      <OrderDeckFrame pageId={selectedPageId} pageName={selected.pageName || "ไม่ระบุเพจ"} threadId={selectedThreadId} customerName={selected.customerName || "ลูกค้า"} customerPhone={String(selected.customerPhone || selected.phone || "")} selectedCustomerMessage={selectedOrderMessageText} messageMode="latest" roomStatus="พร้อมใช้งาน" onProductImagesSelected={receiveProductImages} onProductIndexReady={setDeckImageProducts} sharedHighlights={sharedProductHighlights} onFeaturedProductsChange={saveSharedProductHighlights} productImagesRequest={productImagesRequest} onClose={() => {}} />
     </div> : null}
     {openRoom && selected ? <div className="mobile-inbox-conversation"><div className="mobile-inbox-conversation-shell"><header className="mobile-inbox-conversation-header"><button type="button" aria-label="กลับไปหน้ารวมแชท" onClick={closeRoom}><ArrowLeft /></button><span className="mobile-inbox-avatar">{profileAvatar(selected)}</span><div className="min-w-0 flex-1"><strong className="block truncate">{selected.customerName || ""}</strong><small>{selected.pageName || "ไม่ระบุเพจ"}</small></div><button type="button" onClick={openOrderDeck} disabled={messagesQuery.isLoading || messagesQuery.isFetching} className="mobile-inbox-order-summary-button" aria-label="ดึงข้อความลูกค้าล่าสุด ณ เวลากดแล้วเปิดสรุปบิล" title="กดเพื่อดึงข้อความลูกค้าล่าสุดจาก 🌌ST_CHAT แล้วเปิดสรุปบิล"><Clipboard /><span>{messagesQuery.isFetching ? "กำลังดึง…" : "🧾สรุปบิล"}</span></button></header><div ref={timelineRef} onScroll={event => { const node = event.currentTarget; stickTimelineToBottomRef.current = node.scrollHeight - node.scrollTop - node.clientHeight < 48; }} className="mobile-inbox-timeline">{messages.length ? messages.map(message => { const outgoing = message.direction === "outbound" || message.senderType === "page"; const text = messageText(message); const images = imageUrls(message.attachmentsJson); const mediaOnly = images.length > 0 && (!text.trim() || /^\[รูปภาพ\]$|^ส่งรูปภาพ$/i.test(text.trim())); const roomFrame = cyberFrameRooms[selected.key] || cyberFrame; return (
               <div key={message.id} className={`mobile-inbox-message-row ${outgoing ? "is-outgoing" : ""}`}>

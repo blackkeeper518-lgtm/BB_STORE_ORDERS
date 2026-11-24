@@ -18,6 +18,8 @@ type OrderDeckFrameProps = {
   onProductImagesSelected?: (imageUrls: string[], productName?: string) => void | Promise<void>;
   onProductSelected?: (payload: { product: string; textVariants: string[]; productInfo: Record<string, unknown>; imageUrls: string[] }) => void | Promise<void>;
   onProductIndexReady?: (products: Array<{ product: string; terms: string[]; imageUrls: string[]; featured: boolean }>) => void;
+  sharedHighlights?: { configured: boolean; productNames: string[] };
+  onFeaturedProductsChange?: (productNames: string[]) => void;
   productImagesRequest?: { id: number; product: string } | null;
   onSummaryReady?: (summary: string) => void;
   roomStatus?: string;
@@ -143,6 +145,11 @@ export function OrderDeckFrame(props: OrderDeckFrameProps) {
   }, [props.pageId, props.pageName, props.threadId, sendContext, sendSharedRuntime, requestProductIndex]);
 
   useEffect(() => {
+    if (!frameReady || !props.sharedHighlights?.configured) return;
+    frameRef.current?.contentWindow?.postMessage({ type: "ST_ORDER_DECK_APPLY_FEATURED_PRODUCTS", productNames: props.sharedHighlights.productNames.slice(0, 30) }, window.location.origin);
+  }, [frameReady, props.sharedHighlights]);
+
+  useEffect(() => {
     const request = props.productImagesRequest;
     if (!frameReady || !request) return;
     frameRef.current?.contentWindow?.postMessage({ type: "ST_ORDER_DECK_REQUEST_PRODUCT_IMAGES", product: request.product }, window.location.origin);
@@ -160,6 +167,13 @@ export function OrderDeckFrame(props: OrderDeckFrameProps) {
             .slice(0, 500)
           : [];
         currentProps.current.onProductIndexReady?.(products);
+        return;
+      }
+      if (event.data?.type === "ST_ORDER_DECK_FEATURED_PRODUCTS_UPDATED") {
+        const productNames: string[] = Array.isArray(event.data.productNames)
+          ? Array.from(new Set<string>((event.data.productNames as unknown[]).filter((name): name is string => typeof name === "string").map(name => name.trim().slice(0, 120)).filter(Boolean))).slice(0, 30)
+          : [];
+        currentProps.current.onFeaturedProductsChange?.(productNames);
         return;
       }
       if (event.data?.type === "ST_ORDER_DECK_ORDER_SUMMARY") {

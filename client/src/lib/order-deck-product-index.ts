@@ -5,6 +5,8 @@ export type DeckImageProduct = {
   featured: boolean;
 };
 
+export type SharedDeckHighlights = { configured: boolean; productNames: string[] } | undefined;
+
 export const MAX_FEATURED_DECK_IMAGE_PRODUCTS = 30;
 
 const MAX_EMBEDDED_IMAGE_URL_LENGTH = 8_100_000;
@@ -18,4 +20,10 @@ export function selectFeaturedDeckImageProducts(products: readonly DeckImageProd
   return products
     .filter(item => item.featured && item.imageUrls.some(isUsableDeckProductImageUrl))
     .slice(0, MAX_FEATURED_DECK_IMAGE_PRODUCTS);
+}
+
+export function applySharedDeckHighlights(products: readonly DeckImageProduct[], settings: SharedDeckHighlights): DeckImageProduct[] {
+  if (!settings?.configured) return [...products];
+  const selected = new Set(settings.productNames);
+  return products.map(item => ({ ...item, featured: selected.has(item.product) }));
 }

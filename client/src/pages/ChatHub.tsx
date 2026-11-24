@@ -9,7 +9,8 @@ import { uploadChatImageToVault } from "@/lib/chat-image-upload";
 import { buildMetaConversationUrl } from "@/lib/meta-inbox";
 import { metaTransientSendNotice } from "@/lib/meta-send-notice";
 import { getImportableLatestCustomerMessage, getSelectedOrderMessageText, isSelectableCustomerMessage } from "@/lib/order-deck-context";
-import { selectFeaturedDeckImageProducts } from "@/lib/order-deck-product-index";
+import { applySharedDeckHighlights, selectFeaturedDeckImageProducts } from "@/lib/order-deck-product-index";
+import { useChatProductHighlights } from "@/hooks/useChatProductHighlights";
 import { CYBER_FRAME_EVENT, CYBER_FRAME_OPTIONS, readCyberFrame, readCyberFrameRooms, saveCyberFrameRoom } from "@/lib/cyber-frame";
 import { trpc } from "@/lib/trpc";
 import "@/styles/cyber-frames.css";
@@ -582,7 +583,8 @@ export default function ChatHub() {
       return { ...entry, score };
     }).filter(entry => entry.score > 0 && entry.imageUrls.length > 0).sort((a, b) => b.score - a.score || a.product.localeCompare(b.product, "th")).slice(0, 4);
   }, [deckImageProducts, replyText]);
-  const featuredImageProducts = useMemo(() => selectFeaturedDeckImageProducts(deckImageProducts), [deckImageProducts]);
+  const { settings: sharedProductHighlights, saveProductNames: saveSharedProductHighlights } = useChatProductHighlights();
+  const featuredImageProducts = useMemo(() => selectFeaturedDeckImageProducts(applySharedDeckHighlights(deckImageProducts, sharedProductHighlights)), [deckImageProducts, sharedProductHighlights]);
   const requestDeckProductImages = (product: string, imageUrls: string[]) => {
     if (!imageUrls.length) { setReplyNotice(`ยังไม่มีภาพของ ${product} ในคลังรูปสินค้า`); return; }
     void handleDeckProductImagesSelected(imageUrls, product);
@@ -736,7 +738,7 @@ export default function ChatHub() {
         onMessageRequestHandled={id => setOrderDeckMessageRequest(current => current?.id === id ? null : current)}
         onProductImagesSelected={handleDeckProductImagesSelected}
         onProductSelected={handleDeckProductSelected}
-        onProductIndexReady={setDeckImageProducts}
+        onProductIndexReady={setDeckImageProducts} sharedHighlights={sharedProductHighlights} onFeaturedProductsChange={saveSharedProductHighlights}
         productImagesRequest={productImagesRequest}
         onSummaryReady={summary => { orderDeckMessageRequestIdRef.current += 1; setOrderDeckMessageRequest(null); setReplyText(summary); setOrderDeckOpen(false); setReplyNotice("สรุปบิลอยู่ในช่องตอบกลับแล้ว · ตรวจสอบก่อนกดส่ง"); }}
         onClose={() => { orderDeckMessageRequestIdRef.current += 1; setOrderDeckMessageRequest(null); setOrderDeckOpen(false); }}

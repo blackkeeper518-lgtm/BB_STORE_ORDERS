@@ -66,7 +66,7 @@ const PROJECT_TABLES: Record<SupabaseProject, ReadonlySet<string>> = {
   ]),
   vault: new Set([
     "🛒product_master", "inventory", "product_aliases", "product_map_master",
-    "app_chat_frames", "app_customization_selections", "app_sounds", "app_themes",
+    "app_chat_frames", "app_customization_selections", "app_sounds", "app_themes", "chat_product_highlights",
     "sales_script_cards", "thailand_address_master",
   ]),
   chat: new Set([
@@ -451,6 +451,21 @@ export async function checkChatConnection(credentials?: ChatSupabaseCredentials)
   };
 }
 export async function supabasePost<T>(path: string, body: unknown, project: SupabaseProject = "main", prefer?: string, browserChatCredentials?: ChatSupabaseCredentials): Promise<T> { const { baseUrl, key } = config(project); const headers: Record<string, string> = { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" }; if (prefer) headers.Prefer = prefer; const response = await fetch(`${baseUrl}/rest/v1/${path}`, { method: "POST", headers, body: JSON.stringify(body) }); if (!response.ok) throw new Error(`Supabase returned HTTP ${response.status}: ${(await response.text()).slice(0, 300)}`); return response.json() as Promise<T>; }
+
+export type ChatProductHighlights = { configured: boolean; productNames: string[] };
+function normalizeChatProductHighlights(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.filter((item): item is string => typeof item === "string").map(item => item.trim().slice(0, 120)).filter(Boolean))].slice(0, 30);
+}
+export async function fetchChatProductHighlights(appKey: "BB_STORE_ORDERS" | "ST_SINGTO_STORE"): Promise<ChatProductHighlights> {
+  const rows = await supabaseGet<Array<{ product_names?: unknown }>>(`chat_product_highlights?select=product_names&app_key=eq.${encodeURIComponent(appKey)}&limit=1`, "vault");
+  return { configured: rows.length > 0, productNames: normalizeChatProductHighlights(rows[0]?.product_names) };
+}
+export async function saveChatProductHighlights(appKey: "BB_STORE_ORDERS" | "ST_SINGTO_STORE", productNames: unknown): Promise<ChatProductHighlights> {
+  const normalized = normalizeChatProductHighlights(productNames);
+  const rows = await supabasePost<Array<{ product_names?: unknown }>>("chat_product_highlights?on_conflict=app_key", { app_key: appKey, product_names: normalized }, "vault", "resolution=merge-duplicates,return=representation");
+  return { configured: true, productNames: normalizeChatProductHighlights(rows[0]?.product_names ?? normalized) };
+}
 export async function supabasePatch<T>(path: string, body: unknown, project: SupabaseProject = "main", browserChatCredentials?: ChatSupabaseCredentials): Promise<T> { const { baseUrl, key } = config(project); const response = await fetch(`${baseUrl}/rest/v1/${path.replace(/^\/+/, "")}`, { method: "PATCH", headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json", Prefer: "return=representation" }, body: JSON.stringify(body) }); if (!response.ok) throw new Error(`Supabase returned HTTP ${response.status}: ${(await response.text()).slice(0, 500)}`); const text = await response.text(); return (text ? JSON.parse(text) : []) as T; }
 export async function supabaseDelete<T>(path: string, project: SupabaseProject = "main", browserChatCredentials?: ChatSupabaseCredentials): Promise<T> { const { baseUrl, key } = config(project); const response = await fetch(`${baseUrl}/rest/v1/${path.replace(/^\/+/, "")}`, { method: "DELETE", headers: { apikey: key, Authorization: `Bearer ${key}`, Prefer: "return=representation" } }); if (!response.ok) throw new Error(`Supabase returned HTTP ${response.status}: ${(await response.text()).slice(0, 500)}`); const text = await response.text(); return (text ? JSON.parse(text) : []) as T; }
 export async function recordOutgoingChatMessage(input: { portalKey?: string; chatLinkKey?: string; pageId: string; pageName?: string; threadId: string; recipientId: string; messageId?: string; text?: string; imageUrl?: string; occurredAt?: Date }, credentials?: ChatSupabaseCredentials) {
