@@ -181,10 +181,10 @@ index 500c5b9..d96f669 100644
 -];
 -
  const livePipelines = [
-   { icon: "💬", name: "👑BB_CHAT", detail: "สายแชท เก็บและส่งต่อเหตุการณ์สนทนาของลูกค้าและเพจ", tone: "pink" as const },
-   { icon: "🧾", name: "👑BB_ORDER_SYSTEMS", detail: "ออเดอร์หลัก รับและประกอบข้อมูลออเดอร์ สินค้า COD และคีย์กลาง", tone: "cyan" as const },
+   { icon: "💬", name: "👑ST_CHAT", detail: "สายแชท เก็บและส่งต่อเหตุการณ์สนทนาของลูกค้าและเพจ", tone: "pink" as const },
+   { icon: "🧾", name: "👑ST_ORDER_SYSTEMS", detail: "ออเดอร์หลัก รับและประกอบข้อมูลออเดอร์ สินค้า COD และคีย์กลาง", tone: "cyan" as const },
 @@ -53,38 +17,6 @@ const livePipelines = [
-   { icon: "🚚", name: "👑BB_TRACK", detail: "สายส่งเลข ดึงเลขจาก parcels จับคู่กับออเดอร์ และสร้างข้อความแจ้งเลข", tone: "amber" as const },
+   { icon: "🚚", name: "👑ST_TRACK", detail: "สายส่งเลข ดึงเลขจาก parcels จับคู่กับออเดอร์ และสร้างข้อความแจ้งเลข", tone: "amber" as const },
  ];
  
 -const parcelStages: Array<{
@@ -261,13 +261,13 @@ index 500c5b9..d96f669 100644
 -              จัดเก็บข้อความลูกค้าและเพจแยกจากข้อมูลออเดอร์ เพื่อป้องกันการบันทึกข้อมูลซ้ำ
 -            </p>
 +            <p className="mt-4 text-xs uppercase tracking-[0.18em] text-fuchsia-200/55">PROJECT 01</p>
-+            <p className="mt-1 font-mono text-lg font-semibold text-white">👑BB_CHAT</p>
++            <p className="mt-1 font-mono text-lg font-semibold text-white">👑ST_CHAT</p>
 +            <p className="mt-1 text-xs leading-5 text-slate-300/60">สายแชท เก็บและส่งต่อเหตุการณ์สนทนาของลูกค้าและเพจ</p>
 +          </div>
 +          <div className="rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.045] p-5">
 +            <Database className="h-5 w-5 text-cyan-300" />
 +            <p className="mt-4 text-xs uppercase tracking-[0.18em] text-cyan-200/55">PROJECT 02</p>
-+            <p className="mt-1 font-mono text-lg font-semibold text-white">👑BB_ORDER_SYSTEMS</p>
++            <p className="mt-1 font-mono text-lg font-semibold text-white">👑ST_ORDER_SYSTEMS</p>
 +            <p className="mt-1 text-xs leading-5 text-slate-300/60">แหล่งข้อมูลหลักของลูกค้า สินค้า และ COD</p>
            </div>
            <div className="rounded-2xl border border-amber-300/15 bg-amber-300/[0.045] p-5">
@@ -280,7 +280,7 @@ index 500c5b9..d96f669 100644
 -              รับข้อมูลเลขพัสดุ ประกอบข้อมูลที่จำเป็น และส่งกลับไปยังแชทของลูกค้า
 -            </p>
 +            <p className="mt-4 text-xs uppercase tracking-[0.18em] text-amber-200/55">PROJECT 03</p>
-+            <p className="mt-1 font-mono text-lg font-semibold text-white">👑BB_EXPRESS_ORDERS</p>
++            <p className="mt-1 font-mono text-lg font-semibold text-white">👑ST_EXPRESS_ORDERS</p>
 +            <p className="mt-1 text-xs leading-5 text-slate-300/60">ส่งออเดอร์เข้าแพ็ก พร้อมข้อมูลสินค้า จำนวน และ COD</p>
            </div>
          </section>
@@ -507,7 +507,7 @@ index 500c5b9..d96f669 100644
 -              </p>
 +          <div className="mt-6 grid gap-3 md:grid-cols-2">
 +            <div className="rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.045] p-4">
-+              <p className="font-mono text-sm font-semibold text-cyan-100">👑BB_SIGNALS</p>
++              <p className="font-mono text-sm font-semibold text-cyan-100">👑ST_SIGNALS</p>
 +              <p className="mt-2 text-xs leading-5 text-slate-300/65">สายสัญญาณออเดอร์และแชทล่าสุดสำหรับส่งต่อสถานะการทำงาน</p>
              </div>
 -          </div>
@@ -524,7 +524,7 @@ index 500c5b9..d96f669 100644
 -                sent_at = NOW()
 -              </code>
 +            <div className="rounded-2xl border border-amber-300/15 bg-amber-300/[0.045] p-4">
-+              <p className="font-mono text-sm font-semibold text-amber-100">👑BB_TRACK</p>
++              <p className="font-mono text-sm font-semibold text-amber-100">👑ST_TRACK</p>
 +              <p className="mt-2 text-xs leading-5 text-slate-300/65">สายส่งเลข ใช้เลขจาก parcels จับคู่กับออเดอร์ และสร้างข้อความแจ้งเลข</p>
              </div>
            </div>
@@ -540,7 +540,7 @@ index 500c5b9..d96f669 100644
 +          <div className="mt-5 grid gap-3 lg:grid-cols-3">
 +            <div className="rounded-2xl border border-fuchsia-300/15 bg-fuchsia-300/[0.045] p-4">
 +              <p className="text-sm font-semibold text-fuchsia-100">แหล่งข้อมูลแชท</p>
-+              <p className="mt-1 text-xs leading-5 text-slate-300/65">BB_CHAT เป็นสายเหตุการณ์สนทนา ไม่ใช่แหล่งเลขพัสดุ</p>
++              <p className="mt-1 text-xs leading-5 text-slate-300/65">ST_CHAT เป็นสายเหตุการณ์สนทนา ไม่ใช่แหล่งเลขพัสดุ</p>
              </div>
 -            <p className="mt-3 text-sm leading-6 text-slate-300/70">
 -              จัดเก็บประวัติการส่งเลขพัสดุที่เสร็จสิ้น รวมถึงข้อมูลผู้รับ เพจ เลขพัสดุ เวลา
@@ -555,7 +555,7 @@ index 500c5b9..d96f669 100644
 -              </h2>
 +            <div className="rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.045] p-4">
 +              <p className="text-sm font-semibold text-cyan-100">แหล่งข้อมูลออเดอร์</p>
-+              <p className="mt-1 text-xs leading-5 text-slate-300/65">BB_ORDER_SYSTEMS เป็นแหล่งข้อมูลหลักของลูกค้า สินค้า และ COD</p>
++              <p className="mt-1 text-xs leading-5 text-slate-300/65">ST_ORDER_SYSTEMS เป็นแหล่งข้อมูลหลักของลูกค้า สินค้า และ COD</p>
 +            </div>
 +            <div className="rounded-2xl border border-amber-300/15 bg-amber-300/[0.045] p-4">
 +              <p className="text-sm font-semibold text-amber-100">คีย์กลางและการเชื่อมต่อ</p>

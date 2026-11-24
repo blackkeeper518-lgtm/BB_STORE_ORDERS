@@ -1,5 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { getLiveOrderStats, recordOutgoingChatMessage, type LiveOrder } from "./supabase";
+
+afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); });
 
 describe("getLiveOrderStats", () => {
   it("ignores null rows before reading telegram_status", () => {
@@ -32,6 +34,8 @@ describe("getLiveOrderStats", () => {
 
 describe("recordOutgoingChatMessage", () => {
   it("persists each outgoing image URL alongside its own provider message ID", async () => {
+    vi.stubEnv("CHAT_SUPABASE_URL", "https://server-chat.supabase.co");
+    vi.stubEnv("CHAT_SUPABASE_SERVICE_ROLE_KEY", "server-chat-key");
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
       new Response("[]", { status: 201, headers: { "Content-Type": "application/json" } }),
     );
@@ -53,6 +57,76 @@ describe("recordOutgoingChatMessage", () => {
       expect(persisted.map(row => row.attachment_url)).toEqual(imageUrls);
       expect(persisted.map(row => row.message_id)).toEqual(messageIds);
       expect(persisted.map(row => row.dedupe_key)).toEqual(messageIds.map(id => `page-1_t_thread-1:${id}`));
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("retries the webhook-race PATCH without page_message_text when the migration is absent", async () => {
+    vi.stubEnv("CHAT_SUPABASE_URL", "https://server-chat.supabase.co");
+    vi.stubEnv("CHAT_SUPABASE_SERVICE_ROLE_KEY", "server-chat-key");
+    const missingColumn = {
+      code: "PGRST204",
+      message: "Could not find the 'page_message_text' column of 'Pg_Chat⭐BINARY_xXx_STAR' in the schema cache",
+    };
+    const fetchSpy = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify(missingColumn), { status: 400, headers: { "Content-Type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ code: "23505", message: "duplicate key value violates unique constraint on message_id" }), { status: 409, headers: { "Content-Type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(missingColumn), { status: 400, headers: { "Content-Type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify([{ message_id: "meta-webhook-race" }]), { status: 200, headers: { "Content-Type": "application/json" } }));
+
+    try {
+      const result = await recordOutgoingChatMessage({
+        pageId: "page-1",
+        threadId: "thread-1",
+        recipientId: "customer-1",
+        messageId: "meta-webhook-race",
+        text: "📷 ส่งรูปภาพ",
+        imageUrl: "https://cdn.example.test/race.jpg",
+      }, { url: "https://chat-project.supabase.co", serviceRoleKey: "test-key" });
+
+      expect(fetchSpy).toHaveBeenCalledTimes(4);
+      expect(fetchSpy.mock.calls.map(([, init]) => init?.method ?? "GET")).toEqual(["POST", "POST", "PATCH", "PATCH"]);
+      const firstPatch = JSON.parse(String(fetchSpy.mock.calls[2]?.[1]?.body));
+      const legacyPatch = JSON.parse(String(fetchSpy.mock.calls[3]?.[1]?.body));
+      expect(firstPatch.page_message_text).toBe("📷 ส่งรูปภาพ");
+      expect(legacyPatch).not.toHaveProperty("page_message_text");
+      expect(legacyPatch.message_text).toBe("📷 ส่งรูปภาพ");
+      expect(legacyPatch.attachment_url).toBe("https://cdn.example.test/race.jpg");
+      expect(result).toEqual([{ message_id: "meta-webhook-race" }]);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("retries with the base message_text contract when page_message_text is missing", async () => {
+    vi.stubEnv("CHAT_SUPABASE_URL", "https://server-chat.supabase.co");
+    vi.stubEnv("CHAT_SUPABASE_SERVICE_ROLE_KEY", "server-chat-key");
+    const fetchSpy = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        code: "PGRST204",
+        message: "Could not find the 'page_message_text' column of 'Pg_Chat⭐BINARY_xXx_STAR' in the schema cache",
+      }), { status: 400, headers: { "Content-Type": "application/json" } }))
+      .mockResolvedValueOnce(new Response("[]", { status: 201, headers: { "Content-Type": "application/json" } }));
+
+    try {
+      await recordOutgoingChatMessage({
+        pageId: "page-1",
+        threadId: "thread-1",
+        recipientId: "customer-1",
+        messageId: "meta-message-legacy-schema",
+        text: "📷 ส่งรูปภาพ",
+        imageUrl: "https://cdn.example.test/photo.jpg",
+      }, { url: "https://chat-project.supabase.co", serviceRoleKey: "test-key" });
+
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      const firstPayload = JSON.parse(String(fetchSpy.mock.calls[0]?.[1]?.body));
+      const retryPayload = JSON.parse(String(fetchSpy.mock.calls[1]?.[1]?.body));
+      expect(firstPayload.page_message_text).toBe("📷 ส่งรูปภาพ");
+      expect(retryPayload).not.toHaveProperty("page_message_text");
+      expect(retryPayload.message_text).toBe("📷 ส่งรูปภาพ");
+      expect(retryPayload.attachment_url).toBe("https://cdn.example.test/photo.jpg");
+      expect(retryPayload.message_id).toBe("meta-message-legacy-schema");
     } finally {
       fetchSpy.mockRestore();
     }

@@ -134,7 +134,7 @@ index 779137e..8bfd6b3 100644
  
      const [message] = mapChatRowsToMessages([row]);
 @@ -150,6 +153,8 @@ describe("ChatHub read contract v2", () => {
-     expect(thread.upsert_key).toBe("BB_06_ORD-081126-192451_0615107528_22180");
+     expect(thread.upsert_key).toBe("ST_06_ORD-081126-192451_0615107528_22180");
      expect(thread.order_number).toBe("ORD-081126-192451");
      expect(thread.cod_amount).toBe(990);
 +    expect(thread.parcel_status_emoji).toBe("⚡SENT");

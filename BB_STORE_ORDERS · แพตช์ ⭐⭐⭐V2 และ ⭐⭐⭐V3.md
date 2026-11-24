@@ -1,6 +1,6 @@
-# BB_STORE_ORDERS · แพตช์ ⭐⭐⭐V2 และ ⭐⭐⭐V3
+# ST_STORE_ORDERS · แพตช์ ⭐⭐⭐V2 และ ⭐⭐⭐V3
 
-แพตช์ชุดนี้ต่อจาก `66fbf11` (`⭐⭐⭐V1`) ใน `main` ของ `BB_STORE_ORDERS` และรวมสอง commit ไว้ในไฟล์เดียว เพื่อให้ `git am` สร้างประวัติตามลำดับเดิม
+แพตช์ชุดนี้ต่อจาก `66fbf11` (`⭐⭐⭐V1`) ใน `main` ของ `ST_STORE_ORDERS` และรวมสอง commit ไว้ในไฟล์เดียว เพื่อให้ `git am` สร้างประวัติตามลำดับเดิม
 
 ## มีอะไรเปลี่ยน
 
@@ -11,7 +11,7 @@
 
 ## วิธีใช้ใน PowerShell / VS Code Terminal
 
-1. ดาวน์โหลด `BB_STORE_ORDERS-stars-V2-V3.patch` แล้ววางไว้ที่โฟลเดอร์รากของ repo `BB_STORE_ORDERS` (โฟลเดอร์เดียวกับ `.git`). ถ้าดาวน์โหลดไว้ที่อื่น ให้ copy เข้า repo ก่อน
+1. ดาวน์โหลด `ST_STORE_ORDERS-stars-V2-V3.patch` แล้ววางไว้ที่โฟลเดอร์รากของ repo `ST_STORE_ORDERS` (โฟลเดอร์เดียวกับ `.git`). ถ้าดาวน์โหลดไว้ที่อื่น ให้ copy เข้า repo ก่อน
 2. เปิด PowerShell ที่โฟลเดอร์ repo แล้วตรวจ branch และงานค้าง:
 
 ```powershell
@@ -24,7 +24,7 @@ git log -1 --oneline
 3. ใช้คำสั่งนี้เพียงคำสั่งเดียวเพื่อรับทั้ง V2 และ V3:
 
 ```powershell
-git am --3way .\BB_STORE_ORDERS-stars-V2-V3.patch
+git am --3way .\ST_STORE_ORDERS-stars-V2-V3.patch
 ```
 
 อย่ารัน `git add` หรือ `git commit` เพื่อใส่ไฟล์ `.patch` — `git am` จะสร้าง commits `⭐⭐⭐V2` และ `⭐⭐⭐V3` ให้เอง

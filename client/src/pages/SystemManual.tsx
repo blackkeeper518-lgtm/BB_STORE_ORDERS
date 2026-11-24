@@ -47,11 +47,11 @@ const orderSources = [
 ];
 
 const livePipelines = [
-  { icon: "💬", name: "👑BB_CHAT", detail: "สายแชท เก็บและส่งต่อเหตุการณ์สนทนาของลูกค้าและเพจ", tone: "pink" as const },
-  { icon: "🧾", name: "👑BB_ORDER_SYSTEMS", detail: "ออเดอร์หลัก รับและประกอบข้อมูลออเดอร์ สินค้า COD และคีย์กลาง", tone: "cyan" as const },
-  { icon: "📦", name: "👑BB_EXPRESS_ORDERS", detail: "ส่งออเดอร์เข้าแพ็ก เตรียมข้อมูลสินค้า จำนวน และ COD ให้ฝ่ายแพ็ก", tone: "amber" as const },
-  { icon: "📡", name: "👑BB_SIGNALS", detail: "สายสัญญาณออเดอร์และแชทล่าสุดสำหรับส่งต่อสถานะการทำงาน", tone: "slate" as const },
-  { icon: "🚚", name: "👑BB_TRACK", detail: "สายส่งเลข ดึงเลขจาก parcels จับคู่กับออเดอร์ และสร้างข้อความแจ้งเลข", tone: "amber" as const },
+  { icon: "💬", name: "👑ST_CHAT", detail: "สายแชท เก็บและส่งต่อเหตุการณ์สนทนาของลูกค้าและเพจ", tone: "pink" as const },
+  { icon: "🧾", name: "👑ST_ORDER_SYSTEMS", detail: "ออเดอร์หลัก รับและประกอบข้อมูลออเดอร์ สินค้า COD และคีย์กลาง", tone: "cyan" as const },
+  { icon: "📦", name: "👑ST_EXPRESS_ORDERS", detail: "ส่งออเดอร์เข้าแพ็ก เตรียมข้อมูลสินค้า จำนวน และ COD ให้ฝ่ายแพ็ก", tone: "amber" as const },
+  { icon: "📡", name: "👑ST_SIGNALS", detail: "สายสัญญาณออเดอร์และแชทล่าสุดสำหรับส่งต่อสถานะการทำงาน", tone: "slate" as const },
+  { icon: "🚚", name: "👑ST_TRACK", detail: "สายส่งเลข ดึงเลขจาก parcels จับคู่กับออเดอร์ และสร้างข้อความแจ้งเลข", tone: "amber" as const },
 ];
 
 const parcelStages: Array<{
@@ -244,15 +244,15 @@ export default function SystemManual() {
           <div className="mt-5 grid gap-3 lg:grid-cols-3">
             <div className="rounded-2xl border border-fuchsia-300/15 bg-fuchsia-300/[0.045] p-4">
               <p className="text-sm font-semibold text-fuchsia-100">แหล่งข้อมูลแชท</p>
-              <p className="mt-1 text-xs leading-5 text-slate-300/65">BB_CHAT เป็นสายเหตุการณ์สนทนา ไม่ใช่แหล่งเลขพัสดุ</p>
+              <p className="mt-1 text-xs leading-5 text-slate-300/65">ST_CHAT เป็นสายเหตุการณ์สนทนา ไม่ใช่แหล่งเลขพัสดุ</p>
             </div>
             <div className="rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.045] p-4">
               <p className="text-sm font-semibold text-cyan-100">แหล่งข้อมูลออเดอร์</p>
-              <p className="mt-1 text-xs leading-5 text-slate-300/65">BB_ORDER_SYSTEMS เป็นแหล่งข้อมูลหลักของลูกค้า สินค้า และ COD</p>
+              <p className="mt-1 text-xs leading-5 text-slate-300/65">ST_ORDER_SYSTEMS เป็นแหล่งข้อมูลหลักของลูกค้า สินค้า และ COD</p>
             </div>
             <div className="rounded-2xl border border-amber-300/15 bg-amber-300/[0.045] p-4">
               <p className="text-sm font-semibold text-amber-100">แหล่งข้อมูลเลขพัสดุ</p>
-              <p className="mt-1 text-xs leading-5 text-slate-300/65">BB_TRACK ใช้เลขจาก parcels และจับคู่กับออเดอร์ด้วยข้อมูลที่กำหนด</p>
+              <p className="mt-1 text-xs leading-5 text-slate-300/65">ST_TRACK ใช้เลขจาก parcels และจับคู่กับออเดอร์ด้วยข้อมูลที่กำหนด</p>
             </div>
           </div>
         </section>
@@ -272,12 +272,6 @@ export default function SystemManual() {
             </ToneBadge>
           </div>
           <div className="mt-6 grid gap-4 md:grid-cols-2">
-            <StageCard
-              icon="🌠"
-              title="🌠BINARY_xXx_MATRIX"
-              detail="วิวรวม Cust/Pg chat ด้วย UNION ALL; ChatHub อ่านจากวิวนี้เพียงจุดเดียว โดย message_text เป็นเนื้อหารายข้อความและ source_side แยกผู้ส่ง"
-              type="view"
-            />
             <StageCard
               icon="💬"
               title="Cust_Chat⭐BINARY_xXx_STAR"
@@ -814,7 +808,7 @@ export default function SystemManual() {
 
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
             <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-              <p className="font-mono text-xs font-semibold text-fuchsia-100">bb_express_send_route</p>
+              <p className="font-mono text-xs font-semibold text-fuchsia-100">ST_express_send_route</p>
               <p className="mt-1 text-xs leading-5 text-slate-300/65">
                 ฟิวด์เส้นทางที่ n8n คัดจาก packer_obj เช่น ⚪/⚫ ห้ามหน้าเว็บเปลี่ยนความหมายเอง
               </p>

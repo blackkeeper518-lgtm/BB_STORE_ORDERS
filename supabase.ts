@@ -67,7 +67,7 @@ export async function fetchParcelMappingQueue(input: { status: "all" | "sent"; l
   return [...active, ...sent].slice(0, input.limit);
 }
 export async function purgeOldParcels() {
-  const deleted = await supabasePost<number>("rpc/bb_purge_old_parcels_3day", {}, "parcel");
+  const deleted = await supabasePost<number>("rpc/ST_purge_old_parcels_3day", {}, "parcel");
   return { deleted: Number(deleted) || 0 };
 }
 function text(v: unknown) { return v == null ? null : String(v); }
@@ -206,7 +206,7 @@ function isLikelyCodChatOrder(value: string) {
   const hasPhone = /(?:เบอร์|โทร(?:ศัพท์)?|📱)[^0-9๐-๙]{0,16}(?:0[0-9๐-๙]{9})/i.test(message);
   const hasAddress = /(?:ที่อยู่|ต\.|ตำบล|อ\.|อำเภอ|จ\.|จังหวัด|รหัสไปรษณีย์)/i.test(message);
   const hasProduct = /(?:รายการสินค้า|สินค้า|คอต|x\s*[0-9๐-๙]+)/i.test(message);
-  const hasOrderSignature = /#BB_ORDER|ปิดยอดสำเร็จ|สรุปรายการสั่งซื้อ|เลขที่ออเดอร์|เลขพัสดุจัดส่ง|ยอดเก็บเงินปลายทาง/i.test(message);
+  const hasOrderSignature = /#ST_ORDER|ปิดยอดสำเร็จ|สรุปรายการสั่งซื้อ|เลขที่ออเดอร์|เลขพัสดุจัดส่ง|ยอดเก็บเงินปลายทาง/i.test(message);
   return hasOrderSignature || (hasPhone && (hasAddress || hasProduct));
 }
 

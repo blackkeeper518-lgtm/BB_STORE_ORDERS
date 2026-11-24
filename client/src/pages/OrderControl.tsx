@@ -4,7 +4,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import OrderEditWorkbench from "@/components/OrderEditWorkbench";
 import { getActiveCamp, mapChatRowsToThreads, orderTimeSortKey, readBbAlertRoom, readBlackboxRoom, readCanonicalOrders, readParcelByTrackingNumber, readParcelMappingQueue, readTelegramDeliveryOrders } from "@/lib/canonical";
 import { buildMetaInboxPageUrl, parseMetaChatLinkKey } from "@/lib/meta-inbox";
@@ -78,18 +78,18 @@ function exportOrdersCsv(rows: CanonicalOrderRow[]) {
   URL.revokeObjectURL(url);
 }
 
-// ⫘ BUSINESS DAY · “วันนี้” ของร้านตัดรอบ 14:00 น. ไม่ใช่วันปฏิทิน
+// ⫘ BUSINESS DAY · “วันนี้” ของ BB ตัดรอบ 22:00 น. ไม่ใช่วันปฏิทิน
 // แหล่งเวลาเดียว: order_time_display ซึ่งเป็นเวลาก้อนออเดอร์จาก n8n
 function isToday(row: CanonicalOrderRow) {
   const now = new Date();
   const bkk = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(now);
   const part = (name: string) => Number(bkk.find((item) => item.type === name)?.value ?? 0);
   const businessDay = new Date(Date.UTC(part("year"), part("month") - 1, part("day"), part("hour"), part("minute")));
-  if (part("hour") < 14) businessDay.setUTCDate(businessDay.getUTCDate() - 1);
-  const startKey = Number(`${businessDay.getUTCFullYear()}${String(businessDay.getUTCMonth() + 1).padStart(2, "0")}${String(businessDay.getUTCDate()).padStart(2, "0")}1400`);
+  if (part("hour") < 22) businessDay.setUTCDate(businessDay.getUTCDate() - 1);
+  const startKey = Number(`${businessDay.getUTCFullYear()}${String(businessDay.getUTCMonth() + 1).padStart(2, "0")}${String(businessDay.getUTCDate()).padStart(2, "0")}2200`);
   const end = new Date(businessDay);
   end.setUTCDate(end.getUTCDate() + 1);
-  const endKey = Number(`${end.getUTCFullYear()}${String(end.getUTCMonth() + 1).padStart(2, "0")}${String(end.getUTCDate()).padStart(2, "0")}1400`);
+  const endKey = Number(`${end.getUTCFullYear()}${String(end.getUTCMonth() + 1).padStart(2, "0")}${String(end.getUTCDate()).padStart(2, "0")}2200`);
   const valueKey = orderTimeSortKey(row.order_time_display);
   return valueKey >= startKey && valueKey < endKey;
 }
@@ -149,20 +149,26 @@ function businessInboxUrl(row: Record<string, any>) {
 // ⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘
 export default function OrderControl() {
   const [search, setSearch] = useState(() => new URLSearchParams(window.location.search).get("search") ?? "");
+  const [querySearch, setQuerySearch] = useState(search);
   const [fromDate, setFromDate] = useState("");
   const [untilDate, setUntilDate] = useState("");
   const [pageFilter, setPageFilter] = useState("ทั้งหมด");
   const [selectedKey, setSelectedKey] = useState("");
   const [clock, setClock] = useState(() => new Date());
   const [copied, setCopied] = useState(false);
+  const [copiedPhone, setCopiedPhone] = useState("");
   const [searchPanelOpen, setSearchPanelOpen] = useState(() => new URLSearchParams(window.location.search).get("universal") === "1");
   const [trackingCopied, setTrackingCopied] = useState("");
   const [editOpen, setEditOpen] = useState(false);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setQuerySearch(search), 250);
+    return () => window.clearTimeout(timer);
+  }, [search]);
   const trackingInput = splitTrackingInput(search);
   const trackingSearchReady = search.trim().length >= 3;
   const query = useQuery({
-    queryKey: ["canonical-orders", search, fromDate, untilDate],
-    queryFn: () => readCanonicalOrders(search, fromDate || null, untilDate || null),
+    queryKey: ["canonical-orders", querySearch, fromDate, untilDate],
+    queryFn: () => readCanonicalOrders(querySearch, fromDate || null, untilDate || null),
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
   });
@@ -184,27 +190,27 @@ export default function OrderControl() {
     select: mapChatRowsToThreads,
   });
   const telegramQueueQuery = useQuery({
-    queryKey: ["order-control-telegram-queue", getActiveCamp(), search.trim()],
-    queryFn: () => readTelegramDeliveryOrders(search, "queue"),
-    enabled: searchPanelOpen && trackingSearchReady,
+    queryKey: ["order-control-telegram-queue", getActiveCamp(), querySearch.trim()],
+    queryFn: () => readTelegramDeliveryOrders(querySearch, "queue"),
+    enabled: searchPanelOpen && trackingSearchReady && querySearch === search,
     staleTime: 15_000,
   });
   const telegramSentQuery = useQuery({
-    queryKey: ["order-control-telegram-sent", getActiveCamp(), search.trim()],
-    queryFn: () => readTelegramDeliveryOrders(search, "sent"),
-    enabled: searchPanelOpen && trackingSearchReady,
+    queryKey: ["order-control-telegram-sent", getActiveCamp(), querySearch.trim()],
+    queryFn: () => readTelegramDeliveryOrders(querySearch, "sent"),
+    enabled: searchPanelOpen && trackingSearchReady && querySearch === search,
     staleTime: 15_000,
   });
   const paradoxQuery = useQuery({
-    queryKey: ["order-control-paradox-trace", getActiveCamp(), search.trim()],
-    queryFn: () => readBbAlertRoom(search),
-    enabled: searchPanelOpen && trackingSearchReady,
+    queryKey: ["order-control-paradox-trace", getActiveCamp(), querySearch.trim()],
+    queryFn: () => readBbAlertRoom(querySearch),
+    enabled: searchPanelOpen && trackingSearchReady && querySearch === search,
     staleTime: 15_000,
   });
   const blackboxQuery = useQuery({
-    queryKey: ["order-control-blackbox-trace", getActiveCamp(), search.trim()],
-    queryFn: () => readBlackboxRoom(search),
-    enabled: searchPanelOpen && trackingSearchReady,
+    queryKey: ["order-control-blackbox-trace", getActiveCamp(), querySearch.trim()],
+    queryFn: () => readBlackboxRoom(querySearch),
+    enabled: searchPanelOpen && trackingSearchReady && querySearch === search,
     staleTime: 15_000,
   });
   // ⫘ ORDER SORT · ใช้ CENTRAL ORDER CLOCK เรียงล่าสุดไว้บนสุดเสมอ
@@ -242,7 +248,7 @@ export default function OrderControl() {
     ...(telegramSentQuery.data?.orders ?? []).map((row: any) => ({ ...row, _traceRoom: "sent" })),
     ...(telegramQueueQuery.data?.orders ?? []).map((row: any) => ({ ...row, _traceRoom: "queue" })),
   ].slice(0, 12);
-  const isRefreshing = query.isFetching || trackingQueueQuery.isFetching || directParcelQuery.isFetching || chatThreadsQuery.isFetching || telegramQueueQuery.isFetching || telegramSentQuery.isFetching;
+  const isRefreshing = search !== querySearch || query.isFetching || trackingQueueQuery.isFetching || directParcelQuery.isFetching || chatThreadsQuery.isFetching || telegramQueueQuery.isFetching || telegramSentQuery.isFetching;
   const todayOrders = orders.filter(isToday);
   const sentOrders = orders.filter(isSent);
   const sendableOrders = orders.filter(canSend);
@@ -250,6 +256,11 @@ export default function OrderControl() {
   const totalCod = orders.reduce((sum, row) => sum + numeric(row.cod_amount), 0);
   const todayCod = todayOrders.reduce((sum, row) => sum + numeric(row.cod_amount), 0);
 
+  useEffect(() => {
+    const openSearch = () => setSearchPanelOpen(true);
+    window.addEventListener("universal-search-open", openSearch);
+    return () => window.removeEventListener("universal-search-open", openSearch);
+  }, []);
   useEffect(() => {
     const timer = window.setInterval(() => setClock(new Date()), 1000);
     return () => window.clearInterval(timer);
@@ -294,16 +305,6 @@ export default function OrderControl() {
 
       {/* SEARCH / FILTERS · แผงลิ้นชักสไลด์เข้าจากด้านขวา */}
       <Sheet open={searchPanelOpen} onOpenChange={setSearchPanelOpen}>
-        <div className="flex justify-end">
-          <SheetTrigger asChild>
-            <Button type="button" variant="outline" aria-label="เปิดค้นหาและตัวกรองจากด้านขว" className="order-search-toggle flex h-10 items-center gap-2 px-4">
-              <Search className="h-4 w-4 text-cyan-200" />
-              <span>UNIVERSAL SEARCH</span>
-              {search.trim() ? <span className="max-w-[160px] truncate rounded-full border border-cyan-200/20 bg-cyan-300/[.08] px-2 py-0.5 text-[10px] normal-case tracking-normal">{search.trim()}</span> : null}
-              <span className="rounded-full border border-fuchsia-200/20 bg-fuchsia-300/[.07] px-2 py-0.5 text-[9px] text-fuchsia-100/80">เปิดจากขวา</span>
-            </Button>
-          </SheetTrigger>
-        </div>
         <SheetContent side="right" className="order-control-room flex w-[min(860px,100vw)] flex-col gap-0 overflow-hidden border-l border-cyan-300/25 bg-[#05070d] p-0 text-white shadow-[-18px_0_60px_rgba(34,211,238,.12)] sm:max-w-[860px]">
           <SheetHeader className="border-b border-cyan-300/15 bg-gradient-to-r from-violet-500/[.10] via-cyan-400/[.05] to-transparent pr-14">
             <SheetTitle className="text-left text-sm font-bold tracking-[.14em] text-cyan-100">UNIVERSAL SEARCH · ORDER CONTROL</SheetTitle>
@@ -432,15 +433,17 @@ export default function OrderControl() {
       {/* ⫘ SUMMARY CARDS · การ์ดสรุปยอดด้านบน: แก้สี/ขนาดที่ component Metric ด้านล่าง */}
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
         <Metric icon={ShoppingCart} label="ออเดอร์ทั้งหมด" value={orders.length} suffix="รายการ" tone="fuchsia" />
-        <Metric icon={CalendarDays} label="ออเดอร์วันนี้" value={todayOrders.length} suffix="รายการ · รอบ 14:00" tone="violet" />
+        <Metric icon={CalendarDays} label="ออเดอร์วันนี้" value={todayOrders.length} suffix="รายการ · รอบ 22:00" tone="violet" />
         <Metric icon={WalletCards} label="ยอด COD ทั้งหมด" value={money(totalCod)} tone="cyan" />
-        <Metric icon={WalletCards} label="ยอด COD วันนี้" value={money(todayCod)} suffix="รอบ 14:00" tone="amber" />
+        <Metric icon={WalletCards} label="ยอด COD วันนี้" value={money(todayCod)} suffix="รอบ 22:00" tone="amber" />
         <Metric icon={CheckCircle2} label="ส่งแล้ว" value={sentOrders.length} suffix="รายการ" tone="green" />
         <Metric icon={Send} label="ส่งได้" value={sendableOrders.length} suffix="รายการ" tone="sky" />
         <Metric icon={XCircle} label="ส่งไม่ได้ / ต้องตรวจ" value={blockedOrders.length} suffix="รายการ" tone="rose" />
       </section>
 
-      <section className={`flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-3 ${blockedWarningCount ? "border-rose-300/35 bg-rose-950/25 shadow-[0_0_22px_rgba(251,113,133,.12)]" : warnedOrderCount ? "border-amber-300/30 bg-amber-950/20" : "border-emerald-300/25 bg-emerald-950/15"}`} aria-live="polite">
+      <section className={`order-safety-radar flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-3 ${blockedWarningCount ? "border-rose-300/35 bg-rose-950/25 shadow-[0_0_22px_rgba(251,113,133,.12)]" : warnedOrderCount ? "border-amber-300/30 bg-amber-950/20" : "border-emerald-300/25 bg-emerald-950/15"}`} aria-live="polite">
+        <div className="order-safety-radar-grid" aria-hidden="true" />
+        <div className="order-safety-radar-marquee" aria-hidden="true"><span>DΛRKSIDE SYSTEM · ORDER SIGNAL · LIVE TRACE · </span><span>DΛRKSIDE SYSTEM · ORDER SIGNAL · LIVE TRACE · </span></div>
         <div><p className={`text-[10px] font-bold uppercase tracking-[.22em] ${blockedWarningCount ? "text-rose-200" : warnedOrderCount ? "text-amber-200" : "text-emerald-200"}`}>ORDER SAFETY RADAR</p><p className="mt-1 text-sm text-slate-100">{warnedOrderCount ? `พบออเดอร์มีจุดเตือน ${warnedOrderCount} รายการ จาก ${orders.length} รายการ` : `ไม่พบจุดเตือนจากข้อมูลที่อ่านได้ · ${orders.length} รายการ`}</p></div>
         <div className="flex flex-wrap gap-2 text-[10px] font-semibold">{blockedWarningCount > 0 && <span className="rounded-full border border-rose-300/35 bg-rose-400/10 px-3 py-1 text-rose-100">งดส่ง {blockedWarningCount} จุด</span>}{reviewWarningCount > 0 && <span className="rounded-full border border-amber-300/30 bg-amber-400/10 px-3 py-1 text-amber-100">ตรวจเพิ่ม {reviewWarningCount} จุด</span>}<span className="rounded-full border border-white/10 px-3 py-1 text-slate-300">คำนวณจากข้อมูลที่หน้าอ่านได้ · ไม่เขียนกลับฐาน</span></div>
       </section>
@@ -458,7 +461,7 @@ export default function OrderControl() {
             {/* การ์ด 1 ใบ · คอลัมน์ที่ใช้: order_number, customer_name, phone, page_name, order_time_display, final_display_for_packer, delivery_status, sent_at */}
             {orders.map((row, index) => { const rowWarnings = orderWarningsByKey.get(row.upsert_key) ?? []; return <button key={row.upsert_key} type="button" onClick={() => setSelectedKey(row.upsert_key)} className={`order-list-card ${index === 0 ? "order-list-card-latest" : ""} w-full rounded-2xl border p-3 text-left transition ${selectedOrder?.upsert_key === row.upsert_key ? "order-list-card-selected border-cyan-300/40" : "border-white/5 bg-black/15 hover:border-cyan-300/30 hover:bg-cyan-400/[0.04]"}`}>
               <div className="flex items-center justify-between gap-2"><span className="font-mono text-sm font-semibold text-cyan-200">{directText(row.order_number)}</span>{isSent(row) ? <span className="rounded-full border border-orange-300/30 bg-orange-400/10 px-2 py-0.5 text-[10px] font-semibold text-orange-200">🔥SENT</span> : <span className="rounded-full border border-cyan-300/20 px-2 py-0.5 text-[10px] text-cyan-200">รอส่ง</span>}</div>
-              <div className="mt-2 text-xs"><span className="font-semibold text-white">{directText(row.customer_name)}</span><span className="ml-3 font-mono text-emerald-200/85">{directText(row.phone)}</span></div>
+              <div className="mt-2 text-xs"><span className="font-semibold text-white">{directText(row.customer_name)}</span><span role="button" tabIndex={0} title="กดเพื่อคัดลอกเบอร์โทร" aria-label={`คัดลอกเบอร์โทร ${directText(row.phone)}`} onClick={(event) => { event.stopPropagation(); const phone = String(row.phone ?? "").trim(); if (!phone) return; void navigator.clipboard.writeText(phone).then(() => { setCopiedPhone(row.upsert_key); window.setTimeout(() => setCopiedPhone((current) => current === row.upsert_key ? "" : current), 1400); }); }} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); event.stopPropagation(); const phone = String(row.phone ?? "").trim(); if (phone) void navigator.clipboard.writeText(phone).then(() => { setCopiedPhone(row.upsert_key); window.setTimeout(() => setCopiedPhone((current) => current === row.upsert_key ? "" : current), 1400); }); } }} className="ml-3 inline-flex cursor-copy items-center gap-1 rounded-md border border-emerald-300/25 bg-emerald-400/[0.06] px-1.5 py-0.5 font-mono text-emerald-200/90 transition hover:border-cyan-200/60 hover:bg-cyan-400/15 hover:text-cyan-100 focus:outline-none focus:ring-1 focus:ring-cyan-200/70">{copiedPhone === row.upsert_key ? "คัดลอกแล้ว" : directText(row.phone)}</span></div>
               <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-violet-200/70"><span>🍊 {directText(row.page_name)} · {directText(row.order_number)}</span><span>{row.order_time_display}</span></div>
               <div className="mt-1 text-sm font-semibold text-amber-100">{money(row.cod_amount)}</div>
               <div className="mt-1 line-clamp-2 text-[11px] leading-4 text-slate-200/85">{directText(row.final_address_for_bill || row.address_display_packer || row.full_address || row.addressclean)}</div>

@@ -1,4 +1,4 @@
-# BB Script Atelier / Project Rooms Patch
+# ST Script Atelier / Project Rooms Patch
 
 แพ็กเกจนี้มีเฉพาะไฟล์ที่แก้/เพิ่มสำหรับ Script Atelier และหน้า Project Rooms ไม่ใช่โปรเจกต์เต็ม
 

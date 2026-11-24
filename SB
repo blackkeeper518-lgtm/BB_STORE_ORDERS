@@ -4,7 +4,7 @@
       "parameters": {
         "useCustomSchema": true,
         "operation": "update",
-        "tableId": "🧿ST_xXx_ORDERCONTROL",
+        "tableId": "🧿BB_xXx_ORDERCONTROL",
         "filters": {
           "conditions": [
             {
@@ -126,12 +126,12 @@
         736
       ],
       "id": "2bac24b5-d1aa-4c05-812b-8d95f8ab4bc7",
-      "name": "🌌BB_TRACKING",
+      "name": "🌌ST_TRACKING",
       "alwaysOutputData": true,
       "credentials": {
         "supabaseApi": {
           "id": "DWsmpPAFIhdUZBqU",
-          "name": "🧿ST_xXx_ORDERCONTROL"
+          "name": "🧿BB_xXx_ORDERCONTROL"
         }
       },
       "onError": "continueRegularOutput"

@@ -127,7 +127,7 @@ export default function ScriptAtelier() {
 
   const load = async () => {
     if (!api) {
-      setError("ยังไม่พบ Private Vault connection: ไปที่ Secret Gallery → ROOM 04 · PRIVATE VAULT แล้วกรอก URL กับ Anon/Publishable Key (ห้ามใช้ service_role)");
+      setError("ยังไม่ได้ตั้งค่า VAULT server credentials บน deployment · ROOM 04 ใช้การเชื่อมต่อฝั่ง server เท่านั้น");
       setLoading(false);
       return;
     }
@@ -320,7 +320,8 @@ export default function ScriptAtelier() {
             contentType: file.type,
           });
           if (upload.error) throw upload.error;
-          const url = api.storage.from(IMAGE_BUCKET).getPublicUrl(path).data.publicUrl;
+          const url = upload.data?.publicUrl ?? "";
+          if (!url) throw new Error("VAULT ไม่คืน public URL ของภาพที่อัปโหลด");
           setUncommittedImagePaths((current) => [...current, path]);
           setDraft((current) => ({
             ...current,

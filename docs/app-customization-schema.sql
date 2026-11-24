@@ -1,4 +1,4 @@
--- BB_STORE_ORDERS · App Customization Center
+-- ST_SINGTO_STORE_ORDERS · App Customization Center
 -- Run this script in the Chat Supabase project.
 -- The application server uses the Supabase service-role key; secrets are never stored in these tables.
 

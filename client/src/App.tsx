@@ -12,6 +12,7 @@ import StockRoom from "./pages/StockRoom";
 import MappingDashboard from "./pages/MappingDashboard";
 import OrderBuckets from "./pages/OrderBuckets";
 import DailyChatSummary from "./pages/DailyChatSummary";
+import DailyOrderSummary from "./pages/DailyOrderSummary";
 import OrderHistory from "./pages/OrderHistory";
 import SystemManual from "./pages/SystemManual";
 import TelegramDeliveryRoom from "@/lib/TelegramDeliveryRoom";
@@ -25,6 +26,7 @@ import OrderEditor from "./pages/OrderEditor";
 import ScriptAtelier from "./pages/ScriptAtelier";
 import MobileInbox from "./pages/MobileInbox";
 import LineChat from "./pages/LineChat";
+import { GlobalThemeRuntime } from "./contexts/GlobalThemeRuntime";
 import { useEffect } from "react";
 
 function Shell({ children }: { children: React.ReactNode }) { return <DashboardLayout>{children}</DashboardLayout>; }
@@ -33,7 +35,7 @@ function HomeRoute() {
   useEffect(() => {
     const userAgent = typeof navigator === "undefined" ? "" : navigator.userAgent;
     const isPhone = /Android|iPhone|iPad|iPod|Mobile/i.test(userAgent) || (typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches);
-    setLocation(isPhone ? "/mobile-inbox" : "/orders");
+    setLocation(isPhone ? "/daily-order-summary" : "/orders");
   }, [setLocation]);
   return null;
 }
@@ -50,6 +52,7 @@ function Router() {
     <Route path="/parcel-mapping"><Shell><ParcelMapping /></Shell></Route>
     <Route path="/chats"><Shell><ChatHub /></Shell></Route>
     <Route path="/line-chat"><Shell><LineChat /></Shell></Route>
+    <Route path="/vagabond"><Shell><CloseJobHistory /></Shell></Route>
     <Route path="/close-job-history"><Shell><CloseJobHistory /></Shell></Route>
     <Route path="/telegram-delivery"><Shell><TelegramDeliveryRoom /></Shell></Route>
     <Route path="/andromeda"><Shell><TelegramDeliveryRoom /></Shell></Route>
@@ -62,10 +65,11 @@ function Router() {
     <Route path="/mapping-dashboard"><Shell><MappingDashboard /></Shell></Route>
     <Route path="/order-buckets"><Shell><OrderBuckets /></Shell></Route>
     <Route path="/daily-chat-summary"><Shell><DailyChatSummary /></Shell></Route>
+    <Route path="/daily-order-summary"><Shell><DailyOrderSummary /></Shell></Route>
     <Route path="/order-history"><Shell><OrderHistory /></Shell></Route>
     <Route path="/"><HomeRoute /></Route>
     <Route path="/404" component={NotFound} />
     <Route component={NotFound} />
   </Switch>;
 }
-export default function App() { return <ErrorBoundary><ThemeProvider defaultTheme="dark"><TooltipProvider><Toaster /><Router /></TooltipProvider></ThemeProvider></ErrorBoundary>; }
+export default function App() { return <ErrorBoundary><ThemeProvider defaultTheme="dark"><GlobalThemeRuntime><TooltipProvider><Toaster /><Router /></TooltipProvider></GlobalThemeRuntime></ThemeProvider></ErrorBoundary>; }

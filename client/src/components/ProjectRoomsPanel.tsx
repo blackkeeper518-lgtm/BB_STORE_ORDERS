@@ -36,7 +36,6 @@ export const PROJECT_ROOM_GROUPS: { title: string; rooms: ProjectRoom[] }[] = [
       { table: "line_messages", label: "LINE Messages" },
       { table: "🌈MILKY_WAY_xXx_TOKEN _PAGE", label: "Milky Way Token Page", serverOnly: true },
       { table: "🌓VAGABOND_xXx_DISMISS", label: "Vagabond Dismiss" },
-      { table: "🌠BINARY_xXx_MATRIX", label: "Binary Matrix" },
       { table: "🏴‍☠️SIRIUS_xXx_CRASH", label: "Sirius Crash" },
     ],
   },
@@ -58,6 +57,7 @@ export const PROJECT_ROOM_GROUPS: { title: string; rooms: ProjectRoom[] }[] = [
   {
     title: "ROOM 04 · PRIVATE VAULT",
     rooms: [
+      { table: "thailand_address_master", label: "ฐานที่อยู่ไทย" },
       { table: "🛒product_master", label: "Product Master · คลังสินค้า" },
       { table: "app_chat_frames", label: "กรอบแชท" },
       { table: "app_customization_selections", label: "การปรับแต่งแอป" },

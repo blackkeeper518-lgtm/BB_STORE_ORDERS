@@ -1,31 +1,14 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { getSupabaseConfig } from "./canonical";
+import { describe, expect, it, vi } from "vitest";
+import { clearLegacyBrowserSupabaseSettings } from "./server-project-client";
 
-afterEach(() => {
-  vi.unstubAllGlobals();
-});
-
-function stubStorage(values: Record<string, string>) {
-  const data = new Map(Object.entries(values));
-  vi.stubGlobal("localStorage", {
-    getItem: (key: string) => data.get(key) ?? null,
-    setItem: (key: string, value: string) => data.set(key, value),
-    removeItem: (key: string) => data.delete(key),
-    clear: () => data.clear(),
-  });
-}
-
-describe("Chat browser isolation", () => {
-  it("ignores legacy Chat anon config in the browser database helper", () => {
-    stubStorage({
-      "bb-chat-supabase-config": JSON.stringify({
-        url: "https://old-chat-project.example",
-        anonKey: "old-chat-anon-key",
-      }),
-    });
-
-    expect(getSupabaseConfig(undefined, "main")).toBeNull();
-    expect(getSupabaseConfig(undefined, "tracking")).toBeNull();
-    expect(getSupabaseConfig(undefined, "parcel")).toBeNull();
+describe("legacy browser Supabase cleanup", () => {
+  it("leaves legacy backup values untouched without reading or deleting them", () => {
+    const getItem = vi.fn(() => "user-backup");
+    const removeItem = vi.fn();
+    vi.stubGlobal("localStorage", { getItem, removeItem });
+    clearLegacyBrowserSupabaseSettings();
+    expect(getItem).not.toHaveBeenCalled();
+    expect(removeItem).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
   });
 });

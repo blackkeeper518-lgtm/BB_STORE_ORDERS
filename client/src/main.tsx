@@ -1,12 +1,11 @@
 import { trpc } from "@/lib/trpc";
 import { COOKIE_NAME, UNAUTHED_ERR_MSG } from '@shared/const';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { httpBatchLink, splitLink, TRPCClientError } from "@trpc/client";
+import { httpBatchLink, TRPCClientError } from "@trpc/client";
 import { createRoot } from "react-dom/client";
 import superjson from "superjson";
 import App from "./App";
 import { startLogin } from "./const";
-import { readBrowserChatConfig } from "./lib/chat-config";
 import "./index.css";
 
 const queryClient = new QueryClient();
@@ -49,20 +48,7 @@ queryClient.getMutationCache().subscribe(event => {
   }
 });
 
-const chatProcedures = new Set([
-  "chat.connection",
-  "chat.threads",
-  "chat.pollNotifications",
-  "chat.messages",
-  "chat.sendReply",
-  "line.status",
-  "line.conversations",
-  "line.messages",
-  "line.send",
-  "parcels.sendTracking",
-]);
-
-function requestHeaders(includeChatConfig: boolean) {
+function requestHeaders() {
   const headers: Record<string, string> = { "x-admin-device-id": getAdminDeviceId() };
   try {
     // ส่ง session ของ Preview เมื่อ browser แบบฝังไม่ยอมแนบ cookie
@@ -76,41 +62,21 @@ function requestHeaders(includeChatConfig: boolean) {
   } catch {
     // บางโหมดส่วนตัวอาจปิด sessionStorage
   }
-  // Prefer the server/Render environment. Keep the existing Secret Gallery form as a
-  // compatibility fallback for deployments whose Render variables are not available yet.
-  if (includeChatConfig) {
-    const browserChat = readBrowserChatConfig();
-    if (browserChat) {
-      headers["x-chat-supabase-url"] = browserChat.url;
-      headers["x-chat-supabase-service-role-key"] = browserChat.serviceRoleKey;
-    }
-  }
   return headers;
 }
 
-const makeBatchLink = (includeChatConfig: boolean) =>
-  httpBatchLink({
+const trpcClient = trpc.createClient({
+  links: [httpBatchLink({
     url: "/api/trpc",
-    transformer: superjson,
-    headers() {
-      return requestHeaders(includeChatConfig);
-    },
+    transformer: superjson as any,
+    headers: requestHeaders,
     fetch(input, init) {
       return globalThis.fetch(input, {
         ...(init ?? {}),
         credentials: "include",
       });
     },
-  });
-
-const trpcClient = trpc.createClient({
-  links: [
-    splitLink({
-      condition: operation => chatProcedures.has(operation.path),
-      true: makeBatchLink(true),
-      false: makeBatchLink(false),
-    }),
-  ],
+  })],
 });
 
 createRoot(document.getElementById("root")!).render(

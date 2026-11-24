@@ -13,7 +13,7 @@
 
 ## ขั้นที่ 1 — เตรียม repo ใน VS Code
 
-ดาวน์โหลดไฟล์ patch แล้ววางไว้ที่โฟลเดอร์หลักของ repo `BB_STORE_ORDERS` จากนั้นเปิด Terminal → PowerShell ที่โฟลเดอร์ repo
+ดาวน์โหลดไฟล์ patch แล้ววางไว้ที่โฟลเดอร์หลักของ repo `ST_STORE_ORDERS` จากนั้นเปิด Terminal → PowerShell ที่โฟลเดอร์ repo
 
 คัดลอกเฉพาะคำสั่งในกรอบนี้ลง Terminal:
 
@@ -48,13 +48,13 @@ git pull --ff-only origin main
 ถ้าวาง patch ไว้ที่ root ของ repo ให้ apply ด้วย:
 
 ```powershell
-git am --3way ".\BB_STORE_ORDERS-stars-V6.patch"
+git am --3way ".\ST_STORE_ORDERS-stars-V6.patch"
 ```
 
 ถ้าเก็บไฟล์ไว้ใน Downloads ให้ใช้ path จริง เช่น:
 
 ```powershell
-git am --3way "$env:USERPROFILE\Downloads\BB_STORE_ORDERS-stars-V6.patch"
+git am --3way "$env:USERPROFILE\Downloads\ST_STORE_ORDERS-stars-V6.patch"
 ```
 
 ไม่ต้องสั่ง `git commit` ซ้ำ เพราะ `git am` สร้าง commit `⭐⭐⭐V6` ให้แล้ว

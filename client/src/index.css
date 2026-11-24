@@ -8,23 +8,23 @@
   --radius-sm: calc(var(--radius) - 4px); --radius-md: calc(var(--radius) - 2px); --radius-lg: var(--radius); --radius-xl: calc(var(--radius) + 4px);
   --color-background: var(--background); --color-foreground: var(--foreground); --color-card: var(--card); --color-card-foreground: var(--card-foreground); --color-popover: var(--popover); --color-popover-foreground: var(--popover-foreground); --color-primary: var(--primary); --color-primary-foreground: var(--primary-foreground); --color-secondary: var(--secondary); --color-secondary-foreground: var(--secondary-foreground); --color-muted: var(--muted); --color-muted-foreground: var(--muted-foreground); --color-accent: var(--accent); --color-accent-foreground: var(--accent-foreground); --color-destructive: var(--destructive); --color-destructive-foreground: var(--destructive-foreground); --color-border: var(--border); --color-input: var(--input); --color-ring: var(--ring); --color-sidebar: var(--sidebar); --color-sidebar-foreground: var(--sidebar-foreground); --color-sidebar-primary: var(--sidebar-primary); --color-sidebar-primary-foreground: var(--sidebar-primary-foreground); --color-sidebar-accent: var(--sidebar-accent); --color-sidebar-accent-foreground: var(--sidebar-accent-foreground); --color-sidebar-border: var(--sidebar-border); --color-sidebar-ring: var(--sidebar-ring);
 }
-:root { --primary:#d45cff; --primary-foreground:#16071d; --sidebar-primary:#e855c7; --sidebar-primary-foreground:#16071d; --background:#090611; --foreground:#f5eeff; --card:#130b1e; --card-foreground:#f5eeff; --popover:#160b22; --popover-foreground:#f5eeff; --secondary:#1d1030; --secondary-foreground:#ddc4ed; --muted:#21122e; --muted-foreground:#ab91bc; --accent:#26113b; --accent-foreground:#f8edff; --destructive:#ff4d83; --destructive-foreground:#fff; --border:rgba(190,91,255,.2); --input:rgba(191,91,255,.28); --ring:#ff53c8; --sidebar:#0e0818; --sidebar-foreground:#f5eeff; --sidebar-accent:#20102f; --sidebar-accent-foreground:#fff; --sidebar-border:rgba(188,83,255,.23); --sidebar-ring:#56efff; --radius:.75rem; color-scheme:dark; }
+:root { --primary:#a88cff; --primary-foreground:#100b20; --sidebar-primary:#7de7ee; --sidebar-primary-foreground:#07141b; --background:#080d16; --foreground:#eaf4ff; --card:#101a28; --card-foreground:#eaf4ff; --popover:#111d2d; --popover-foreground:#eaf4ff; --secondary:#162638; --secondary-foreground:#c6d9e9; --muted:#1a2a3a; --muted-foreground:#8ea5b8; --accent:#20384c; --accent-foreground:#eafaff; --destructive:#ff6f91; --destructive-foreground:#fff; --border:rgba(111,190,216,.2); --input:rgba(111,190,216,.28); --ring:#66d9e8; --sidebar:#0b1522; --sidebar-foreground:#eaf4ff; --sidebar-accent:#142b3d; --sidebar-accent-foreground:#f4fdff; --sidebar-border:rgba(103,197,220,.23); --sidebar-ring:#7de7ee; --radius:.75rem; color-scheme:dark; }
 * { box-sizing:border-box; }
-html, body, #root { width:100%; min-width:320px; min-height:100%; height:100%; background:#090611; }
+html, body, #root { width:100%; min-width:320px; min-height:100%; height:100%; background:#080d16; }
 html, body { overflow:hidden; }
 #root { min-height:100dvh; }
-body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-serif; background-image:radial-gradient(circle at 14% 0%,rgba(117,39,178,.18),transparent 34rem),radial-gradient(circle at 92% 10%,rgba(255,44,181,.09),transparent 30rem),linear-gradient(rgba(183,91,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(183,91,255,.035) 1px,transparent 1px); background-size:auto,auto,32px 32px,32px 32px; }
-::selection { background:rgba(232,85,199,.45); color:#fff; }
-::-webkit-scrollbar { width:9px; height:9px; } ::-webkit-scrollbar-track { background:#0d0716; } ::-webkit-scrollbar-thumb { border:2px solid #0d0716; border-radius:999px; background:linear-gradient(#ff4fca,#60edff); }
+body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-serif; background-image:radial-gradient(circle at 12% 0%,rgba(39,127,164,.12),transparent 34rem),radial-gradient(circle at 92% 10%,rgba(116,82,196,.08),transparent 30rem),linear-gradient(rgba(111,190,216,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(111,190,216,.025) 1px,transparent 1px); background-size:auto,auto,32px 32px,32px 32px; }
+::selection { background:rgba(102,217,232,.35); color:#fff; }
+::-webkit-scrollbar { width:9px; height:9px; } ::-webkit-scrollbar-track { background:#0b1522; } ::-webkit-scrollbar-thumb { border:2px solid #0b1522; border-radius:999px; background:linear-gradient(#738cf2,#66d9e8); }
 @layer base { * { @apply border-border outline-ring/50; } button:not(:disabled),[role="button"]:not([aria-disabled="true"]),[type="button"]:not(:disabled),[type="submit"]:not(:disabled),a[href],select:not(:disabled),input[type="checkbox"]:not(:disabled),input[type="radio"]:not(:disabled) { @apply cursor-pointer; } }
-@layer components { .container { width:100%; margin-inline:auto; padding-inline:1rem; } .flex { min-height:0; min-width:0; } .cyber-glow { box-shadow:0 0 0 1px rgba(229,83,219,.18),0 0 28px rgba(160,58,255,.12),0 18px 60px rgba(0,0,0,.34); } .cyber-title { text-shadow:0 0 18px rgba(225,81,231,.34); } .cyber-grid { background-image:linear-gradient(rgba(179,77,255,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(179,77,255,.06) 1px,transparent 1px); background-size:24px 24px; } .neon-divider { height:1px; background:linear-gradient(90deg,transparent,rgba(255,78,199,.82),rgba(88,238,255,.65),transparent); } }
+@layer components { .container { width:100%; margin-inline:auto; padding-inline:1rem; } .flex { min-height:0; min-width:0; } .cyber-glow { box-shadow:0 0 0 1px rgba(125,231,238,.14),0 0 24px rgba(115,140,242,.1),0 18px 60px rgba(0,0,0,.34); } .cyber-title { text-shadow:0 0 16px rgba(125,231,238,.24); } .cyber-grid { background-image:linear-gradient(rgba(111,190,216,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(111,190,216,.045) 1px,transparent 1px); background-size:24px 24px; } .neon-divider { height:1px; background:linear-gradient(90deg,transparent,rgba(168,140,255,.62),rgba(102,217,232,.58),transparent); } }
 @media (min-width:640px) { .container { padding-inline:1.5rem; } } @media (min-width:1024px) { .container { max-width:1280px; padding-inline:2rem; } }
 @media (prefers-reduced-motion:no-preference) { button,a,input,textarea { transition:border-color 160ms ease-out,box-shadow 160ms ease-out,background-color 160ms ease-out,transform 160ms ease-out; } button:active,[role="button"]:active { transform:scale(.98); } }
 
 /* Global cyberpunk migration layer: keeps the existing business logic and swaps visual tokens everywhere. */
 .singto-cyber-edge { position:relative; isolation:isolate; display:flex; width:100%; min-width:0; min-height:100%; height:100dvh; overflow:hidden; }
-.singto-cyber-edge::before { content:""; position:absolute; inset:0; pointer-events:none; border:1px solid transparent; border-radius:inherit; background:linear-gradient(90deg,transparent,rgba(255,74,191,.85),rgba(102,239,255,.75),transparent) border-box; background-size:200% 100%; animation:cyber-edge-scan 4s linear infinite; -webkit-mask:linear-gradient(#000 0 0) padding-box,linear-gradient(#000 0 0); -webkit-mask-composite:xor; mask-composite:exclude; z-index:20; }
-.singto-cyber-edge::after { content:""; position:absolute; inset:0; pointer-events:none; background:repeating-linear-gradient(0deg,transparent 0,transparent 3px,rgba(255,78,199,.045) 4px); z-index:19; }
+.singto-cyber-edge::before { content:""; position:absolute; inset:0; pointer-events:none; border:1px solid transparent; border-radius:inherit; background:linear-gradient(90deg,transparent,rgba(168,140,255,.58),rgba(102,217,232,.56),transparent) border-box; background-size:200% 100%; animation:cyber-edge-scan 4s linear infinite; -webkit-mask:linear-gradient(#000 0 0) padding-box,linear-gradient(#000 0 0); -webkit-mask-composite:xor; mask-composite:exclude; z-index:20; }
+.singto-cyber-edge::after { content:""; position:absolute; inset:0; pointer-events:none; background:repeating-linear-gradient(0deg,transparent 0,transparent 3px,rgba(102,217,232,.028) 4px); z-index:19; }
 @keyframes cyber-edge-scan { from { background-position:0 50%; } to { background-position:200% 50%; } }
 [class*="bg-[#09070d]"],[class*="bg-[#090706]"] { background:#0a0612 !important; }
 [class*="bg-[#0d0a12]"],[class*="bg-[#100b08]"],[class*="bg-[#100c19]"],[class*="bg-[#160e08]"] { background:rgba(18,8,31,.94) !important; }
@@ -42,7 +42,7 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 @media (prefers-reduced-motion:reduce) { .singto-cyber-edge::before { animation:none; } }
 
 
-/* BB Telegram delivery room: pink-violet identity, moving light, no orange UI */
+/* ST Telegram delivery room: pink-violet identity, moving light, no orange UI */
 .bb-telegram-room { background: radial-gradient(circle at 15% 0%, rgba(184, 70, 255, .14), transparent 28rem), radial-gradient(circle at 90% 10%, rgba(255, 55, 192, .12), transparent 26rem); }
 .bb-telegram-room .bb-running-line { background: linear-gradient(90deg, transparent, #ff4fc8, #9b5cff, #57e9ff, transparent); background-size: 220% 100%; animation: bb-running-light 2.8s linear infinite; box-shadow: 0 0 18px rgba(255, 79, 200, .7); }
 .bb-running-light { background: #ff55c9; box-shadow: 0 0 12px #ff55c9; animation: bb-pulse-light 1.3s ease-in-out infinite; }
@@ -252,7 +252,7 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .code-highlight .token.function, .code-highlight .token.class-name { color: #6ee7f9; }
 .code-highlight .token.regex, .code-highlight .token.important, .code-highlight .token.variable { color: #ffb86c; }
 
-/* BB SCRIPT ATELIER — Notion-like writing room in neon violet / pink */
+/* ST SCRIPT ATELIER — Notion-like writing room in neon violet / pink */
 .script-atelier { background:radial-gradient(circle at 12% 0%,rgba(183,72,255,.14),transparent 32rem),radial-gradient(circle at 92% 18%,rgba(255,72,202,.12),transparent 30rem),#0a0612; container-type:inline-size; width:100%; }
 .script-atelier-hero { position:relative; isolation:isolate; border-color:rgba(246,112,255,.28); background:linear-gradient(120deg,rgba(34,10,52,.94),rgba(19,8,35,.92) 58%,rgba(48,8,44,.88)); box-shadow:0 0 30px rgba(218,71,255,.12),inset 0 0 44px rgba(255,83,207,.06); }
 .script-atelier-hero::after { content:""; position:absolute; inset:auto 8% -1px 8%; height:1px; background:linear-gradient(90deg,transparent,#ff58d1,#b276ff,transparent); box-shadow:0 0 18px #ff58d1; }
@@ -590,20 +590,21 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 /* ORDER CONTROL · CYBERPUNK SIGNAGE / reflective signal cards */
 .order-control-room .order-list-panel,
 .order-control-room .order-detail-card {
-  border-color: rgba(132, 116, 225, .42) !important;
+  overflow: hidden;
+  border-radius: 1rem;
+  border-color: rgba(132, 116, 225, .24) !important;
   background: linear-gradient(145deg, rgba(13, 11, 28, .99), rgba(5, 8, 17, .99) 58%, rgba(15, 7, 25, .99)) !important;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, .11),
-    inset 0 -1px 0 rgba(96, 232, 255, .10),
+    inset 0 -1px 0 rgba(96, 232, 255, .07),
     0 18px 46px rgba(0, 0, 0, .46),
-    0 0 24px rgba(137, 83, 255, .12),
-    0 0 34px rgba(255, 67, 194, .055) !important;
+    0 0 20px rgba(137, 83, 255, .08),
+    0 0 28px rgba(255, 67, 194, .035) !important;
 }
 .order-control-room .order-list-panel > *:first-child,
 .order-control-room .order-detail-head {
-  border-color: rgba(120, 224, 255, .30) !important;
+  border-color: rgba(120, 224, 255, .17) !important;
   background: linear-gradient(100deg, rgba(23, 15, 45, .98), rgba(7, 17, 30, .96) 52%, rgba(35, 10, 39, .92)) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .10), 0 5px 22px rgba(95, 75, 215, .10);
+  box-shadow: 0 4px 16px rgba(95, 75, 215, .07);
 }
 .order-control-room .order-list-panel .text-violet-100,
 .order-control-room .order-detail-head .text-cyan-100 {
@@ -611,14 +612,13 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
   text-shadow: 0 0 8px rgba(103, 232, 249, .28), 0 0 16px rgba(164, 100, 255, .18);
 }
 .order-control-room .order-list-card {
-  border-color: rgba(138, 126, 220, .38) !important;
+  border-color: rgba(138, 126, 220, .26) !important;
   background:
     linear-gradient(145deg, rgba(19, 15, 39, .98), rgba(6, 10, 20, .99) 57%, rgba(24, 9, 30, .96)) !important;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, .12),
-    inset 0 -1px 0 rgba(83, 220, 255, .10),
+    inset 0 -1px 0 rgba(83, 220, 255, .07),
     0 8px 22px rgba(0, 0, 0, .35),
-    0 0 14px rgba(123, 78, 231, .11) !important;
+    0 0 12px rgba(123, 78, 231, .07) !important;
   transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease, filter .18s ease !important;
 }
 .order-control-room .order-list-card::before {
@@ -630,9 +630,9 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
   left: 7%;
   height: 1px;
   pointer-events: none;
-  background: linear-gradient(90deg, transparent, rgba(117, 244, 255, .82), rgba(180, 125, 255, .75), rgba(255, 107, 218, .68), transparent);
-  filter: drop-shadow(0 0 4px rgba(104, 220, 255, .62));
-  opacity: .76;
+  background: linear-gradient(90deg, transparent, rgba(117, 244, 255, .55), rgba(180, 125, 255, .48), rgba(255, 107, 218, .42), transparent);
+  filter: drop-shadow(0 0 2px rgba(104, 220, 255, .38));
+  opacity: .48;
 }
 .order-control-room .order-list-card:hover,
 .order-control-room .order-list-card:focus-visible {
@@ -693,9 +693,52 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
   position: relative;
   isolation: isolate;
   overflow: hidden;
+  min-height: 4.5rem;
   border-color: rgba(103, 232, 249, .38) !important;
   background: radial-gradient(ellipse at 8% 0%, rgba(117, 80, 236, .15), transparent 48%), linear-gradient(110deg, rgba(8, 13, 24, .98), rgba(12, 9, 26, .97) 57%, rgba(7, 14, 23, .98)) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .10), inset 0 -1px 0 rgba(103, 232, 249, .10), 0 0 0 1px rgba(103, 232, 249, .06), 0 0 24px rgba(104, 91, 235, .15), 0 12px 30px rgba(0, 0, 0, .32) !important;
+  box-shadow: inset 0 -1px 0 rgba(103, 232, 249, .10), 0 0 0 1px rgba(103, 232, 249, .06), 0 0 24px rgba(104, 91, 235, .15), 0 12px 30px rgba(0, 0, 0, .32) !important;
+}
+.order-control-room .order-safety-radar-grid {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  pointer-events: none;
+  opacity: .52;
+  background-image: linear-gradient(rgba(103, 232, 249, .11) 1px, transparent 1px), linear-gradient(90deg, rgba(103, 232, 249, .11) 1px, transparent 1px), radial-gradient(circle at 14% 50%, rgba(103, 232, 249, .25), transparent 34%);
+  background-size: 22px 22px, 22px 22px, auto;
+  mask-image: linear-gradient(90deg, #000 0%, rgba(0, 0, 0, .72) 52%, transparent 100%);
+  animation: order-radar-grid-drift 10s linear infinite;
+}
+.order-control-room .order-safety-radar-grid::after {
+  content: "";
+  position: absolute;
+  inset: -40% -20%;
+  background: linear-gradient(105deg, transparent 42%, rgba(116, 239, 255, .18) 49%, rgba(178, 126, 255, .08) 52%, transparent 59%);
+  transform: translateX(-35%);
+  animation: order-radar-scan 5.5s ease-in-out infinite;
+}
+.order-control-room .order-safety-radar-marquee {
+  position: absolute;
+  z-index: 0;
+  right: 1rem;
+  bottom: .45rem;
+  left: 1rem;
+  overflow: hidden;
+  color: rgba(123, 231, 238, .32);
+  font: 600 8px/1 'IBM Plex Mono', monospace;
+  letter-spacing: .24em;
+  white-space: nowrap;
+  mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+}
+.order-control-room .order-safety-radar-marquee span { display: inline-block; padding-right: 3rem; animation: order-radar-marquee 18s linear infinite; }
+.order-control-room .order-safety-radar > div:not(.order-safety-radar-grid):not(.order-safety-radar-marquee) { position: relative; z-index: 1; }
+@keyframes order-radar-grid-drift { from { background-position: 0 0, 0 0, 0 0; } to { background-position: 22px 0, 22px 0, 40px 0; } }
+@keyframes order-radar-scan { 0%, 20% { transform: translateX(-35%); opacity: 0; } 45% { opacity: 1; } 75%, 100% { transform: translateX(35%); opacity: 0; } }
+@keyframes order-radar-marquee { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+@media (prefers-reduced-motion: reduce) {
+  .order-control-room .order-safety-radar-grid,
+  .order-control-room .order-safety-radar-grid::after,
+  .order-control-room .order-safety-radar-marquee span { animation: none; }
 }
 .order-control-room > section[aria-live="polite"]::before,
 .order-control-room .order-detail-card section[aria-live="polite"]::before {
@@ -1047,7 +1090,27 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .mobile-inbox-message.is-media-only img { width:100%; max-width:360px; max-height:none; margin-top:0; border-radius:14px; object-fit:contain; }
 .mobile-inbox-message.is-media-only img + img { margin-top:6px; }
 .mobile-inbox-message time { display:block; margin-top:4px; color:#8a9a9c; font-size:10px; text-align:right; }
-.mobile-inbox-composer { flex:none; padding:8px 10px calc(9px + env(safe-area-inset-bottom)); border-top:1px solid #dce8e6; background:#fff; }
+.mobile-inbox-composer { position:relative; flex:none; padding:8px 10px calc(9px + env(safe-area-inset-bottom)); border-top:1px solid #dce8e6; background:#fff; }
+.mobile-inbox-deck-bridge { position:fixed; z-index:-1; left:-10000px; top:-10000px; width:1px; height:1px; overflow:hidden; opacity:0; pointer-events:none; visibility:hidden; }
+.mobile-inbox-deck-bridge > section,.mobile-inbox-deck-bridge iframe { width:1px !important; height:1px !important; min-height:0 !important; }
+.mobile-inbox-product-dock { position:absolute; z-index:20; right:10px; bottom:calc(100% + 8px); width:min(270px,calc(100vw - 24px)); animation:mobile-product-dock-in .32s ease-out both; }
+.mobile-inbox-product-dock__panel { position:relative; overflow:hidden; border:1px solid rgba(255,255,255,.78); border-radius:16px; padding:8px; background:linear-gradient(145deg,rgba(52,48,66,.78),rgba(15,16,28,.76)); box-shadow:0 0 0 1px rgba(255,255,255,.16),0 0 14px rgba(255,255,255,.24),0 0 28px rgba(188,211,255,.19),0 0 38px rgba(226,188,255,.14),0 12px 34px rgba(0,0,0,.34),inset 0 1px rgba(255,255,255,.48); backdrop-filter:blur(18px) saturate(1.35); -webkit-backdrop-filter:blur(18px) saturate(1.35); }
+.mobile-inbox-product-dock__panel::before,.mobile-inbox-product-dock__panel::after { position:absolute; z-index:1; pointer-events:none; content:"✦"; color:rgba(255,242,199,.88); text-shadow:0 0 7px rgba(255,222,142,.95),0 0 16px rgba(255,225,165,.55); animation:mobile-product-dock-twinkle 2.8s ease-in-out infinite; }
+.mobile-inbox-product-dock__panel::before { top:36px; right:12px; font-size:10px; }
+.mobile-inbox-product-dock__panel::after { bottom:14px; left:11px; font-size:8px; animation-delay:1.2s; }
+.mobile-inbox-product-dock__header { position:relative; z-index:2; display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px; color:#fff4d6; font-size:10px; font-weight:700; text-shadow:0 1px 8px rgba(255,219,147,.25); }
+.mobile-inbox-product-dock__header button { border:1px solid rgba(255,255,255,.72); border-radius:999px; padding:3px 8px; background:linear-gradient(135deg,rgba(255,255,255,.3),rgba(224,235,255,.13)); color:#fff; box-shadow:0 0 10px rgba(255,255,255,.18),inset 0 1px rgba(255,255,255,.42); font-size:9px; }
+.mobile-inbox-product-dock__reopen { position:absolute; z-index:20; right:12px; bottom:calc(100% + 8px); display:inline-flex; min-height:36px; align-items:center; gap:6px; border:1px solid rgba(255,255,255,.98); border-radius:999px; padding:0 13px; background:linear-gradient(135deg,rgba(255,255,255,.94),rgba(239,246,255,.79) 58%,rgba(255,255,255,.88)); color:#191c28; box-shadow:0 0 0 1px rgba(255,255,255,.28),0 0 12px rgba(255,255,255,.7),0 0 24px rgba(174,207,255,.52),0 0 34px rgba(222,176,255,.32),0 6px 18px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.98),inset 0 -1px 0 rgba(156,173,211,.22); backdrop-filter:blur(16px) saturate(1.35); -webkit-backdrop-filter:blur(16px) saturate(1.35); font-size:11px; font-weight:800; letter-spacing:.01em; text-shadow:0 1px rgba(255,255,255,.65); animation:mobile-product-dock-in .24s ease-out both,mobile-product-dock-glow 2.8s ease-in-out infinite; }
+.mobile-inbox-product-dock__reopen:active { transform:scale(.97); }
+.mobile-inbox-product-dock__sparkle { color:#7054a4; font-size:14px; text-shadow:0 0 5px rgba(255,255,255,.95),0 0 11px rgba(173,205,255,.9); animation:mobile-product-dock-twinkle 1.8s ease-in-out infinite; }
+.mobile-inbox-product-dock__items { display:flex; max-height:38dvh; flex-direction:column-reverse; gap:6px; overflow-y:auto; overscroll-behavior:contain; }
+.mobile-inbox-product-dock__items button { position:relative; z-index:2; display:flex; min-height:44px; align-items:center; gap:8px; border:1px solid rgba(255,255,255,.17); border-radius:11px; padding:5px 7px; background:rgba(11,10,16,.43); color:#fffaf0; text-align:left; backdrop-filter:blur(8px); }
+.mobile-inbox-product-dock__items button:disabled { opacity:.42; }
+.mobile-inbox-product-dock__items img { width:32px; height:32px; flex:none; border-radius:8px; background:rgba(255,255,255,.06); object-fit:cover; }
+.mobile-inbox-product-dock__items span { min-width:0; overflow:hidden; font-size:10px; font-weight:600; text-overflow:ellipsis; white-space:nowrap; }
+@keyframes mobile-product-dock-in { from { opacity:0; transform:translateY(12px) scale(.98); } to { opacity:1; transform:translateY(0) scale(1); } }
+@keyframes mobile-product-dock-twinkle { 0%,100% { opacity:.28; transform:scale(.72) rotate(0deg); } 48% { opacity:1; transform:scale(1.18) rotate(36deg); } }
+@keyframes mobile-product-dock-glow { 0%,100% { box-shadow:0 0 0 1px rgba(255,255,255,.28),0 0 10px rgba(255,255,255,.55),0 0 19px rgba(174,207,255,.38),0 0 27px rgba(222,176,255,.22),0 6px 18px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.98),inset 0 -1px 0 rgba(156,173,211,.22); } 50% { box-shadow:0 0 0 1px rgba(255,255,255,.42),0 0 16px rgba(255,255,255,.82),0 0 28px rgba(174,207,255,.58),0 0 38px rgba(222,176,255,.38),0 7px 20px rgba(0,0,0,.3),inset 0 1px 0 #fff,inset 0 -1px 0 rgba(156,173,211,.24); } }
 .mobile-inbox-compose-row { display:flex; align-items:flex-end; gap:5px; }
 .mobile-inbox-compose-row > button { display:grid; place-items:center; width:38px; height:42px; flex:none; border:0; border-radius:12px; background:#edf4f3; color:#287887; }
 .mobile-inbox-compose-row > button:last-child { background:#168ba0; color:#fff; }
@@ -1109,7 +1172,7 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .mobile-inbox-filters select:focus { border-color:#57d9ff; box-shadow:0 0 12px rgba(87,217,255,.16); }
 .mobile-inbox-bottom-nav { justify-content:center; gap:44px; }
 
-/* ChatHub room labels: BB is the discreet frame picker; Parcel carries the work status. */
+/* ChatHub room labels: ST is the discreet frame picker; Parcel carries the work status. */
 .chat-room-code-label.cyber-frame-picker-trigger { cursor:pointer; }
 .chat-room-code-label.cyber-frame-picker-trigger:not(.cod-room-sign):not(.time-slot-room-sign):not(.parcel-status-chip) { border-color:rgba(104,224,255,.38) !important; background:rgba(14,54,76,.34) !important; color:#d8f7ff !important; text-shadow:0 0 5px rgba(104,224,255,.65); box-shadow:0 0 7px rgba(40,190,255,.2), inset 0 0 8px rgba(40,190,255,.08); }
 .chat-room-code-label.cyber-frame-picker-trigger:hover { border-color:#8cffff !important; box-shadow:0 0 10px rgba(108,240,255,.55), inset 0 0 8px rgba(108,240,255,.14); }
@@ -1124,7 +1187,7 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .parcel-status-chip { border-color:rgba(255,156,225,.62); background:rgba(121,15,81,.34); color:#ffe7f7; text-shadow:0 0 3px #fff,0 0 7px rgba(255,128,218,.75); box-shadow:0 0 7px rgba(255,60,190,.38),inset 0 0 8px rgba(255,78,195,.12); }
 .parcel-status-chip--order { border-color:#8CFF00; background:rgba(140,255,0,.22); color:#E8FFD0; text-shadow:0 0 3px #fff,0 0 9px rgba(140,255,0,.98); box-shadow:0 0 4px rgba(255,255,255,.72),0 0 11px rgba(140,255,0,.96),0 0 22px rgba(140,255,0,.62),inset 0 0 8px rgba(140,255,0,.25); }
 
-/* The single room badge is Parcel; BB is no longer printed on the card. */
+/* The single room badge is Parcel; ST is no longer printed on the card. */
 .chat-room-code-label.cyber-frame-picker-trigger.parcel-status-chip { border-color:rgba(255,156,225,.62) !important; background:rgba(121,15,81,.34) !important; color:#ffe7f7 !important; text-shadow:0 0 3px #fff,0 0 7px rgba(255,128,218,.75) !important; box-shadow:0 0 7px rgba(255,60,190,.38),inset 0 0 8px rgba(255,78,195,.12) !important; }
 .chat-room-code-label.cyber-frame-picker-trigger.parcel-status-chip.parcel-status-chip--order { border-color:#8CFF00 !important; background:rgba(140,255,0,.22) !important; color:#E8FFD0 !important; text-shadow:0 0 3px #fff,0 0 9px rgba(140,255,0,.98) !important; box-shadow:0 0 4px rgba(255,255,255,.72),0 0 11px rgba(140,255,0,.96),0 0 22px rgba(140,255,0,.62),inset 0 0 8px rgba(140,255,0,.25) !important; }
 
@@ -1368,7 +1431,7 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
   box-shadow:0 12px 28px rgba(0,0,0,.28), inset 0 -1px 0 color-mix(in srgb, var(--depth-accent) 22%, transparent);
 }
 .mobile-inbox-page.mobile-inbox-themed .mobile-inbox-header::before {
-  content:"BB";
+  content:"ST";
   position:absolute;
   left:18px;
   top:23px;
@@ -1810,3 +1873,549 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 }
 @media (hover:hover) { .mobile-inbox-stock-panel .mobile-stock-card:hover { transform: translateY(-1px); box-shadow: 0 0 14px color-mix(in srgb,var(--mobile-primary) 35%,transparent), 0 0 28px color-mix(in srgb,var(--mobile-primary) 18%,transparent), 0 0 12px color-mix(in srgb,var(--mobile-primary) 8%,transparent) inset; } }
 @media (prefers-reduced-motion: reduce) { .mobile-inbox-stock-panel .mobile-stock-status.is-in, .mobile-inbox-stock-panel, .mobile-inbox-stock-panel .mobile-stock-card { animation: none; transition: none; } }
+
+/* Global Theme Runtime · shared by ST and BB through ROOM 04 app_themes */
+.global-theme-runtime {
+  --global-shadow: 0 0 var(--global-glow) color-mix(in srgb, var(--global-primary) 24%, transparent);
+  min-height: 100%;
+  color: var(--global-text);
+  font-family: var(--global-font-body), system-ui, sans-serif;
+  background-color: var(--global-bg);
+  background-image: var(--global-graphic), radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--global-primary) 18%, transparent), transparent 35%), radial-gradient(circle at 100% 100%, color-mix(in srgb, var(--global-accent) 14%, transparent), transparent 38%);
+  background-size: cover, auto, auto;
+  background-attachment: fixed;
+}
+.global-theme-runtime .singto-cyber-edge { min-height: 100%; background: transparent !important; color: var(--global-text); }
+.global-theme-runtime [data-slot="sidebar-inner"],
+.global-theme-runtime [data-slot="sidebar-container"] { background-color: color-mix(in srgb, var(--global-surface) 92%, #000 8%) !important; color: var(--global-text) !important; border-color: color-mix(in srgb, var(--global-primary) 28%, transparent) !important; }
+.global-theme-runtime [data-slot="sidebar-inset"] { background: color-mix(in srgb, var(--global-bg) 88%, transparent) !important; }
+.global-theme-runtime .global-theme-picker { display: inline-flex; align-items: center; gap: .4rem; min-height: 2rem; padding: .25rem .5rem; border: 1px solid color-mix(in srgb, var(--global-primary) 35%, transparent); border-radius: var(--global-radius); background: color-mix(in srgb, var(--global-surface) 78%, transparent); color: var(--global-text-muted); font: 600 9px var(--global-font-heading), system-ui, sans-serif; letter-spacing: .08em; box-shadow: var(--global-shadow); }
+.global-theme-runtime .global-theme-picker select { max-width: 9rem; border: 0; outline: 0; background: transparent; color: var(--global-text); font: 600 10px var(--global-font-body), system-ui, sans-serif; }
+.global-theme-runtime .global-theme-picker option { background: var(--global-surface); color: var(--global-text); }
+.global-theme-runtime .global-theme-picker small { color: var(--global-accent); font-size: 8px; }
+.global-theme-runtime .text-white, .global-theme-runtime .text-orange-50, .global-theme-runtime .text-orange-100 { color: var(--global-text) !important; }
+.global-theme-runtime h1, .global-theme-runtime h2, .global-theme-runtime h3, .global-theme-runtime h4 { font-family: var(--global-font-heading), var(--global-font-body), system-ui, sans-serif; }
+@media (max-width: 767px) { .global-theme-runtime .global-theme-picker { max-width: 46vw; } .global-theme-runtime .global-theme-picker span, .global-theme-runtime .global-theme-picker small { display: none; } .global-theme-runtime .global-theme-picker select { max-width: 7rem; } }
+
+/* Global Theme Runtime · shared by ST and BB through ROOM 04 app_themes */
+.global-theme-runtime { --global-shadow: 0 0 var(--global-glow) color-mix(in srgb, var(--global-primary) 24%, transparent); min-height: 100%; color: var(--global-text); font-family: var(--global-font-body), system-ui, sans-serif; background-color: var(--global-bg); background-image: var(--global-graphic), radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--global-primary) 18%, transparent), transparent 35%), radial-gradient(circle at 100% 100%, color-mix(in srgb, var(--global-accent) 14%, transparent), transparent 38%); background-size: cover, auto, auto; background-attachment: fixed; }
+.global-theme-runtime .singto-cyber-edge { min-height: 100%; background: transparent !important; color: var(--global-text); }
+.global-theme-runtime [data-slot="sidebar-inner"], .global-theme-runtime [data-slot="sidebar-container"] { background-color: color-mix(in srgb, var(--global-surface) 92%, #000 8%) !important; color: var(--global-text) !important; border-color: color-mix(in srgb, var(--global-primary) 28%, transparent) !important; }
+.global-theme-runtime [data-slot="sidebar-inset"] { background: color-mix(in srgb, var(--global-bg) 88%, transparent) !important; }
+.global-theme-runtime .global-theme-picker { display: inline-flex; align-items: center; gap: .4rem; min-height: 2rem; padding: .25rem .5rem; border: 1px solid color-mix(in srgb, var(--global-primary) 35%, transparent); border-radius: var(--global-radius); background: color-mix(in srgb, var(--global-surface) 78%, transparent); color: var(--global-text-muted); font: 600 9px var(--global-font-heading), system-ui, sans-serif; letter-spacing: .08em; box-shadow: var(--global-shadow); }
+.global-theme-runtime .global-theme-picker select { max-width: 9rem; border: 0; outline: 0; background: transparent; color: var(--global-text); font: 600 10px var(--global-font-body), system-ui, sans-serif; }
+.global-theme-runtime .global-theme-picker option { background: var(--global-surface); color: var(--global-text); }
+.global-theme-runtime .global-theme-picker small { color: var(--global-accent); font-size: 8px; }
+.global-theme-runtime .text-white, .global-theme-runtime .text-orange-50, .global-theme-runtime .text-orange-100 { color: var(--global-text) !important; }
+.global-theme-runtime h1, .global-theme-runtime h2, .global-theme-runtime h3, .global-theme-runtime h4 { font-family: var(--global-font-heading), var(--global-font-body), system-ui, sans-serif; }
+@media (max-width: 767px) { .global-theme-runtime .global-theme-picker { max-width: 46vw; } .global-theme-runtime .global-theme-picker span, .global-theme-runtime .global-theme-picker small { display: none; } .global-theme-runtime .global-theme-picker select { max-width: 7rem; } }
+
+/* Theme Runtime priority layer: the legacy Order Control skin uses !important. */
+.global-theme-runtime .order-control-room,
+.global-theme-runtime .order-control-room.order-control-room { background-color: var(--global-bg) !important; background-image: var(--global-graphic), radial-gradient(ellipse at 16% 0%, color-mix(in srgb, var(--global-primary) 18%, transparent), transparent 34rem), radial-gradient(ellipse at 88% 7%, color-mix(in srgb, var(--global-accent) 12%, transparent), transparent 31rem) !important; color: var(--global-text) !important; }
+.global-theme-runtime .order-control-room .blackbox-hero { background: linear-gradient(115deg, color-mix(in srgb, var(--global-bg) 92%, #000), color-mix(in srgb, var(--global-surface) 90%, #000) 58%, color-mix(in srgb, var(--global-bg) 94%, #000)) !important; border-color: color-mix(in srgb, var(--global-primary) 48%, transparent) !important; box-shadow: 0 0 0 1px color-mix(in srgb, var(--global-primary) 14%, transparent), 0 0 34px color-mix(in srgb, var(--global-primary) 20%, transparent), inset 0 0 34px color-mix(in srgb, var(--global-accent) 6%, transparent) !important; }
+.global-theme-runtime .order-control-room .central-clock { background: linear-gradient(145deg, color-mix(in srgb, var(--global-surface) 96%, #000), color-mix(in srgb, var(--global-bg) 92%, #000)) !important; border-color: color-mix(in srgb, var(--global-accent) 52%, transparent) !important; color: var(--global-text) !important; box-shadow: 0 0 24px color-mix(in srgb, var(--global-accent) 16%, transparent), inset 0 0 26px color-mix(in srgb, var(--global-primary) 8%, transparent) !important; }
+.global-theme-runtime .order-control-room .signal-metric { background: linear-gradient(145deg, color-mix(in srgb, var(--global-surface) 94%, #000), color-mix(in srgb, var(--global-bg) 94%, #000)) !important; border-color: color-mix(in srgb, var(--global-primary) 32%, transparent) !important; }
+.global-theme-runtime .order-control-room .order-search-drawer,
+.global-theme-runtime .order-control-room .order-filter-bar,
+.global-theme-runtime .order-control-room .order-search-result-summary { background: linear-gradient(145deg, color-mix(in srgb, var(--global-surface) 90%, #000), color-mix(in srgb, var(--global-bg) 94%, #000)) !important; border-color: color-mix(in srgb, var(--global-primary) 36%, transparent) !important; }
+.global-theme-runtime .order-control-room .order-list-panel,
+.global-theme-runtime .order-control-room .order-detail-card { background: color-mix(in srgb, var(--global-surface) 94%, #000) !important; border-color: color-mix(in srgb, var(--global-primary) 34%, transparent) !important; box-shadow: 0 14px 42px color-mix(in srgb, #000 35%, transparent), inset 0 0 26px color-mix(in srgb, var(--global-accent) 5%, transparent) !important; }
+.global-theme-runtime .order-control-room .order-detail-head { background: linear-gradient(90deg, color-mix(in srgb, var(--global-surface) 94%, #000), color-mix(in srgb, var(--global-primary) 12%, var(--global-surface)) 58%, color-mix(in srgb, var(--global-surface) 92%, #000)) !important; border-color: color-mix(in srgb, var(--global-accent) 28%, transparent) !important; }
+.global-theme-runtime .order-control-room .order-list-card { background: linear-gradient(132deg, color-mix(in srgb, var(--global-surface) 92%, #000), color-mix(in srgb, var(--global-bg) 94%, #000)) !important; border-color: color-mix(in srgb, var(--global-primary) 28%, transparent) !important; }
+.global-theme-runtime .order-control-room .order-list-card:hover,
+.global-theme-runtime .order-control-room .order-list-card:focus-visible,
+.global-theme-runtime .order-control-room .order-list-card-selected { background: linear-gradient(120deg, color-mix(in srgb, var(--global-primary) 18%, var(--global-surface)), color-mix(in srgb, var(--global-accent) 10%, var(--global-surface))) !important; border-color: color-mix(in srgb, var(--global-accent) 65%, transparent) !important; box-shadow: 0 0 24px color-mix(in srgb, var(--global-primary) 18%, transparent) !important; }
+.global-theme-runtime .order-control-room .order-parcel-result,
+.global-theme-runtime .order-control-room .order-chat-match { background: linear-gradient(128deg, color-mix(in srgb, var(--global-surface) 94%, #000), color-mix(in srgb, var(--global-bg) 94%, #000)) !important; border-color: color-mix(in srgb, var(--global-primary) 32%, transparent) !important; }
+.global-theme-runtime .order-control-room .order-search-input { background: color-mix(in srgb, var(--global-surface) 88%, #000) !important; border-color: color-mix(in srgb, var(--global-primary) 42%, transparent) !important; color: var(--global-text) !important; }
+.global-theme-runtime .order-control-room .filter-field { background: color-mix(in srgb, var(--global-surface) 84%, #000) !important; border-color: color-mix(in srgb, var(--global-primary) 30%, transparent) !important; color: var(--global-text-muted) !important; }
+.global-theme-runtime .order-control-room .filter-field input,
+.global-theme-runtime .order-control-room .filter-field select { color: var(--global-text) !important; }
+.global-theme-runtime .order-control-room [class*="text-cyan-"],
+.global-theme-runtime .order-control-room [class*="text-violet-"],
+.global-theme-runtime .order-control-room [class*="text-amber-"] { color: color-mix(in srgb, var(--global-accent) 78%, var(--global-text)) !important; }
+
+/* VISUAL BOOST · vivid runtime skin, inspired by Mobile Inbox / SUPHABASS DARKSIDE.
+   This is intentionally last so the legacy fixed cyberpunk skin cannot mute ROOM 04 colors. */
+.global-theme-runtime .order-control-room {
+  background-color: var(--global-bg) !important;
+  background-image: var(--global-graphic),
+    radial-gradient(ellipse at 9% 0%, color-mix(in srgb, var(--global-primary) 30%, transparent), transparent 31rem),
+    radial-gradient(ellipse at 95% 12%, color-mix(in srgb, var(--global-accent) 25%, transparent), transparent 28rem),
+    linear-gradient(120deg, color-mix(in srgb, var(--global-bg) 88%, #000), var(--global-bg)) !important;
+  background-blend-mode: screen, normal, normal, normal;
+}
+.global-theme-runtime .order-control-room .blackbox-hero {
+  background: linear-gradient(112deg,
+    color-mix(in srgb, var(--global-primary) 28%, var(--global-bg)),
+    color-mix(in srgb, var(--global-surface) 90%, var(--global-primary)) 48%,
+    color-mix(in srgb, var(--global-accent) 20%, var(--global-bg))) !important;
+  border-color: color-mix(in srgb, var(--global-primary) 80%, #fff) !important;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 30%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--global-primary) 30%, transparent),
+    0 0 38px color-mix(in srgb, var(--global-primary) 34%, transparent),
+    0 0 70px color-mix(in srgb, var(--global-accent) 16%, transparent) !important;
+}
+.global-theme-runtime .order-control-room .blackbox-hero::after {
+  background-image: linear-gradient(color-mix(in srgb, var(--global-primary) 22%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--global-accent) 18%, transparent) 1px, transparent 1px) !important;
+}
+.global-theme-runtime .order-control-room .cyber-title,
+.global-theme-runtime .order-control-room .cyber-title span { color: color-mix(in srgb, var(--global-text) 90%, var(--global-accent)) !important; text-shadow: 0 0 8px color-mix(in srgb, var(--global-accent) 58%, transparent), 0 0 24px color-mix(in srgb, var(--global-primary) 32%, transparent) !important; }
+.global-theme-runtime .order-control-room .orbit-kicker,
+.global-theme-runtime .order-control-room .central-clock-label { color: color-mix(in srgb, var(--global-accent) 78%, #fff) !important; }
+.global-theme-runtime .order-control-room .central-clock {
+  background: radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--global-accent) 24%, transparent), transparent 58%), linear-gradient(145deg, color-mix(in srgb, var(--global-surface) 90%, var(--global-primary)), var(--global-bg)) !important;
+  border-color: color-mix(in srgb, var(--global-accent) 82%, #fff) !important;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 25%, transparent), 0 0 0 1px color-mix(in srgb, var(--global-accent) 26%, transparent), 0 0 30px color-mix(in srgb, var(--global-accent) 40%, transparent) !important;
+}
+.global-theme-runtime .order-control-room .signal-metric {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--global-primary) 25%, var(--global-surface)), color-mix(in srgb, var(--global-surface) 84%, var(--global-accent))) !important;
+  border-color: color-mix(in srgb, var(--global-primary) 74%, #fff) !important;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 20%, transparent), inset 0 -12px 24px color-mix(in srgb, var(--global-accent) 12%, transparent), 0 0 20px color-mix(in srgb, var(--global-primary) 24%, transparent) !important;
+}
+.global-theme-runtime .order-control-room .signal-metric::after,
+.global-theme-runtime .order-control-room .order-list-panel::before,
+.global-theme-runtime .order-control-room .order-detail-card::before {
+  content: ""; position: absolute; top: 0; left: 7%; right: 7%; height: 2px; pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--global-primary), var(--global-accent), transparent);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--global-accent) 70%, transparent);
+}
+.global-theme-runtime .order-control-room .order-list-panel,
+.global-theme-runtime .order-control-room .order-detail-card {
+  position: relative;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--global-surface) 94%, var(--global-primary)), color-mix(in srgb, var(--global-bg) 88%, var(--global-accent))) !important;
+  border-color: color-mix(in srgb, var(--global-primary) 70%, transparent) !important;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 13%, transparent), inset 0 0 34px color-mix(in srgb, var(--global-primary) 8%, transparent), 0 18px 46px rgba(0,0,0,.42), 0 0 28px color-mix(in srgb, var(--global-primary) 18%, transparent) !important;
+}
+.global-theme-runtime .order-control-room .order-list-panel > *:first-child,
+.global-theme-runtime .order-control-room .order-detail-head {
+  background: linear-gradient(100deg, color-mix(in srgb, var(--global-primary) 22%, var(--global-surface)), color-mix(in srgb, var(--global-accent) 15%, var(--global-surface)), color-mix(in srgb, var(--global-surface) 92%, var(--global-bg))) !important;
+  border-color: color-mix(in srgb, var(--global-accent) 58%, transparent) !important;
+}
+.global-theme-runtime .order-control-room .order-list-card {
+  background: linear-gradient(140deg, color-mix(in srgb, var(--global-surface) 90%, var(--global-primary)), color-mix(in srgb, var(--global-bg) 90%, var(--global-accent))) !important;
+  border-color: color-mix(in srgb, var(--global-primary) 58%, transparent) !important;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 16%, transparent), 0 8px 22px rgba(0,0,0,.34), 0 0 16px color-mix(in srgb, var(--global-primary) 17%, transparent) !important;
+}
+.global-theme-runtime .order-control-room .order-list-card:hover,
+.global-theme-runtime .order-control-room .order-list-card-selected {
+  background: linear-gradient(125deg, color-mix(in srgb, var(--global-primary) 42%, var(--global-surface)), color-mix(in srgb, var(--global-accent) 25%, var(--global-surface))) !important;
+  border-color: color-mix(in srgb, var(--global-accent) 88%, #fff) !important;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--global-accent) 30%, transparent), 0 0 30px color-mix(in srgb, var(--global-accent) 30%, transparent), 0 12px 28px rgba(0,0,0,.38) !important;
+}
+.global-theme-runtime .order-control-room .order-search-drawer,
+.global-theme-runtime .order-control-room .order-filter-bar,
+.global-theme-runtime .order-control-room .order-search-result-summary,
+.global-theme-runtime .order-control-room .order-parcel-result,
+.global-theme-runtime .order-control-room .order-chat-match {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--global-surface) 91%, var(--global-primary)), color-mix(in srgb, var(--global-bg) 90%, var(--global-accent))) !important;
+  border-color: color-mix(in srgb, var(--global-primary) 52%, transparent) !important;
+}
+.global-theme-runtime .order-control-room .order-search-input,
+.global-theme-runtime .order-control-room .filter-field {
+  background: color-mix(in srgb, var(--global-surface) 82%, #000) !important;
+  border-color: color-mix(in srgb, var(--global-accent) 55%, transparent) !important;
+  color: var(--global-text) !important;
+  box-shadow: inset 0 0 14px color-mix(in srgb, var(--global-primary) 9%, transparent), 0 0 10px color-mix(in srgb, var(--global-primary) 10%, transparent) !important;
+}
+.global-theme-runtime .order-control-room .text-slate-300,
+.global-theme-runtime .order-control-room .text-slate-400,
+.global-theme-runtime .order-control-room .text-slate-500 { color: color-mix(in srgb, var(--global-text) 72%, var(--global-text-muted)) !important; }
+.global-theme-runtime .order-control-room .text-cyan-100,
+.global-theme-runtime .order-control-room .text-cyan-200,
+.global-theme-runtime .order-control-room .text-cyan-300,
+.global-theme-runtime .order-control-room .text-violet-100,
+.global-theme-runtime .order-control-room .text-fuchsia-100 { color: color-mix(in srgb, var(--global-accent) 70%, #fff) !important; text-shadow: 0 0 8px color-mix(in srgb, var(--global-accent) 42%, transparent); }
+.global-theme-runtime [data-slot="sidebar-inner"] { background: linear-gradient(180deg, color-mix(in srgb, var(--global-surface) 96%, var(--global-primary)), color-mix(in srgb, var(--global-bg) 94%, var(--global-accent))) !important; border-right-color: color-mix(in srgb, var(--global-primary) 58%, transparent) !important; box-shadow: 8px 0 30px color-mix(in srgb, var(--global-primary) 12%, transparent); }
+.global-theme-runtime [data-slot="sidebar-inner"] button:hover,
+.global-theme-runtime [data-slot="sidebar-inner"] button[data-active="true"] { background: linear-gradient(90deg, color-mix(in srgb, var(--global-primary) 36%, transparent), color-mix(in srgb, var(--global-accent) 13%, transparent)) !important; color: var(--global-text) !important; box-shadow: inset 2px 0 var(--global-accent), 0 0 16px color-mix(in srgb, var(--global-primary) 18%, transparent); }
+
+/* SHELL BRIDGE · keep the navigation shell visually attached to the active ROOM 04 theme */
+.global-theme-runtime .singto-cyber-edge > div.relative [data-slot="sidebar-inner"] {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--global-surface) 96%, var(--global-primary)), color-mix(in srgb, var(--global-bg) 94%, var(--global-accent))) !important;
+  border-right: 1px solid color-mix(in srgb, var(--global-primary) 62%, transparent) !important;
+}
+.global-theme-runtime [data-slot="sidebar-header"] {
+  border-bottom: 1px solid color-mix(in srgb, var(--global-primary) 35%, transparent) !important;
+  background: linear-gradient(115deg, color-mix(in srgb, var(--global-primary) 18%, var(--global-surface)), color-mix(in srgb, var(--global-surface) 94%, var(--global-accent))) !important;
+}
+.global-theme-runtime [data-slot="sidebar-header"] button,
+.global-theme-runtime [data-slot="sidebar-header"] span,
+.global-theme-runtime [data-slot="sidebar-header"] svg,
+.global-theme-runtime [data-slot="sidebar-footer"] p { color: var(--global-text) !important; }
+.global-theme-runtime [data-slot="sidebar-header"] svg,
+.global-theme-runtime [data-slot="sidebar-footer"] svg { color: var(--global-accent) !important; }
+.global-theme-runtime [data-slot="sidebar-menu-button"] {
+  color: color-mix(in srgb, var(--global-text) 82%, var(--global-text-muted)) !important;
+  border: 1px solid transparent !important;
+  background: transparent !important;
+  transition: background .18s ease, border-color .18s ease, color .18s ease, box-shadow .18s ease !important;
+}
+.global-theme-runtime [data-slot="sidebar-menu-button"] svg { color: color-mix(in srgb, var(--global-accent) 68%, var(--global-text-muted)) !important; }
+.global-theme-runtime [data-slot="sidebar-menu-button"]:hover,
+.global-theme-runtime [data-slot="sidebar-menu-button"][data-active="true"] {
+  color: var(--global-text) !important;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--global-primary) 38%, transparent), color-mix(in srgb, var(--global-accent) 16%, transparent)) !important;
+  border-color: color-mix(in srgb, var(--global-accent) 48%, transparent) !important;
+  box-shadow: inset 3px 0 var(--global-accent), 0 0 18px color-mix(in srgb, var(--global-primary) 20%, transparent) !important;
+}
+.global-theme-runtime [data-slot="sidebar-menu-button"]:hover svg,
+.global-theme-runtime [data-slot="sidebar-menu-button"][data-active="true"] svg { color: var(--global-accent) !important; filter: drop-shadow(0 0 5px color-mix(in srgb, var(--global-accent) 75%, transparent)); }
+.global-theme-runtime [data-slot="sidebar-footer"] { border-top: 1px solid color-mix(in srgb, var(--global-primary) 30%, transparent) !important; }
+.global-theme-runtime [data-slot="sidebar-footer"] [data-slot="avatar"] { border-color: color-mix(in srgb, var(--global-accent) 60%, transparent) !important; background: color-mix(in srgb, var(--global-primary) 25%, transparent) !important; }
+.global-theme-runtime .singto-cyber-edge > div.relative > div.absolute { background: color-mix(in srgb, var(--global-accent) 40%, transparent); }
+.global-theme-runtime [data-slot="sidebar-inset"] > div.mx-4.mt-3 {
+  position: relative;
+  overflow: hidden;
+  border-color: color-mix(in srgb, var(--global-primary) 48%, transparent) !important;
+  background: linear-gradient(105deg, color-mix(in srgb, var(--global-surface) 90%, var(--global-primary)), color-mix(in srgb, var(--global-bg) 90%, var(--global-accent))) !important;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 14%, transparent), 0 0 22px color-mix(in srgb, var(--global-primary) 13%, transparent) !important;
+}
+.global-theme-runtime [data-slot="sidebar-inset"] > div.mx-4.mt-3::before { content: ""; position: absolute; top: 0; left: 7%; right: 7%; height: 1px; background: linear-gradient(90deg, transparent, var(--global-primary), var(--global-accent), transparent); box-shadow: 0 0 9px var(--global-accent); }
+.global-theme-runtime [data-slot="sidebar-inset"] > div.mx-4.mt-3 > span,
+.global-theme-runtime [data-slot="sidebar-inset"] > div.mx-4.mt-3 button { color: color-mix(in srgb, var(--global-text) 82%, var(--global-accent)) !important; }
+.global-theme-runtime [data-slot="sidebar-inset"] > div.mx-4.mt-3 button:hover { color: var(--global-text) !important; }
+.global-theme-runtime [data-slot="sidebar-inset"] > div.mx-4.mt-3 svg { color: var(--global-accent) !important; }
+.global-theme-runtime [data-slot="sidebar-inset"] > div.mx-4.mt-3 + .absolute {
+  border-color: color-mix(in srgb, var(--global-accent) 55%, transparent) !important;
+  background: color-mix(in srgb, var(--global-surface) 96%, var(--global-bg)) !important;
+}
+.global-theme-runtime [data-slot="sidebar-inset"] > div.mx-4.mt-3 + .absolute p,
+.global-theme-runtime [data-slot="sidebar-inset"] > div.mx-4.mt-3 + .absolute b,
+.global-theme-runtime [data-slot="sidebar-inset"] > div.mx-4.mt-3 + .absolute button { color: var(--global-text) !important; }
+.global-theme-runtime [data-slot="sidebar-inset"] > div.mx-4.mt-3 + .absolute svg { color: var(--global-accent) !important; }
+
+/* SINGLE SEARCH HUB · one global search surface in the dashboard top bar */
+.global-theme-runtime .global-search-hub { border-color: color-mix(in srgb, var(--global-primary) 58%, transparent); background: linear-gradient(145deg, color-mix(in srgb, var(--global-surface) 97%, var(--global-primary)), color-mix(in srgb, var(--global-bg) 94%, var(--global-accent))) !important; color: var(--global-text); box-shadow: 0 0 0 1px color-mix(in srgb, var(--global-accent) 18%, transparent), 0 20px 60px rgba(0,0,0,.5), 0 0 32px color-mix(in srgb, var(--global-primary) 20%, transparent); }
+.global-theme-runtime .global-search-input-wrap { display:flex; align-items:center; gap:.65rem; border:1px solid color-mix(in srgb, var(--global-accent) 58%, transparent); border-radius:.8rem; padding:.7rem .85rem; background:color-mix(in srgb, var(--global-bg) 88%, #000); color:var(--global-accent); box-shadow:inset 0 0 18px color-mix(in srgb, var(--global-primary) 10%, transparent); }
+.global-theme-runtime .global-search-input-wrap input { min-width:0; width:100%; border:0; outline:0; background:transparent; color:var(--global-text); font:500 12px var(--global-font-body),system-ui,sans-serif; }
+.global-theme-runtime .global-search-input-wrap input::placeholder { color:var(--global-text-muted); opacity:.75; }
+.global-theme-runtime .global-search-result { display:block; width:100%; border:1px solid color-mix(in srgb, var(--global-primary) 32%, transparent); border-radius:.8rem; padding:.75rem; text-align:left; background:linear-gradient(120deg, color-mix(in srgb, var(--global-surface) 92%, var(--global-primary)), color-mix(in srgb, var(--global-bg) 90%, var(--global-accent))); color:var(--global-text); transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease; }
+.global-theme-runtime .global-search-result:hover { transform:translateY(-1px); border-color:color-mix(in srgb, var(--global-accent) 78%, #fff); box-shadow:0 0 22px color-mix(in srgb, var(--global-accent) 20%, transparent); }
+.global-theme-runtime .global-search-source { display:inline-flex; border:1px solid color-mix(in srgb, var(--global-accent) 42%, transparent); border-radius:999px; padding:.16rem .45rem; color:color-mix(in srgb, var(--global-accent) 72%, #fff); font:600 9px var(--global-font-heading),system-ui,sans-serif; letter-spacing:.04em; }
+.global-theme-runtime .global-search-empty { padding:1rem; text-align:center; color:var(--global-text-muted); font-size:11px; }
+.global-theme-runtime .global-search-room-action { display:inline-flex; align-items:center; border:1px solid color-mix(in srgb, var(--global-accent) 52%, transparent); border-radius:.55rem; padding:.35rem .55rem; background:color-mix(in srgb, var(--global-primary) 14%, transparent); color:color-mix(in srgb, var(--global-accent) 78%, #fff); font:600 10px var(--global-font-heading),system-ui,sans-serif; transition:background .16s ease,border-color .16s ease,box-shadow .16s ease; }
+.global-theme-runtime .global-search-room-action:hover { border-color:color-mix(in srgb, var(--global-accent) 88%, #fff); background:color-mix(in srgb, var(--global-primary) 30%, transparent); box-shadow:0 0 13px color-mix(in srgb, var(--global-accent) 22%, transparent); }
+
+/* DETAIL DECK TINT · lift the right card out of the legacy near-black well */
+.global-theme-runtime .order-control-room .order-detail-card {
+  background:
+    radial-gradient(ellipse at 92% 4%, color-mix(in srgb, var(--global-accent) 20%, transparent), transparent 34%),
+    radial-gradient(ellipse at 8% 92%, color-mix(in srgb, var(--global-primary) 22%, transparent), transparent 42%),
+    linear-gradient(145deg, color-mix(in srgb, var(--global-surface) 88%, var(--global-primary)), color-mix(in srgb, var(--global-bg) 82%, var(--global-accent))) !important;
+  border-color: color-mix(in srgb, var(--global-accent) 68%, transparent) !important;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 17%, transparent), inset 0 0 46px color-mix(in srgb, var(--global-primary) 11%, transparent), 0 18px 46px rgba(0,0,0,.38), 0 0 30px color-mix(in srgb, var(--global-accent) 16%, transparent) !important;
+}
+.global-theme-runtime .order-control-room .order-detail-head {
+  background: linear-gradient(100deg, color-mix(in srgb, var(--global-primary) 28%, var(--global-surface)), color-mix(in srgb, var(--global-accent) 19%, var(--global-surface)) 54%, color-mix(in srgb, var(--global-surface) 91%, var(--global-bg))) !important;
+  border-color: color-mix(in srgb, var(--global-accent) 62%, transparent) !important;
+}
+.global-theme-runtime .order-control-room .order-detail-card .order-summary-well {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--global-surface) 85%, var(--global-primary)), color-mix(in srgb, var(--global-bg) 84%, var(--global-accent))) !important;
+  border-color: color-mix(in srgb, var(--global-primary) 64%, transparent) !important;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 13%, transparent), inset 0 0 28px color-mix(in srgb, var(--global-primary) 10%, transparent), 0 0 18px color-mix(in srgb, var(--global-primary) 12%, transparent) !important;
+}
+.global-theme-runtime .order-control-room .order-detail-card .order-original-well {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--global-accent) 22%, var(--global-surface)), color-mix(in srgb, var(--global-primary) 18%, var(--global-bg)) 58%, color-mix(in srgb, var(--global-bg) 86%, var(--global-accent))) !important;
+  border-color: color-mix(in srgb, var(--global-accent) 76%, transparent) !important;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 16%, transparent), inset 0 0 32px color-mix(in srgb, var(--global-accent) 12%, transparent), 0 0 26px color-mix(in srgb, var(--global-accent) 18%, transparent) !important;
+}
+.global-theme-runtime .order-control-room .order-detail-card .order-original-well pre,
+.global-theme-runtime .order-control-room .order-detail-card .data-pair-panel {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--global-bg) 76%, var(--global-primary)), color-mix(in srgb, var(--global-surface) 80%, var(--global-accent))) !important;
+  border-color: color-mix(in srgb, var(--global-accent) 48%, transparent) !important;
+  color: color-mix(in srgb, var(--global-text) 90%, var(--global-accent)) !important;
+}
+.global-theme-runtime .order-control-room .order-detail-card .order-source-details {
+  background: linear-gradient(125deg, color-mix(in srgb, var(--global-surface) 84%, var(--global-primary)), color-mix(in srgb, var(--global-bg) 86%, var(--global-accent))) !important;
+  border-color: color-mix(in srgb, var(--global-primary) 48%, transparent) !important;
+}
+
+/* STAT ICON FINISH · replace legacy near-black icon wells with the active theme signal */
+.global-theme-runtime .order-control-room .signal-metric .metric-icon {
+  border: 1px solid color-mix(in srgb, var(--global-accent) 72%, #fff);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--global-primary) 82%, #fff), color-mix(in srgb, var(--global-accent) 62%, var(--global-primary))) !important;
+  color: color-mix(in srgb, var(--global-bg) 82%, #000) !important;
+  box-shadow: 0 0 10px color-mix(in srgb, var(--global-primary) 55%, transparent), 0 0 22px color-mix(in srgb, var(--global-accent) 22%, transparent), inset 0 1px 0 rgba(255,255,255,.35) !important;
+}
+.global-theme-runtime .order-control-room .signal-metric .metric-icon svg {
+  filter: drop-shadow(0 0 3px color-mix(in srgb, #fff 70%, transparent));
+}
+
+/* SURFACE CLEANUP · keep theme color on edges, not washed across the whole deck */
+.global-theme-runtime .order-control-room .signal-metric {
+  background: radial-gradient(ellipse at 100% 0%, color-mix(in srgb, var(--global-accent) 9%, transparent), transparent 42%), linear-gradient(145deg, color-mix(in srgb, var(--global-surface) 96%, var(--global-primary)), color-mix(in srgb, var(--global-bg) 97%, var(--global-accent))) !important;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 14%, transparent), inset 0 -18px 28px color-mix(in srgb, var(--global-primary) 4%, transparent), 0 8px 24px rgba(0,0,0,.32), 0 0 16px color-mix(in srgb, currentColor 20%, transparent) !important;
+}
+.global-theme-runtime .order-control-room .signal-metric .metric-icon {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--global-primary) 68%, #fff), color-mix(in srgb, var(--global-accent) 42%, var(--global-primary))) !important;
+  box-shadow: 0 0 8px color-mix(in srgb, var(--global-primary) 42%, transparent), 0 0 16px color-mix(in srgb, var(--global-accent) 15%, transparent), inset 0 1px 0 rgba(255,255,255,.3) !important;
+}
+.global-theme-runtime .order-control-room .order-list-panel,
+.global-theme-runtime .order-control-room .order-detail-card {
+  background: radial-gradient(ellipse at 90% 0%, color-mix(in srgb, var(--global-primary) 7%, transparent), transparent 34%), linear-gradient(145deg, color-mix(in srgb, var(--global-surface) 97%, var(--global-primary)), color-mix(in srgb, var(--global-bg) 96%, var(--global-accent))) !important;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 12%, transparent), inset 0 0 30px color-mix(in srgb, var(--global-primary) 5%, transparent), 0 16px 42px rgba(0,0,0,.42), 0 0 20px color-mix(in srgb, var(--global-primary) 12%, transparent) !important;
+}
+.global-theme-runtime .order-control-room .order-list-panel > *:first-child,
+.global-theme-runtime .order-control-room .order-detail-head {
+  background: linear-gradient(100deg, color-mix(in srgb, var(--global-surface) 95%, var(--global-primary)), color-mix(in srgb, var(--global-surface) 97%, var(--global-accent)), color-mix(in srgb, var(--global-surface) 96%, var(--global-bg))) !important;
+}
+.global-theme-runtime .order-control-room .order-list-card {
+  background: linear-gradient(140deg, color-mix(in srgb, var(--global-surface) 96%, var(--global-primary)), color-mix(in srgb, var(--global-bg) 96%, var(--global-accent))) !important;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 12%, transparent), 0 7px 20px rgba(0,0,0,.3), 0 0 12px color-mix(in srgb, var(--global-primary) 10%, transparent) !important;
+}
+
+/* SELECTED ORDER DEPTH · a restrained cyan wash that fades into the surface */
+.global-theme-runtime .order-control-room .order-list-card-selected {
+  position: relative;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 16% 0%, color-mix(in srgb, var(--global-accent) 16%, transparent), transparent 42%), linear-gradient(145deg, color-mix(in srgb, var(--global-surface) 94%, var(--global-primary)), color-mix(in srgb, var(--global-bg) 96%, var(--global-accent))) !important;
+}
+.global-theme-runtime .order-control-room .order-list-card-selected::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 28%;
+  pointer-events: none;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--global-accent) 10%, transparent), transparent);
+  opacity: .8;
+}
+
+/* CHAT ROOM RUNTIME PASS · visual shell only; message and channel logic remain untouched */
+.global-theme-runtime .chat-cosmos-shell {
+  background-color: var(--global-bg) !important;
+  background-image: radial-gradient(ellipse at 8% 8%, color-mix(in srgb, var(--global-primary) 18%, transparent), transparent 38%), radial-gradient(ellipse at 92% 10%, color-mix(in srgb, var(--global-accent) 15%, transparent), transparent 40%), linear-gradient(135deg, var(--global-bg), color-mix(in srgb, var(--global-surface) 55%, var(--global-bg))) !important;
+  color: var(--global-text) !important;
+}
+.global-theme-runtime .chat-cosmos-shell .neon-sign {
+  background: linear-gradient(115deg, color-mix(in srgb, var(--global-surface) 94%, var(--global-primary)), color-mix(in srgb, var(--global-bg) 88%, var(--global-accent))) !important;
+  border-color: color-mix(in srgb, var(--global-primary) 62%, transparent) !important;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 14%, transparent), 0 0 24px color-mix(in srgb, var(--global-primary) 17%, transparent), 0 0 38px color-mix(in srgb, var(--global-accent) 10%, transparent) !important;
+}
+.global-theme-runtime .chat-cosmos-shell .neon-sign p,
+.global-theme-runtime .chat-cosmos-shell .neon-sign h1,
+.global-theme-runtime .chat-cosmos-shell .neon-sign button { color: var(--global-text) !important; }
+.global-theme-runtime .chat-cosmos-shell .neon-sign p { color: color-mix(in srgb, var(--global-accent) 72%, var(--global-text)) !important; }
+.global-theme-runtime .chat-cosmos-shell [data-slot="card"],
+.global-theme-runtime .chat-cosmos-shell .chat-tools-panel {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--global-surface) 96%, var(--global-primary)), color-mix(in srgb, var(--global-bg) 95%, var(--global-accent))) !important;
+  border-color: color-mix(in srgb, var(--global-primary) 38%, transparent) !important;
+  color: var(--global-text) !important;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 10%, transparent), 0 14px 34px rgba(0,0,0,.28), 0 0 18px color-mix(in srgb, var(--global-primary) 10%, transparent) !important;
+}
+.global-theme-runtime .chat-cosmos-shell input,
+.global-theme-runtime .chat-cosmos-shell textarea,
+.global-theme-runtime .chat-cosmos-shell .chat-tool-copy-row,
+.global-theme-runtime .chat-cosmos-shell .chat-tools-item {
+  background-color: color-mix(in srgb, var(--global-bg) 82%, var(--global-surface)) !important;
+  border-color: color-mix(in srgb, var(--global-primary) 32%, transparent) !important;
+  color: var(--global-text) !important;
+}
+.global-theme-runtime .chat-cosmos-shell input::placeholder,
+.global-theme-runtime .chat-cosmos-shell textarea::placeholder { color: var(--global-text-muted) !important; opacity: .8; }
+.global-theme-runtime .chat-cosmos-shell .chat-cosmos-timeline {
+  background: radial-gradient(circle at 82% 8%, color-mix(in srgb, var(--global-accent) 12%, transparent), transparent 30%), radial-gradient(circle at 12% 74%, color-mix(in srgb, var(--global-primary) 12%, transparent), transparent 32%), linear-gradient(135deg, color-mix(in srgb, var(--global-bg) 96%, #000), var(--global-bg)) !important;
+}
+.global-theme-runtime .chat-cosmos-shell .chat-cosmos-composer {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--global-surface) 92%, var(--global-primary)), color-mix(in srgb, var(--global-bg) 96%, var(--global-accent))) !important;
+  border-color: color-mix(in srgb, var(--global-primary) 34%, transparent) !important;
+}
+.global-theme-runtime .chat-cosmos-shell .room-list-card:hover,
+.global-theme-runtime .chat-cosmos-shell .room-list-card[data-selected="true"] {
+  background: linear-gradient(105deg, color-mix(in srgb, var(--global-primary) 16%, var(--global-surface)), color-mix(in srgb, var(--global-accent) 9%, var(--global-surface))) !important;
+}
+.global-theme-runtime .chat-cosmos-shell .chat-tool-action { border-color: color-mix(in srgb, var(--global-primary) 42%, transparent) !important; background: color-mix(in srgb, var(--global-primary) 10%, transparent) !important; color: var(--global-text) !important; }
+.global-theme-runtime .chat-cosmos-shell .chat-tool-action:hover { border-color: color-mix(in srgb, var(--global-accent) 72%, transparent) !important; background: color-mix(in srgb, var(--global-accent) 15%, transparent) !important; }
+
+/* CHAT BUBBLE SPLIT · customer and page messages must remain visually distinct */
+.global-theme-runtime .chat-cosmos-shell .chat-message-bubble--customer {
+  border: 1px solid color-mix(in srgb, var(--global-primary) 58%, transparent) !important;
+  background: radial-gradient(circle at 8% 0%, color-mix(in srgb, var(--global-primary) 20%, transparent), transparent 56%), linear-gradient(135deg, color-mix(in srgb, var(--global-surface) 88%, var(--global-primary)), color-mix(in srgb, var(--global-bg) 91%, var(--global-primary))) !important;
+  color: color-mix(in srgb, var(--global-text) 94%, var(--global-primary)) !important;
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--global-primary) 12%, transparent), inset 0 1px 0 color-mix(in srgb, #fff 12%, transparent) !important;
+}
+.global-theme-runtime .chat-cosmos-shell .chat-message-bubble--page {
+  border: 1px solid color-mix(in srgb, var(--global-accent) 62%, transparent) !important;
+  background: radial-gradient(circle at 92% 0%, color-mix(in srgb, var(--global-accent) 22%, transparent), transparent 56%), linear-gradient(135deg, color-mix(in srgb, var(--global-surface) 88%, var(--global-accent)), color-mix(in srgb, var(--global-bg) 90%, var(--global-accent))) !important;
+  color: color-mix(in srgb, var(--global-text) 94%, var(--global-accent)) !important;
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--global-accent) 14%, transparent), inset 0 1px 0 color-mix(in srgb, #fff 14%, transparent) !important;
+}
+.global-theme-runtime .chat-cosmos-shell .chat-message-bubble--customer .text-cyan-100,
+.global-theme-runtime .chat-cosmos-shell .chat-message-bubble--page .text-cyan-100 { color: var(--global-text) !important; }
+
+/* ST GLOBAL THEME PASS · remaining rooms share the ROOM 04 runtime without changing data logic */
+.global-theme-runtime .st-runtime-room { color: var(--global-text) !important; background-color: var(--global-bg) !important; background-image: var(--global-graphic), radial-gradient(ellipse at 8% 0%, color-mix(in srgb, var(--global-primary) 14%, transparent), transparent 34rem), radial-gradient(ellipse at 92% 8%, color-mix(in srgb, var(--global-accent) 12%, transparent), transparent 30rem) !important; font-family: var(--global-font-body), system-ui, sans-serif; }
+.global-theme-runtime .st-runtime-room h1,.global-theme-runtime .st-runtime-room h2,.global-theme-runtime .st-runtime-room h3,.global-theme-runtime .st-runtime-room strong { font-family: var(--global-font-heading), var(--global-font-body), system-ui, sans-serif; }
+.global-theme-runtime .st-runtime-room input,.global-theme-runtime .st-runtime-room textarea,.global-theme-runtime .st-runtime-room button,.global-theme-runtime .st-runtime-room select { font-family: var(--global-font-body), system-ui, sans-serif; }
+.global-theme-runtime .line-runtime-room,.global-theme-runtime .telegram-runtime-room,.global-theme-runtime .telegram-history-runtime-room,.global-theme-runtime .order-history-runtime-room { position: relative; isolation: isolate; }
+.global-theme-runtime .line-runtime-room::before,.global-theme-runtime .telegram-runtime-room::before,.global-theme-runtime .telegram-history-runtime-room::before,.global-theme-runtime .order-history-runtime-room::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: .5; background-image: linear-gradient(115deg, color-mix(in srgb, var(--global-primary) 8%, transparent), transparent 32%, color-mix(in srgb, var(--global-accent) 7%, transparent)); }
+/* LINE OA */
+.global-theme-runtime .line-runtime-room .line-mobile-search,.global-theme-runtime .line-runtime-room .line-mobile-room-header,.global-theme-runtime .line-runtime-room > header,.global-theme-runtime .line-runtime-room aside,.global-theme-runtime .line-runtime-room > section > section { border-color: color-mix(in srgb, var(--global-primary) 40%, transparent) !important; background: linear-gradient(145deg, color-mix(in srgb, var(--global-surface) 95%, var(--global-primary)), color-mix(in srgb, var(--global-bg) 94%, var(--global-accent))) !important; box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 10%, transparent), 0 14px 36px rgba(0,0,0,.24), 0 0 22px color-mix(in srgb, var(--global-primary) 10%, transparent) !important; }
+.global-theme-runtime .line-runtime-room .line-mobile-timeline,.global-theme-runtime .line-runtime-room > section > section > div.flex-1 { background: radial-gradient(circle at 82% 8%, color-mix(in srgb, var(--global-accent) 13%, transparent), transparent 34%), radial-gradient(circle at 12% 78%, color-mix(in srgb, var(--global-primary) 13%, transparent), transparent 34%), linear-gradient(135deg, var(--global-bg), color-mix(in srgb, var(--global-surface) 55%, var(--global-bg))) !important; }
+.global-theme-runtime .line-runtime-room .line-mobile-thread,.global-theme-runtime .line-runtime-room .room-list-card { border-color: color-mix(in srgb, var(--global-primary) 25%, transparent) !important; color: var(--global-text) !important; }
+.global-theme-runtime .line-runtime-room .line-mobile-thread:hover,.global-theme-runtime .line-runtime-room .room-list-card:hover,.global-theme-runtime .line-runtime-room .room-list-card--selected { background: linear-gradient(105deg, color-mix(in srgb, var(--global-primary) 18%, var(--global-surface)), color-mix(in srgb, var(--global-accent) 10%, var(--global-surface))) !important; border-color: color-mix(in srgb, var(--global-accent) 64%, transparent) !important; }
+.global-theme-runtime .line-runtime-room .line-mobile-composer,.global-theme-runtime .line-runtime-room form { border-color: color-mix(in srgb, var(--global-primary) 34%, transparent) !important; background: linear-gradient(180deg, color-mix(in srgb, var(--global-surface) 92%, var(--global-primary)), var(--global-bg)) !important; }
+.global-theme-runtime .line-runtime-room input,.global-theme-runtime .line-runtime-room textarea { border-color: color-mix(in srgb, var(--global-primary) 38%, transparent) !important; background: color-mix(in srgb, var(--global-bg) 84%, var(--global-surface)) !important; color: var(--global-text) !important; }
+.global-theme-runtime .line-runtime-room button[type="submit"] { background: linear-gradient(135deg, var(--global-primary), var(--global-accent)) !important; color: var(--global-bg) !important; box-shadow: 0 0 18px color-mix(in srgb, var(--global-accent) 25%, transparent); }
+.global-theme-runtime .line-runtime-room .line-mobile-message-row.is-outgoing > div,.global-theme-runtime .line-runtime-room .flex.justify-end > div { border: 1px solid color-mix(in srgb, var(--global-accent) 58%, transparent) !important; background: linear-gradient(135deg, color-mix(in srgb, var(--global-primary) 30%, var(--global-surface)), color-mix(in srgb, var(--global-accent) 22%, var(--global-surface))) !important; color: var(--global-text) !important; }
+.global-theme-runtime .line-runtime-room .line-mobile-message-row:not(.is-outgoing) > div,.global-theme-runtime .line-runtime-room .flex.justify-start > div { border: 1px solid color-mix(in srgb, var(--global-primary) 48%, transparent) !important; background: linear-gradient(135deg, color-mix(in srgb, var(--global-surface) 90%, var(--global-primary)), color-mix(in srgb, var(--global-bg) 90%, var(--global-primary))) !important; color: var(--global-text) !important; }
+/* TELEGRAM QUEUE / SENT */
+.global-theme-runtime .telegram-runtime-room > header,.global-theme-runtime .telegram-runtime-room > section,.global-theme-runtime .telegram-runtime-room .telegram-panel,.global-theme-runtime .telegram-history-runtime-room > header,.global-theme-runtime .telegram-history-runtime-room > section { border-color: color-mix(in srgb, var(--global-primary) 40%, transparent) !important; background: linear-gradient(145deg, color-mix(in srgb, var(--global-surface) 94%, var(--global-primary)), color-mix(in srgb, var(--global-bg) 94%, var(--global-accent))) !important; box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 10%, transparent), 0 14px 36px rgba(0,0,0,.24), 0 0 24px color-mix(in srgb, var(--global-primary) 9%, transparent) !important; }
+.global-theme-runtime .telegram-runtime-room textarea,.global-theme-runtime .telegram-runtime-room input,.global-theme-runtime .telegram-history-runtime-room input { background: color-mix(in srgb, var(--global-bg) 86%, var(--global-surface)) !important; border-color: color-mix(in srgb, var(--global-primary) 38%, transparent) !important; color: var(--global-text) !important; }
+.global-theme-runtime .telegram-runtime-room button:not([disabled]):hover,.global-theme-runtime .telegram-history-runtime-room button:hover { border-color: color-mix(in srgb, var(--global-accent) 78%, transparent) !important; box-shadow: 0 0 18px color-mix(in srgb, var(--global-accent) 14%, transparent); }
+.global-theme-runtime .telegram-runtime-room .bg-cyan-400\/20,.global-theme-runtime .telegram-history-runtime-room .bg-emerald-400\/10 { background: color-mix(in srgb, var(--global-accent) 18%, transparent) !important; color: var(--global-text) !important; }
+/* SENT ARCHIVE / ORDER HISTORY */
+.global-theme-runtime .order-history-runtime-room > header,.global-theme-runtime .order-history-runtime-room [data-slot="card"],.global-theme-runtime .telegram-history-runtime-room article { border-color: color-mix(in srgb, var(--global-primary) 34%, transparent) !important; background: linear-gradient(145deg, color-mix(in srgb, var(--global-surface) 95%, var(--global-primary)), color-mix(in srgb, var(--global-bg) 94%, var(--global-accent))) !important; color: var(--global-text) !important; }
+.global-theme-runtime .order-history-runtime-room table thead,.global-theme-runtime .order-history-runtime-room table tbody tr:hover { background: color-mix(in srgb, var(--global-primary) 12%, var(--global-surface)) !important; }
+.global-theme-runtime .order-history-runtime-room table tbody tr { border-color: color-mix(in srgb, var(--global-primary) 18%, transparent) !important; }
+.global-theme-runtime .order-history-runtime-room .text-white,.global-theme-runtime .telegram-history-runtime-room .text-white { color: var(--global-text) !important; }
+.global-theme-runtime .order-history-runtime-room .text-cyan-100,.global-theme-runtime .order-history-runtime-room .text-violet-100,.global-theme-runtime .order-history-runtime-room .text-fuchsia-100,.global-theme-runtime .telegram-history-runtime-room .text-emerald-100,.global-theme-runtime .telegram-history-runtime-room .text-cyan-100,.global-theme-runtime .telegram-history-runtime-room .text-violet-100 { color: color-mix(in srgb, var(--global-accent) 72%, var(--global-text)) !important; }
+.global-theme-runtime .order-history-runtime-room button,.global-theme-runtime .telegram-history-runtime-room button { border-color: color-mix(in srgb, var(--global-accent) 42%, transparent) !important; }
+
+
+/* ST Mapping room: dimensional theme surface with quiet, scalable borders. */
+.global-theme-runtime .parcel-mapping-runtime-room {
+  position: relative;
+  isolation: isolate;
+  background-image:
+    radial-gradient(circle at 88% 8%, color-mix(in srgb, var(--global-accent) 12%, transparent), transparent 28%),
+    radial-gradient(circle at 10% 0%, color-mix(in srgb, var(--global-primary) 14%, transparent), transparent 32%),
+    linear-gradient(135deg, color-mix(in srgb, var(--global-bg) 92%, #080b20), color-mix(in srgb, var(--global-surface) 78%, #0b1028)) !important;
+}
+.global-theme-runtime .parcel-mapping-runtime-room::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: .22;
+  background-image: linear-gradient(115deg, transparent 0 38%, color-mix(in srgb, var(--global-accent) 16%, transparent) 38.2% 38.35%, transparent 38.5% 100%);
+  mask-image: linear-gradient(to bottom, #000, transparent 78%);
+}
+.global-theme-runtime .parcel-mapping-runtime-room .blackbox-hero {
+  border-color: color-mix(in srgb, var(--global-primary) 46%, transparent) !important;
+  box-shadow: 0 14px 38px color-mix(in srgb, var(--global-bg) 66%, transparent), inset 0 1px 0 color-mix(in srgb, var(--global-accent) 18%, transparent) !important;
+}
+.global-theme-runtime .parcel-mapping-runtime-room .bb-clock-panel,
+.global-theme-runtime .parcel-mapping-runtime-room .signal-ticker {
+  border-color: color-mix(in srgb, var(--global-accent) 30%, transparent) !important;
+  box-shadow: 0 5px 18px color-mix(in srgb, var(--global-bg) 50%, transparent) !important;
+}
+.global-theme-runtime .parcel-mapping-runtime-room button.rounded-2xl.border {
+  border-color: color-mix(in srgb, var(--global-primary) 30%, transparent) !important;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 8%, transparent) !important;
+}
+.global-theme-runtime .parcel-mapping-runtime-room button.rounded-2xl.border:hover {
+  border-color: color-mix(in srgb, var(--global-accent) 58%, transparent) !important;
+  box-shadow: 0 5px 16px color-mix(in srgb, var(--global-primary) 12%, transparent) !important;
+}
+.global-theme-runtime .parcel-mapping-runtime-room button.rounded-2xl.border.ring-2 {
+  border-color: color-mix(in srgb, var(--global-accent) 62%, transparent) !important;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--global-accent) 28%, transparent), 0 7px 20px color-mix(in srgb, var(--global-primary) 14%, transparent) !important;
+}
+.global-theme-runtime .parcel-mapping-runtime-room .parcel-status-chip {
+  box-shadow: none !important;
+}
+.global-theme-runtime .parcel-mapping-runtime-room .cosmic-corner {
+  opacity: .42;
+}
+@media (max-width: 640px) {
+  .global-theme-runtime .parcel-mapping-runtime-room { padding-bottom: 1.25rem; }
+  .global-theme-runtime .parcel-mapping-runtime-room .blackbox-hero { border-radius: 1.15rem; }
+}
+
+/* CARD-DENSE ROOMS · one quiet border layer, readable at scale. */
+.global-theme-runtime .order-control-room .blackbox-hero {
+  border-width: 1px !important;
+  border-color: color-mix(in srgb, var(--global-primary) 48%, transparent) !important;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 13%, transparent), 0 14px 34px rgba(0,0,0,.28) !important;
+}
+.global-theme-runtime .order-control-room .blackbox-hero::after { height: 1px !important; box-shadow: none !important; }
+.global-theme-runtime .order-control-room .signal-metric,
+.global-theme-runtime .order-control-room .order-list-panel,
+.global-theme-runtime .order-control-room .order-detail-card {
+  border-width: 1px !important;
+  border-color: color-mix(in srgb, var(--global-primary) 42%, transparent) !important;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 9%, transparent), 0 10px 26px rgba(0,0,0,.24) !important;
+}
+.global-theme-runtime .order-control-room .signal-metric::after,
+.global-theme-runtime .order-control-room .order-list-panel::before,
+.global-theme-runtime .order-control-room .order-detail-card::before { height: 1px !important; box-shadow: none !important; }
+.global-theme-runtime .order-control-room .order-list-card {
+  border-width: 1px !important;
+  border-color: color-mix(in srgb, var(--global-primary) 34%, transparent) !important;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 8%, transparent), 0 5px 16px rgba(0,0,0,.20) !important;
+}
+.global-theme-runtime .order-control-room .order-list-card:hover,
+.global-theme-runtime .order-control-room .order-list-card-selected {
+  border-color: color-mix(in srgb, var(--global-accent) 62%, transparent) !important;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--global-accent) 18%, transparent), 0 8px 20px rgba(0,0,0,.26) !important;
+}
+.global-theme-runtime .parcel-mapping-runtime-room .blackbox-hero,
+.global-theme-runtime .parcel-mapping-runtime-room .blackbox-queue {
+  border-width: 1px !important;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 9%, transparent), 0 12px 30px rgba(0,0,0,.26) !important;
+}
+.global-theme-runtime .parcel-mapping-runtime-room .trace-row {
+  border-width: 1px !important;
+  border-color: color-mix(in srgb, var(--global-primary) 28%, transparent) !important;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 7%, transparent) !important;
+}
+.global-theme-runtime .parcel-mapping-runtime-room .trace-row:hover {
+  border-color: color-mix(in srgb, var(--global-accent) 52%, transparent) !important;
+  box-shadow: 0 6px 18px rgba(0,0,0,.22) !important;
+}
+.global-theme-runtime .parcel-mapping-runtime-room .trace-row > div.rounded-xl,
+.global-theme-runtime .parcel-mapping-runtime-room .trace-row > div .rounded-xl,
+.global-theme-runtime .parcel-mapping-runtime-room .trace-row pre,
+.global-theme-runtime .parcel-mapping-runtime-room .blackbox-queue [class*="border-"] {
+  border-width: 1px !important;
+  box-shadow: none !important;
+}
+.global-theme-runtime .parcel-mapping-runtime-room button.rounded-2xl.border.ring-2 {
+  --tw-ring-shadow: 0 0 0 1px color-mix(in srgb, var(--global-accent) 34%, transparent) !important;
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--global-primary) 12%, transparent) !important;
+}
+
+/* ROOM CARDS · shared visual language for customer, page and signal metadata */
+.room-list-card { min-height: 78px; padding: 11px 12px !important; border-radius: 16px !important; background: linear-gradient(118deg, rgba(11,18,33,.94), rgba(22,12,38,.78) 58%, rgba(10,24,38,.88)); }
+.room-list-card .chat-customer-list-label { color: #f7f1ff; letter-spacing: .01em; }
+.room-list-card .room-card-page { display: inline-flex; max-width: 42%; align-items: center; gap: 4px; border: 1px solid rgba(72,240,255,.18); border-radius: 999px; background: rgba(72,240,255,.06); padding: 2px 7px; color: rgba(196,248,255,.78); font-size: 9px; }
+.room-list-card .room-card-preview { color: rgba(216,228,244,.58); }
+.room-list-card .room-card-signal { border: 1px solid rgba(255,75,186,.2); border-radius: 999px; background: rgba(255,75,186,.08); padding: 2px 6px; color: rgba(255,201,235,.82); font-size: 9px; }
+.room-list-card .room-card-signal--order { border-color: rgba(97,255,180,.28); background: rgba(97,255,180,.08); color: #caffdf; }
+.room-list-card .room-card-meta { min-width: 0; align-items: center; }
+@media (prefers-reduced-motion: reduce) { .room-list-card:hover { transform: none; } }
+
+/* ST GLOBAL THEME PASS · Daily Order Summary */
+.global-theme-runtime .daily-order-summary-room > header {
+  border-color: color-mix(in srgb, var(--global-primary) 42%, transparent) !important;
+  background: radial-gradient(ellipse at top left, color-mix(in srgb, var(--global-primary) 24%, transparent), transparent 52%), linear-gradient(120deg, color-mix(in srgb, var(--global-surface) 92%, var(--global-primary)), color-mix(in srgb, var(--global-bg) 96%, var(--global-accent))) !important;
+  box-shadow: 0 0 22px color-mix(in srgb, var(--global-primary) 16%, transparent) !important;
+}
+.global-theme-runtime .daily-order-summary-room > section,
+.global-theme-runtime .daily-order-summary-room [data-slot="card"],
+.global-theme-runtime .daily-order-summary-room article {
+  border-color: color-mix(in srgb, var(--global-primary) 30%, transparent) !important;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--global-surface) 94%, var(--global-primary)), color-mix(in srgb, var(--global-bg) 94%, var(--global-accent))) !important;
+  color: var(--global-text) !important;
+}
+.global-theme-runtime .daily-order-summary-room article:hover {
+  border-color: color-mix(in srgb, var(--global-accent) 72%, transparent) !important;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--global-surface) 88%, var(--global-primary)), color-mix(in srgb, var(--global-accent) 12%, var(--global-bg))) !important;
+}
+.global-theme-runtime .daily-order-summary-room input,
+.global-theme-runtime .daily-order-summary-room select,
+.global-theme-runtime .daily-order-summary-room button {
+  border-color: color-mix(in srgb, var(--global-primary) 38%, transparent) !important;
+}
+.global-theme-runtime .daily-order-summary-room .text-cyan-100,
+.global-theme-runtime .daily-order-summary-room .text-cyan-200,
+.global-theme-runtime .daily-order-summary-room .text-fuchsia-100,
+.global-theme-runtime .daily-order-summary-room .text-violet-100 {
+  color: color-mix(in srgb, var(--global-accent) 72%, var(--global-text)) !important;
+}

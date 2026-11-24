@@ -1,7 +1,7 @@
-BB_STORE_ORDERS — ระบบตอบแชท, ธีมม่วง และ Order Control traceability
+ST_STORE_ORDERS — ระบบตอบแชท, ธีมม่วง และ Order Control traceability
 
 ฐานที่ใช้
-Repository: blackkeeper518-lgtm/BB_STORE_ORDERS
+Repository: blackkeeper518-lgtm/ST_STORE_ORDERS
 Commit ฐาน: 548782c0c3a8380f28163d2eba8054ef20083b1f
 
 รายการแก้ไข
@@ -33,7 +33,7 @@ Order Control แสดงสถานะที่บันทึกอยู่
 
 วิธีใช้
 1. Checkout commit ฐานด้านบนหรือเปิด working copy ของ repository นี้
-2. ใช้ `git apply BB_STORE_ORDERS-chat-reply-purple-theme.patch`
+2. ใช้ `git apply ST_STORE_ORDERS-chat-reply-purple-theme.patch`
 3. รัน `pnpm install --frozen-lockfile && pnpm build`
 4. สำหรับ Render ใช้ Build Command: `pnpm install --frozen-lockfile && pnpm build`
 

@@ -19,7 +19,7 @@ export const DEFAULT_THEME_LAB: ThemeLabSettings = { rooms: [], css: "" };
 
 export const CYBER_THEME_KEY = "bb-cyber-theme-v1";
 export type CyberTheme = {
-  version: 1;
+  version: number;
   preset: number;
   name: string;
   bg: string;

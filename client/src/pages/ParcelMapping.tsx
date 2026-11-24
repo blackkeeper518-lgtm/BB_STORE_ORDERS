@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getActiveCamp, readParcelMappingQueue } from "@/lib/canonical";
+import { trpc } from "@/lib/trpc";
 import { useQuery } from "@tanstack/react-query";
 import {
   Check,
@@ -171,11 +172,34 @@ export default function ParcelMapping() {
   const [copied, setCopied] = useState("");
   const [sendGateOpen, setSendGateOpen] = useState(false);
   const activeCamp = getActiveCamp();
-  const queueQuery = useQuery({
-    queryKey: ["parcel-mapping-queue", activeCamp],
+  // Server is the primary reader: it keeps the service-role key off the browser.
+  // The browser Supabase connection remains a compatibility fallback for deployments
+  // where the server secrets/auth session are not ready yet.
+  const serverQueueQuery = trpc.parcels.mappingQueue.useQuery(
+    { status: "all", limit: 300 },
+    { retry: false, staleTime: 15_000 },
+  );
+  const browserQueueQuery = useQuery({
+    queryKey: ["parcel-mapping-queue-browser-fallback", activeCamp],
     queryFn: () => readParcelMappingQueue("all", 300),
+    enabled: serverQueueQuery.isError,
+    retry: false,
     staleTime: 15_000,
   });
+  const queueData = serverQueueQuery.data ?? browserQueueQuery.data;
+  const queueQuery = {
+    data: queueData,
+    dataUpdatedAt: serverQueueQuery.dataUpdatedAt || browserQueueQuery.dataUpdatedAt,
+    error: browserQueueQuery.error ?? serverQueueQuery.error,
+    isError: !queueData && Boolean(browserQueueQuery.error ?? serverQueueQuery.error),
+    isFetching: serverQueueQuery.isFetching || browserQueueQuery.isFetching,
+    isLoading: serverQueueQuery.isLoading || (serverQueueQuery.isError && browserQueueQuery.isLoading),
+    refetch: async () => {
+      const serverResult = await serverQueueQuery.refetch();
+      if (serverResult.isError) await browserQueueQuery.refetch();
+      return serverResult;
+    },
+  };
   const rows = useMemo(
     () => (queueQuery.data ?? []) as ParcelMappingRow[],
     [queueQuery.data]
@@ -273,7 +297,7 @@ export default function ParcelMapping() {
   }
 
   return (
-    <div className="cosmic-stage blackbox-room min-h-full space-y-5 bg-[radial-gradient(ellipse_at_12%_0%,rgba(88,28,135,.22),transparent_34%),radial-gradient(ellipse_at_92%_28%,rgba(8,145,178,.14),transparent_32%)] p-2 text-white sm:space-y-6 sm:p-4 lg:p-6">
+    <div className="cosmic-stage blackbox-room st-runtime-room parcel-mapping-runtime-room min-h-full space-y-5 bg-[radial-gradient(ellipse_at_12%_0%,rgba(88,28,135,.22),transparent_34%),radial-gradient(ellipse_at_92%_28%,rgba(8,145,178,.14),transparent_32%)] p-2 text-white sm:space-y-6 sm:p-4 lg:p-6">
       <header className="blackbox-hero relative overflow-hidden rounded-3xl border border-fuchsia-300/45 bg-[radial-gradient(ellipse_at_top_left,rgba(168,85,247,.20),transparent_45%),radial-gradient(ellipse_at_80%_30%,rgba(34,211,238,.15),transparent_38%),linear-gradient(135deg,#090b20,#11112b_55%,#071a2c)] p-4 shadow-[0_0_18px_rgba(217,70,239,.18),0_18px_60px_rgba(2,6,23,.62)] sm:p-6">
         <div className="hero-scanline" />
         <div className="cosmic-corner tl" />

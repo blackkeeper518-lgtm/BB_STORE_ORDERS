@@ -1,10 +1,11 @@
 {
-  "name": "BB Store Inbox",
+  "name": "BB STORE",
   "short_name": "BB Inbox",
-  "description": "กล่องข้อความแอดมินสำหรับตอบแชทลูกค้า BB Store",
+  "description": "กล่องข้อความแอดมินสำหรับตอบแชทลูกค้า BB STORE",
   "lang": "th",
-  "start_url": "/mobile-inbox",
-  "scope": "/mobile-inbox",
+  "id": "/mobile-inbox",
+  "start_url": "/daily-order-summary",
+  "scope": "/",
   "display": "fullscreen",
   "display_override": ["fullscreen", "standalone"],
   "orientation": "portrait",
@@ -12,6 +13,6 @@
   "theme_color": "#080b14",
   "categories": ["business", "communication"],
   "icons": [
-    { "src": "/mobile-inbox-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+    { "src": "/bb-lion.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
   ]
 }

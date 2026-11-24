@@ -1,6 +1,6 @@
-# BB_STORE_ORDERS — Overlay สำหรับวางทับไฟล์
+# ST_SINGTO_STORE_ORDERS — Overlay สำหรับวางทับไฟล์
 
-ZIP นี้เป็นชุดไฟล์ source ที่แก้ล่าสุด ไม่ใช่ Git patch: แตกไฟล์ลงในโฟลเดอร์รากของ repo `BB_STORE_ORDERS` แล้วเลือกเขียนทับไฟล์เดิม
+ZIP นี้เป็นชุดไฟล์ source ที่แก้ล่าสุด ไม่ใช่ Git patch: แตกไฟล์ลงในโฟลเดอร์รากของ repo `ST_SINGTO_STORE_ORDERS` แล้วเลือกเขียนทับไฟล์เดิม
 
 ## สิ่งที่รวม
 
@@ -13,8 +13,8 @@ ZIP นี้ **ไม่รวมการแก้ n8n Node 04 หรือไ
 
 ## วิธีวางทับบน Windows
 
-1. ปิด dev server ก่อน และสำรองโฟลเดอร์ repo ไว้หนึ่งชุดก่อน เช่นคัดลอกเป็น `BB_STORE_ORDERS-backup`
-2. แตก ZIP ลงในโฟลเดอร์ที่มี `package.json` ของ repo อยู่ เช่น `E:\...\BB_STORE_ORDERS` แล้วอนุญาตให้ Replace/Overwrite ไฟล์เดิม
+1. ปิด dev server ก่อน และสำรองโฟลเดอร์ repo ไว้หนึ่งชุดก่อน เช่นคัดลอกเป็น `ST_SINGTO_STORE_ORDERS-backup`
+2. แตก ZIP ลงในโฟลเดอร์ที่มี `package.json` ของ repo อยู่ เช่น `E:\...\ST_SINGTO_STORE_ORDERS` แล้วอนุญาตให้ Replace/Overwrite ไฟล์เดิม
 3. เปิด PowerShell ที่โฟลเดอร์ repo แล้วรัน:
 
    ```powershell

@@ -189,7 +189,7 @@ function messageKey(row: Record<string, unknown>): string {
   const messageId = usableIdentifier(row.message_id);
   const dedupeKey = usableIdentifier(row.dedupe_key);
   const rowId = usableIdentifier(row.message_row_id ?? row.id);
-  const identity = messageId || dedupeKey || rowId || `${row.occurred_at ?? row.time ?? ""}|${row.customer_message_text ?? row.message_text ?? row.customer_latest_message ?? ""}`;
+  const identity = messageId || dedupeKey || rowId || `${row.occurred_at ?? row.time ?? ""}|${row.customer_message_text ?? row.message_text ?? ""}`;
   return `${pageId}:${threadId}:${identity}`;
 }
 
@@ -213,7 +213,7 @@ export function reconcileChatNotificationRows(
     const threadId = String(row.thread_id ?? row.threadId ?? "").trim();
     if (!pageId || !threadId) continue;
 
-    const text = String(row.customer_message_text ?? row.message_text ?? row.customer_latest_message ?? row.text ?? "").trim();
+    const text = String(row.customer_message_text ?? row.message_text ?? row.text ?? "").trim();
     const hasAttachment = Boolean(row.has_attachment || row.attachment_url || row.attachment_urls || row.attachments_raw);
     if (!text && !hasAttachment) continue;
 

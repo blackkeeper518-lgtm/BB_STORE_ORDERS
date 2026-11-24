@@ -42,7 +42,7 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 @media (prefers-reduced-motion:reduce) { .singto-cyber-edge::before { animation:none; } }
 
 
-/* BB Telegram delivery room: pink-violet identity, moving light, no orange UI */
+/* ST Telegram delivery room: pink-violet identity, moving light, no orange UI */
 .bb-telegram-room { background: radial-gradient(circle at 15% 0%, rgba(184, 70, 255, .14), transparent 28rem), radial-gradient(circle at 90% 10%, rgba(255, 55, 192, .12), transparent 26rem); }
 .bb-telegram-room .bb-running-line { background: linear-gradient(90deg, transparent, #ff4fc8, #9b5cff, #57e9ff, transparent); background-size: 220% 100%; animation: bb-running-light 2.8s linear infinite; box-shadow: 0 0 18px rgba(255, 79, 200, .7); }
 .bb-running-light { background: #ff55c9; box-shadow: 0 0 12px #ff55c9; animation: bb-pulse-light 1.3s ease-in-out infinite; }
@@ -186,7 +186,7 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .code-highlight .token.function, .code-highlight .token.class-name { color: #6ee7f9; }
 .code-highlight .token.regex, .code-highlight .token.important, .code-highlight .token.variable { color: #ffb86c; }
 
-/* BB SCRIPT ATELIER — Notion-like writing room in neon violet / pink */
+/* ST SCRIPT ATELIER — Notion-like writing room in neon violet / pink */
 .script-atelier { background:radial-gradient(circle at 12% 0%,rgba(183,72,255,.14),transparent 32rem),radial-gradient(circle at 92% 18%,rgba(255,72,202,.12),transparent 30rem),#0a0612; }
 .script-atelier-hero { position:relative; isolation:isolate; border-color:rgba(246,112,255,.28); background:linear-gradient(120deg,rgba(34,10,52,.94),rgba(19,8,35,.92) 58%,rgba(48,8,44,.88)); box-shadow:0 0 30px rgba(218,71,255,.12),inset 0 0 44px rgba(255,83,207,.06); }
 .script-atelier-hero::after { content:""; position:absolute; inset:auto 8% -1px 8%; height:1px; background:linear-gradient(90deg,transparent,#ff58d1,#b276ff,transparent); box-shadow:0 0 18px #ff58d1; }

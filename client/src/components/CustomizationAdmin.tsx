@@ -105,7 +105,8 @@ export function CustomizationAdmin({ defaultType = "frame" }: { defaultType?: As
         const storagePath = `themes/${resolvedKey}-${Date.now()}-${safeName}`;
         const upload = await api.storage.from("theme-graphics").upload(storagePath, graphicFile, { contentType: graphicFile.type, upsert: false });
         if (upload.error) throw new Error(`อัปโหลดกราฟิกไม่สำเร็จ: ${upload.error.message} · ตรวจ bucket theme-graphics`);
-        graphicUrl = api.storage.from("theme-graphics").getPublicUrl(storagePath).data.publicUrl;
+        graphicUrl = upload.data?.publicUrl ?? "";
+        if (!graphicUrl) throw new Error("VAULT ไม่คืน public URL ของกราฟิกที่อัปโหลด");
       }
       const payload = { ...draft, graphic_url: graphicUrl, [key]: resolvedKey, name: String(draft.name).trim(), sort_order: isExisting ? Number(draft.sort_order) || 0 : maxSort + 1, updated_by: "secret-gallery" };
       const result = await api.from(config.table).upsert(payload, { onConflict: key });

@@ -1,130 +1,93 @@
 // ⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘
 // 🎯 BB OrderControl : DATA ROUTE RULES
 // ⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘
-// Scope: BB only · อ่านและตรวจออเดอร์
+// Scope: BB deployment · ใช้ ST logic เดิม อ่านและตรวจออเดอร์
 // โต๊ะหลัก: 🗝️HERMES_ARCHIVE
 // สินค้า/หัวบิล: ฟิลด์จาก FOUR_SEND_BILL_BUILDER
 // หน้าเว็บอ่าน projection ที่ตรงกับ schema ปัจจุบันและใช้ upsert_key เป็นคีย์
 // คีย์หลัก: upsert_key · เวลาหลัก: order_time_display
 // ที่อยู่สำรอง: address_display_packer
-// สถานะส่งใช้ delivery_state · ห้ามลบหลักฐาน · ห้ามเอา ST logic มาปน
+// สถานะส่งใช้ delivery_state · ห้ามลบหลักฐาน · คง ST logic เดิม
 // ⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘
 
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { cacheServerProjectStatus, clearLegacyBrowserSupabaseSettings, createServerSupabaseClient, getCachedServerProjectStatus, projectApi, type ServerProjectStatus } from "@/lib/server-project-client";
 
-const CONFIG_KEY = "bb-supabase-config";
-const TRACKING_CONFIG_KEY = "bb-tracking-supabase-config";
-const PARCEL_CONFIG_KEY = "bb-parcel-supabase-config";
-const VAULT_CONFIG_KEY = "bb-vault-supabase-config";
-export type Camp = "BB";
+export type Camp = "ST";
 export type SupabaseProject = "main" | "tracking" | "parcel" | "vault";
-const DEPLOYMENT_CAMP: Camp = "BB";
+const DEPLOYMENT_CAMP: Camp = "ST";
 export type SupabaseConfig = { url: string; anonKey: string; orderTable?: string };
-// Browser client ใช้เฉพาะ Anon/Publishable key; Chat ต้องผ่าน protected server route เท่านั้น
-const DEPLOYMENT_SUPABASE_URL = String(import.meta.env.VITE_SUPABASE_URL ?? "").trim().replace(/\/$/, "");
-const DEPLOYMENT_SUPABASE_ANON_KEY = String(import.meta.env.VITE_SUPABASE_ANON_KEY ?? "").trim();
-const DEPLOYMENT_TRACKING_URL = String(import.meta.env.VITE_TRACKING_SUPABASE_URL ?? "").trim().replace(/\/$/, "");
-const DEPLOYMENT_TRACKING_ANON_KEY = String(import.meta.env.VITE_TRACKING_SUPABASE_ANON_KEY ?? "").trim();
-const DEPLOYMENT_PARCEL_URL = String(import.meta.env.VITE_PARCEL_SUPABASE_URL ?? "").trim().replace(/\/$/, "");
-const DEPLOYMENT_PARCEL_ANON_KEY = String(import.meta.env.VITE_PARCEL_SUPABASE_ANON_KEY ?? "").trim();
-const DEPLOYMENT_VAULT_URL = String(import.meta.env.VITE_VAULT_SUPABASE_URL ?? "").trim().replace(/\/$/, "");
-const DEPLOYMENT_VAULT_ANON_KEY = String(import.meta.env.VITE_VAULT_SUPABASE_ANON_KEY ?? "").trim();
-const clients: Partial<Record<SupabaseProject, SupabaseClient>> = {};
-const clientSignatures: Partial<Record<SupabaseProject, string>> = {};
-let room04StockClient: SupabaseClient | null = null;
-let room04StockClientSignature = "";
 export function getActiveCamp(): Camp { return DEPLOYMENT_CAMP; }
-export function setActiveCamp(_camp: Camp) { for (const project of ["main", "tracking", "parcel", "vault"] as const) { delete clients[project]; delete clientSignatures[project]; } }
-function profileKey(_camp: Camp, project: SupabaseProject) {
-  if (project === "tracking") return TRACKING_CONFIG_KEY;
-  if (project === "parcel") return PARCEL_CONFIG_KEY;
-  if (project === "vault") return VAULT_CONFIG_KEY;
-  return CONFIG_KEY;
-}
+export function setActiveCamp(_camp: Camp) {}
 export function getSupabaseConfig(camp: Camp = getActiveCamp(), project: SupabaseProject = "main"): SupabaseConfig | null {
-  const deploymentUrl = project === "tracking" ? DEPLOYMENT_TRACKING_URL : project === "parcel" ? DEPLOYMENT_PARCEL_URL || DEPLOYMENT_TRACKING_URL : project === "vault" ? DEPLOYMENT_VAULT_URL : DEPLOYMENT_SUPABASE_URL;
-  const deploymentAnonKey = project === "tracking" ? DEPLOYMENT_TRACKING_ANON_KEY : project === "parcel" ? DEPLOYMENT_PARCEL_ANON_KEY || DEPLOYMENT_TRACKING_ANON_KEY : project === "vault" ? DEPLOYMENT_VAULT_ANON_KEY : DEPLOYMENT_SUPABASE_ANON_KEY;
-  // Render is the shared source of truth. Browser-local settings remain only
-  // as a compatibility fallback for older deployments without env values.
-  if (deploymentUrl && deploymentAnonKey) return { url: deploymentUrl, anonKey: deploymentAnonKey, orderTable: project === "main" ? defaultOrderView(camp) : undefined };
-  try {
-    const raw = localStorage.getItem(profileKey(camp, project));
-    if (raw) {
-      const value = JSON.parse(raw) as Partial<SupabaseConfig>;
-      if (value.url && value.anonKey) return { url: value.url.replace(/\/$/, ""), anonKey: value.anonKey, orderTable: project === "main" ? defaultOrderView(camp) : undefined };
-    }
-    if (project === "parcel") {
-      const fallback = localStorage.getItem(TRACKING_CONFIG_KEY);
-      if (fallback) {
-        const value = JSON.parse(fallback) as Partial<SupabaseConfig>;
-        if (value.url && value.anonKey) return { url: value.url.replace(/\/$/, ""), anonKey: value.anonKey };
-      }
-    }
-  } catch { /* invalid local value; try deployment defaults */ }
-  // Vault UI settings saved in this browser must take precedence over the
-  // legacy main-project fallback; a dedicated deployment Vault still wins above.
-  if (project === "vault") {
-    try {
-      const raw = localStorage.getItem(VAULT_CONFIG_KEY);
-      if (raw) {
-        const value = JSON.parse(raw) as Partial<SupabaseConfig>;
-        if (value.url && value.anonKey) return { url: value.url.replace(/\/$/, ""), anonKey: value.anonKey };
-      }
-    } catch { /* invalid Vault profile; continue to legacy fallback */ }
-    return DEPLOYMENT_SUPABASE_URL && DEPLOYMENT_SUPABASE_ANON_KEY
-      ? { url: DEPLOYMENT_SUPABASE_URL, anonKey: DEPLOYMENT_SUPABASE_ANON_KEY }
-      : null;
-  }
-  return deploymentUrl && deploymentAnonKey ? { url: deploymentUrl, anonKey: deploymentAnonKey, orderTable: project === "main" ? defaultOrderView(camp) : undefined } : null;
+  void camp;
+  const status = getCachedServerProjectStatus();
+  const configured = project === "vault" ? status?.vault : project === "tracking" || project === "parcel" ? status?.trackingParcel : status?.order;
+  return configured ? { url: "server-only", anonKey: "server-only", orderTable: project === "main" ? defaultOrderView(getActiveCamp()) : undefined } : null;
 }
 export function saveSupabaseConfig(config: SupabaseConfig, camp: Camp = getActiveCamp(), project: SupabaseProject = "main") {
-  const clean = { url: config.url.trim().replace(/\/$/, ""), anonKey: config.anonKey.trim(), ...(project === "main" ? { orderTable: defaultOrderView(camp) } : {}) };
-  localStorage.setItem(profileKey(camp, project), JSON.stringify(clean));
-  delete clients[project]; delete clientSignatures[project];
-  if (project === "vault") { room04StockClient = null; room04StockClientSignature = ""; }
+  void config; void camp; void project;
+  throw new Error("การเชื่อมต่อ Supabase ต้องตั้งค่าเฉพาะบน Server ไม่สามารถบันทึก credential ใน browser ได้");
 }
 export function clearSupabaseConfig(camp: Camp = getActiveCamp(), project: SupabaseProject = "main") {
-  localStorage.removeItem(profileKey(camp, project)); delete clients[project]; delete clientSignatures[project];
-  if (project === "vault") { room04StockClient = null; room04StockClientSignature = ""; }
+  void camp; void project;
+  clearLegacyBrowserSupabaseSettings();
 }
 export function getSupabase(project: SupabaseProject = "main") {
-  const config = getSupabaseConfig(getActiveCamp(), project);
-  if (!config) return null;
-  const signature = `${getActiveCamp()}|${config.url}|${config.anonKey}`;
-  if (!clients[project] || signature !== clientSignatures[project]) {
-    clients[project] = createClient(config.url, config.anonKey);
-    clientSignatures[project] = signature;
-  }
-  return clients[project] ?? null;
-}
-function getRoom04StockClient() {
-  let config: SupabaseConfig | null = null;
-  if (DEPLOYMENT_VAULT_URL && DEPLOYMENT_VAULT_ANON_KEY) {
-    config = { url: DEPLOYMENT_VAULT_URL, anonKey: DEPLOYMENT_VAULT_ANON_KEY };
-  } else {
-    try {
-      const raw = localStorage.getItem(VAULT_CONFIG_KEY);
-      if (raw) {
-        const value = JSON.parse(raw) as Partial<SupabaseConfig>;
-        if (value.url && value.anonKey) config = { url: value.url.replace(/\/$/, ""), anonKey: value.anonKey };
-      }
-    } catch { /* invalid ROOM 04 profile */ }
-  }
-  if (!config) fail({ message: "ยังไม่ได้เชื่อม ROOM 04 · ตั้งค่า Private Vault ใน Secret Gallery ก่อน" });
-  const signature = `${config.url}|${config.anonKey}`;
-  if (!room04StockClient || signature !== room04StockClientSignature) {
-    room04StockClient = createClient(config.url, config.anonKey);
-    room04StockClientSignature = signature;
-  }
-  return room04StockClient;
+  return createServerSupabaseClient(project);
 }
 function getStockRoomClient() {
-  return getRoom04StockClient();
+  return createServerSupabaseClient("vault");
 }
-export const supabase = { from: (table: string) => { const api = getSupabase(); if (!api) throw new Error("ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key"); return api.from(table); } } as any;
+export const supabase = { from: (table: string) => getSupabase().from(table) } as any;
 function fail(error: any): never { throw new Error(error?.message || "Supabase connection failed"); }
 function num(v: any) { const n = Number(v); return v == null || v === "" || !Number.isFinite(n) ? null : n; }
 function asText(v: any) { return typeof v === "string" ? v : v == null ? "" : JSON.stringify(v); }
+export function extractChatImageUrls(value: unknown) {
+  const urls: string[] = [];
+  const seen = new Set<string>();
+  const addUrl = (candidate: unknown) => {
+    if (typeof candidate !== "string") return;
+    const url = candidate.trim();
+    if (!/^https?:\/\//i.test(url)) return;
+    let identity = url;
+    try {
+      const parsed = new URL(url);
+      identity = `${parsed.protocol}//${parsed.host}${parsed.pathname}`;
+    } catch { identity = url.split(/[?#]/, 1)[0]; }
+    if (seen.has(identity)) return;
+    seen.add(identity);
+    urls.push(url);
+  };
+  const walk = (item: unknown) => {
+    if (item == null || item === "") return;
+    if (typeof item === "string") {
+      const text = item.trim();
+      addUrl(text);
+      try { walk(JSON.parse(text)); } catch { /* plain non-JSON text */ }
+      return;
+    }
+    if (Array.isArray(item)) { item.forEach(walk); return; }
+    if (typeof item !== "object") return;
+    const record = item as Record<string, unknown>;
+    for (const key of ["url", "file_url", "image_url", "original_url", "source_url", "preview_url"]) {
+      const candidate = record[key];
+      if (typeof candidate === "string" && /^https?:\/\//i.test(candidate.trim())) {
+        addUrl(candidate);
+        break;
+      }
+    }
+    for (const key of ["payload", "image_data", "media", "shares"]) {
+      const child = record[key];
+      if (child && typeof child === "object") walk(child);
+    }
+    for (const [key, child] of Object.entries(record)) {
+      if (["payload", "image_data", "media", "shares"].includes(key)) continue;
+      if (Array.isArray(child) || (child && typeof child === "object")) walk(child);
+    }
+  };
+  walk(value);
+  return urls;
+}
 function chatAttachmentPayload(row: any) {
   const values: any[] = [];
   const add = (value: any) => {
@@ -138,17 +101,25 @@ function chatAttachmentPayload(row: any) {
     }
     if (typeof value === "object") values.push(value);
   };
-  add(row?.attachments_raw);
-  add(row?.attachment_urls);
-  add(row?.attachment_url);
-  add(row?.sticker_url);
+  // Chat tables have existed with several attachment column names over time.
+  // Normalize all of them here so an image row is not discarded before render.
+  for (const value of [
+    row?.attachments_raw,
+    row?.attachments_json,
+    row?.attachments,
+    row?.image_urls,
+    row?.image_url,
+    row?.attachment_urls,
+    row?.attachment_url,
+    row?.sticker_url,
+  ]) add(value);
   return JSON.stringify(values);
 }
 function hasChatAttachment(row: any) {
   return Boolean(row?.has_attachment || chatAttachmentPayload(row) !== "[]");
 }
 export type CanonicalOrder = Record<string, any> & { upsert_key: string; order_time_display: string };
-const ORDER_SOURCE_TABLE_BY_CAMP: Record<Camp, string> = { BB: "🗝️HERMES_ARCHIVE" };
+const ORDER_SOURCE_TABLE_BY_CAMP: Record<Camp, string> = { ST: "🧿BB_xXx_ORDERCONTROL" };
 // Order screens load at most 1,000 rows per explicit refresh.
 const ORDER_OPERATIONAL_LIMIT = 1000;
 function defaultOrderView(camp: Camp) { return ORDER_SOURCE_TABLE_BY_CAMP[camp]; }
@@ -217,7 +188,7 @@ function isoDateKey(value: string | null): string {
 // Keep only known columns; upsert_key is the row key (the table has no id column).
 const HERMES_WEB_ORDER_COLUMNS = [
   "upsert_key",
-  "bb_express_send_route",
+  "ST_express_send_route",
   "currentThreadTotalBills",
   "duplicate_count_th",
   "balloonNotice",
@@ -380,13 +351,16 @@ function asBoolean(value: unknown): boolean {
 
 export async function readCanonicalOrders(search = "", since: string | null = null, until: string | null = null) {
   const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
+  if (!api) fail({ message: "ยังไม่ได้ตั้งค่า Supabase ฝั่ง Server: ตรวจสอบสถานะ project ที่ /connect" });
 
   // n8n owns parsing, mapping, canonical selection and deduplication.
   // Read the live HERMES row shape instead of naming retired columns one by one.
   // This keeps order control and notification polling compatible with schema pruning.
   const ordersResult = await api.from("🗝️HERMES_ARCHIVE")
     .select("*")
+    // n8n derives this ISO key only from order_time_display; sort before the cap,
+    // while the browser still applies the cutoff and final order using order_time_display.
+    .order("order_time_bkk_iso", { ascending: false, nullsFirst: false })
     .limit(ORDER_OPERATIONAL_LIMIT);
   if (ordersResult.error) fail(ordersResult.error);
 
@@ -400,9 +374,43 @@ export async function readCanonicalOrders(search = "", since: string | null = nu
     }).sort((a: any, b: any) => orderTimeSortKey(b.order_time_display) - orderTimeSortKey(a.order_time_display)) as unknown as CanonicalOrder[];
   return { orders, itemError: null, sourceTable: "🗝️HERMES_ARCHIVE", fetchedAt: new Date().toISOString(), since };
 }
+
+const ORDER_NOTIFICATION_COLUMNS = [
+  "upsert_key",
+  "order_number_display",
+  "order_number",
+  "final_display_for_packer",
+  "final_product",
+  "order_fibo_product",
+  "telegram_product_display",
+  "order_time_display",
+  "order_time",
+  "order_time_bkk_iso",
+].join(",");
+
+function isOrderProjectionSchemaError(error: unknown) {
+  const message = String((error as any)?.message ?? error ?? "");
+  return /PGRST204|42703|schema cache|column.+(?:does not exist|not found)/i.test(message);
+}
+
+export async function readCanonicalOrderNotifications() {
+  const api = getSupabase();
+  if (!api) fail({ message: "ยังไม่ได้ตั้งค่า Supabase ฝั่ง Server: ตรวจสอบสถานะ project ที่ /connect" });
+
+  let result = await api.from("🗝️HERMES_ARCHIVE").select(ORDER_NOTIFICATION_COLUMNS).limit(ORDER_OPERATIONAL_LIMIT);
+  // HERMES schemas can be pruned; retain the previous wildcard read when an optional field is absent.
+  if (result.error && isOrderProjectionSchemaError(result.error)) {
+    result = await api.from("🗝️HERMES_ARCHIVE").select("*").limit(ORDER_OPERATIONAL_LIMIT);
+  }
+  if (result.error) fail(result.error);
+
+  const orders = (result.data ?? []).sort((a: any, b: any) => orderTimeSortKey(b.order_time_display) - orderTimeSortKey(a.order_time_display)) as CanonicalOrder[];
+  return { orders, itemError: null, sourceTable: "🗝️HERMES_ARCHIVE", fetchedAt: new Date().toISOString(), since: null };
+}
+
 export async function readTelegramDeliveryOrders(search = "", room: "queue" | "today" | "yesterday_after_14" | "sent" = "queue") {
   const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
+  if (!api) fail({ message: "ยังไม่ได้ตั้งค่า Supabase ฝั่ง Server: ตรวจสอบสถานะ project ที่ /connect" });
 
   // Telegram has one room with two views: live queue from PIONEER and
   // the final sent archive from GENESIS. ANDROMEDA is retired.
@@ -422,7 +430,7 @@ export async function readTelegramDeliveryOrders(search = "", room: "queue" | "t
 
 export async function readBbAlertRoom(search = "") {
   const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
+  if (!api) fail({ message: "ยังไม่ได้ตั้งค่า Supabase ฝั่ง Server: ตรวจสอบสถานะ project ที่ /connect" });
   const { data, error } = await api.from("🔸PARADOX_xXx_EXCHANGE").select("*").order("order_time_display", { ascending: false }).limit(2000);
   if (error) fail(error);
   const query = search.trim().toLowerCase();
@@ -433,7 +441,7 @@ export async function readBbAlertRoom(search = "") {
 
 export async function readBlackboxRoom(search = "") {
   const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
+  if (!api) fail({ message: "ยังไม่ได้ตั้งค่า Supabase ฝั่ง Server: ตรวจสอบสถานะ project ที่ /connect" });
   const { data, error } = await api.from("💀THANATOS_xXx_DEATH_NOTE").select("*").order("order_time_display", { ascending: false }).limit(2000);
   if (error) fail(error);
   const query = search.trim().toLowerCase();
@@ -442,8 +450,8 @@ export async function readBlackboxRoom(search = "") {
 
 export async function updateBbOrder(upsertKey: string | number, patch: Record<string, unknown>) {
   const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
-  const { data, error } = await api.from(defaultOrderView("BB")).update(patch).eq("upsert_key", String(upsertKey)).select("upsert_key");
+  if (!api) fail({ message: "ยังไม่ได้ตั้งค่า Supabase ฝั่ง Server: ตรวจสอบสถานะ project ที่ /connect" });
+  const { data, error } = await api.from(defaultOrderView("ST")).update(patch).eq("upsert_key", String(upsertKey)).select("upsert_key");
   if (error) fail(error);
   if (!data?.length) fail({ message: `ไม่พบออเดอร์ upsert_key=${upsertKey} หรือสิทธิ์ RLS ไม่อนุญาตให้อัปเดต` });
   if (data.length > 1) fail({ message: `พบออเดอร์ซ้ำ ${data.length} แถวด้วย upsert_key=${upsertKey}` });
@@ -451,7 +459,7 @@ export async function updateBbOrder(upsertKey: string | number, patch: Record<st
 }
 export async function updateBbOrderByKey(upsertKey: string, patch: Record<string, unknown>, sourceTable: "🗝️HERMES_ARCHIVE" | "🌀SINGULARITY_xXx_EXCHANGE" = "🗝️HERMES_ARCHIVE") {
   const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
+  if (!api) fail({ message: "ยังไม่ได้ตั้งค่า Supabase ฝั่ง Server: ตรวจสอบสถานะ project ที่ /connect" });
   const { data, error } = await api.from(sourceTable).update(patch).eq("upsert_key", upsertKey).select("upsert_key");
   if (error) fail(error);
   if (!data?.length) fail({ message: `ไม่พบออเดอร์ upsert_key=${upsertKey} หรือสิทธิ์ RLS ไม่อนุญาตให้อัปเดต` });
@@ -473,7 +481,7 @@ async function withSentWriteTimeout<T>(request: PromiseLike<T>, timeoutMs = 15_0
 
 export async function markBbOrderSentByKey(upsertKey: string, sourceTable: "🗝️HERMES_ARCHIVE" | "🌀SINGULARITY_xXx_EXCHANGE") {
   const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
+  if (!api) fail({ message: "ยังไม่ได้ตั้งค่า Supabase ฝั่ง Server: ตรวจสอบสถานะ project ที่ /connect" });
   const patch = { delivery_status: "SENT", sent_at: new Date().toISOString() };
   const request = api.from(sourceTable)
     .update(patch)
@@ -548,7 +556,7 @@ const GENESIS_HISTORY_COLUMNS = [
 
 export async function readGenesisOrderHistory(date: string) {
   const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
+  if (!api) fail({ message: "ยังไม่ได้ตั้งค่า Supabase ฝั่ง Server: ตรวจสอบสถานะ project ที่ /connect" });
   const match = date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!match) return { orders: [], total: 0, sourceView: "🌟GENESIS_xXx_HISTORY", fetchedAt: new Date().toISOString() };
 
@@ -577,7 +585,7 @@ export async function readGenesisOrderHistory(date: string) {
 
 export async function readDailyTrackingHistory(date: string) {
   const api = getSupabase("parcel");
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Tracking & Messenger: ไปที่ /secret-gallery แล้วบันทึก URL กับ Anon/Publishable Key" });
+  if (!api) fail({ message: "ยังไม่ได้ตั้งค่า Supabase ฝั่ง Server: ตรวจสอบ TRACKING/PARCEL ที่ /secret-gallery" });
   const { data, error } = await api.from("📓DEAD_xXx_NOTE").select("*").limit(2000);
   if (error) fail(error);
   const dayKey = (value: unknown) => {
@@ -599,7 +607,7 @@ export async function readDailyTrackingHistory(date: string) {
 }
 export async function readTelegramSentHistory(search = "") {
   const api = getSupabase();
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Supabase: ไปที่ /connect แล้วกรอก URL และ Anon Key" });
+  if (!api) fail({ message: "ยังไม่ได้ตั้งค่า Supabase ฝั่ง Server: ตรวจสอบสถานะ project ที่ /connect" });
 
   const { data, error } = await api.from("🌟GENESIS_xXx_HISTORY")
     .select(GENESIS_HISTORY_COLUMNS)
@@ -620,7 +628,7 @@ export async function readTelegramSentHistory(search = "") {
 }
 export async function readDailyParcels(date: string, search = "") {
   const api = getSupabase("parcel");
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Tracking & Messenger: ไปที่ /secret-gallery แล้วบันทึก URL กับ Anon/Publishable Key" });
+  if (!api) fail({ message: "ยังไม่ได้ตั้งค่า Supabase ฝั่ง Server: ตรวจสอบ TRACKING/PARCEL ที่ /secret-gallery" });
   const parsedDate = date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!parsedDate) return { parcels: [], total: 0, sourceTable: "parcels", fetchedAt: new Date().toISOString() };
   const todayKey = isoDateKey(new Date().toISOString());
@@ -668,17 +676,20 @@ export async function readDailyParcels(date: string, search = "") {
   return { parcels, total: parcels.length, sourceTable: "parcels", fetchedAt: new Date().toISOString() };
 }
 function chatSourceRowDedupKey(row: any) {
+  // Cust and Pg are separate source-of-truth lanes. A provider id can
+  // legitimately appear in both lanes, so never dedupe across the tables.
+  const source = asText(row?._source_table).trim() || "chat";
   const messageId = asText(row?.message_id).trim();
-  if (messageId && !/^(null|undefined)$/i.test(messageId)) return `message:${messageId}`;
+  if (messageId && !/^(null|undefined)$/i.test(messageId)) return `${source}:message:${messageId}`;
   const dedupeKey = asText(row?.dedupe_key).trim();
-  if (dedupeKey && !/^(null|undefined)$/i.test(dedupeKey)) return `dedupe:${dedupeKey}`;
+  if (dedupeKey && !/^(null|undefined)$/i.test(dedupeKey)) return `${source}:dedupe:${dedupeKey}`;
   return "";
 }
 function dedupeChatSourceRows(sourceRows: any[]) {
   const output: any[] = [];
   const indexByKey = new Map<string, number>();
   const score = (row: any) =>
-    ([row?.message_text, row?.customer_message_text, row?.page_message_text, row?.text].some(value => asText(value).trim()) ? 2 : 0)
+    ([row?.customer_message_text, row?.page_message_text].some(value => asText(value).trim()) ? 2 : 0)
     + (hasChatAttachment(row) ? 1 : 0)
     + (asText(row?.occurred_at ?? row?.time).trim() ? 1 : 0);
 
@@ -703,66 +714,68 @@ function dedupeChatSourceRows(sourceRows: any[]) {
   return output;
 }
 function normalizeChatReadRows(sourceRows: any[]) {
-  const normalizedRows = dedupeChatSourceRows(sourceRows).filter(row => {
+  const sourceRowsDeduped = dedupeChatSourceRows(sourceRows).filter(row => {
     // ห้องจริงต้องมี page_id และ thread_id; กันแถว metadata/แถวว่างไม่ให้กลายเป็นห้อง
-    const hasRoomKey = String(row?.page_id ?? "").trim() && String(row?.thread_id ?? row?.threadId ?? "").trim();
-    if (!hasRoomKey) return false;
-    const isPage = row._source_table === "Pg_Chat⭐BINARY_xXx_STAR";
-    // แถว delivery/status อย่างเดียวไม่ใช่ข้อความแชท และห้ามเปิดเป็นห้องเปล่า
-    return Boolean(
-      asText(row?.message_text).trim()
-      || asText(row?.customer_message_text).trim()
-      || asText(row?.page_message_text).trim()
-      || (isPage && asText(row?.facebook_tracking_message).trim())
-      || asText(row?.customer_latest_message).trim()
-      || asText(row?.page_latest_message).trim()
-      || hasChatAttachment(row),
-    );
-  }).flatMap(row => {
-    const isPage = row._source_table === "Pg_Chat⭐BINARY_xXx_STAR";
-    // สองโต๊ะต้นทางเป็น source of truth: Cust = ลูกค้า, Pg = เพจ
-    // เพราะบางรอบ n8n ใส่ speaker ผิดแถวจนข้อความลูกค้าถูกตีเป็นข้อความเพจ
-    const rawSpeaker = asText(row.speaker).trim().toLowerCase();
-    const isCustomer = row._source_table === "Cust_Chat⭐BINARY_xXx_STAR";
-    const isSystem = /^(system|notification|event|bot|automation|automated)$/i.test(rawSpeaker);
-    const speaker = isSystem ? "system" : isCustomer ? "customer" : isPage ? "page"
-      : rawSpeaker && /^(page|เพจ|admin|แอดมิน|outbound|เจ้าหน้าที่)$/i.test(rawSpeaker) ? "page" : "customer";
+    return Boolean(String(row?.page_id ?? "").trim() && String(row?.thread_id ?? row?.threadId ?? "").trim());
+  });
+  const speakerFor = (row: any): "customer" | "page" | "system" => {
+    const explicit = String(row?.speaker ?? row?.speaker_type ?? "").trim().toLowerCase();
+    if (explicit === "system") return "system";
+    if (row?._source_table === "Pg_Chat⭐BINARY_xXx_STAR") return "page";
+    if (row?._source_table === "Cust_Chat⭐BINARY_xXx_STAR") return "customer";
+    if (["page", "admin", "agent", "staff"].includes(explicit)) return "page";
+    return "customer";
+  };
+  const normalizeOne = (row: any, speaker: "customer" | "page" | "system", text: unknown, occurredOverride?: unknown) => {
     const isPageSpeaker = speaker === "page";
-    const sideMessageText = asText(isPageSpeaker ? row.page_message_text : row.customer_message_text).trim();
-    const hasPerMessageText = Boolean(sideMessageText || asText(row.message_text).trim() || asText(row.text).trim() || asText(row.message).trim());
-    // customer_latest_message คือข้อความแรก/ล่าสุดจากลูกค้าในแถวสรุปของ n8n
-    // บางแถวไม่มี message_text แต่มีฟิลด์นี้ จึงห้ามปล่อยให้กลายเป็น bubble ว่าง
-    const messageText = sideMessageText
-      || asText(row.message_text).trim()
-      || (isPageSpeaker ? asText(row.page_latest_message).trim() : asText(row.customer_latest_message).trim())
-      || asText(row.text).trim()
-      || asText(row.message).trim();
     const threadId = String(row.thread_id ?? row.threadId ?? "").trim();
-    const base = {
+    const speakerTime = speaker === "page" ? row.page_message_time_th : row.customer_message_time_th;
+    return {
       ...row,
-      // เชื่อค่า speaker ที่ผู้ใช้กำหนด; ใช้ต้นทางตารางสำรองเมื่อไม่มีค่าเท่านั้น
+      _bubble_id: `${String(row._source_table ?? "chat")}:${String(row.id ?? row.message_row_id ?? row.message_id ?? row.dedupe_key ?? `${threadId}:${row.occurred_at ?? row.time ?? ""}`)}:${speaker}`,
       _speaker: speaker,
       _side: isPageSpeaker ? "right" : "left",
-      // ชื่อป้ายห้องมาจาก Facebook API เท่านั้น; customer_name เป็นชื่อในบิล ห้ามนำมาแทน
       _name: isPageSpeaker ? row.page_name : row.facebook_name,
-      // message_text เป็นหลัก; ข้อความ tracking ขาออกใช้ facebook_tracking_message เมื่อ message_text ว่าง
-      _text: messageText || (isPageSpeaker ? asText(row.facebook_tracking_message).trim() : ""),
+      _text: asText(text).trim(),
       _thread: threadId,
-      _occurred: row.occurred_at || row.time || (isPageSpeaker ? row.page_message_time_th : row.customer_message_time_th) || row.time_th,
-      time_th: row.time_th || row.message_time_display || (isPageSpeaker ? row.page_message_time_th : row.customer_message_time_th),
+      _occurred: occurredOverride || row.occurred_at || row.time || speakerTime || row.time_th,
+      time_th: speakerTime || row.time_th || null,
       _hasAttachment: hasChatAttachment(row),
     };
-    // แถวสรุปจาก n8n อาจมี customer_latest และ page_latest อยู่พร้อมกัน
-    // เพราะ 3 Flow เขียนห่างกันเป็นรอบ ๆ จึงต้องแตกเป็น bubble แยกฝั่งเอง
-    if (!hasPerMessageText && (asText(row.customer_latest_message).trim() || asText(row.page_latest_message).trim())) {
-      const splitRows = [];
-      const customerText = asText(row.customer_latest_message).trim();
-      const pageText = asText(row.page_latest_message).trim();
-      if (customerText) splitRows.push({ ...base, _bubble_id: `${row.id ?? row.message_id ?? row.dedupe_key ?? threadId}:customer_latest`, _speaker: "customer", _side: "left", _name: row.facebook_name, _text: customerText, _occurred: row.customer_message_time_th || row.occurred_at || row.time, time_th: row.customer_message_time_th || row.time_th });
-      if (pageText) splitRows.push({ ...base, _bubble_id: `${row.id ?? row.message_id ?? row.dedupe_key ?? threadId}:page_latest`, _speaker: "page", _side: "right", _name: row.page_name, _text: pageText, _occurred: row.page_message_time_th || row.occurred_at || row.time, time_th: row.page_message_time_th || row.time_th });
-      return splitRows;
+  };
+
+  return sourceRowsDeduped.flatMap(row => {
+    const hasPerMessageText = [row.message_text, row.customer_message_text, row.page_message_text, row.text, row.message]
+      .some(value => asText(value).trim());
+    // Legacy n8n snapshots can contain only the last message from either or both sides.
+    // Expand each populated side so a customer message is not lost when the Pg row is read.
+    if (row._source_table === "Pg_Chat⭐BINARY_xXx_STAR" && !hasPerMessageText) {
+      const customerLatest = asText(row.customer_latest_message).trim();
+      const pageLatest = asText(row.page_latest_message).trim();
+      if (customerLatest || pageLatest) {
+        const snapshotId = `${String(row._source_table ?? "chat")}:${String(row.id ?? row.message_row_id ?? row.message_id ?? row.dedupe_key ?? row.thread_id ?? "chat")}`;
+        const bubbles = [];
+        if (customerLatest) bubbles.push({
+          ...normalizeOne(row, "customer", customerLatest, row.customer_message_time_th || row.occurred_at || row.time),
+          _bubble_id: `${snapshotId}:customer_latest`,
+        });
+        if (pageLatest) bubbles.push({
+          ...normalizeOne(row, "page", pageLatest, row.page_message_time_th || row.occurred_at || row.time),
+          _bubble_id: `${snapshotId}:page_latest`,
+        });
+        return bubbles;
+      }
     }
-    return [base];
+
+    const speaker = speakerFor(row);
+    const isPage = speaker === "page";
+    const text = speaker === "system"
+      ? row.message_text || row.customer_message_text || row.page_message_text || row.text || row.message
+      : isPage
+        ? row.page_message_text || row.message_text || row.page_latest_message || row.text || row.message
+        : row.customer_message_text || row.message_text || row.text || row.message;
+    if (!asText(text).trim() && !hasChatAttachment(row)) return [];
+    return [normalizeOne(row, speaker, text)];
   }).sort((a, b) => {
     const timeDifference = (chatDateMs(a._occurred) ?? 0) - (chatDateMs(b._occurred) ?? 0);
     if (timeDifference) return timeDifference;
@@ -775,8 +788,8 @@ function normalizeChatReadRows(sourceRows: any[]) {
       return first < second ? -1 : first > second ? 1 : 0;
     } catch { return 0; }
   });
-  return normalizedRows;
 }
+
 function chatRowSequence(row: any): string {
   const value = String(row?.message_row_id ?? row?.id ?? "").trim();
   return /^\d+$/.test(value) ? value : "";
@@ -796,6 +809,12 @@ function isChatRowNewer(row: any, currentTimeMs: number | null, currentSequence:
 function chatCustomerNameCandidate(row: any) {
   const value = String(row.facebook_name ?? "").trim();
   return value ? { value, priority: 1 } : null;
+}
+function canonicalChatLinkKey(row: any) {
+  const pageId = String(row?.page_id ?? "").trim();
+  const threadId = String(row?.thread_id ?? row?.threadId ?? "").trim();
+  const value = String(row?.chat_link_key ?? "").trim();
+  return /^\d+_t_\d+$/.test(value) ? value : (pageId && threadId ? `${pageId}_t_${threadId}` : value || null);
 }
 function chatOrderKey(row: any) {
   return String(row.upsert_key ?? row.order_number_display ?? row.order_number ?? "").trim();
@@ -824,7 +843,7 @@ export function mapChatRowsToThreads(sourceRows: any[]) {
     const key = `${pageId}:${threadId}`;
     const nameCandidate = chatCustomerNameCandidate(row);
     const current = map.get(key) ?? {
-      key, pageId, threadId, portalKey: row.portal_key || null, chatLinkKey: row.chat_link_key || null,
+      key, pageId, threadId, portalKey: row.portal_key || null, chatLinkKey: canonicalChatLinkKey(row),
       timeSlotLabel: String(row.time_slot_label ?? "").trim() || null,
       customerId: row.customer_id || row.recipient_id || null, customerPhone: row.phone || null, pageName: row.page_name || "ไม่ระบุเพจ",
       customerName: nameCandidate?.value || "", profilePictureUrl: row.profile_picture_url || null, _customerNamePriority: nameCandidate?.priority ?? -1,
@@ -860,7 +879,7 @@ export function mapChatRowsToThreads(sourceRows: any[]) {
     current.profilePictureUrl ||= row.profile_picture_url || row.profile_pic || row.picture || null;
     current.customerPhone ||= row.phone || null;
     current.portalKey ||= row.portal_key || null;
-    current.chatLinkKey ||= row.chat_link_key || null;
+    current.chatLinkKey ||= canonicalChatLinkKey(row);
     if (nameCandidate && nameCandidate.priority >= current._customerNamePriority) {
       current.customerName = nameCandidate.value;
       current._customerNamePriority = nameCandidate.priority;
@@ -931,16 +950,21 @@ export function mapChatRowsToThreads(sourceRows: any[]) {
     searchText: [thread.customerName, thread.customerPhone, thread.customerId, thread.chatLinkKey, thread.upsert_key, thread.order_number, thread.order_number_display, _searchTokens, thread.preview].filter(Boolean).join(" "),
   })).sort((a, b) => (chatDateMs(b.latestAt) ?? 0) - (chatDateMs(a.latestAt) ?? 0));
 }
+export async function readChatThreads(surface: "web" | "mobile" = "web") {
+  const sourceRows = await projectApi.chat.threads.query({ surface });
+  return mapChatRowsToThreads(sourceRows);
+}
 export function mapChatRowsToMessages(sourceRows: any[]) {
   return normalizeChatReadRows(sourceRows).map((row: any) => ({
     // บางโต๊ะแชทไม่มี id ของแถว; ห้ามปล่อย undefined ซ้ำทุก bubble
     id: row._bubble_id ?? row.id ?? row.message_id ?? row.dedupe_key ?? `${row._thread}:${row._occurred}:${row._speaker}:${row._text}`,
     text: row._text,
     message_text: row._text,
+    customer_message_text: row.customer_message_text,
+    page_message_text: row.page_message_text,
     direction: row._speaker === "page" ? "outbound" : "inbound",
     senderType: row._speaker,
     source_lane: row.source_lane,
-    customer_message_text: row.customer_message_text,
     senderName: row._name,
     side: row._side,
     occurredAt: row._occurred,
@@ -954,7 +978,7 @@ export function mapChatRowsToMessages(sourceRows: any[]) {
     pageLatestMessage: row._speaker === "page" ? row._text : null,
     pageMessageTimeTh: row._speaker === "page" ? row.time_th : null,
     attachmentsJson: chatAttachmentPayload(row),
-    imageUrls: Array.isArray(row.attachment_urls) ? row.attachment_urls : row.attachment_url ? [row.attachment_url] : [],
+    imageUrls: extractChatImageUrls(chatAttachmentPayload(row)),
   }));
 }
 export function reconcileOptimisticMessages(optimistic: any[], persisted: any[]) {
@@ -969,41 +993,38 @@ export function reconcileOptimisticMessages(optimistic: any[], persisted: any[])
   });
   return remaining.length === optimistic.length ? optimistic : remaining;
 }
-export type CloseJobCase = { id: string; page_id: string; page_name: string; conversation_key: string; customer_id: string; customer_name: string; speaker_type: string; occurred_at: string; message_text: string; case_type: string; area: string; branch: string; carrier_employee: string; tracking_number: string; order_number: string };
+export type CloseJobCase = { id: string; page_id: string; page_name: string; conversation_key: string; customer_id: string; customer_name: string; speaker_type: string; occurred_at: string; customer_message_text: string; page_message_text: string; message_text: string; facebook_tracking_message: string; drakside_tracking_message: string; case_type: string; area: string; branch: string; carrier_employee: string; tracking_number: string; order_number: string; order_number_display: string; upsert_key: string; chat_link_key: string };
 export async function readCloseJobCases(limit = 10000): Promise<CloseJobCase[]> {
   const api = getSupabase();
   if (!api) return [];
-  const { data, error } = await api.from("Cust_Chat⭐BINARY_xXx_STAR")
-    .select("id,page_id,page_name,conversation_id,thread_id,customer_id,customer_name,message_id,speaker,is_sent,time,created_at,occurred_at,message_text,customer_message_text,tracking_number,order_number,order_number_display,order_time_display,phone,facebook_name,shipping_carrier")
+  const { data, error } = await api.from("🌓VAGABOND_xXx_DISMISS")
+    .select("*")
     .order("occurred_at", { ascending: false })
     .limit(Math.max(1, Math.min(limit, 10000)));
   if (error) fail(error);
-  const classify = (value: unknown) => {
-    const message = String(value ?? "").replace(/\s+/gu, "");
-    if (message.includes("ปิดงาน")) return "ปิดงาน";
-    if (message.includes("ยกเลิก") || message.includes("ไม่เอาแล้ว")) return "ยกเลิก / ไม่เอาแล้ว";
-    if (/สั่ง.{0,16}แล้วไม่รับ/u.test(message)) return "สั่งแล้วไม่รับ";
-    return "";
-  };
-  return (data ?? []).filter((row: any) => {
-    const speaker = String(row.speaker ?? "").toLowerCase();
-    return speaker !== "page" && speaker !== "admin" && speaker !== "business" && classify(row.customer_message_text ?? row.message_text);
-  }).map((row: any) => ({
+  return (data ?? []).map((row: any) => ({
     id: String(row.id ?? row.message_id ?? row.order_number ?? ""),
     page_id: String(row.page_id ?? ""),
     page_name: String(row.page_name ?? ""),
-    conversation_key: String(row.conversation_id ?? row.thread_id ?? ""),
+    conversation_key: String(row.conversation_key ?? row.thread_id ?? ""),
     customer_id: String(row.customer_id ?? ""),
     customer_name: String(row.customer_name ?? row.facebook_name ?? ""),
-    speaker_type: "customer",
-    occurred_at: String(row.occurred_at ?? row.time ?? row.created_at ?? ""),
-    message_text: String(row.customer_message_text ?? row.message_text ?? ""),
-    case_type: classify(row.customer_message_text ?? row.message_text),
-    area: "",
-    branch: "",
-    carrier_employee: "",
+    speaker_type: String(row.speaker_type ?? "customer"),
+    occurred_at: String(row.occurred_at ?? row.created_at ?? ""),
+    customer_message_text: String(row.customer_message_text ?? ""),
+    page_message_text: String(row.page_message_text ?? ""),
+    message_text: String(row.message_text ?? row.customer_message_text ?? row.page_message_text ?? ""),
+    facebook_tracking_message: String(row.facebook_tracking_message ?? ""),
+    drakside_tracking_message: String(row.drakside_tracking_message ?? ""),
+    case_type: String(row.case_type ?? ""),
+    area: String(row.area ?? ""),
+    branch: String(row.branch ?? ""),
+    carrier_employee: String(row.carrier_employee ?? ""),
     tracking_number: String(row.tracking_number ?? ""),
-    order_number: String(row.order_number_display ?? row.order_number ?? ""),
+    order_number: String(row.order_number ?? ""),
+    order_number_display: String(row.order_number_display ?? ""),
+    upsert_key: String(row.upsert_key ?? ""),
+    chat_link_key: String(row.chat_link_key ?? ""),
   }));
 }
 export async function saveCloseJobCaseFields(input: { caseId: string; branch: string; carrierEmployee: string; area: string }) {
@@ -1012,7 +1033,7 @@ export async function saveCloseJobCaseFields(input: { caseId: string; branch: st
 }
 export async function readParcelMappingQueue(status: "all" | "sent" = "all", limit = 300) {
   const api = getSupabase("parcel");
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Tracking & Messenger: ไปที่ /secret-gallery แล้วบันทึก URL กับ Anon/Publishable Key" });
+  if (!api) fail({ message: "ยังไม่ได้ตั้งค่า Supabase ฝั่ง Server: ตรวจสอบ TRACKING/PARCEL ที่ /secret-gallery" });
   const safeLimit = Math.max(1, Math.min(limit, 5000));
   const activeData = status === "sent" ? { data: [], error: null } : (await api.from("🦅ROGUE_xXx_SHIPPINGz").select("*").limit(safeLimit));
   if ("error" in activeData && activeData.error) fail(activeData.error);
@@ -1054,8 +1075,8 @@ export async function readParcelByTrackingNumber(trackingNumber: string) {
 }
 export type PostalMasterMatch = { district: string | null; amphoe: string | null; province: string | null; zipcode: string | null };
 export async function searchThailandPostalMaster(raw: string): Promise<PostalMasterMatch[]> {
-  const api = getSupabase("tracking");
-  if (!api) fail({ message: "ยังไม่ได้เชื่อม Tracking & Messenger: ไปที่ /secret-gallery แล้วบันทึก URL กับ Anon/Publishable Key" });
+  const api = getSupabase("vault");
+  if (!api) fail({ message: "ยังไม่ได้ตั้งค่า Supabase ROOM 04 · PRIVATE VAULT ฝั่ง Server" });
   const input = String(raw ?? "").normalize("NFC").trim().slice(0, 160);
   if (!input) return [];
   const postalCode = input.match(/(?:^|\D)(\d{5})(?!\d)/)?.[1] ?? "";

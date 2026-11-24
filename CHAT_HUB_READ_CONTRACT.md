@@ -16,4 +16,4 @@
 10. เรียก Supabase ผ่าน protected server tRPC ด้วย Chat credentials เท่านั้น; ห้าม fallback ไป Main, Tracking หรือ Parcel
 11. Page token อ่านแยกจาก `🌈MILKY_WAY_xXx_TOKEN _PAGE` ฝั่ง server เท่านั้น ห้ามส่ง access token ไป browser
 
-`🌠BINARY_xXx_MATRIX` ยังเก็บไว้เป็นวัตถุฐานข้อมูล/เครื่องมือตรวจสอบได้ แต่ไม่ใช่เส้นอ่านหลักของ ChatHub ใน protocol นี้
+ChatHub ไม่ใช้ `🌠BINARY_xXx_MATRIX`; วัตถุนี้ไม่อยู่ในชุด SQL ปัจจุบันแล้ว การอ่านใช้ตารางต้นทางสองฝั่งโดยตรงตามข้อกำหนดด้านบน

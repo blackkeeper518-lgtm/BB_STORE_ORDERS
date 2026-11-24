@@ -1,4 +1,4 @@
-# วิธีอัปโหลด BB_STORE_ORDERS
+# วิธีอัปโหลด ST_SINGTO_STORE_ORDERS
 
 แพ็กเกจนี้เป็น source project สำหรับอัปโหลดไปยังโหนดเว็บ ไม่รวม `node_modules`, `dist` และ `.git` เพื่อให้ระบบติดตั้ง dependency และ build ใหม่บนโหนดปลายทาง
 

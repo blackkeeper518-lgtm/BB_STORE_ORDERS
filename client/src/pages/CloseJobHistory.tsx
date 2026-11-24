@@ -32,7 +32,7 @@ export default function CloseJobHistory() {
   const [search, setSearch] = useState("");
   const [caseFilter, setCaseFilter] = useState<CaseFilter>("all");
   const [, setLocation] = useLocation();
-  const casesQuery = useQuery({ queryKey: ["bb-close-job-history"], queryFn: () => readCloseJobCases(), refetchInterval: 60_000 });
+  const casesQuery = useQuery({ queryKey: ["vagabond-dismiss-cases"], queryFn: () => readCloseJobCases(), refetchInterval: 60_000 });
   const cases = casesQuery.data ?? [];
   const counts = useMemo(() => ({
     close: cases.filter(item => caseKind(item.case_type) === "close").length,
@@ -65,9 +65,9 @@ export default function CloseJobHistory() {
       <div className="absolute right-20 top-16 h-1 w-1 rounded-full bg-fuchsia-100 shadow-[0_0_10px_3px_rgba(217,70,239,.7)]" />
       <div className="relative flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.24em] text-cyan-100"><Sparkles className="h-4 w-4 text-fuchsia-200" /> BB STORE · ORBITAL CASE ARCHIVE</p>
-          <h1 className="mt-2 bg-gradient-to-r from-cyan-100 via-white to-fuchsia-200 bg-clip-text text-2xl font-black tracking-tight text-transparent sm:text-3xl">ประวัติปิดงาน · ยกเลิก · ลูกค้าไม่รับ</h1>
-          <p className="mt-2 max-w-3xl text-xs leading-5 text-cyan-50/75">คลังหลักฐานจากห้องปิดงานและรายการที่ไม่ควรส่งซ้ำ · เปิดดูเพื่อไล่ตรวจย้อนหลังโดยไม่ตัดสินแทนทีม</p>
+          <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.24em] text-cyan-100"><Sparkles className="h-4 w-4 text-fuchsia-200" /> BB STORE · VAGABOND CASE HUNTER</p>
+          <h1 className="mt-2 bg-gradient-to-r from-cyan-100 via-white to-fuchsia-200 bg-clip-text text-2xl font-black tracking-tight text-transparent sm:text-3xl">🌓 VAGABOND · ห้องไล่เคสจากแชท</h1>
+          <p className="mt-2 max-w-3xl text-xs leading-5 text-cyan-50/75">จับสัญญาณจากข้อความจริงในวิว VAGABOND แล้วพากลับไปหาห้องแชทต้นทาง · ไม่แอบเดาแทนออเดอร์</p>
         </div>
         <Button type="button" variant="outline" onClick={() => void casesQuery.refetch()} className="border-cyan-100/40 bg-cyan-200/10 text-cyan-50 shadow-[0_0_16px_rgba(34,211,238,.16)] hover:bg-cyan-200/20">
           <RefreshCw className={`mr-2 h-4 w-4 ${casesQuery.isFetching ? "animate-spin" : ""}`} />รีเฟรช
@@ -79,7 +79,7 @@ export default function CloseJobHistory() {
         <div className="rounded-xl border border-fuchsia-200/30 bg-fuchsia-300/[.10] px-3 py-2"><p className="text-[10px] text-fuchsia-50/80">ยกเลิก / ไม่เอาแล้ว</p><p className="mt-0.5 text-xl font-black text-fuchsia-100">{counts.cancel}</p></div>
         <div className="rounded-xl border border-amber-200/30 bg-amber-300/[.10] px-3 py-2"><p className="text-[10px] text-amber-50/80">สั่งแล้วไม่รับ</p><p className="mt-0.5 text-xl font-black text-amber-100">{counts.refusal}</p></div>
       </div>
-      <p className="relative mt-3 text-[10px] text-white/55">อ่านตรงจากโต๊ะแชทลูกค้า · อัปเดตอัตโนมัติทุก 1 นาที · ไม่มีการเขียนข้อมูลกลับ</p>
+      <p className="relative mt-3 text-[10px] text-white/55">อ่านตรงจาก 🌓VAGABOND_xXx_DISMISS · อัปเดตอัตโนมัติทุก 1 นาที · ไม่มีการเขียนข้อมูลกลับ</p>
     </header>
 
     <section className="relative shrink-0 rounded-2xl border border-white/15 bg-[#0a1021]/90 p-3 shadow-[0_0_24px_rgba(34,211,238,.07)]">
@@ -97,7 +97,7 @@ export default function CloseJobHistory() {
 
     <section className="relative min-h-0 flex-1 overflow-y-auto rounded-2xl border border-cyan-200/20 bg-[linear-gradient(145deg,rgba(8,15,31,.96),rgba(16,9,28,.95))] p-3 shadow-[inset_0_0_24px_rgba(59,130,246,.04)]">
       {casesQuery.isLoading ? <div className="flex items-center justify-center gap-2 p-12 text-sm text-cyan-50/70"><RefreshCw className="h-4 w-4 animate-spin" />กำลังค้นประวัติ…</div> : null}
-      {casesQuery.isError ? <div className="mx-auto max-w-2xl rounded-2xl border border-amber-200/35 bg-amber-300/[.10] p-5 text-sm leading-6 text-amber-50 shadow-[0_0_24px_rgba(251,191,36,.08)]"><p className="flex items-center gap-2 font-semibold"><AlertTriangle className="h-4 w-4" />อ่านโต๊ะแชทไม่ได้</p><p className="mt-2 text-xs text-amber-50/75">ห้องนี้อ่านโต๊ะแชทลูกค้าโดยตรง ไม่ใช้ Tracking, view หรือโต๊ะ notes เพิ่ม</p><p className="mt-2 text-[10px] text-amber-50/55">{casesQuery.error.message}</p></div> : null}
+      {casesQuery.isError ? <div className="mx-auto max-w-2xl rounded-2xl border border-amber-200/35 bg-amber-300/[.10] p-5 text-sm leading-6 text-amber-50 shadow-[0_0_24px_rgba(251,191,36,.08)]"><p className="flex items-center gap-2 font-semibold"><AlertTriangle className="h-4 w-4" />อ่าน VAGABOND ไม่ได้</p><p className="mt-2 text-xs text-amber-50/75">ห้องนี้อ่านจาก 🌓VAGABOND_xXx_DISMISS โดยตรง · ไม่ดึง MULTIVERSE ข้ามประตูมิติใน browser</p><p className="mt-2 text-[10px] text-amber-50/55">{casesQuery.error.message}</p></div> : null}
       {!casesQuery.isLoading && !casesQuery.isError && filtered.length === 0 ? <div className="p-12 text-center text-sm text-cyan-50/60"><AlertTriangle className="mx-auto mb-3 h-7 w-7 text-fuchsia-200/70" />{cases.length ? "ไม่พบรายการที่ตรงตัวกรอง" : "ยังไม่พบข้อความที่เข้าหมวดที่ตั้งไว้"}</div> : null}
       <div className="space-y-3">
         {filtered.map(item => <article key={item.id} className="group rounded-2xl border border-cyan-100/20 bg-[radial-gradient(ellipse_at_top_right,rgba(217,70,239,.08),transparent_42%),linear-gradient(130deg,rgba(34,211,238,.055),rgba(15,23,42,.62),rgba(147,51,234,.045))] p-4 shadow-[0_0_18px_rgba(34,211,238,.055)] transition hover:border-cyan-100/40 hover:shadow-[0_0_24px_rgba(34,211,238,.12)]">

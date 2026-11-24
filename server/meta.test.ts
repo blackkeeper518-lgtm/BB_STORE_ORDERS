@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { sendMetaMessage } from "./meta";
 
 const credentials = {
@@ -8,6 +8,12 @@ const credentials = {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
+});
+
+beforeEach(() => {
+  vi.stubEnv("CHAT_SUPABASE_URL", credentials.url);
+  vi.stubEnv("CHAT_SUPABASE_SERVICE_ROLE_KEY", credentials.serviceRoleKey);
 });
 
 function pageFetch(page: Record<string, unknown>) {

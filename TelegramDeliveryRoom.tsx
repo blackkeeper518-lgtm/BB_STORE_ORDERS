@@ -66,7 +66,7 @@ function displayTime(row: OrderRow | null | undefined) { return isOrderRow(row) 
 function productOf(row: OrderRow) {
   return evidenceText(row.order_fibo_product) || evidenceText(row.for_packer_st_display) ||
     evidenceText(row.manus_for_packer) || evidenceText(row.google_for_packer) ||
-    evidenceText(row.packer_tag_display) || evidenceText(row.bb_pack_center);
+    evidenceText(row.packer_tag_display) || evidenceText(row.ST_pack_center);
 }
 
 function evidenceText(value: unknown): string {
@@ -101,7 +101,7 @@ function provinceOf(row: OrderRow) {
 function telegramText(row: OrderRow, header: string) {
   const builderBill = String(row.telegram_message_for_send_final ?? row.telegram_message ?? getTelegramBody(row)?.text ?? row.telegram_main_bill ?? "").trim();
   if (builderBill) return withPreferredBillHeader(row, builderBill, header);
-  // สร้างข้อความจากออเดอร์ BB: ใช้ฟิวค่ายตัวเองและไม่พึ่ง master_* เป็นแหล่งหลัก
+  // สร้างข้อความจากออเดอร์ ST: ใช้ฟิวค่ายตัวเองและไม่พึ่ง master_* เป็นแหล่งหลัก
   const customer = row.customer_name || "";
   const phone = row.extracted_phone || row.phone || "";
   const cod = row.cod_amount;

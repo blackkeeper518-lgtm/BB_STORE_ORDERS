@@ -247,7 +247,7 @@ export default function OrderControl() {
         <div className="hero-scanline" />
         <div className="relative z-10 max-w-3xl">
           <p className="orbit-kicker flex items-center gap-2 text-cyan-200/80"><Database className="h-3.5 w-3.5 text-cyan-300" /> ศูนย์ควบคุมออเดอร์จาก n8n ·</p>
-          <h1 className="cyber-title mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">ORDER CONTROL <span className="text-cyan-300">✦</span> BB STORE</h1>
+          <h1 className="cyber-title mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">ORDER CONTROL <span className="text-cyan-300">✦</span> ST SINGTO STORE</h1>
           <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-300/75">เห็นต้นทาง สถานะ และเวลาจริงในจอเดียว</p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <span className="live-chip"><span className="live-dot" /> LIVE ORDER STREAM</span>

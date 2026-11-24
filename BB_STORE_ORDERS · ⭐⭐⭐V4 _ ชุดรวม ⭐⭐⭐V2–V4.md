@@ -1,17 +1,17 @@
-# BB_STORE_ORDERS · ⭐⭐⭐V4 / ชุดรวม ⭐⭐⭐V2–V4
+# ST_STORE_ORDERS · ⭐⭐⭐V4 / ชุดรวม ⭐⭐⭐V2–V4
 
 V4 เพิ่มแถบ `LOOKUP STATUS` ไว้ใต้ช่องค้นหาและก่อนรายการออเดอร์ แสดงผลแยก 3 แหล่ง: HERMES/ออเดอร์, Chat และ Parcels โดยแยกสถานะรอค้น/กำลังค้น/พบ/ไม่พบ/อ่านต้นทางไม่ได้ออกจากกัน เมื่อพบพัสดุจะแสดงเลขและสถานะส่ง; ถ้าเจอออเดอร์แต่ไม่พบรายการพัสดุที่จับคู่ จะแจ้งให้เห็นแยกต่างหาก ไม่เปลี่ยนเงื่อนไขค้นหา phone, `chat_link_key`, logic แชท หรือฐานข้อมูล
 
 ## เลือกใช้แพตช์เพียงแบบเดียว
 
-- **ยังไม่ได้ใช้ V2/V3:** ใช้ `BB_STORE_ORDERS-stars-V2-V4.patch` ซึ่งรวม commit V2, V3 และ V4 ต่อจาก `66fbf11` (`⭐⭐⭐V1`)
-- **ใช้ V2/V3 ไปแล้ว:** ใช้เฉพาะ `BB_STORE_ORDERS-stars-V4.patch` ซึ่งเพิ่ม V4 ต่อจากชุดเดิม
+- **ยังไม่ได้ใช้ V2/V3:** ใช้ `ST_STORE_ORDERS-stars-V2-V4.patch` ซึ่งรวม commit V2, V3 และ V4 ต่อจาก `66fbf11` (`⭐⭐⭐V1`)
+- **ใช้ V2/V3 ไปแล้ว:** ใช้เฉพาะ `ST_STORE_ORDERS-stars-V4.patch` ซึ่งเพิ่ม V4 ต่อจากชุดเดิม
 
 ห้ามใช้ทั้งสองไฟล์ เพราะชุดรวมมี V2/V3 อยู่แล้ว
 
 ## วิธีใช้ใน PowerShell / VS Code Terminal
 
-1. ดาวน์โหลดไฟล์แพตช์ที่เลือกไว้ที่โฟลเดอร์หลักของ repo `BB_STORE_ORDERS` (โฟลเดอร์เดียวกับ `.git`)
+1. ดาวน์โหลดไฟล์แพตช์ที่เลือกไว้ที่โฟลเดอร์หลักของ repo `ST_STORE_ORDERS` (โฟลเดอร์เดียวกับ `.git`)
 2. เปิด PowerShell ที่โฟลเดอร์ repo แล้วตรวจงานค้าง/branch:
 
 ```powershell
@@ -24,13 +24,13 @@ git log -3 --oneline
 3. ถ้ายังไม่ได้ใช้ V2/V3 ให้รัน:
 
 ```powershell
-git am --3way .\BB_STORE_ORDERS-stars-V2-V4.patch
+git am --3way .\ST_STORE_ORDERS-stars-V2-V4.patch
 ```
 
 แต่ถ้าใช้ V2/V3 ไปแล้ว ให้รันเฉพาะ:
 
 ```powershell
-git am --3way .\BB_STORE_ORDERS-stars-V4.patch
+git am --3way .\ST_STORE_ORDERS-stars-V4.patch
 ```
 
 `git am` จะสร้าง commit ตาม subject `⭐⭐⭐V2`, `⭐⭐⭐V3`, `⭐⭐⭐V4` (หรือเฉพาะ V4) ให้เอง ไม่ต้อง `git add` หรือ `git commit` ไฟล์ `.patch`

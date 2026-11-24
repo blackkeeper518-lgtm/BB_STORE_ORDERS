@@ -860,7 +860,7 @@ renderScripts();renderFiles();$('code').value='-- เขียน SQL, Java, Mar
   function receiveChatContext(event){
     if(window.parent===window||event.source!==window.parent||event.origin!==window.location.origin)return;
     const message=event.data;
-    if(!message||message.type!=='BB_ORDER_DECK_CONTEXT')return;
+    if(!message||message.type!=='ST_ORDER_DECK_CONTEXT')return;
     const requestedPage=typeof message.pageName==='string'?message.pageName.trim().replace(/[\r\n]+/g,' '):'';
     if(requestedPage){
       const matchedPage=pageOptions.find(value=>normalizeProductText(value)===normalizeProductText(requestedPage));

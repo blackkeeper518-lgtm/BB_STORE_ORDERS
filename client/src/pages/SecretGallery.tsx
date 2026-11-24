@@ -39,16 +39,9 @@ import Prism from "prismjs";
 import "prismjs/components/prism-sql";
 import "prismjs/components/prism-java";
 import "prismjs/components/prism-markdown";
-import ProjectRoomsPanel, { PROJECT_ROOM_GROUPS, isPublicSupabaseAnonKey, projectRoomStatusKey, type ProjectRoomStates } from "@/components/ProjectRoomsPanel";
-import {
-  clearSupabaseConfig,
-  getActiveCamp,
-  getSupabase,
-  getSupabaseConfig,
-  saveSupabaseConfig,
-} from "@/lib/canonical";
+import { ServerProjectConnection } from "@/components/ServerProjectConnection";
+import { getActiveCamp, getSupabase } from "@/lib/canonical";
 import { trpc } from "@/lib/trpc";
-import { CHAT_BROWSER_CONFIG_EVENT, clearBrowserChatConfig, readBrowserChatConfig, saveBrowserChatConfig } from "@/lib/chat-config";
 import { CHAT_NOTIFICATION_SETTINGS_EVENT, readChatNotificationPageSettings, readChatNotificationPageSounds, setChatNotificationPageEnabled, setChatNotificationPageSound } from "@/lib/chat-notifications";
 import { CyberFrameVault } from "@/components/CyberFrameVault";
 import { CustomizationAdmin } from "@/components/CustomizationAdmin";
@@ -104,47 +97,17 @@ export default function SecretGallery() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const camp = getActiveCamp();
-  const connection = getSupabaseConfig(camp);
-  const [supabaseUrl, setSupabaseUrl] = useState(connection?.url || "");
-  const [supabaseKey, setSupabaseKey] = useState(connection?.anonKey || "");
-  const [orderTable, setOrderTable] = useState("🗝️HERMES_ARCHIVE");
-  const [connectionMessage, setConnectionMessage] = useState("");
-  const [connectionBusy, setConnectionBusy] = useState(false);
-  const [chatMessage, setChatMessage] = useState("");
-  const [chatBusy, setChatBusy] = useState(false);
-  const savedBrowserChatConfig = readBrowserChatConfig();
-  const [chatUrl, setChatUrl] = useState(savedBrowserChatConfig?.url || "");
-  const [chatServiceRoleKey, setChatServiceRoleKey] = useState(savedBrowserChatConfig?.serviceRoleKey || "");
-  const [notificationPageSettings, setNotificationPageSettings] = useState(() => readChatNotificationPageSettings(savedBrowserChatConfig?.url));
-  const [notificationPageSounds, setNotificationPageSounds] = useState(() => readChatNotificationPageSounds(savedBrowserChatConfig?.url));
+  const [notificationPageSettings, setNotificationPageSettings] = useState(() => readChatNotificationPageSettings());
+  const [notificationPageSounds, setNotificationPageSounds] = useState(() => readChatNotificationPageSounds());
   useEffect(() => {
     const refreshNotificationPageSettings = () => {
-      const projectUrl = readBrowserChatConfig()?.url;
-      setNotificationPageSettings(readChatNotificationPageSettings(projectUrl));
-      setNotificationPageSounds(readChatNotificationPageSounds(projectUrl));
+      setNotificationPageSettings(readChatNotificationPageSettings());
+      setNotificationPageSounds(readChatNotificationPageSounds());
     };
     window.addEventListener("storage", refreshNotificationPageSettings);
-    window.addEventListener(CHAT_BROWSER_CONFIG_EVENT, refreshNotificationPageSettings);
     window.addEventListener(CHAT_NOTIFICATION_SETTINGS_EVENT, refreshNotificationPageSettings);
-    return () => {
-      window.removeEventListener("storage", refreshNotificationPageSettings);
-      window.removeEventListener(CHAT_BROWSER_CONFIG_EVENT, refreshNotificationPageSettings);
-      window.removeEventListener(CHAT_NOTIFICATION_SETTINGS_EVENT, refreshNotificationPageSettings);
-    };
+    return () => { window.removeEventListener("storage", refreshNotificationPageSettings); window.removeEventListener(CHAT_NOTIFICATION_SETTINGS_EVENT, refreshNotificationPageSettings); };
   }, []);
-  const chatConnectionQuery = trpc.chat.connection.useQuery(undefined, { enabled: false, retry: false });
-  const parcelConnection = getSupabaseConfig(camp, "parcel");
-  const [parcelUrl, setParcelUrl] = useState(parcelConnection?.url || "");
-  const [parcelKey, setParcelKey] = useState(parcelConnection?.anonKey || "");
-  const [parcelMessage, setParcelMessage] = useState(parcelConnection ? "ตั้งค่าไว้ในเครื่องนี้แล้ว" : "");
-  const [parcelBusy, setParcelBusy] = useState(false);
-  const vaultConnection = getSupabaseConfig(camp, "vault");
-  const [vaultUrl, setVaultUrl] = useState(vaultConnection?.url || "");
-  const [vaultKey, setVaultKey] = useState(vaultConnection?.anonKey || "");
-  const [vaultMessage, setVaultMessage] = useState(vaultConnection ? "ตั้งค่าไว้ในเครื่องนี้แล้ว" : "");
-  const [vaultBusy, setVaultBusy] = useState(false);
-  const [projectRoomStatuses, setProjectRoomStatuses] = useState<ProjectRoomStates>({});
-  const [projectRoomBusy, setProjectRoomBusy] = useState<number | null>(null);
   const [docs, setDocs] = useState<VaultDoc[]>(() => readLocal(DOCS_KEY, []));
   const [images, setImages] = useState<GalleryItem[]>(() =>
     readLocal(IMAGES_KEY, [])
@@ -272,11 +235,8 @@ export default function SecretGallery() {
     const file = soundFile;
     if (!file) { setSoundUploadMessage("เลือกไฟล์เสียงก่อนครับ"); return; }
     if (!file.type.startsWith("audio/")) { setSoundUploadMessage("รองรับเฉพาะไฟล์เสียงเท่านั้น"); return; }
-    if (file.size > 20_000_000) { setSoundUploadMessage("ไฟล์เสียงต้องไม่เกิน 20 MB"); return; }
-    const assets = getSupabaseConfig(camp, "vault");
-    if (!assets) { setSoundUploadMessage("กรุณาตั้งค่า Private Vault URL และ Anon/Publishable Key ใน ROOM 04 ก่อน"); return; }
+    if (file.size > 18_000_000) { setSoundUploadMessage("ไฟล์เสียงต้องไม่เกิน 18 MB"); return; }
     const api = getSupabase("vault");
-    if (!api) { setSoundUploadMessage("สร้าง Assets Supabase client ไม่สำเร็จ"); return; }
     const name = soundName.trim() || file.name.replace(/\.[^.]+$/, "");
     const safeName = name.toLowerCase().replace(/[^a-z0-9ก-๙]+/gi, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "custom-sound";
     const extension = file.name.split(".").pop()?.toLowerCase() || "audio";
@@ -307,197 +267,6 @@ export default function SecretGallery() {
     const audio = new Audio(signed.data.signedUrl);
     audio.volume = Math.max(0, Math.min(1, Number(selected.volume ?? soundSettings.volume)));
     await audio.play();
-  };
-  const applyChatRoomResults = (results: Array<{ name: string; status: "ready" | "error" }>) => {
-    const resultsByName = new Map(results.map(result => [result.name, result]));
-    const next: ProjectRoomStates = {};
-    for (const room of PROJECT_ROOM_GROUPS[1].rooms) {
-      const result = resultsByName.get(room.table);
-      if (!result) {
-        next[projectRoomStatusKey(1, room.table)] = { kind: "error", detail: "ไม่พบผลตรวจจาก Server" };
-      } else if (result.status === "ready") {
-        next[projectRoomStatusKey(1, room.table)] = room.serverOnly
-          ? { kind: "server", detail: "ตรวจจาก Server แล้ว" }
-          : { kind: "ready", detail: "อ่านได้ · ตรวจจาก Server" };
-      } else {
-        next[projectRoomStatusKey(1, room.table)] = { kind: "error", detail: "Server ตรวจไม่ผ่าน" };
-      }
-    }
-    setProjectRoomStatuses(current => ({ ...current, ...next }));
-  };
-  const setProjectRoomsUnverified = (projectIndex: number, kind: "missing" | "unsafe", detail?: string) => {
-    const next: ProjectRoomStates = {};
-    for (const room of PROJECT_ROOM_GROUPS[projectIndex].rooms) {
-      next[projectRoomStatusKey(projectIndex, room.table)] = room.serverOnly
-        ? { kind: "server" }
-        : { kind, detail };
-    }
-    setProjectRoomStatuses(current => ({ ...current, ...next }));
-  };
-  const checkProjectRooms = async (projectIndex: 0 | 2 | 3) => {
-    const group = PROJECT_ROOM_GROUPS[projectIndex];
-    const credentials = projectIndex === 0
-      ? { url: supabaseUrl, key: supabaseKey }
-      : projectIndex === 2
-        ? { url: parcelUrl, key: parcelKey }
-        : { url: vaultUrl, key: vaultKey };
-    const url = credentials.url.trim().replace(/\/$/, "");
-    const key = credentials.key.trim();
-    if (!url || !key) {
-      setProjectRoomsUnverified(projectIndex, "missing");
-      return;
-    }
-    if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url)) {
-      setProjectRoomsUnverified(projectIndex, "unsafe", "URL Supabase ไม่ถูกต้อง");
-      return;
-    }
-    if (!isPublicSupabaseAnonKey(key)) {
-      setProjectRoomsUnverified(projectIndex, "unsafe", "ใช้ Anon/Publishable Key เท่านั้น");
-      return;
-    }
-
-    setProjectRoomBusy(projectIndex);
-    const starting: ProjectRoomStates = {};
-    for (const room of group.rooms) {
-      starting[projectRoomStatusKey(projectIndex, room.table)] = room.serverOnly ? { kind: "server" } : { kind: "loading" };
-    }
-    setProjectRoomStatuses(current => ({ ...current, ...starting }));
-    try {
-      const results = await Promise.all(group.rooms.filter(room => !room.serverOnly).map(async room => {
-        const id = projectRoomStatusKey(projectIndex, room.table);
-        try {
-          const response = await fetch(`${url}/rest/v1/${encodeURIComponent(room.table)}?select=*&limit=0`, {
-            method: "GET",
-            headers: { apikey: key, Authorization: `Bearer ${key}` },
-            cache: "no-store",
-          });
-          const state = response.ok
-            ? { kind: "ready", detail: "อ่านได้" } as const
-            : { kind: "error", detail: `HTTP ${response.status}` } as const;
-          return [id, state] as const;
-        } catch {
-          return [id, { kind: "error", detail: "เชื่อมต่อไม่สำเร็จ" }] as const;
-        }
-      }));
-      const completed: ProjectRoomStates = {};
-      for (const [id, state] of results) completed[id] = state;
-      setProjectRoomStatuses(current => ({ ...current, ...completed }));
-    } finally {
-      setProjectRoomBusy(current => current === projectIndex ? null : current);
-    }
-  };
-  const saveConnection = async () => {
-    setConnectionBusy(true);
-    setConnectionMessage("");
-    try {
-      const url = supabaseUrl.trim().replace(/\/$/, "");
-      const anonKey = supabaseKey.trim();
-      const table = orderTable.trim() || "🗝️HERMES_ARCHIVE";
-      if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url))
-        throw new Error("URL Supabase ไม่ถูกต้อง");
-      if (!anonKey) throw new Error("กรุณาใส่ Anon/Publishable Key");
-      if (/service_role|secret/i.test(anonKey))
-        throw new Error("ห้ามใส่ service-role หรือ secret key ในหน้าเว็บ");
-      saveSupabaseConfig({ url, anonKey, orderTable: table }, camp);
-      const api = getSupabase();
-      if (!api) throw new Error("สร้าง Supabase client ไม่สำเร็จ");
-      const { error: queryError } = await api
-        .from(table)
-        .select("*", { count: "exact", head: true });
-      if (queryError) throw queryError;
-      setConnectionMessage("เชื่อมต่อแล้ว · บันทึกไว้ในเครื่องนี้");
-    } catch (e) {
-      setConnectionMessage(e instanceof Error ? e.message : String(e));
-    } finally {
-      setConnectionBusy(false);
-    }
-  };
-  const saveLaneConnection = async (urlValue: string, keyValue: string, setBusy: (value: boolean) => void, setMessage: (value: string) => void) => {
-    setBusy(true);
-    setMessage("");
-    try {
-      const url = urlValue.trim().replace(/\/$/, "");
-      const anonKey = keyValue.trim();
-      const label = "Parcel";
-      const relations = ["parcels", "🦅ROGUE_xXx_SHIPPINGz", "📓DEAD_xXx_NOTE"];
-      if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url)) throw new Error(`URL โปรเจกต์ ${label} ไม่ถูกต้อง`);
-      if (!anonKey) throw new Error(`กรุณาใส่ Anon/Publishable Key ของ ${label}`);
-      if (/service_role|secret/i.test(anonKey)) throw new Error("ห้ามใส่ service-role หรือ secret key ในหน้าเว็บ");
-      saveSupabaseConfig({ url, anonKey }, camp, "parcel");
-      const api = getSupabase("parcel");
-      if (!api) throw new Error(`สร้าง ${label} Supabase client ไม่สำเร็จ`);
-      const results = await Promise.all(relations.map(async relation => ({ relation, error: (await api.from(relation).select("*", { count: "exact", head: true })).error })));
-      const failed = results.find(result => result.error);
-      if (failed?.error) throw new Error(`${failed.relation}: ${failed.error.message}`);
-      setMessage(`เชื่อมแล้ว · ตรวจ ${relations.length} จุด`);
-    } catch (e) {
-      setMessage(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-  const saveAndCheckChatConnection = async () => {
-    setChatBusy(true);
-    setChatMessage("");
-    const pending: ProjectRoomStates = {};
-    for (const room of PROJECT_ROOM_GROUPS[1].rooms) {
-      pending[projectRoomStatusKey(1, room.table)] = room.serverOnly ? { kind: "server" } : { kind: "loading" };
-    }
-    setProjectRoomStatuses(current => ({ ...current, ...pending }));
-    try {
-      saveBrowserChatConfig({ url: chatUrl, serviceRoleKey: chatServiceRoleKey });
-      const result = await chatConnectionQuery.refetch();
-      if (result.error) throw result.error;
-      applyChatRoomResults(result.data?.results ?? []);
-      setChatMessage(`ผลตรวจจาก Server · อ่านได้ ${result.data?.checked.length ?? 0}/${PROJECT_ROOM_GROUPS[1].rooms.length} ตาราง`);
-    } catch (e) {
-      applyChatRoomResults(PROJECT_ROOM_GROUPS[1].rooms.map(room => ({ name: room.table, status: "error" as const })));
-      setChatMessage(e instanceof Error ? e.message : String(e));
-    } finally {
-      setChatBusy(false);
-    }
-  };
-  const clearChatBrowserConnection = () => {
-    clearBrowserChatConfig();
-    setChatUrl("");
-    setChatServiceRoleKey("");
-    setProjectRoomsUnverified(1, "missing");
-    setChatMessage("ล้าง Chat config ของ browser นี้แล้ว · ระบบจะไม่เรียกฐานข้อมูลแชท");
-  };
-  const clearLaneConnection = (setUrl: (value: string) => void, setKey: (value: string) => void, setMessage: (value: string) => void) => {
-    clearSupabaseConfig(camp, "parcel");
-    setUrl("");
-    setKey("");
-    setProjectRoomsUnverified(2, "missing");
-    setMessage("ล้าง connection Parcel แล้ว · จะ fallback ไป Tracking เดิม");
-  };
-  const saveVaultConnection = async () => {
-    setVaultBusy(true);
-    setVaultMessage("");
-    try {
-      const url = vaultUrl.trim().replace(/\/$/, "");
-      const anonKey = vaultKey.trim();
-      if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url)) throw new Error("URL โปรเจกต์ Private Vault ไม่ถูกต้อง");
-      if (!anonKey) throw new Error("กรุณาใส่ Anon/Publishable Key ของ Private Vault");
-      if (/service_role|secret/i.test(anonKey)) throw new Error("ห้ามใส่ service-role หรือ secret key ในหน้าเว็บ");
-      saveSupabaseConfig({ url, anonKey }, camp, "vault");
-      const api = getSupabase("vault");
-      if (!api) throw new Error("สร้าง Private Vault Supabase client ไม่สำเร็จ");
-      const { error: authError } = await api.auth.getSession();
-      if (authError) throw authError;
-      setVaultMessage("เชื่อมต่อแล้ว · ใช้ sales_script_cards + sales-script-images + app_sounds + chat-sounds");
-    } catch (e) {
-      setVaultMessage(e instanceof Error ? e.message : String(e));
-    } finally {
-      setVaultBusy(false);
-    }
-  };
-  const clearVaultConnection = () => {
-    clearSupabaseConfig(camp, "vault");
-    setVaultUrl("");
-    setVaultKey("");
-    setProjectRoomsUnverified(3, "missing");
-    setVaultMessage("ล้าง connection Private Vault แล้ว");
   };
   const editLineChannel = (row: LineChannelRow) => setLineForm({ id: row.id, channelId: row.channel_id, channelName: row.channel_name, oaId: row.oa_id, accessToken: "", channelSecret: "", isActive: row.is_active, isWebActive: String(row.status_web ?? "ON").toUpperCase() !== "OFF" });
   const submitLineChannel = () => { setLineMessage(""); saveLineChannel.mutate(lineForm); };
@@ -751,7 +520,7 @@ export default function SecretGallery() {
                 <div className="flex flex-wrap items-center gap-2">
                   <label className="flex items-center gap-2 text-xs text-lime-100/70"><input type="checkbox" checked={lineForm.isActive} onChange={event => setLineForm(current => ({ ...current, isActive: event.target.checked }))} className="accent-lime-400" /> เปิดใช้งาน</label><label className="flex items-center gap-2 text-xs text-emerald-100/70"><input type="checkbox" checked={lineForm.isWebActive} onChange={event => setLineForm(current => ({ ...current, isWebActive: event.target.checked }))} className="accent-emerald-400" /> เว็บ ON</label>
                   <Button type="button" onClick={submitLineChannel} disabled={saveLineChannel.isPending} className="bg-lime-400 text-black hover:bg-lime-300">{saveLineChannel.isPending ? "กำลังบันทึก…" : lineForm.id ? "บันทึกการแก้ไข" : "เพิ่ม LINE OA"}</Button>
-                  {lineForm.id ? <Button type="button" variant="outline" onClick={() => setLineForm({ channelId: "", channelName: "", oaId: "", accessToken: "", channelSecret: "", isActive: true })} className="border-lime-300/25 text-lime-100">ยกเลิกแก้ไข</Button> : null}
+                  {lineForm.id ? <Button type="button" variant="outline" onClick={() => setLineForm({ channelId: "", channelName: "", oaId: "", accessToken: "", channelSecret: "", isActive: true, isWebActive: true })} className="border-lime-300/25 text-lime-100">ยกเลิกแก้ไข</Button> : null}
                   <span className="text-xs text-lime-100/70">{lineMessage}</span>
                 </div>
                 {lineChannelsQuery.isError ? <p className="rounded-xl border border-red-300/25 bg-red-400/10 p-3 text-xs text-red-200">โหลดรายการ LINE ไม่สำเร็จ: {lineChannelsQuery.error.message}</p> : null}
@@ -783,7 +552,7 @@ export default function SecretGallery() {
                   <span className="text-xs text-blue-100/70">{facebookMessage}</span>
                 </div>
                 {facebookPagesQuery.isError ? <p className="rounded-xl border border-amber-300/25 bg-amber-400/10 p-3 text-xs text-amber-100">โหลดเพจไม่ได้: {facebookPagesQuery.error.message} · ตรวจ Chat config ใน ROOM 02</p> : null}
-                {(facebookPagesQuery.data as FacebookPageRow[] | undefined)?.map(page => <div key={page.pageId} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-300/15 bg-black/20 p-3"><div className="min-w-0"><p className="truncate text-sm font-semibold text-blue-100">{page.pageName}</p><p className="mt-1 font-mono text-[10px] text-blue-100/55">Page {page.pageId} · แอป {page.enabledMobile ? "ON" : "OFF"} · เว็บ {page.enabledWeb ? "ON" : "OFF"}</p></div><div className="flex flex-wrap gap-2"><Button type="button" size="sm" variant="outline" onClick={() => editFacebookPage(page)} className="border-blue-300/25 text-blue-100">แก้ไข</Button><Button type="button" size="sm" variant="outline" disabled={setFacebookAppStatus.isPending} onClick={() => setFacebookAppStatus.mutate({ pageId: page.pageId, enabled: !page.enabledMobile })} className={page.enabledMobile ? "border-cyan-300/25 text-cyan-100" : "border-red-300/25 text-red-200"}>{page.enabledMobile ? "แอป ON" : "แอป OFF"}</Button><Button type="button" size="sm" variant="outline" disabled={setFacebookWebStatus.isPending} onClick={() => setFacebookWebStatus.mutate({ pageId: page.pageId, enabled: !page.enabledWeb })} className={page.enabledWeb ? "border-emerald-300/25 text-emerald-100" : "border-red-300/25 text-red-200"}>{page.enabledWeb ? "เว็บ ON" : "เว็บ OFF"}</Button><Button type="button" size="sm" variant="outline" onClick={() => { const enabled = notificationPageSettings[page.pageId] !== false; setChatNotificationPageEnabled(page.pageId, !enabled, savedBrowserChatConfig?.url); setNotificationPageSettings(readChatNotificationPageSettings(savedBrowserChatConfig?.url)); }} className={notificationPageSettings[page.pageId] !== false ? "border-amber-300/25 text-amber-100" : "border-red-300/25 text-red-200"}><Bell className="mr-1 h-3.5 w-3.5" />แจ้งเตือน {notificationPageSettings[page.pageId] !== false ? "ON" : "OFF"}</Button><label className="flex items-center gap-1.5 text-[10px] text-blue-100/75"><Volume2 className="h-3.5 w-3.5" /><span className="sr-only">เสียงแจ้งเตือน {page.pageName}</span><select aria-label={`เสียงแจ้งเตือน ${page.pageName}`} value={notificationPageSounds[page.pageId] || ""} onChange={event => { const soundKey = event.target.value || null; setChatNotificationPageSound(page.pageId, soundKey, savedBrowserChatConfig?.url); setNotificationPageSounds(readChatNotificationPageSounds(savedBrowserChatConfig?.url)); }} className="max-w-40 rounded-md border border-blue-300/25 bg-[#100a12] px-2 py-1.5 text-[10px] text-blue-50"><option value="">ใช้เสียงค่าเริ่มต้น</option>{soundRows.filter(sound => sound.event_type === "new_message" || sound.event_type === "custom").map(sound => <option key={sound.sound_key} value={sound.sound_key}>{sound.name}</option>)}</select></label><Button type="button" size="sm" variant="outline" onClick={() => { if (window.confirm(`ลบ ${page.pageName} หรือไม่`)) deleteFacebookPage.mutate({ pageId: page.pageId }); }} className="border-red-300/25 text-red-200"><Trash2 className="mr-1 h-3.5 w-3.5" />ลบ</Button></div></div>)}
+                {(facebookPagesQuery.data as FacebookPageRow[] | undefined)?.map(page => <div key={page.pageId} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-300/15 bg-black/20 p-3"><div className="min-w-0"><p className="truncate text-sm font-semibold text-blue-100">{page.pageName}</p><p className="mt-1 font-mono text-[10px] text-blue-100/55">Page {page.pageId} · แอป {page.enabledMobile ? "ON" : "OFF"} · เว็บ {page.enabledWeb ? "ON" : "OFF"}</p></div><div className="flex flex-wrap gap-2"><Button type="button" size="sm" variant="outline" onClick={() => editFacebookPage(page)} className="border-blue-300/25 text-blue-100">แก้ไข</Button><Button type="button" size="sm" variant="outline" disabled={setFacebookAppStatus.isPending} onClick={() => setFacebookAppStatus.mutate({ pageId: page.pageId, enabled: !page.enabledMobile })} className={page.enabledMobile ? "border-cyan-300/25 text-cyan-100" : "border-red-300/25 text-red-200"}>{page.enabledMobile ? "แอป ON" : "แอป OFF"}</Button><Button type="button" size="sm" variant="outline" disabled={setFacebookWebStatus.isPending} onClick={() => setFacebookWebStatus.mutate({ pageId: page.pageId, enabled: !page.enabledWeb })} className={page.enabledWeb ? "border-emerald-300/25 text-emerald-100" : "border-red-300/25 text-red-200"}>{page.enabledWeb ? "เว็บ ON" : "เว็บ OFF"}</Button><Button type="button" size="sm" variant="outline" onClick={() => { const enabled = notificationPageSettings[page.pageId] !== false; setChatNotificationPageEnabled(page.pageId, !enabled, undefined); setNotificationPageSettings(readChatNotificationPageSettings(undefined)); }} className={notificationPageSettings[page.pageId] !== false ? "border-amber-300/25 text-amber-100" : "border-red-300/25 text-red-200"}><Bell className="mr-1 h-3.5 w-3.5" />แจ้งเตือน {notificationPageSettings[page.pageId] !== false ? "ON" : "OFF"}</Button><label className="flex items-center gap-1.5 text-[10px] text-blue-100/75"><Volume2 className="h-3.5 w-3.5" /><span className="sr-only">เสียงแจ้งเตือน {page.pageName}</span><select aria-label={`เสียงแจ้งเตือน ${page.pageName}`} value={notificationPageSounds[page.pageId] || ""} onChange={event => { const soundKey = event.target.value || null; setChatNotificationPageSound(page.pageId, soundKey, undefined); setNotificationPageSounds(readChatNotificationPageSounds(undefined)); }} className="max-w-40 rounded-md border border-blue-300/25 bg-[#100a12] px-2 py-1.5 text-[10px] text-blue-50"><option value="">ใช้เสียงค่าเริ่มต้น</option>{soundRows.filter(sound => sound.event_type === "new_message" || sound.event_type === "custom").map(sound => <option key={sound.sound_key} value={sound.sound_key}>{sound.name}</option>)}</select></label><Button type="button" size="sm" variant="outline" onClick={() => { if (window.confirm(`ลบ ${page.pageName} หรือไม่`)) deleteFacebookPage.mutate({ pageId: page.pageId }); }} className="border-red-300/25 text-red-200"><Trash2 className="mr-1 h-3.5 w-3.5" />ลบ</Button></div></div>)}
                 {!facebookPagesQuery.isLoading && !facebookPagesQuery.data?.length ? <p className="rounded-xl border border-blue-300/10 p-4 text-center text-xs text-blue-100/50">ยังไม่พบเพจ Facebook หรือยังไม่ได้ตั้งค่า Chat ROOM 02</p> : null}
               </CardContent>
             </Card>
@@ -791,97 +560,14 @@ export default function SecretGallery() {
         </section>
         <section className="space-y-4 pt-3">
           <div className="flex flex-wrap items-end justify-between gap-3 border-b border-rose-300/10 pb-3">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-rose-300/75">PROJECT CONNECTIONS · ROOMS 01–04</p>
-              <h2 className="mt-1 text-lg font-semibold text-white">การเชื่อมต่อฐานข้อมูล</h2>
-              <p className="mt-1 text-xs text-white/50">แต่ละ Room มี credential และผลตรวจตารางของตัวเอง</p>
-            </div>
-            <span className="rounded-full border border-rose-300/20 bg-rose-400/[0.06] px-3 py-1.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-rose-200/70">04 PROJECTS</span>
+            <div><p className="text-[10px] font-bold uppercase tracking-[0.28em] text-rose-300/75">SERVER PROJECT STATUS · ROOMS 01–04</p><h2 className="mt-1 text-lg font-semibold text-white">การเชื่อมต่อฐานข้อมูล</h2><p className="mt-1 text-xs text-white/50">URL/anon key เดิมใน browser คงไว้เป็นข้อมูลสำรอง · ไม่อ่าน ไม่ใช้ หรือส่งไปเชื่อมต่อ; credentials จริงอยู่บนเซิร์ฟเวอร์</p></div>
+            <span className="rounded-full border border-rose-300/20 bg-rose-400/[0.06] px-3 py-1.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-rose-200/70">SERVER ONLY</span>
           </div>
-          <div className="grid gap-5 xl:grid-cols-2">
-            <Card className="project-room-card relative h-full min-w-0 overflow-hidden rounded-3xl border border-rose-300/20 bg-[#100a12] shadow-[0_18px_55px_rgba(0,0,0,.35)] transition duration-300 hover:-translate-y-0.5 hover:border-rose-300/45">
-              <CardHeader className="border-b border-rose-300/10 pb-4">
-                <CardTitle className="flex items-center gap-2 text-sm font-semibold text-rose-100">
-                  <LockKeyhole className="h-4 w-4 text-cyan-300" />
-                  ROOM 01 · ORDER CORE · HERMES / MULTIVERSE / SINGULARITY
-                </CardTitle>
-                <p className="mt-2 text-xs leading-5 text-white/55">เชื่อมฐานคำสั่งซื้อและเลือกตารางออเดอร์หลักของระบบ</p>
-              </CardHeader>
-              <CardContent className="grid gap-4">
-                <div className="grid gap-3 md:grid-cols-2">
-                  <label className="grid gap-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-white/55">SUPABASE URL
-                    <Input value={supabaseUrl} onChange={e => setSupabaseUrl(e.target.value)} placeholder="https://ชื่อโปรเจกต์.supabase.co" className="border-white/10 bg-black/35 text-white placeholder:text-white/30 focus-visible:ring-rose-300/40" />
-                  </label>
-                  <label className="grid gap-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-white/55">ANON / PUBLISHABLE KEY
-                    <Input type="password" value={supabaseKey} onChange={e => setSupabaseKey(e.target.value)} placeholder="วาง Anon / Publishable Key" className="border-white/10 bg-black/35 font-mono text-white placeholder:text-white/30 focus-visible:ring-rose-300/40" />
-                  </label>
-                  <label className="grid gap-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-white/55 md:col-span-2">ORDER TABLE
-                    <Input value={orderTable} onChange={e => setOrderTable(e.target.value)} placeholder="🗝️HERMES_ARCHIVE" className="border-white/10 bg-black/35 font-mono text-white placeholder:text-white/30 focus-visible:ring-rose-300/40" />
-                  </label>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button onClick={() => void saveConnection()} disabled={connectionBusy} className="min-w-[180px] justify-center bg-gradient-to-r from-rose-500 via-fuchsia-500 to-violet-600 text-white shadow-[0_0_22px_rgba(255,49,87,.2)] hover:brightness-110">
-                    {connectionBusy ? "กำลังตรวจ…" : "บันทึกและทดสอบการเชื่อมต่อ"}
-                  </Button>
-                  <span className="text-xs text-white/55">{connectionMessage}</span>
-                </div>
-                <ProjectRoomsPanel projectIndex={0} statuses={projectRoomStatuses} configured={Boolean(supabaseUrl.trim() && supabaseKey.trim())} busy={connectionBusy || projectRoomBusy === 0} onCheck={() => void checkProjectRooms(0)} />
-              </CardContent>
-            </Card>
-            <Card className="project-room-card relative h-full min-w-0 overflow-hidden rounded-3xl border border-rose-300/20 bg-[#100a12] shadow-[0_18px_55px_rgba(0,0,0,.35)] transition duration-300 hover:-translate-y-0.5 hover:border-rose-300/45">
-              <CardHeader className="border-b border-rose-300/10 pb-4">
-                <CardTitle className="flex items-center gap-2 text-sm font-semibold text-rose-100"><MessageCircle className="h-5 w-5 text-cyan-300" />ROOM 02 · CHAT CORE · MESSENGER</CardTitle>
-                <p className="text-xs leading-5 text-white/55">Chat ใช้ตาราง <span className="font-mono text-cyan-200">Cust_Chat⭐BINARY_xXx_STAR</span> และ <span className="font-mono text-cyan-200">Pg_Chat⭐BINARY_xXx_STAR</span> · Meta Page Token อยู่ใน <span className="font-mono text-cyan-200">🌈MILKY_WAY_xXx_TOKEN _PAGE</span> และอ่านเฉพาะฝั่ง server</p>
-              </CardHeader>
-              <CardContent className="grid gap-4">
-                <p className="text-xs leading-5 text-cyan-100/70">ChatHub อ่านผ่าน protected server route จากวิว 🌠BINARY_xXx_MATRIX เพียงจุดเดียว · ค่า Chat ที่กรอกด้านล่างเก็บใน browser นี้ และส่งให้ server เฉพาะคำขอ Chat</p>
-                <div className="grid gap-3 md:grid-cols-2">
-                  <label className="grid gap-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-white/55">CHAT SUPABASE URL<Input value={chatUrl} onChange={event => setChatUrl(event.target.value)} placeholder="https://zxmczmgmtbnammtljdls.supabase.co" className="border-white/10 bg-black/35 text-white placeholder:text-white/30 focus-visible:ring-rose-300/40" /></label>
-                  <label className="grid gap-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-white/55">CHAT SERVICE-ROLE KEY<Input type="password" autoComplete="new-password" value={chatServiceRoleKey} onChange={event => setChatServiceRoleKey(event.target.value)} placeholder="วาง service-role key ของโปรเจกต์ Chat" className="border-white/10 bg-black/35 font-mono text-white placeholder:text-white/30 focus-visible:ring-rose-300/40" /></label>
-                </div>
-                <div className="flex min-h-10 flex-wrap items-center gap-2">
-                  <Button type="button" onClick={() => void saveAndCheckChatConnection()} disabled={chatBusy} className="min-w-[180px] justify-center bg-gradient-to-r from-rose-500 via-fuchsia-500 to-violet-600 text-white shadow-[0_0_22px_rgba(255,49,87,.2)] hover:brightness-110">{chatBusy ? "กำลังตรวจ…" : "บันทึกและตรวจ Chat"}</Button>
-                  <Button type="button" variant="outline" onClick={clearChatBrowserConnection} className="border-white/10 bg-white/[0.035] text-white/65 hover:bg-white/[0.08]">ล้างค่า</Button>
-                  <span className="min-h-5 text-xs text-cyan-100/70" aria-live="polite">{chatMessage}</span>
-                </div>
-                <p className="text-[10px] leading-4 text-cyan-100/45">เก็บเฉพาะ browser นี้ · ถ้าไม่กรอก ระบบจะไม่เรียกฐานข้อมูลแชท · ไม่ fallback ไป Main/Tracking หรือ table/token column อื่น</p>
-                <ProjectRoomsPanel projectIndex={1} statuses={projectRoomStatuses} configured={Boolean(chatUrl.trim() && chatServiceRoleKey.trim())} busy={chatBusy} onCheck={() => void saveAndCheckChatConnection()} />
-              </CardContent>
-            </Card>
-            <Card className="project-room-card relative h-full min-w-0 overflow-hidden rounded-3xl border border-rose-300/20 bg-[#100a12] shadow-[0_18px_55px_rgba(0,0,0,.35)] transition duration-300 hover:-translate-y-0.5 hover:border-rose-300/45">
-              <CardHeader className="border-b border-rose-300/10 pb-4">
-                <CardTitle className="flex items-center gap-2 text-sm font-semibold text-rose-100"><PackageOpen className="h-5 w-5 text-fuchsia-300" />ROOM 03 · PARCEL RETURN · SHIPPING</CardTitle>
-                <p className="text-xs leading-5 text-white/55">พัสดุ คิวจับคู่ และประวัติส่งเลข · แยกจากฐานแชทและฐานออเดอร์</p>
-              </CardHeader>
-              <CardContent className="grid gap-3 md:grid-cols-2">
-                <label className="grid gap-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-white/55">PARCEL SUPABASE URL<Input value={parcelUrl} onChange={event => setParcelUrl(event.target.value)} placeholder="https://parcel-project.supabase.co" className="border-white/10 bg-black/35 text-white placeholder:text-white/30 focus-visible:ring-rose-300/40" /></label>
-                <label className="grid gap-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-white/55">PARCEL ANON / PUBLISHABLE KEY<Input type="password" value={parcelKey} onChange={event => setParcelKey(event.target.value)} placeholder="sb_publishable_… หรือ anon key" className="border-white/10 bg-black/35 font-mono text-white placeholder:text-white/30 focus-visible:ring-rose-300/40" /></label>
-                <div className="flex flex-wrap items-center gap-2 md:col-span-2">
-                  <Button type="button" onClick={() => void saveLaneConnection(parcelUrl, parcelKey, setParcelBusy, setParcelMessage)} disabled={parcelBusy} className="min-w-[180px] justify-center bg-gradient-to-r from-rose-500 via-fuchsia-500 to-violet-600 text-white shadow-[0_0_22px_rgba(255,49,87,.2)] hover:brightness-110">{parcelBusy ? "กำลังตรวจ…" : "บันทึก Parcel"}</Button>
-                  <Button type="button" variant="outline" onClick={() => clearLaneConnection(setParcelUrl, setParcelKey, setParcelMessage)} className="border-white/10 bg-white/[0.035] text-white/65 hover:bg-white/[0.08]">ล้าง</Button>
-                  <span className="text-xs text-fuchsia-100/70">{parcelMessage}</span>
-                </div>
-                <p className="text-[10px] leading-4 text-fuchsia-100/45 md:col-span-2">ใส่เฉพาะ Anon/Publishable Key · ห้ามใส่ service-role หรือ secret key · ถ้าไม่กรอกจะใช้ Tracking เดิม</p>
-              <div className="md:col-span-2"><ProjectRoomsPanel projectIndex={2} statuses={projectRoomStatuses} configured={Boolean(parcelUrl.trim() && parcelKey.trim())} busy={parcelBusy || projectRoomBusy === 2} onCheck={() => void checkProjectRooms(2)} /></div>
-            </CardContent>
-            </Card>
-            <Card className="project-room-card relative h-full min-w-0 overflow-hidden rounded-3xl border border-rose-300/20 bg-[#100a12] shadow-[0_18px_55px_rgba(0,0,0,.35)] transition duration-300 hover:-translate-y-0.5 hover:border-rose-300/45">
-              <CardHeader className="border-b border-rose-300/10 pb-4">
-                <CardTitle className="flex items-center gap-2 text-sm font-semibold text-rose-100"><ImagePlus className="h-5 w-5 text-emerald-300" />ROOM 04 · PRIVATE VAULT · ASSETS</CardTitle>
-                <p className="text-xs leading-5 text-white/55">คลังภาพ สคริปต์ บทความ และข้อมูลการตลาด · ล็อกใช้โต๊ะ <span className="font-mono text-emerald-200">sales_script_cards</span> และ bucket <span className="font-mono text-emerald-200">sales-script-images</span> ตายตัว</p>
-              </CardHeader>
-              <CardContent className="grid gap-4 md:grid-cols-2">
-                <label className="grid gap-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-white/55">PRIVATE VAULT SUPABASE URL<Input value={vaultUrl} onChange={event => setVaultUrl(event.target.value)} placeholder="https://vault-project.supabase.co" className="border-white/10 bg-black/35 text-white placeholder:text-white/30 focus-visible:ring-rose-300/40" /></label>
-                <label className="grid gap-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-white/55">PRIVATE VAULT ANON / PUBLISHABLE KEY<Input type="password" value={vaultKey} onChange={event => setVaultKey(event.target.value)} placeholder="sb_publishable_… หรือ anon key" className="border-white/10 bg-black/35 font-mono text-white placeholder:text-white/30 focus-visible:ring-rose-300/40" /></label>
-                <div className="flex flex-wrap items-center gap-2 md:col-span-2">
-                  <Button type="button" onClick={() => void saveVaultConnection()} disabled={vaultBusy} className="min-w-[180px] justify-center bg-gradient-to-r from-rose-500 via-fuchsia-500 to-violet-600 text-white shadow-[0_0_22px_rgba(255,49,87,.2)] hover:brightness-110">{vaultBusy ? "กำลังตรวจ…" : "บันทึก Private Vault"}</Button>
-                  <Button type="button" variant="outline" onClick={clearVaultConnection} className="border-white/10 bg-white/[0.035] text-white/65 hover:bg-white/[0.08]">ล้าง</Button>
-                  <span className="text-xs text-white/55">{vaultMessage}</span>
-                </div>
-                <p className="text-[10px] leading-4 text-white/45 md:col-span-2">ใส่เฉพาะ Anon/Publishable Key · ห้ามใส่ service-role · ตารางของภาพ สคริปต์ และบทความจะกำหนดแยกในแต่ละฟีเจอร์</p>
-                <div className="md:col-span-2"><ProjectRoomsPanel projectIndex={3} statuses={projectRoomStatuses} configured={Boolean(vaultUrl.trim() && vaultKey.trim())} busy={vaultBusy || projectRoomBusy === 3} onCheck={() => void checkProjectRooms(3)} /></div>
-              </CardContent>
-            </Card>
+          <div className="grid gap-4 xl:grid-cols-2">
+            <ServerProjectConnection project="main" title="ROOM 01 · ORDER / MAIN" description="ออเดอร์หลัก สินค้า และตารางสนับสนุน" />
+            <ServerProjectConnection project="chat" title="ROOM 02 · CHAT" description="ประวัติแชท เพจ และ LINE · ใช้ CHAT Supabase credentials ฝั่ง Server" />
+            <ServerProjectConnection project="tracking" title="ROOM 03 · TRACKING / PARCEL" description="บัญชี Supabase เลขพัสดุเดียวกันสำหรับ TRACKING และ PARCEL" />
+            <ServerProjectConnection project="vault" title="ROOM 04 · PRIVATE VAULT" description="สคริปต์ ภาพ เสียง ธีม และกรอบแชท" />
           </div>
         </section>
         </> : null}

@@ -31,7 +31,7 @@ export default function TelegramSentHistory() {
   const orders = (query.data?.orders ?? []) as Array<Record<string, any>>;
 
   return (
-    <div className="min-h-full space-y-5 text-white">
+    <div className="st-runtime-room telegram-history-runtime-room min-h-full space-y-5 text-white">
       <header className="rounded-3xl border border-emerald-300/25 bg-[#081713] p-6 shadow-2xl shadow-emerald-950/20">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>

@@ -14,7 +14,7 @@
 คำสั่งต่อไปนี้เป็นตัวอย่างเดิมสำหรับ patch รุ่นเก่าเท่านั้น ห้ามรันกับ branch ปัจจุบัน:
 
 ```powershell
-git apply .\BB_STORE_ORDERS-chat-send-reliability.patch
+git apply .\ST_STORE_ORDERS-chat-send-reliability.patch
 ```
 
 จากนั้นตรวจและ build:

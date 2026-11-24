@@ -32,7 +32,7 @@ export default function OrderHistory() {
     : allOrders;
   const codTotal = orders.reduce((sum: number, order: any) => sum + (Number(order.cod_amount) || 0), 0);
 
-  return <div className="min-h-[calc(100vh-2rem)] space-y-5 bg-[#070716] p-2 text-white sm:p-4 lg:p-6">
+  return <div className="st-runtime-room order-history-runtime-room min-h-[calc(100vh-2rem)] space-y-5 bg-[#070716] p-2 text-white sm:p-4 lg:p-6">
     <header className="relative overflow-hidden rounded-3xl border border-fuchsia-400/25 bg-[radial-gradient(ellipse_at_top_left,_rgba(168,85,247,0.20),_transparent_50%),linear-gradient(120deg,_#120d28,_#09091a)] p-5 shadow-[0_0_18px_rgba(168,85,247,.18),0_0_42px_rgba(34,211,238,.08)] sm:p-6">
       <div className="pointer-events-none absolute -right-8 -top-10 h-40 w-40 rounded-full bg-fuchsia-500/10 blur-3xl" />
       <div className="relative flex flex-wrap items-start justify-between gap-4">

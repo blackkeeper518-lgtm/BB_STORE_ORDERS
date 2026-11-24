@@ -1,14 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   CHAT_CUSTOMER_TABLE,
-  CHAT_MATRIX_VIEW,
   CHAT_PAGE_TABLE,
   CHAT_PAGE_TOKEN_TABLE,
   checkChatConnection,
   fetchChatMessageRows,
   fetchChatThreadRows,
 } from "../../../server/supabase";
-import { mapChatRowsToMessages, mapChatRowsToThreads, reconcileOptimisticMessages } from "./canonical";
+import { extractChatImageUrls, mapChatRowsToMessages, mapChatRowsToThreads, reconcileOptimisticMessages } from "./canonical";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -36,12 +35,12 @@ describe("ChatHub read contract v5", () => {
       expect.stringContaining(`/rest/v1/${encodeURIComponent(CHAT_PAGE_TABLE)}?`),
     ]));
     expect(requests.filter(({ url }) => new URL(url).searchParams.get("select") === "*")).toHaveLength(2);
-    expect(requests.some(({ url }) => url.includes(encodeURIComponent(CHAT_PAGE_TOKEN_TABLE)) && new URL(url).searchParams.get("select") === "page_id,status")).toBe(true);
+    expect(requests.some(({ url }) => url.includes(encodeURIComponent(CHAT_PAGE_TOKEN_TABLE)) && new URL(url).searchParams.get("select") === "page_id,status,status_web")).toBe(true);
     expect(rows.map(row => row._source_table)).toEqual([CHAT_CUSTOMER_TABLE, CHAT_PAGE_TABLE]);
     expect(requests.every(({ init }) => (init?.headers as Record<string, string>).Authorization === "Bearer test-chat-service-role-key")).toBe(true);
   });
 
-  it("uses browser-selected Chat credentials for the protected two-table read", async () => {
+  it("cannot redirect Chat reads with a legacy credential argument", async () => {
     vi.stubEnv("CHAT_SUPABASE_URL", "https://server-chat.supabase.co");
     vi.stubEnv("CHAT_SUPABASE_SERVICE_ROLE_KEY", "server-chat-key");
     const requests: Array<{ url: string; init?: RequestInit }> = [];
@@ -50,14 +49,10 @@ describe("ChatHub read contract v5", () => {
       return new Response("[]", { status: 200, headers: { "content-type": "application/json" } });
     });
 
-    await fetchChatThreadRows({
-      url: "https://browser-chat.supabase.co",
-      serviceRoleKey: "browser-chat-key",
-    });
-
+    await fetchChatThreadRows({ url: "https://browser-chat.supabase.co", serviceRoleKey: "browser-chat-key" });
     expect(requests).toHaveLength(3);
-    expect(requests.every(({ url }) => url.startsWith("https://browser-chat.supabase.co/rest/v1/"))).toBe(true);
-    expect(requests.every(({ init }) => (init?.headers as Record<string, string>).Authorization === "Bearer browser-chat-key")).toBe(true);
+    expect(requests.every(({ url }) => url.startsWith("https://server-chat.supabase.co/rest/v1/"))).toBe(true);
+    expect(requests.every(({ init }) => (init?.headers as Record<string, string>).Authorization === "Bearer server-chat-key")).toBe(true);
   });
 
   it("filters selected-room messages in both source-table requests", async () => {
@@ -81,7 +76,7 @@ describe("ChatHub read contract v5", () => {
     }
   });
 
-  it("checks all eleven Room 02 tables without returning token values or rows", async () => {
+  it("checks all ten Room 02 tables without returning token values or rows", async () => {
     vi.stubEnv("CHAT_SUPABASE_URL", "https://zxmczmgmtbnammtljdls.supabase.co");
     vi.stubEnv("CHAT_SUPABASE_SERVICE_ROLE_KEY", "test-chat-service-role-key");
     const requests: Array<{ url: string; init?: RequestInit }> = [];
@@ -91,12 +86,11 @@ describe("ChatHub read contract v5", () => {
     });
 
     const result = await checkChatConnection();
-    expect(result.checked).toHaveLength(11);
-    expect(result.results).toHaveLength(11);
+    expect(result.checked).toHaveLength(10);
+    expect(result.results).toHaveLength(10);
     expect(result.results.every(room => room.status === "ready")).toBe(true);
-    expect(requests).toHaveLength(11);
+    expect(requests).toHaveLength(10);
     expect(requests.every(({ url }) => new URL(url).searchParams.get("limit") === "0")).toBe(true);
-    expect(requests.some(({ url }) => url.includes(encodeURIComponent(CHAT_MATRIX_VIEW)))).toBe(true);
     expect(requests.some(({ url }) => url.includes(encodeURIComponent(CHAT_PAGE_TOKEN_TABLE)) && url.includes("select=page_id%2Caccess_token"))).toBe(true);
     expect(requests.every(({ init }) => (init?.headers as Record<string, string>).Authorization === "Bearer test-chat-service-role-key")).toBe(true);
     expect(JSON.stringify(result)).not.toContain("access_token");
@@ -116,11 +110,11 @@ describe("ChatHub read contract v5", () => {
     });
 
     const result = await checkChatConnection();
-    expect(requests).toHaveLength(13); // ตารางที่อ่านไม่ได้ถูกลองซ้ำ 3 ครั้ง
+    expect(requests).toHaveLength(12); // ตารางที่อ่านไม่ได้ถูกลองซ้ำ 3 ครั้ง
     expect(requests.filter(url => url.includes("/rest/v1/line_channels?")).length).toBe(3);
-    expect(result.checked).toHaveLength(10);
+    expect(result.checked).toHaveLength(9);
     expect(result.results.find(room => room.name === "line_channels")).toEqual({ name: "line_channels", status: "error" });
-    expect(result.results.filter(room => room.status === "ready")).toHaveLength(10);
+    expect(result.results.filter(room => room.status === "ready")).toHaveLength(9);
     expect(JSON.stringify(result)).not.toContain("test-chat-service-role-key");
   });
 
@@ -293,7 +287,7 @@ describe("ChatHub read contract v5", () => {
       id: 41,
       page_id: "page-1",
       page_name: "ร้านตัวอย่าง",
-      portal_key: "BB_06",
+      portal_key: "ST_06",
       chat_link_key: "page-1_t_thread-1",
       thread_id: "thread-1",
       customer_id: "customer-1",
@@ -312,7 +306,7 @@ describe("ChatHub read contract v5", () => {
       time_th: "09/11/2569 11:50:06",
       occurred_at: "2026-11-09T04:50:06.000Z",
       time: "2026-11-09T04:50:06.000Z",
-      upsert_key: "BB_06_ORD-081126-192451_0615107528_22180",
+      upsert_key: "ST_06_ORD-081126-192451_0615107528_22180",
       order_number: "ORD-081126-192451",
       order_time_display: "09/11 11:50",
       cod_amount: 990,
@@ -333,15 +327,15 @@ describe("ChatHub read contract v5", () => {
     expect(thread.customerLatestMessage).toBe("ส่งของยังคัย");
     expect(thread.pageLatestMessage).toBeNull();
     expect(thread.customerPhone).toBe("0812345678");
-    expect(thread.upsert_key).toBe("BB_06_ORD-081126-192451_0615107528_22180");
+    expect(thread.upsert_key).toBe("ST_06_ORD-081126-192451_0615107528_22180");
     expect(thread.order_number).toBe("ORD-081126-192451");
     expect(thread.cod_amount).toBe(990);
     expect(thread.parcel_status_emoji).toBe("⚡SENT");
     expect(thread.delivery_status).toBe("🔥SENT");
   });
 
-  it("uses customer_latest_message when the customer source row has no message_text", () => {
-    const [message] = mapChatRowsToMessages([{
+  it("ignores removed customer_latest_message when the customer source row has no message_text", () => {
+    const messages = mapChatRowsToMessages([{
       _source_table: CHAT_CUSTOMER_TABLE,
       page_id: "page-1",
       thread_id: "thread-1",
@@ -353,9 +347,48 @@ describe("ChatHub read contract v5", () => {
       occurred_at: "2026-11-13T08:00:00.000Z",
     }]);
 
+    expect(messages).toHaveLength(0);
+  });
+
+  it("reads the base message_text field when the per-message migration is absent", () => {
+    const [message] = mapChatRowsToMessages([{
+      _source_table: CHAT_PAGE_TABLE,
+      id: 55,
+      page_id: "page-1",
+      thread_id: "thread-1",
+      speaker: "page",
+      message_text: "📷 ส่งรูปภาพ",
+      has_attachment: true,
+      attachment_url: "https://cdn.example.test/photo.jpg",
+      occurred_at: "2026-11-23T00:00:00.000Z",
+    }]);
+
+    expect(message.direction).toBe("outbound");
+    expect(message.text).toBe("📷 ส่งรูปภาพ");
+    expect(message.attachmentsJson).toContain("https://cdn.example.test/photo.jpg");
+  });
+
+  it("keeps one image when an attachment repeats a thumbs-up URL across preview and signed variants", () => {
+    const images = extractChatImageUrls([
+      { url: "https://cdn.example.test/thumbs-up.png?token=first", preview_url: "https://cdn.example.test/thumbs-up.png?size=small#preview" },
+      "https://cdn.example.test/thumbs-up.png?token=second#original",
+    ]);
+
+    expect(images).toEqual(["https://cdn.example.test/thumbs-up.png?token=first"]);
+  });
+
+  it("falls back to generic text fields while keeping the source-table speaker", () => {
+    const [message] = mapChatRowsToMessages([{
+      _source_table: CHAT_CUSTOMER_TABLE,
+      page_id: "page-1",
+      thread_id: "thread-1",
+      speaker: "page",
+      text: "ข้อความจากแถว legacy",
+      occurred_at: "2026-11-23T00:00:00.000Z",
+    }]);
+
     expect(message.senderType).toBe("customer");
-    expect(message.direction).toBe("inbound");
-    expect(message.text).toBe("ลูกค้าทักมาก่อน ขอเช็กค่าส่งหน่อยค่ะ");
+    expect(message.text).toBe("ข้อความจากแถว legacy");
   });
 
   it("preserves explicit system speakers so they cannot be selected as customer messages", () => {
@@ -371,9 +404,10 @@ describe("ChatHub read contract v5", () => {
     expect(message.direction).toBe("inbound");
   });
 
-  it("splits customer and page latest fields when staggered flows write one summary row", () => {
+  it("expands both customer and page fields from a legacy summary row", () => {
     const messages = mapChatRowsToMessages([{
       _source_table: CHAT_PAGE_TABLE,
+      id: 103,
       page_id: "page-1",
       thread_id: "thread-1",
       message_text: null,
@@ -400,7 +434,7 @@ describe("ChatHub read contract v5", () => {
       {
         _source_table: CHAT_CUSTOMER_TABLE,
         id: 101, page_id: "page-1", thread_id: "thread-1", speaker: "customer",
-        source_lane: "🌌BB_CHAT", message_text: null,
+        source_lane: "🌌ST_CHAT", message_text: null,
         customer_message_text: "ลูกค้าทักสด", page_message_text: null,
         occurred_at: "2026-11-15T10:04:18.000Z", time_th: "15/11/2569 17:04:18", message_id: "customer-101",
       },
@@ -417,7 +451,7 @@ describe("ChatHub read contract v5", () => {
       ["page", "เพจตอบสด", "เพจตอบสด", "15/11/2569 17:06:46"],
     ]);
     expect(messages[0].customer_message_text).toBe("ลูกค้าทักสด");
-    expect(messages[0].source_lane).toBe("🌌BB_CHAT");
+    expect(messages[0].source_lane).toBe("🌌ST_CHAT");
   });
 
   it("keeps a late-arriving old-time message in history but never replaces the room's newest preview", () => {

@@ -38,7 +38,7 @@ describe("sendMetaMessage", () => {
 
     const result = await sendMetaMessage({
       pageId: "page-123",
-      portalKey: "BB_05",
+      portalKey: "ST_05",
       recipientId: "customer-456",
       text: "ทดสอบเส้นทางส่ง",
     });
@@ -91,28 +91,28 @@ describe("sendMetaMessage", () => {
     });
   });
 
-  it("uses the browser Chat credentials for token lookup when supplied", async () => {
+  it("uses only server CHAT credentials even if legacy caller credentials are supplied", async () => {
     vi.stubEnv("CHAT_SUPABASE_URL", "https://server-chat.supabase.co");
     vi.stubEnv("CHAT_SUPABASE_SERVICE_ROLE_KEY", "server-chat-key");
     const requests: Array<{ url: string; init?: RequestInit }> = [];
     vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       requests.push({ url, init });
-      if (url.startsWith(`https://browser-chat.supabase.co/rest/v1/${tokenTablePath}?`)) {
-        return new Response(JSON.stringify([{ page_id: "page-123", access_token: "browser-page-token" }]), { status: 200 });
+      if (url.startsWith(`https://server-chat.supabase.co/rest/v1/${tokenTablePath}?`)) {
+        return new Response(JSON.stringify([{ page_id: "page-123", access_token: "server-page-token" }]), { status: 200 });
       }
-      return new Response(JSON.stringify({ recipient_id: "customer-456", message_id: "mid.browser-123" }), { status: 200 });
+      return new Response(JSON.stringify({ recipient_id: "customer-456", message_id: "mid.server-123" }), { status: 200 });
     });
 
-    await sendMetaMessage({ pageId: "page-123", recipientId: "customer-456", text: "ทดสอบ browser config" }, {
+    await sendMetaMessage({ pageId: "page-123", recipientId: "customer-456", text: "ทดสอบ server config" }, {
       url: "https://browser-chat.supabase.co",
-      serviceRoleKey: "browser-chat-key",
+      serviceRoleKey: "legacy-caller-key",
     });
 
-    expect(requests[0].url).toContain("https://browser-chat.supabase.co/rest/v1/");
+    expect(requests[0].url).toContain("https://server-chat.supabase.co/rest/v1/");
     expect((requests[0].init?.headers as Record<string, string>).Authorization)
-      .toBe("Bearer browser-chat-key");
-    expect(new URL(requests[1].url).searchParams.get("access_token")).toBe("browser-page-token");
+      .toBe("Bearer server-chat-key");
+    expect(new URL(requests[1].url).searchParams.get("access_token")).toBe("server-page-token");
   });
 
   it("does not fall back to a default or another project when CHAT_SUPABASE_URL is empty", async () => {

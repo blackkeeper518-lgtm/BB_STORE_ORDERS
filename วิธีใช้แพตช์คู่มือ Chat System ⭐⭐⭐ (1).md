@@ -4,7 +4,7 @@
 
 ## ก่อนเริ่ม
 
-ให้เปิด PowerShell ที่โฟลเดอร์รากของ repo `BB_STORE_ORDERS` และเช็กว่าไม่มีงานค้างที่ยังไม่ได้บันทึก:
+ให้เปิด PowerShell ที่โฟลเดอร์รากของ repo `ST_STORE_ORDERS` และเช็กว่าไม่มีงานค้างที่ยังไม่ได้บันทึก:
 
 ```powershell
 git status --short
@@ -13,10 +13,10 @@ git rev-parse HEAD
 
 ฐานของแพตช์คือ commit `d10409ad59bd50abcc2d67de99751824015b0606` ถ้า `git status --short` แสดงไฟล์ที่แก้อยู่ ให้หยุดก่อนและสำรองหรือ commit งานของคุณก่อน หาก HEAD ไม่ตรงฐานนี้ ให้หยุดก่อน อย่าฝืนใช้แพตช์ เพราะ repo อาจมี commit ใหม่กว่า
 
-คัดลอกไฟล์ `BB_STORE_ORDERS-chat-system-manual-stars.patch` ไว้ที่โฟลเดอร์รากของ repo แล้วใช้:
+คัดลอกไฟล์ `ST_STORE_ORDERS-chat-system-manual-stars.patch` ไว้ที่โฟลเดอร์รากของ repo แล้วใช้:
 
 ```powershell
-git am ".\BB_STORE_ORDERS-chat-system-manual-stars.patch"
+git am ".\ST_STORE_ORDERS-chat-system-manual-stars.patch"
 ```
 
 ใช้ `git am` ไม่ใช่ `git apply` เพราะ patch นี้เป็น commit patch และ `git am` จะเก็บชื่อ commit `⭐⭐⭐` ไว้ให้

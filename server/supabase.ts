@@ -7,54 +7,293 @@ export type LiveProductMapping = { sku: string; label: string; price: number | n
 export type StockProduct = LiveProductMapping & { id: number; thName: string | null; stockQty: number | null; stockStatus: string | null; status: string | null; updatedAt: string | null };
 export type StockWarning = { kind: "duplicate_sku" | "missing_sku"; sku: string | null; label: string | null; count?: number };
 
-type SupabaseProject = "main" | "tracking" | "chat" | "parcel";
+export type SupabaseProject = "main" | "tracking" | "chat" | "parcel" | "vault";
 export type ChatSupabaseCredentials = { url: string; serviceRoleKey: string };
+export const CHAT_CUSTOMER_TABLE = "Cust_Chat⭐BINARY_xXx_STAR";
+export const CHAT_PAGE_TABLE = "Pg_Chat⭐BINARY_xXx_STAR";
+export const CHAT_PAGE_TOKEN_TABLE = "🌈MILKY_WAY_xXx_TOKEN _PAGE";
 
-function config(project: SupabaseProject = "main", browserChatCredentials?: ChatSupabaseCredentials) {
-  const lane = project === "chat" ? "chat" : project === "parcel" ? "parcel" : project;
-  if (lane === "chat" && browserChatCredentials) {
-    const url = browserChatCredentials.url.trim().replace(/\/$/, "");
-    const key = browserChatCredentials.serviceRoleKey.trim();
-    if (!url || !key) throw new Error("กรอก Chat Supabase URL และ service-role key ให้ครบใน ROOM 02");
-    let parsed: URL;
-    try { parsed = new URL(url); } catch { throw new Error("Chat Supabase URL ไม่ถูกต้อง"); }
-    if (parsed.protocol !== "https:" || !/^[a-z0-9-]+\.supabase\.co$/i.test(parsed.hostname) || parsed.pathname !== "/" || parsed.username || parsed.password || parsed.port || parsed.search || parsed.hash) {
-      throw new Error("Chat URL ต้องเป็น https://<project>.supabase.co เท่านั้น");
-    }
-    return { baseUrl: parsed.toString().replace(/\/$/, ""), key };
-  }
-  const laneUrl = lane === "chat"
-    ? process.env.CHAT_SUPABASE_URL
-    : lane === "parcel"
-      ? process.env.PARCEL_SUPABASE_URL
-      : lane === "tracking"
-        ? process.env.TRACKING_SUPABASE_URL
-        : process.env.ORDER_SUPABASE_URL;
-  const laneKey = lane === "chat"
-    ? process.env.CHAT_SUPABASE_SERVICE_ROLE_KEY
-    : lane === "parcel"
-      ? process.env.PARCEL_SUPABASE_SERVICE_ROLE_KEY
-      : lane === "tracking"
-        ? process.env.TRACKING_SUPABASE_SERVICE_ROLE_KEY
-        : process.env.ORDER_SUPABASE_SERVICE_ROLE_KEY;
-  // Chat credentials belong to a separate Supabase account; never borrow another lane's URL or key.
+function config(project: SupabaseProject = "main") {
+  // Tracking and Parcel are two functional lanes backed by the same SB parcel account.
+  const lane = project === "parcel" ? "tracking" : project;
   const rawUrl = lane === "chat"
-    ? laneUrl?.trim()
-    : laneUrl?.trim() || (lane === "parcel" ? process.env.TRACKING_SUPABASE_URL?.trim() : undefined) || process.env.SUPABASE_URL?.trim();
+    ? process.env.CHAT_SUPABASE_URL?.trim()
+    : lane === "vault"
+      ? process.env.VAULT_SUPABASE_URL?.trim()
+      : lane === "tracking"
+        ? process.env.TRACKING_SUPABASE_URL?.trim()
+        : process.env.ORDER_SUPABASE_URL?.trim() || process.env.SUPABASE_URL?.trim();
   const key = lane === "chat"
-    ? laneKey?.trim()
-    : laneKey?.trim() || (lane === "parcel" ? process.env.TRACKING_SUPABASE_SERVICE_ROLE_KEY?.trim() : undefined) || process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
-  if (!rawUrl || !key) throw new Error(`Supabase ${project} secrets are not configured`);
+    ? process.env.CHAT_SUPABASE_SERVICE_ROLE_KEY?.trim()
+    : lane === "vault"
+      ? process.env.VAULT_SUPABASE_SERVICE_ROLE_KEY?.trim()
+      : lane === "tracking"
+        ? process.env.TRACKING_SUPABASE_SERVICE_ROLE_KEY?.trim()
+        : process.env.ORDER_SUPABASE_SERVICE_ROLE_KEY?.trim() || process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  if (!rawUrl || !key) throw new Error(`Supabase ${project} server credentials are not configured`);
   let parsed: URL;
   try { parsed = new URL(rawUrl); } catch { throw new Error("SUPABASE_URL is not a valid URL"); }
   if (parsed.protocol !== "https:" || !parsed.hostname.endsWith(".supabase.co")) throw new Error(`Invalid Supabase hostname: ${parsed.hostname}`);
   return { baseUrl: parsed.toString().replace(/\/$/, ""), key };
 }
+export function getServerProjectStatus() {
+  const has = (url?: string, key?: string) => Boolean(url?.trim() && key?.trim());
+  return {
+    order: has(process.env.ORDER_SUPABASE_URL || process.env.SUPABASE_URL, process.env.ORDER_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY),
+    trackingParcel: has(process.env.TRACKING_SUPABASE_URL, process.env.TRACKING_SUPABASE_SERVICE_ROLE_KEY),
+    vault: has(process.env.VAULT_SUPABASE_URL, process.env.VAULT_SUPABASE_SERVICE_ROLE_KEY),
+    chat: has(process.env.CHAT_SUPABASE_URL, process.env.CHAT_SUPABASE_SERVICE_ROLE_KEY),
+  };
+}
+const PROJECT_TABLES: Record<SupabaseProject, ReadonlySet<string>> = {
+  main: new Set([
+    "thailand_address_master", "🌀SINGULARITY_xXx_EXCHANGE", "🌌MULTIVERSE_xXx_NEXUS",
+    "🌍GALACTIC_GATEWAY_TOKEN", "🌟GENESIS_xXx_HISTORY", "💀THANATOS_xXx_DEATH_NOTE",
+    "🔸PARADOX_xXx_EXCHANGE", "🗝️HERMES_ARCHIVE", "🛒product_master",
+    "🛰️PIONEER_xXx_CAPSULE", "🪐ANDROMEDA_xXx_SENT", "🧿BB_xXx_ORDERCONTROL", "product_map_master",
+    "canonical_orders", "canonical_order_items", "🌓VAGABOND_xXx_DISMISS", "📓DEAD_xXx_NOTE",
+    "🦅ROGUE_xXx_SHIPPINGz", "parcels",
+  ]),
+  tracking: new Set([
+    "parcels", "thailand_address_master", "⛩️VOID_xXx_GATEWAYz", "📓DEAD_xXx_NOTE",
+    "🔮SHADOW_xXx_RECALL", "🛒product_master", "🦅ROGUE_xXx_SHIPPINGz",
+    "🧿BB_xXx_ORDERCONTROL", "sales_script_cards", "page_tokens_vault",
+  ]),
+  parcel: new Set([
+    "parcels", "thailand_address_master", "⛩️VOID_xXx_GATEWAYz", "📓DEAD_xXx_NOTE",
+    "🔮SHADOW_xXx_RECALL", "🛒product_master", "🦅ROGUE_xXx_SHIPPINGz",
+    "🧿BB_xXx_ORDERCONTROL", "sales_script_cards", "page_tokens_vault",
+  ]),
+  vault: new Set([
+    "🛒product_master", "inventory", "product_aliases", "product_map_master",
+    "app_chat_frames", "app_customization_selections", "app_sounds", "app_themes",
+    "sales_script_cards", "thailand_address_master",
+  ]),
+  chat: new Set([
+    CHAT_CUSTOMER_TABLE, CHAT_PAGE_TABLE, CHAT_PAGE_TOKEN_TABLE, "line_channels", "line_messages",
+    "delivery_pre_send_checks", "delivery_red_zone_provinces", "delivery_telegram_urgent_queue",
+    "🌓VAGABOND_xXx_DISMISS", "🏴‍☠️SIRIUS_xXx_CRASH",
+  ]),
+};
+const STAFF_READ_COLUMNS: Record<string, ReadonlySet<string>> = {
+  "main:🛒product_master": new Set(["emoji", "master_sku", "th_name", "name_standard", "brand", "variant", "unit_price", "alias", "status"]),
+  "vault:🛒product_master": new Set(["emoji", "master_sku", "th_name", "name_standard", "brand", "variant", "unit_price", "alias", "status"]),
+  "tracking:thailand_address_master": new Set(["district", "amphoe", "province", "zipcode"]),
+  "vault:thailand_address_master": new Set(["district", "amphoe", "province", "zipcode"]),
+  "vault:sales_script_cards": new Set(["id", "sku", "title", "subtitle", "script_text", "ai_context", "ai_instruction", "blocks_json", "status", "version", "updated_at"]),
+};
+export function canStaffExecuteProjectQuery(input: { project: SupabaseProject; table: string; method: string; params?: Record<string, string> }) {
+  if (input.method !== "GET" && input.method !== "HEAD") return false;
+  const allowed = STAFF_READ_COLUMNS[`${input.project}:${input.table}`];
+  const select = input.params?.select?.trim();
+  if (!allowed || !select || select.includes("*") || /[():]/.test(select)) return false;
+  const columns = select.split(",").map(column => column.trim());
+  if (!columns.length || new Set(columns).size !== columns.length || columns.some(column => !allowed.has(column))) return false;
+  const limit = Number(input.params?.limit);
+  const offset = Number(input.params?.offset ?? "0");
+  return Number.isInteger(limit) && limit > 0 && limit <= 500 && Number.isInteger(offset) && offset >= 0 && offset <= 5000;
+}
+export function canStaffUploadVaultStorage(input: { operation: string; bucket: string; path?: string; contentBase64?: string; contentType?: string; upsert?: boolean }) {
+  const path = (input.path ?? "").trim().replace(/^\/+/, "");
+  const allowedPath = (input.bucket === "sales-script-images" && path.startsWith("script-art/chat/"))
+    || (input.bucket === "warp-images" && path.startsWith("warp/order-deck/"));
+  return input.operation === "upload" && allowedPath && path.length <= 500
+    && !path.split("/").some(part => !part || part === "." || part === "..")
+    && input.upsert !== true
+    && ["image/jpeg", "image/png", "image/gif", "image/webp"].includes((input.contentType ?? "").toLowerCase())
+    && Boolean(input.contentBase64) && input.contentBase64!.length <= 24_000_000;
+}
+export async function executeProjectQuery(input: {
+  project: SupabaseProject;
+  table: string;
+  method: "GET" | "HEAD" | "POST" | "PATCH" | "DELETE";
+  params?: Record<string, string>;
+  body?: unknown;
+  prefer?: string;
+}) {
+  if (!PROJECT_TABLES[input.project]?.has(input.table)) throw new Error(`Supabase relation is not enabled for ${input.project}`);
+  const { baseUrl, key } = config(input.project);
+  const query = new URLSearchParams();
+  for (const [name, value] of Object.entries(input.params ?? {})) {
+    if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name) || value.length > 4000) throw new Error("Invalid Supabase query parameter");
+    if (name === "select" && /[()]/.test(value)) throw new Error("Embedded relation selects are not enabled");
+    if (name === "limit" && (!/^\d+$/.test(value) || Number(value) > 10_000)) throw new Error("Supabase row limit exceeds the server cap");
+    if (name === "offset" && (!/^\d+$/.test(value) || Number(value) > 100_000)) throw new Error("Supabase row offset exceeds the server cap");
+    query.set(name, value);
+  }
+  if ((input.method === "PATCH" || input.method === "DELETE") && !Object.keys(input.params ?? {}).some(name => !["select", "order", "limit", "offset", "on_conflict"].includes(name))) {
+    throw new Error("Updates and deletes must include a row filter");
+  }
+  const url = `${baseUrl}/rest/v1/${encodeURIComponent(input.table)}${query.size ? `?${query.toString()}` : ""}`;
+  const headers: Record<string, string> = { apikey: key, Authorization: `Bearer ${key}`, Accept: "application/json" };
+  if (input.body !== undefined) headers["Content-Type"] = "application/json";
+  const allowedPrefer = new Set(["return=representation", "return=minimal", "resolution=merge-duplicates,return=representation", "resolution=merge-duplicates,return=minimal", "count=exact", "count=exact,return=representation", "count=exact,return=minimal", "resolution=merge-duplicates,return=representation,count=exact"]);
+  if (input.prefer) {
+    if (!allowedPrefer.has(input.prefer)) throw new Error("Invalid Supabase preference");
+    headers.Prefer = input.prefer;
+  }
+  const response = await fetch(url, {
+    method: input.method,
+    headers,
+    ...(input.body === undefined ? {} : { body: JSON.stringify(input.body) }),
+  });
+  const text = input.method === "HEAD" ? "" : await response.text();
+  if (!response.ok) throw new Error(`Supabase returned HTTP ${response.status}: ${text.slice(0, 500)}`);
+  let data: unknown = null;
+  if (text) {
+    try { data = JSON.parse(text); }
+    catch { throw new Error("Supabase returned an invalid JSON response"); }
+  }
+  const contentRange = response.headers.get("content-range") ?? "";
+  const total = contentRange.match(/\/(\d+)$/)?.[1];
+  return { data, count: total ? Number(total) : null, error: null };
+}
+const STORAGE_BUCKET_PREFIXES: Record<string, string> = {
+  "sales-script-images": "script-art/",
+  "chat-sounds": "sounds/",
+  "theme-graphics": "themes/",
+  "warp-images": "warp/",
+};
+function safeStoragePath(path: string) {
+  const clean = path.trim().replace(/^\/+/, "");
+  if (!clean || clean.split("/").some(part => !part || part === "." || part === "..") || clean.length > 500) throw new Error("Invalid storage path");
+  return clean;
+}
+export async function executeVaultStorage(input: {
+  operation: "upload" | "remove" | "signed" | "public" | "download";
+  bucket: string;
+  path?: string;
+  paths?: string[];
+  contentBase64?: string;
+  contentType?: string;
+  upsert?: boolean;
+  expiresIn?: number;
+}) {
+  const prefix = STORAGE_BUCKET_PREFIXES[input.bucket];
+  if (!prefix) throw new Error("Storage bucket is not enabled for VAULT");
+  const { baseUrl, key } = config("vault");
+  const base = `${baseUrl}/storage/v1/object`;
+  const auth = { apikey: key, Authorization: `Bearer ${key}` };
+  const checkedPath = (value: string) => {
+    const path = safeStoragePath(value);
+    if (!path.startsWith(prefix)) throw new Error(`Storage path must start with ${prefix}`);
+    return path;
+  };
+  if (input.operation === "public") {
+    const path = checkedPath(input.path ?? "");
+    return { publicUrl: `${base}/public/${encodeURIComponent(input.bucket)}/${path.split("/").map(encodeURIComponent).join("/")}` };
+  }
+  if (input.operation === "signed") {
+    const path = checkedPath(input.path ?? "");
+    const response = await fetch(`${base}/sign/${encodeURIComponent(input.bucket)}/${path.split("/").map(encodeURIComponent).join("/")}`, {
+      method: "POST", headers: { ...auth, "Content-Type": "application/json" },
+      body: JSON.stringify({ expiresIn: Math.max(60, Math.min(3600, Number(input.expiresIn) || 300)) }),
+    });
+    const body = await response.text();
+    if (!response.ok) throw new Error(`Vault signed URL failed (${response.status}): ${body.slice(0, 300)}`);
+    const payload = JSON.parse(body) as { signedURL?: string };
+    if (!payload.signedURL) throw new Error("Vault returned an empty signed URL");
+    const signedPath = payload.signedURL.startsWith("/") ? payload.signedURL : `/${payload.signedURL}`;
+    return { signedUrl: new URL(`/storage/v1${signedPath}`, baseUrl).toString() };
+  }
+  if (input.operation === "download") {
+    const path = checkedPath(input.path ?? "");
+    const response = await fetch(`${base}/${encodeURIComponent(input.bucket)}/${path.split("/").map(encodeURIComponent).join("/")}`, {
+      method: "GET", headers: auth,
+    });
+    if (!response.ok) throw new Error(`Vault storage download failed (${response.status}): ${(await response.text()).slice(0, 300)}`);
+    const bytes = Buffer.from(await response.arrayBuffer());
+    if (bytes.length > 18_000_000) throw new Error("Asset exceeds the 18 MB server download limit");
+    return { contentBase64: bytes.toString("base64"), contentType: response.headers.get("content-type") || "application/octet-stream" };
+  }
+  if (input.operation === "remove") {
+    const paths = (input.paths ?? []).map(checkedPath);
+    if (!paths.length || paths.length > 100) throw new Error("Invalid storage removal list");
+    const response = await fetch(`${base}/${encodeURIComponent(input.bucket)}`, {
+      method: "DELETE", headers: { ...auth, "Content-Type": "application/json" }, body: JSON.stringify({ prefixes: paths }),
+    });
+    const body = await response.text();
+    if (!response.ok) throw new Error(`Vault storage delete failed (${response.status}): ${body.slice(0, 300)}`);
+    return { ok: true };
+  }
+  const path = checkedPath(input.path ?? "");
+  if (!input.contentBase64 || input.contentBase64.length > 24_000_000) throw new Error("Asset is missing or exceeds the 18 MB server upload limit");
+  const bytes = Buffer.from(input.contentBase64, "base64");
+  if (bytes.length > 18_000_000) throw new Error("Asset exceeds the 18 MB server upload limit");
+  const response = await fetch(`${base}/${encodeURIComponent(input.bucket)}/${path.split("/").map(encodeURIComponent).join("/")}`, {
+    method: "POST",
+    headers: { ...auth, "Content-Type": input.contentType || "application/octet-stream", "x-upsert": input.upsert ? "true" : "false" },
+    body: bytes,
+  });
+  const body = await response.text();
+  if (!response.ok) throw new Error(`Vault storage upload failed (${response.status}): ${body.slice(0, 300)}`);
+  return { ok: true, path, publicUrl: `${base}/public/${encodeURIComponent(input.bucket)}/${path.split("/").map(encodeURIComponent).join("/")}` };
+}
+
+const PROJECT_CONNECTION_CHECKS: Partial<Record<SupabaseProject, Array<{ table: string; label: string }>>> = {
+  main: [
+    { table: "🗝️HERMES_ARCHIVE", label: "Order Control" },
+    { table: "🌌MULTIVERSE_xXx_NEXUS", label: "Telegram Queue" },
+    { table: "🌀SINGULARITY_xXx_EXCHANGE", label: "Order Change History" },
+    { table: "🛒product_master", label: "Product Master" },
+    { table: "🌍GALACTIC_GATEWAY_TOKEN", label: "Page Tokens (server-only)" },
+  ],
+  tracking: [
+    { table: "parcels", label: "Parcel Lookup" },
+    { table: "🦅ROGUE_xXx_SHIPPINGz", label: "Tracking Queue" },
+    { table: "📓DEAD_xXx_NOTE", label: "Tracking History" },
+  ],
+  parcel: [
+    { table: "parcels", label: "Parcel Lookup" },
+    { table: "🦅ROGUE_xXx_SHIPPINGz", label: "Tracking Queue" },
+    { table: "📓DEAD_xXx_NOTE", label: "Tracking History" },
+  ],
+  vault: [
+    { table: "🛒product_master", label: "Product Catalog" },
+    { table: "thailand_address_master", label: "Thai Address Master" },
+    { table: "sales_script_cards", label: "Sales Script Cards" },
+    { table: "app_themes", label: "Themes" },
+    { table: "app_chat_frames", label: "Chat Frames" },
+    { table: "app_sounds", label: "Sounds" },
+  ],
+  chat: [
+    { table: CHAT_CUSTOMER_TABLE, label: "Customer Chat History" },
+    { table: CHAT_PAGE_TABLE, label: "Page Chat History" },
+    { table: CHAT_PAGE_TOKEN_TABLE, label: "Page Tokens (server-only)" },
+  ],
+};
+
+export async function checkServerProject(project: "main" | "tracking" | "parcel" | "vault" | "chat") {
+  const checks = PROJECT_CONNECTION_CHECKS[project] ?? [];
+  const results = await Promise.all(checks.map(async ({ table, label }) => {
+    try {
+      const result = await executeProjectQuery({ project, table, method: "HEAD", params: { select: "*", limit: "0" }, prefer: "count=exact" });
+      return { table, label, status: "ready" as const, count: result.count };
+    } catch (error) {
+      return { table, label, status: "error" as const, detail: error instanceof Error ? error.message : String(error) };
+    }
+  }));
+  return { project: project === "tracking" || project === "parcel" ? "trackingParcel" : project, results };
+}
+
+export async function lookupParcelByPhone(phone: string) {
+  const searchPhone = phone.replace(/\D/g, "");
+  if (!/^0\d{9}$/.test(searchPhone)) throw new Error("กรุณากรอกเบอร์โทรศัพท์ 10 หลัก");
+  const { baseUrl, key } = config("parcel");
+  const response = await fetch(`${baseUrl}/rest/v1/rpc/get_parcel_by_phone_v2`, {
+    method: "POST",
+    headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ search_phone: searchPhone }),
+  });
+  const text = await response.text();
+  if (!response.ok) throw new Error(`get_parcel_by_phone_v2 HTTP ${response.status}: ${text.slice(0, 300)}`);
+  try { return JSON.parse(text) as unknown; } catch { throw new Error("Parcel RPC returned invalid JSON"); }
+}
 export function getChatSupabaseConfig(credentials?: ChatSupabaseCredentials) {
-  return config("chat", credentials);
+  return config("chat");
 }
 export async function supabaseGet<T>(path: string, project: SupabaseProject = "main", browserChatCredentials?: ChatSupabaseCredentials): Promise<T> {
-  const { baseUrl, key } = config(project, browserChatCredentials);
+  const { baseUrl, key } = config(project);
   const target = `${baseUrl}/rest/v1/${path.replace(/^\/+/, "")}`;
   let lastError: unknown = null;
   for (let attempt = 1; attempt <= 3; attempt += 1) {
@@ -73,10 +312,6 @@ export async function supabaseGet<T>(path: string, project: SupabaseProject = "m
 // สัญญาอ่าน ChatHub: อ่านสองฝั่งต้นทางโดยตรง แล้วให้ canonical layer รวมเป็นห้องเดียว
 const CHAT_READ_WINDOW_MS = 2 * 24 * 60 * 60 * 1000;
 type ChatReadFilter = { pageId?: string; threadId?: string };
-export const CHAT_CUSTOMER_TABLE = "Cust_Chat⭐BINARY_xXx_STAR";
-export const CHAT_PAGE_TABLE = "Pg_Chat⭐BINARY_xXx_STAR";
-export const CHAT_MATRIX_VIEW = "🌠BINARY_xXx_MATRIX";
-export const CHAT_PAGE_TOKEN_TABLE = "🌈MILKY_WAY_xXx_TOKEN _PAGE";
 function chatReadPath(table: string, filter: ChatReadFilter = {}, history = false) {
   const query = new URLSearchParams();
   query.set("select", "*");
@@ -88,7 +323,7 @@ function chatReadPath(table: string, filter: ChatReadFilter = {}, history = fals
   if (filter.threadId) query.set("thread_id", `eq.${filter.threadId}`);
   return `${encodeURIComponent(table)}?${query.toString()}`;
 }
-async function fetchChatRows(filter: ChatReadFilter = {}, credentials?: ChatSupabaseCredentials, history = false) {
+async function fetchChatRows(filter: ChatReadFilter = {}, credentials?: ChatSupabaseCredentials, history = false): Promise<Array<Record<string, unknown>>> {
   const [customerRows, pageRows] = await Promise.all([
     supabaseGet<Array<Record<string, unknown>>>(chatReadPath(CHAT_CUSTOMER_TABLE, filter, history), "chat", credentials),
     supabaseGet<Array<Record<string, unknown>>>(chatReadPath(CHAT_PAGE_TABLE, filter, history), "chat", credentials),
@@ -189,7 +424,7 @@ export async function fetchChatMessageRows(input: { pageId: string; threadId: st
 }
 const CHAT_CONNECTION_CHECKS = [
   { name: CHAT_CUSTOMER_TABLE, columns: "id,page_id,thread_id,message_text,customer_message_text,phone" },
-  { name: CHAT_PAGE_TABLE, columns: "id,page_id,thread_id,message_text,page_message_text" },
+  { name: CHAT_PAGE_TABLE, columns: "id,page_id,thread_id,message_text" },
   { name: CHAT_PAGE_TOKEN_TABLE, columns: "page_id,access_token" },
   { name: "delivery_pre_send_checks", columns: "*" },
   { name: "delivery_red_zone_provinces", columns: "*" },
@@ -197,7 +432,6 @@ const CHAT_CONNECTION_CHECKS = [
   { name: "line_channels", columns: "*" },
   { name: "line_messages", columns: "*" },
   { name: "🌓VAGABOND_xXx_DISMISS", columns: "*" },
-  { name: "🌠BINARY_xXx_MATRIX", columns: "*" },
   { name: "🏴‍☠️SIRIUS_xXx_CRASH", columns: "*" },
 ] as const;
 export async function checkChatConnection(credentials?: ChatSupabaseCredentials) {
@@ -216,17 +450,22 @@ export async function checkChatConnection(credentials?: ChatSupabaseCredentials)
     results,
   };
 }
-export async function supabasePost<T>(path: string, body: unknown, project: SupabaseProject = "main", prefer?: string, browserChatCredentials?: ChatSupabaseCredentials): Promise<T> { const { baseUrl, key } = config(project, browserChatCredentials); const headers: Record<string, string> = { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" }; if (prefer) headers.Prefer = prefer; const response = await fetch(`${baseUrl}/rest/v1/${path}`, { method: "POST", headers, body: JSON.stringify(body) }); if (!response.ok) throw new Error(`Supabase returned HTTP ${response.status}: ${(await response.text()).slice(0, 300)}`); return response.json() as Promise<T>; }
-export async function supabasePatch<T>(path: string, body: unknown, project: SupabaseProject = "main", browserChatCredentials?: ChatSupabaseCredentials): Promise<T> { const { baseUrl, key } = config(project, browserChatCredentials); const response = await fetch(`${baseUrl}/rest/v1/${path.replace(/^\/+/, "")}`, { method: "PATCH", headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json", Prefer: "return=representation" }, body: JSON.stringify(body) }); if (!response.ok) throw new Error(`Supabase returned HTTP ${response.status}: ${(await response.text()).slice(0, 500)}`); const text = await response.text(); return (text ? JSON.parse(text) : []) as T; }
-export async function supabaseDelete<T>(path: string, project: SupabaseProject = "main", browserChatCredentials?: ChatSupabaseCredentials): Promise<T> { const { baseUrl, key } = config(project, browserChatCredentials); const response = await fetch(`${baseUrl}/rest/v1/${path.replace(/^\/+/, "")}`, { method: "DELETE", headers: { apikey: key, Authorization: `Bearer ${key}`, Prefer: "return=representation" } }); if (!response.ok) throw new Error(`Supabase returned HTTP ${response.status}: ${(await response.text()).slice(0, 500)}`); const text = await response.text(); return (text ? JSON.parse(text) : []) as T; }
+export async function supabasePost<T>(path: string, body: unknown, project: SupabaseProject = "main", prefer?: string, browserChatCredentials?: ChatSupabaseCredentials): Promise<T> { const { baseUrl, key } = config(project); const headers: Record<string, string> = { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" }; if (prefer) headers.Prefer = prefer; const response = await fetch(`${baseUrl}/rest/v1/${path}`, { method: "POST", headers, body: JSON.stringify(body) }); if (!response.ok) throw new Error(`Supabase returned HTTP ${response.status}: ${(await response.text()).slice(0, 300)}`); return response.json() as Promise<T>; }
+export async function supabasePatch<T>(path: string, body: unknown, project: SupabaseProject = "main", browserChatCredentials?: ChatSupabaseCredentials): Promise<T> { const { baseUrl, key } = config(project); const response = await fetch(`${baseUrl}/rest/v1/${path.replace(/^\/+/, "")}`, { method: "PATCH", headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json", Prefer: "return=representation" }, body: JSON.stringify(body) }); if (!response.ok) throw new Error(`Supabase returned HTTP ${response.status}: ${(await response.text()).slice(0, 500)}`); const text = await response.text(); return (text ? JSON.parse(text) : []) as T; }
+export async function supabaseDelete<T>(path: string, project: SupabaseProject = "main", browserChatCredentials?: ChatSupabaseCredentials): Promise<T> { const { baseUrl, key } = config(project); const response = await fetch(`${baseUrl}/rest/v1/${path.replace(/^\/+/, "")}`, { method: "DELETE", headers: { apikey: key, Authorization: `Bearer ${key}`, Prefer: "return=representation" } }); if (!response.ok) throw new Error(`Supabase returned HTTP ${response.status}: ${(await response.text()).slice(0, 500)}`); const text = await response.text(); return (text ? JSON.parse(text) : []) as T; }
 export async function recordOutgoingChatMessage(input: { portalKey?: string; chatLinkKey?: string; pageId: string; pageName?: string; threadId: string; recipientId: string; messageId?: string; text?: string; imageUrl?: string; occurredAt?: Date }, credentials?: ChatSupabaseCredentials) {
   const occurredAt = input.occurredAt ?? new Date();
   const iso = occurredAt.toISOString();
   const messageId = input.messageId?.trim() || null;
-  const chatLinkKey = input.chatLinkKey?.trim() || `${input.pageId}_t_${input.threadId}`;
+  const roomChatLinkKey = input.chatLinkKey?.trim() || `${input.pageId}_t_${input.threadId}`;
+  // ST's current Pg schema uses chat_link_key as the primary key even though
+  // one room contains many messages. Keep the canonical room key as a prefix,
+  // but make each persisted outgoing row unique so polling cannot lose it.
+  const chatLinkKey = `${roomChatLinkKey}:${messageId || iso}`;
   // Pg Chat is append-only for outgoing messages. Keep this payload limited to
   // columns that exist in Pg_Chat⭐BINARY_xXx_STAR; do not write to the order
   // control table from the chat lane.
+  const attachmentUrl = input.imageUrl?.trim() || null;
   const pageMessagePayload = {
     chat_link_key: chatLinkKey,
     page_id: input.pageId,
@@ -240,14 +479,74 @@ export async function recordOutgoingChatMessage(input: { portalKey?: string; cha
     time: iso,
     occurred_at: iso,
     message_time_display: iso,
-    message_text: input.text?.trim() || null,
-    attachment_url: input.imageUrl?.trim() || null,
-    page_latest_message: input.text?.trim() || null,
+    message_text: input.text?.trim() || (input.imageUrl ? "📷 ส่งรูปภาพ" : null),
+    page_message_text: input.text?.trim() || (input.imageUrl ? "📷 ส่งรูปภาพ" : null),
+    has_attachment: Boolean(attachmentUrl),
+    attachment_type: attachmentUrl ? "image" : null,
+    attachment_url: attachmentUrl,
+    attachment_urls: attachmentUrl ? [attachmentUrl] : [],
+    attachments_raw: attachmentUrl ? [{ url: attachmentUrl, type: "image" }] : [],
+    page_latest_message: input.text?.trim() || (input.imageUrl ? "📷 ส่งรูปภาพ" : null),
     page_message_time_th: iso,
     sync_status: "SENT",
-    dedupe_key: messageId ? `${chatLinkKey}:${messageId}` : `${chatLinkKey}:${iso}`,
+    dedupe_key: messageId ? `${roomChatLinkKey}:${messageId}` : `${roomChatLinkKey}:${iso}`,
   };
-  return supabasePost<Record<string, unknown>[]>(encodeURIComponent(CHAT_PAGE_TABLE), pageMessagePayload, "chat", "return=representation", credentials);
+  const isMissingPageMessageTextColumn = (error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error ?? "");
+    return /page_message_text/i.test(message) && /PGRST204|42703|column|schema cache|could not find/i.test(message);
+  };
+  const postPageMessage = (payload: unknown) =>
+    supabasePost<Record<string, unknown>[]>(encodeURIComponent(CHAT_PAGE_TABLE), payload, "chat", "return=representation", credentials);
+  try {
+    return await postPageMessage(pageMessagePayload);
+  } catch (error) {
+    let insertError = error;
+    // The base chat DDL has message_text; page_message_text is an optional follow-up migration.
+    // Retry with the BB-compatible base field if that migration is not present in this project.
+    if (isMissingPageMessageTextColumn(error)) {
+      const { page_message_text: _unsupportedField, ...legacyPayload } = pageMessagePayload;
+      try {
+        return await postPageMessage(legacyPayload);
+      } catch (legacyError) {
+        insertError = legacyError;
+      }
+    }
+    // A webhook may have inserted the Meta message first. In that race, the
+    // provider message_id is unique; enrich that existing row with the image
+    // instead of losing the attachment after the next polling refresh.
+    if (!messageId || !attachmentUrl) throw insertError;
+    const patchPayload = {
+      page_message_text: pageMessagePayload.page_message_text,
+      message_text: pageMessagePayload.message_text,
+      has_attachment: true,
+      attachment_type: "image",
+      attachment_url: attachmentUrl,
+      attachment_urls: [attachmentUrl],
+      attachments_raw: [{ url: attachmentUrl, type: "image" }],
+      is_sent: true,
+      sync_status: "SENT",
+    };
+    try {
+      const patched = await supabasePatch<Record<string, unknown>[]>(
+        `${encodeURIComponent(CHAT_PAGE_TABLE)}?message_id=eq.${encodeURIComponent(messageId)}`,
+        patchPayload,
+        "chat",
+        credentials,
+      );
+      if (patched.length) return patched;
+    } catch (patchError) {
+      if (!isMissingPageMessageTextColumn(patchError)) throw patchError;
+      const { page_message_text: _unsupportedField, ...legacyPatchPayload } = patchPayload;
+      const patched = await supabasePatch<Record<string, unknown>[]>(
+        `${encodeURIComponent(CHAT_PAGE_TABLE)}?message_id=eq.${encodeURIComponent(messageId)}`,
+        legacyPatchPayload,
+        "chat",
+        credentials,
+      );
+      if (patched.length) return patched;
+    }
+    throw insertError;
+  }
 }
 export async function fetchParcelMappingQueue(input: { status: "all" | "sent"; limit: number }) {
   // These are quoted PostgreSQL relation names; keep the space after the emoji.
@@ -261,7 +560,7 @@ export async function fetchParcelMappingQueue(input: { status: "all" | "sent"; l
   return [...active, ...sent].slice(0, input.limit);
 }
 export async function purgeOldParcels() {
-  const deleted = await supabasePost<number>("rpc/bb_purge_old_parcels_3day", {}, "parcel");
+  const deleted = await supabasePost<number>("rpc/ST_purge_old_parcels_3day", {}, "parcel");
   return { deleted: Number(deleted) || 0 };
 }
 function text(v: unknown) { return v == null ? null : String(v); }

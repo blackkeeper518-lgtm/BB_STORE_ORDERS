@@ -25,7 +25,7 @@ describe("Chat Supabase lane isolation", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(supabaseGet("chat_threads?select=*", "chat"))
-      .rejects.toThrow("Supabase chat secrets are not configured");
+      .rejects.toThrow("Supabase chat server credentials are not configured");
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
