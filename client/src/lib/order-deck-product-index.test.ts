@@ -121,6 +121,14 @@ describe("Order Deck floating product shortcuts", () => {
     expect(mobileDock).toContain("onClick={onToggleCollapsed}");
   });
 
+  it("does not sync unrelated Deck saves as highlight changes", () => {
+    expect(deckSource).toContain("function saveAdPages(syncOnline=false)");
+    expect(deckSource).toContain("if(syncOnline&&window.parent!==window)");
+    expect(deckSource).toContain("currentAdPage().selected=[...selected];saveAdPages(true)");
+    expect(deckSource).toContain("page.selected=[...next];saveAdPages(true)");
+    expect(deckSource).toContain("saveAdPages(false);renderAdPageSelect();renderAdProductChecks()");
+  });
+
   it("clears the Deck draft instead of retaining a previous room's message when no latest text can be imported", () => {
     expect(deckSource).toContain("clearSelectedCustomerMessage===true");
     expect(deckSource).toContain("raw.value=''");
