@@ -85,6 +85,13 @@ describe("Order Deck floating product shortcuts", () => {
     expect(deckSource).toContain("String(row.status||'').trim().toUpperCase()!=='ACTIVE'");
   });
 
+  it("automatically syncs cloud images when the embedded Deck starts, with a cooldown", () => {
+    expect(deckSource).toContain("function scheduleStartupProductImageSync()");
+    expect(deckSource).toContain("if(Date.now()-lastSync<60000)return");
+    expect(deckSource).toContain("window.setTimeout(()=>void loadProductImagesFromScriptCards(),800)");
+    expect(deckSource).toContain("scheduleStartupProductImageSync();");
+  });
+
   it("passes local images from pinned editor records through the Deck index and iframe bridge", () => {
     expect(deckSource).toContain("const embeddedPinnedImage=featured&&imageUrl.length<=8100000");
     expect(deckSource).toContain("const imageUrls=remoteImage||embeddedPinnedImage?[imageUrl]:[]");
