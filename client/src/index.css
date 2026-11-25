@@ -2424,8 +2424,8 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 /* Meta-style mobile frame: reserve the device bars outside the app, then keep the app viewport stable. */
 @media (max-width: 767px) {
   .mobile-inbox-page.mobile-inbox-themed {
-    height: 100dvh;
-    min-height: 100dvh;
+    height: 100svh;
+    min-height: 100svh;
     box-sizing: border-box;
     padding-top: env(safe-area-inset-top);
     padding-bottom: env(safe-area-inset-bottom);
