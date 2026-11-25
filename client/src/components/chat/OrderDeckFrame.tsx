@@ -23,6 +23,7 @@ type OrderDeckFrameProps = {
   onFeaturedProductsChange?: (productNames: string[]) => void;
   productImagesRequest?: { id: number; product: string } | null;
   onSummaryReady?: (summary: string) => void;
+  onScriptSelected?: (scriptText: string) => void;
   roomStatus?: string;
   onClose: () => void;
 };
@@ -175,6 +176,11 @@ export function OrderDeckFrame(props: OrderDeckFrameProps) {
           ? Array.from(new Set<string>((event.data.productNames as unknown[]).filter((name): name is string => typeof name === "string").map(name => name.trim().slice(0, 120)).filter(Boolean))).slice(0, 30)
           : [];
         currentProps.current.onFeaturedProductsChange?.(productNames);
+        return;
+      }
+      if (event.data?.type === "ST_ORDER_DECK_SCRIPT_SELECTED") {
+        const scriptText = typeof event.data.text === "string" ? event.data.text.slice(0, 20_000) : "";
+        if (scriptText.trim()) currentProps.current.onScriptSelected?.(scriptText);
         return;
       }
       if (event.data?.type === "ST_ORDER_DECK_ORDER_SUMMARY") {
