@@ -1510,6 +1510,13 @@ output.push({
     },
 
     // ---------- สัญญาณ Chat แบบย่อ ----------
+    // ---------- ฟิวด์ BB เดิม: ต้องส่งต่อให้ downstream ครบ ----------
+    extracted_signature_emoji: extractedSignatureEmoji,
+    signature_emoji: extractedSignatureEmoji,
+    sniper_author_class: sniperAuthorClass,
+    sniperauthorclass: sniperAuthorClass,
+    balloonNotice: balloonNotice,
+    balloonnotice: balloonNotice,
     customer_message_id: lastCustomerMessageId,
     // Canonical Chat contract: inbound customer text belongs only to customer_message_text.
     customer_message_text: lastCustomerMsg === "DATA_MISSING" ? null : lastCustomerMsg,
