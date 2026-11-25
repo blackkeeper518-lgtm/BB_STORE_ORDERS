@@ -90,7 +90,7 @@ export default function MobileStockPanel({ onClose }: MobileStockPanelProps) {
             <button key={value} type="button" aria-pressed={filter === value} onClick={() => setFilter(value)} className={filter === value ? "is-active" : ""}>{label}</button>
           ))}
         </div>
-        <p className="mobile-stock-source-note">ปุ่มมี/หมดเปลี่ยนเฉพาะสถานะผู้ดูแล · จำนวนจริงยังใช้กับ trigger และหัวบิล</p>
+        <p className="mobile-stock-source-note">ปุ่มมี/หมดเปลี่ยนสถานะผู้ดูแล · สถานะนี้เชื่อมกับโต๊ะภาพและ Product Dock</p>
       </div>
 
       {notice ? <p className={`mobile-stock-notice ${notice.startsWith("บันทึกไม่สำเร็จ") ? "is-error" : ""}`} role="status">{notice}</p> : null}
