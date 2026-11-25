@@ -451,9 +451,13 @@ function getChatStatus(lastInteractionTime) {
       // 🔪 [รวมร่าง 2 ใน 4 อย่าง - บล็อกดีไซน์สับชิ้นส่วนสั้นเพียวขนานดัชนีของอาจารย์]
       // ============================================================
       // 2. สับยอด COD (กระบวนท่าทลายกล่องก้ามปูของอาจารย์)
-      const codMatch = SNIPER_X_TEXT.match(/(?:cod|COD|ยอดรวมCOD|ราคา)[\s:：]*\[?([0-9,.]+)\]?/i) || SNIPER_X_TEXT.match(/💰\s*ยอดรวมCOD\s*:\s*([0-9,.]+)/);
-      const rawCod = codMatch ? (codMatch[1] || codMatch[2]) : (SNIPER_X_TEXT.match(/\b\d{2,4}\b/)?.[0] || "0");
-      const hascodAmount  = Number(rawCod.replace(/[, ]/g, "")) || 0;
+      const codCandidates = [...SNIPER_X_TEXT.matchAll(/(?:ยอด\s*(?:รวม\s*)?COD|COD|เก็บเงินปลายทาง|ราคา)\s*[:=：]?\s*\[?([0-9][0-9,.]*)\]?/giu)]
+        .map(match => Number(String(match[1] || '').replace(/[, ]/g, '')))
+        .filter(value => Number.isFinite(value) && value > 0);
+      const uniqueCodCandidates = [...new Set(codCandidates)];
+      const codConflict = uniqueCodCandidates.length > 1;
+      // COD ต้องมาจาก label ที่ระบุชัดเท่านั้น; ห้าม fallback ไปอ่านเลขสุ่มในข้อความ
+      const hascodAmount = uniqueCodCandidates.length === 1 ? uniqueCodCandidates[0] : 0;
 
       // 3. ดึงสัญลักษณ์ 🚨, ✅, 🤖, 🍁 ดีไซน์บล็อกขนานดึงอินเด็กซ์ สั้นๆ ไร้คำแต่งเติม
       const botMatch = SNIPER_X_TEXT.match(/(🚨)/);
@@ -1279,6 +1283,20 @@ function darksideRealProduct(value) {
   return /[\p{L}]/u.test(product) && (hasExplicitQuantity || hasTrailingQuantity);
 }
 
+function darksideMappedProductItems(items) {
+  return Array.isArray(items) && items.length > 0 && items.every(item =>
+    item && String(item.sku || '').trim() && Number(item.quantity) > 0
+  );
+}
+
+function darksideValidPhone(value) {
+  return /(?:^|\D)0[689]\d{8}(?:\D|$)/u.test(String(value || '').replace(/[\s-]/gu, ''));
+}
+
+function darksideValidZip(value) {
+  return /^\d{5}$/u.test(String(value || '').trim());
+}
+
 function darksideRealAddress(value) {
   const address = darksideText(value);
   if (darksideMissing(address)) return false;
@@ -1309,10 +1327,17 @@ const darksidePackerAddress = pureCleanAddress;
 const darksideMissingReasons = [];
 if (darksidePackerStatus !== "READY_TO_PACK") darksideMissingReasons.push(`STATUS_${darksidePackerStatus || "MISSING"}`);
 if (!darksideRealProduct(darksidePackerProduct)) darksideMissingReasons.push("PRODUCT_MISSING_OR_INVALID");
+if (!darksideMappedProductItems(orderItems)) darksideMissingReasons.push("MAPPED_PRODUCT_OR_QUANTITY_MISSING");
 if (!darksideRealAddress(darksidePackerAddress)) darksideMissingReasons.push("ADDRESS_MISSING_OR_INVALID");
+if (Number(hascodAmount) < 200) darksideMissingReasons.push("COD_BELOW_MINIMUM_200");
+if (codConflict) darksideMissingReasons.push("COD_CONFLICT_MULTIPLE_VALUES");
+if (!darksideValidPhone(validatedPhone)) darksideMissingReasons.push("PHONE_MISSING_OR_INVALID");
+if (!darksideValidZip(hasshipping_zipcode)) darksideMissingReasons.push("POSTAL_CODE_MISSING_OR_INVALID");
 const darksideBillDataComplete = darksideMissingReasons.length === 0;
 const darksideBillDataReason = darksideBillDataComplete ? "PACKER_OBJ_COMPLETE" : darksideMissingReasons.join("|");
 const bbExpressSendRoute = darksideBillDataComplete ? '⚪' : '⚫';
+const sourceGateStatus = darksideBillDataComplete ? 'WHITE_READY' : 'BLACK_REVIEW';
+const sourceGateColor = darksideBillDataComplete ? '⚪' : '⚫';
 
 const finalAuthorClass = String(
   m.sniperauthorclass ||
@@ -1462,14 +1487,17 @@ chat_age_hours: chatStatus.hoursAgo,
     final_order_qty: extractedQtyNum,
     extracted_text_qty: extractedQtyNum,
     qty_display_th: `🔢 จำนวน ${extractedQtyDisplay}`,
-    darksideBillDataComplete: darksideBillDataComplete,
-    bill_data_complete: darksideBillDataComplete,
-    darkside_completeness_status: darksideBillDataComplete ? "COMPLETE" : "INCOMPLETE",
-    darkside_missing_reasons: [...darksideMissingReasons],
-    bill_data_reason: darksideBillDataReason,
-    bill_signal_source: "PACKER_OBJ_COMPLETENESS_ONLY",
-    bill_quantity_is_blocker: false,
-    route_reason_emoji: darksideBillDataComplete ? '⚪' : '⚫',
+	    darksideBillDataComplete: darksideBillDataComplete,
+	    bill_data_complete: darksideBillDataComplete,
+	    source_gate_status: sourceGateStatus,
+	    source_gate_color: sourceGateColor,
+	    risk_alert_allowed: darksideBillDataComplete,
+	    darkside_completeness_status: darksideBillDataComplete ? "COMPLETE" : "INCOMPLETE",
+	    darkside_missing_reasons: [...darksideMissingReasons],
+	    bill_data_reason: darksideBillDataReason,
+	    bill_signal_source: "PACKER_OBJ_COMPLETENESS_ONLY",
+	    bill_quantity_is_blocker: false,
+	    route_reason_emoji: darksideBillDataComplete ? '⚪' : '⚫',
     route_reason_color: darksideBillDataComplete ? 'WHITE' : 'BLACK_VOID',
     route_reason_label: darksideBillDataComplete
       ? '⚪ [COMPLETENESS] สินค้าและที่อยู่ผ่านเกณฑ์'
@@ -1500,9 +1528,12 @@ chat_age_hours: chatStatus.hoursAgo,
     bill_data_complete: darksideBillDataComplete,
     darkside_completeness_status: darksideBillDataComplete ? "COMPLETE" : "INCOMPLETE",
     darkside_missing_reasons: [...darksideMissingReasons],
-    bill_data_reason: darksideBillDataReason,
-    bill_signal_source: "PACKER_OBJ_COMPLETENESS_ONLY",
-   message_id:m.id,
+	    bill_data_reason: darksideBillDataReason,
+	    bill_signal_source: "PACKER_OBJ_COMPLETENESS_ONLY",
+	    source_gate_status: sourceGateStatus,
+	    source_gate_color: sourceGateColor,
+	    risk_alert_allowed: darksideBillDataComplete,
+	   message_id:m.id,
     bill_quantity_is_blocker: false,
       
         }

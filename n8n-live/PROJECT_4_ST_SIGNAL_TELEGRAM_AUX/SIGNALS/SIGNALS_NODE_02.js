@@ -671,6 +671,27 @@ for (const entries of gateGroups.values()) {
   }
   if (cluster.length) clusters.push(cluster);
 }
+
+function gatePackerIncomplete(row) {
+  const packer = row?.packer_obj && typeof row.packer_obj === 'object' ? row.packer_obj : {};
+  const cod = Number(String(row.cod_amount ?? packer.cod_value ?? '').replace(/[^0-9.-]/g, '')) || 0;
+  const phone = String(row.phone ?? row.extracted_phone ?? packer.phone_number ?? '').replace(/\D/g, '');
+  const zip = String(row.zipcode ?? packer.zipcode ?? '').match(/(?<!\d)[1-9]\d{4}(?!\d)/u)?.[0] || '';
+  const items = Array.isArray(row.product_items_v5)
+    ? row.product_items_v5
+    : (Array.isArray(packer.product_items) ? packer.product_items : []);
+  const mappedProduct = items.some(item => item?.sku && Number(item.quantity) > 0)
+    || Boolean(String(row.master_sku || '').trim());
+  return row.source_gate_status === 'BLACK_REVIEW'
+    || row.source_gate_color === '⚫'
+    || row.risk_alert_allowed === false
+    || packer.source_gate_status === 'BLACK_REVIEW'
+    || cod < 200
+    || !/^0(?:[2-7]\d{7}|[689]\d{8})$/u.test(phone)
+    || !zip
+    || !mappedProduct;
+}
+
 for (const cluster of clusters) {
   cluster.sort((a, b) => a.timeMs - b.timeMs || a.index - b.index);
   const total = cluster.length;
@@ -695,7 +716,9 @@ for (const cluster of clusters) {
     // ====================================================================
     // 🛑 1. ด่านตรวจเช็กบิลไม่ครบ (Absolute Guard: ถ้าพัง ตัดจบลงดำทันทีห้ามเลี้ยวซ้ายขวา)
     // ====================================================================
-    const isDataIncomplete = row.darksideBillDataComplete === false || row.bill_data_complete === false || row.source_gate_color === '⚫' || row.source_gate_status === 'BLACK_REVIEW';
+    const isDataIncomplete = row.darksideBillDataComplete === false
+      || row.bill_data_complete === false
+      || gatePackerIncomplete(row);
 
     if (isDataIncomplete) {
       row.currentThreadTotalBills = total;
@@ -759,8 +782,7 @@ for (const item of result) {
   const row = item.json || {};
   const isDataIncomplete = row.darksideBillDataComplete === false
     || row.bill_data_complete === false
-    || row.source_gate_color === '⚫'
-    || row.source_gate_status === 'BLACK_REVIEW';
+    || gatePackerIncomplete(row);
   const ghostFromGatekeeper =
     row.routing_tag_backup === '👻Ghost_Black' ||
     row.status_color_backup === '👻Ghost_Black';

@@ -221,10 +221,23 @@ function applyHeaderOverride(json, riskHeader, original) {
   };
 }
 
+function sourceIsBlackReview(json) {
+  const packer = json?.packer_obj && typeof json.packer_obj === 'object' ? json.packer_obj : {};
+  return json.source_gate_status === 'BLACK_REVIEW'
+    || json.source_gate_color === '⚫'
+    || json.risk_alert_allowed === false
+    || json.darksideBillDataComplete === false
+    || json.bill_data_complete === false
+    || packer.source_gate_status === 'BLACK_REVIEW';
+}
+
 return $input.all().map((item, index) => {
   const json = item?.json || {};
   const destination = inspectDestination(json);
-  const status = destination.conflict
+  const sourceBlackReview = sourceIsBlackReview(json);
+  const status = sourceBlackReview
+    ? 'BLACK_REVIEW'
+    : destination.conflict
     ? 'REVIEW'
     : destination.area
       ? 'BLOCK'
@@ -235,7 +248,7 @@ return $input.all().map((item, index) => {
   const orderReference = findOrderReference(json);
   const province = destination.area?.province || 'ยังระบุจังหวัดไม่ได้';
   const postcodeText = destination.postcodes.length ? destination.postcodes.join(', ') : 'ไม่พบ';
-  const riskHeader = buildRiskHeader({
+  const riskHeader = sourceBlackReview ? '' : buildRiskHeader({
     status,
     province,
     postcodeText,
@@ -243,7 +256,21 @@ return $input.all().map((item, index) => {
     matchedBy: destination.matchedBy,
     conflict: destination.conflict,
   });
-  const outputJson = applyHeaderOverride(json, riskHeader, originalHeader(json));
+  const outputJson = sourceBlackReview
+    ? {
+        ...applyHeaderOverride(json, '', originalHeader(json)),
+        bill_header: '',
+        stock_notice: '',
+        telegramHeader: '',
+        telegram_header: '',
+        source_gate_status: 'BLACK_REVIEW',
+        source_gate_color: '⚫',
+        risk_alert_allowed: false,
+        darkside_missing_reasons: Array.isArray(json.darkside_missing_reasons)
+          ? json.darkside_missing_reasons
+          : (json.packer_obj?.darkside_missing_reasons || ['SOURCE_GATE_BLACK_REVIEW']),
+      }
+    : applyHeaderOverride(json, riskHeader, originalHeader(json));
 
   return {
     json: {
@@ -251,7 +278,10 @@ return $input.all().map((item, index) => {
       _delivery_gate: {
         status,
         restricted: status === 'BLOCK',
-        review: status === 'REVIEW',
+        review: status === 'REVIEW' || status === 'BLACK_REVIEW',
+        sourceBlackReview,
+        normalRiskAlertAllowed: !sourceBlackReview,
+        missingReasons: outputJson.darkside_missing_reasons || outputJson.packer_obj?.darkside_missing_reasons || [],
         province: destination.area?.province || null,
         matchedBy: destination.matchedBy || null,
         postcodes: destination.postcodes,
@@ -270,6 +300,7 @@ return $input.all().map((item, index) => {
       delivery_risk_postcodes: destination.postcodes,
       delivery_risk_header: riskHeader,
       delivery_risk_header_active: Boolean(riskHeader),
+      delivery_risk_normal_alert_allowed: !sourceBlackReview,
       delivery_risk_order_reference: orderReference,
       delivery_risk_conflict: destination.conflict,
       delivery_risk_canonical_fields: destination.fields.map((field) => field.path),

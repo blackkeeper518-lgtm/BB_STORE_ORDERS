@@ -489,9 +489,13 @@ function getChatStatusFromThaiDisplay(lastCustomerTime) {
       // 🔪 [รวมร่าง 2 ใน 4 อย่าง - บล็อกดีไซน์สับชิ้นส่วนสั้นเพียวขนานดัชนีของอาจารย์]
       // ============================================================
       // 2. สับยอด COD (กระบวนท่าทลายกล่องก้ามปูของอาจารย์)
-      const codMatch = SNIPER_X_TEXT.match(/(?:cod|COD|ยอดรวมCOD|ราคา)[\s:：]*\[?([0-9,.]+)\]?/i) || SNIPER_X_TEXT.match(/💰\s*ยอดรวมCOD\s*:\s*([0-9,.]+)/);
-      const rawCod = codMatch ? (codMatch[1] || codMatch[2]) : (SNIPER_X_TEXT.match(/\b\d{2,4}\b/)?.[0] || "0");
-      const hascodAmount  = Number(rawCod.replace(/[, ]/g, "")) || 0;
+      const codCandidates = [...SNIPER_X_TEXT.matchAll(/(?:ยอด\s*(?:รวม\s*)?COD|COD|เก็บเงินปลายทาง|ราคา)\s*[:=：]?\s*\[?([0-9][0-9,.]*)\]?/giu)]
+        .map(match => Number(String(match[1] || '').replace(/[, ]/g, '')))
+        .filter(value => Number.isFinite(value) && value > 0);
+      const uniqueCodCandidates = [...new Set(codCandidates)];
+      const codConflict = uniqueCodCandidates.length > 1;
+      // COD ต้องมาจาก label ที่ระบุชัดเท่านั้น; ห้ามเดาจากเลขอื่นในข้อความ
+      const hascodAmount = uniqueCodCandidates.length === 1 ? uniqueCodCandidates[0] : 0;
 
       // 3. ดึงสัญลักษณ์ 🚨, ✅, 🤖, 🍁 ดีไซน์บล็อกขนานดึงอินเด็กซ์ สั้นๆ ไร้คำแต่งเติม
       const botMatch = SNIPER_X_TEXT.match(/(🚨)/);
@@ -516,7 +520,9 @@ function getChatStatusFromThaiDisplay(lastCustomerTime) {
       // ============================================================
       // 🔥 [ด่านชี้ขาดความปลอดภัยสูงสุดตามสั่ง - ดีดขยะทิ้ง 100%] 🔥
       // ============================================================
-      if (hascodAmount  < 200 || !hasOrderSignature) {
+      // แถวที่มีธงออเดอร์แต่ COD ต่ำ/ขัดแย้งต้องเก็บไว้เป็น BLACK_REVIEW
+      // ห้ามปล่อยผ่าน และห้ามตัดทิ้งจนไม่เหลือหลักฐานให้ตรวจสอบ
+      if (!hasOrderSignature) {
         continue; 
       }
 
@@ -1291,19 +1297,17 @@ function darksideMissing(value) {
 function darksideRealProduct(value) {
   const product = darksideText(value);
 
-  // ไม่มีชื่อสินค้าเท่านั้นจึงไม่ผ่าน
   if (darksideMissing(product)) {
     return false;
   }
 
-  // ป้องกันข้อความ COD อย่างเดียวไม่ให้ถูกนับเป็นสินค้า
-  if (/(?:ยอดรวม\s*COD|ยอด\s*COD|COD\s*[:：]?)/iu.test(product)) {
+  // ข้อความถามสินค้า/ข้อความคุยกับลูกค้าไม่ใช่รายการแพ็ก
+  if (/(?:สนใจรับ|รับเป็นรสไหนดี|จะจัดเซ็ต|ล็อกโควตา|รีบล็อก|คุยกับลูกค้า)/iu.test(product)) {
     return false;
   }
 
-  // ตรวจแค่ว่ามีตัวอักษรของชื่อสินค้า
-  // ไม่สนใจว่าจำนวนอยู่หน้า กลาง หรือท้ายข้อความ
-  return /[\p{L}]/u.test(product);
+  return /[\p{L}]/u.test(product)
+    && orderItems.some(item => item?.sku && Number(item.quantity) > 0);
 }
 
 
@@ -1336,11 +1340,18 @@ const darksidePackerProduct = finalPackerDisplaySummary || packerDisplaySummary 
 const darksidePackerAddress = pureCleanAddress;
 const darksideMissingReasons = [];
 if (darksidePackerStatus !== "READY_TO_PACK") darksideMissingReasons.push(`STATUS_${darksidePackerStatus || "MISSING"}`);
+if (hascodAmount < 200) darksideMissingReasons.push("COD_BELOW_MINIMUM_200");
+if (codConflict) darksideMissingReasons.push("COD_CONFLICT_MULTIPLE_VALUES");
+if (!/^0(?:[2-7]\d{7}|[689]\d{8})$/u.test(String(validatedPhone || ""))) darksideMissingReasons.push("MISSING_OR_INVALID_PHONE");
+if (!/^[1-9]\d{4}$/u.test(String(hasshipping_zipcode || ""))) darksideMissingReasons.push("MISSING_OR_INVALID_POSTAL_CODE");
 if (!darksideRealProduct(darksidePackerProduct)) darksideMissingReasons.push("PRODUCT_MISSING_OR_INVALID");
 if (!darksideRealAddress(darksidePackerAddress)) darksideMissingReasons.push("ADDRESS_MISSING_OR_INVALID");
 const darksideBillDataComplete = darksideMissingReasons.length === 0;
 const darksideBillDataReason = darksideBillDataComplete ? "PACKER_OBJ_COMPLETE" : darksideMissingReasons.join("|");
 const bbExpressSendRoute = darksideBillDataComplete ? '⚪' : '⚫';
+const sourceGateColor = darksideBillDataComplete ? '⚪' : '⚫';
+const sourceGateStatus = darksideBillDataComplete ? 'WHITE_READY' : 'BLACK_REVIEW';
+const riskAlertAllowed = darksideBillDataComplete;
 
 // คำนวณสถานะ 24 ชั่วโมงจากเวลาข้อความล่าสุด
     // 3. 🎯 แปะป้ายเส้นทาง (Routing Tag) ตั้งแต่โหนดหน้าตรงนี้เลย!
@@ -1444,6 +1455,7 @@ output.push({
     facebook_name: (fbCustomerName || "").trim(),
     phone: validatedPhone || "DATA_MISSING",
     extracted_phone: validatedPhone || "DATA_MISSING",
+    zipcode: hasshipping_zipcode || "DATA_MISSING",
     phone_type: phoneType|| "DATA_MISSING",
     phone_status: phoneStatus|| "DATA_MISSING",
     phone_candidates: phoneCandidates|| "DATA_MISSING",
@@ -1459,13 +1471,32 @@ output.push({
     darkside_missing_reasons: [...darksideMissingReasons],
     bill_data_reason: darksideBillDataReason,
     bill_signal_source: "PACKER_OBJ_COMPLETENESS_ONLY",
-    bill_quantity_is_blocker: false,
-    route_reason_emoji: darksideBillDataComplete ? "⚪" : "⚫",
+    bill_quantity_is_blocker: true,
+    source_gate_color: sourceGateColor,
+    source_gate_status: sourceGateStatus,
+    risk_alert_allowed: riskAlertAllowed,
+    route_reason_emoji: sourceGateColor,
     route_reason_color: darksideBillDataComplete ? "WHITE" : "BLACK_VOID",
     route_reason_label: darksideBillDataComplete
       ? "⚪ [COMPLETENESS] สินค้าและที่อยู่ผ่านเกณฑ์"
       : `⚫ [COMPLETENESS] ${darksideBillDataReason}`,
     ST_express_send_route: bbExpressSendRoute,
+    four1_decision: darksideBillDataComplete ? "ALLOW" : "BLACK_REVIEW",
+    packer_obj: {
+      cod_value: hascodAmount,
+      cod_conflict: codConflict,
+      status: darksidePackerStatus,
+      product: darksidePackerProduct,
+      product_items: orderItems,
+      final_order_qty: extractedQtyNum,
+      phone_number: validatedPhone || "DATA_MISSING",
+      zipcode: hasshipping_zipcode || "DATA_MISSING",
+      address: darksidePackerAddress || "DATA_MISSING",
+      bill_data_complete: darksideBillDataComplete,
+      source_gate_color: sourceGateColor,
+      source_gate_status: sourceGateStatus,
+      missing_reasons: [...darksideMissingReasons]
+    },
 
     // ---------- สัญญาณ Chat แบบย่อ ----------
     customer_message_id: lastCustomerMessageId,
