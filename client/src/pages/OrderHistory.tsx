@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { readGenesisOrderHistory } from "@/lib/canonical";
+import { historyChangeLabel, historyProductDisplay } from "@/lib/history-product";
 import { Archive, ExternalLink, RefreshCw, Search, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -27,7 +28,8 @@ export default function OrderHistory() {
   const orders = needle
     ? allOrders.filter((order: any) => [
         order.order_number, order.upsert_key, order.customer_name, order.facebook_name,
-        order.phone, order.page_name, order.sku, order.product_display, order.full_address,
+        order.phone, order.page_name, order.sku, order.master_sku, order.final_product, order.final_display_for_packer,
+        order.telegram_product_display, order.product_items_v5, order.product_items_matched, order.full_address,
       ].some((value) => String(value ?? "").toLocaleLowerCase().includes(needle)))
     : allOrders;
   const codTotal = orders.reduce((sum: number, order: any) => sum + (Number(order.cod_amount) || 0), 0);
@@ -83,7 +85,7 @@ export default function OrderHistory() {
               {orders.map((order: any) => <tr key={order.upsert_key || order.id} className="border-b border-violet-200/[0.06] align-top transition-colors hover:bg-cyan-300/[0.035]">
                 <td className="p-3"><p className="font-semibold text-cyan-100">{order.order_number || "—"}</p><p className="mt-1 font-mono text-[10px] text-violet-100/40">{order.upsert_key || ""}</p><Badge className="mt-2 border-orange-300/25 bg-orange-400/10 text-orange-200">🔥SENT</Badge></td>
                 <td className="p-3"><p className="font-medium text-white">{order.customer_name || "ไม่ระบุชื่อ"}</p><p className="mt-1 text-cyan-100/65">{order.phone || "ไม่ระบุเบอร์"}</p><p className="mt-1 max-w-xs text-violet-100/50">{order.full_address || "ไม่ระบุที่อยู่"}</p></td>
-                <td className="max-w-xs whitespace-pre-wrap p-3 text-violet-50/80">{order.product_display || "ไม่มีข้อมูลสินค้าใน GENESIS"}</td>
+                <td className="max-w-xs whitespace-pre-wrap p-3 text-violet-50/80">{historyProductDisplay(order)}{historyChangeLabel(order) ? <p className="mt-2 text-[11px] text-fuchsia-200/75">{historyChangeLabel(order)}</p> : null}</td>
                 <td className="p-3"><Badge className="border-fuchsia-300/20 bg-fuchsia-400/10 text-fuchsia-100">{Number(order.cod_amount ?? 0).toLocaleString("th-TH")} บาท</Badge></td>
                 <td className="p-3"><p className="text-cyan-100/80">{order.page_name || "—"}</p><p className="mt-1 text-violet-100/50">{order.shipping_carrier || "—"}</p></td>
                 <td className="whitespace-nowrap p-3 font-mono text-cyan-100/70">{order.order_time_display || "—"}</td>

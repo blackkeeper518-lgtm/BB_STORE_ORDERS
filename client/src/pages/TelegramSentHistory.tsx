@@ -1,5 +1,6 @@
 import { Input } from "@/components/ui/input";
 import { readTelegramSentHistory } from "@/lib/canonical";
+import { historyChangeLabel, historyProductDisplay } from "@/lib/history-product";
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, Clock3, RefreshCw, Search, Send } from "lucide-react";
 import { useState } from "react";
@@ -69,7 +70,7 @@ export default function TelegramSentHistory() {
             const key = text(row, "upsert_key", "order_number", "id") || String(index);
             return <article key={key} className="grid gap-4 px-5 py-4 transition hover:bg-emerald-300/[0.04] md:grid-cols-[1.4fr_1fr_1fr_auto] md:items-center">
               <div><div className="flex items-center gap-2"><span className="font-mono text-sm text-emerald-200">{text(row, "order_number", "order_number_display", "upsert_key")}</span><span className="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-2 py-0.5 text-[10px] text-emerald-200">🔥SENT</span></div><p className="mt-1 text-xs text-white/55">upsert_key: {text(row, "upsert_key")}</p></div>
-              <div><p className="text-sm text-white">{text(row, "customer_name", "master_customer_name", "facebook_name")}</p><p className="mt-1 text-xs text-white/45">{text(row, "phone", "extracted_phone", "master_customer_phone")}</p></div>
+              <div><p className="text-sm text-white">{text(row, "customer_name", "master_customer_name", "facebook_name")}</p><p className="mt-1 text-xs text-white/45">{text(row, "phone", "extracted_phone", "master_customer_phone")}</p><p className="mt-2 whitespace-pre-wrap text-xs text-cyan-100/70">{historyProductDisplay(row)}</p>{historyChangeLabel(row) ? <p className="mt-1 text-[11px] text-fuchsia-200/75">{historyChangeLabel(row)}</p> : null}</div>
               <div><p className="text-sm text-amber-100">{money(row.cod_amount)}</p><p className="mt-1 text-xs text-white/45">{text(row, "order_time_display", "order_time", "sent_at")}</p></div>
               <div className="text-xs text-emerald-200/70">ส่งสำเร็จแล้ว</div>
             </article>;
