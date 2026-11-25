@@ -20,6 +20,8 @@ const genuineOrders = [
 ];
 for (const order of genuineOrders) assert.equal(hasStructuredOrderEvidence(order), true);
 assert.equal(hasStructuredOrderEvidence('หนูเช็คให้แล้ว ยังไม่มีของพร้อมส่ง แบบ COD พี่อยากให้เทียบตัวไหน'), false);
+assert.match('พี่ศรัทธาสนใจรับเป็นรสไหนดีคะ หรือจะจัดเซ็ต 3 คอต', /(?:สนใจรับ|รสไหนดี|จะจัดเซ็ต)/iu);
+assert.match('ส่งฟรีถึงหน้าบ้าน แกะเช็คก่อนจ่าย มีของพร้อมส่ง', /(?:ส่งฟรีถึงหน้าบ้าน|แกะเช็คก่อนจ่าย|พร้อมส่ง)/iu);
 
 const input = { json: {
   order_number: '🌿_ORD-251126-155946',

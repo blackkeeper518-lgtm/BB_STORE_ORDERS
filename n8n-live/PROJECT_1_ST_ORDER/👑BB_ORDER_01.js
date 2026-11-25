@@ -1268,6 +1268,7 @@ function darksideRealProduct(value) {
   const product = darksideText(value);
   if (darksideMissing(product)) return false;
   if (/(?:ยอดรวม\s*COD|ยอด\s*COD|COD\s*[:：]?)/iu.test(product)) return false;
+  if (/(?:สนใจรับ|รับเป็นรสไหนดี|จะจัดเซ็ต|ล็อกโควตา|รีบล็อก|คุยกับลูกค้า|พร้อมส่ง|ส่งฟรี|แกะเช็คก่อนจ่าย|อยากให้เทียบ|รายละเอียดตัวไหน|มีครบทุก|มีของ)/iu.test(product)) return false;
 
   const hasExplicitQuantity =
     /(?:x|×)\s*\d+/iu.test(product) ||
@@ -1300,6 +1301,7 @@ function darksideValidZip(value) {
 function darksideRealAddress(value) {
   const address = darksideText(value);
   if (darksideMissing(address)) return false;
+  if (/(?:สนใจรับ|รสไหนดี|จะจัดเซ็ต|ล็อกโควตา|พร้อมส่ง|ส่งฟรีถึงหน้าบ้าน|แกะเช็คก่อนจ่าย|อยากให้เทียบ|รายละเอียดตัวไหน|แจ้งที่อยู่|ขอที่อยู่)/iu.test(address)) return false;
   return /(?:หมู่|หมู่บ้าน|ต\.|ตำบล|อ\.|อำเภอ|จ\.|จังหวัด|แขวง|เขต|ถนน|ซอย)/iu.test(address) || /(?<!\d)\d{5}(?!\d)/u.test(address);
 }
 const packerDisplaySummary = orderItems
