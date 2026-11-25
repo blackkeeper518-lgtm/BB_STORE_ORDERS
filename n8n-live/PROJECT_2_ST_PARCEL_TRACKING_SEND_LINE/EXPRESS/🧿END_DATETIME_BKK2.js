@@ -6,10 +6,12 @@ const now = new Date();
 const nowUtcMs = now.getTime();
 const thaiNow = new Date(nowUtcMs + 7 * 60 * 60 * 1000);
 
-// Cutoff = 14:00 ของเมื่อวาน ตามเวลาไทย
+// Cutoff = 14:00 ของรอบธุรกิจปัจจุบัน ตามเวลาไทย
 const yesterdayCutoffBkk = new Date(thaiNow);
-yesterdayCutoffBkk.setUTCDate(yesterdayCutoffBkk.getUTCDate() - 0);
-yesterdayCutoffBkk.setUTCHours(11, 30, 21, 0);
+if (thaiNow.getUTCHours() < 14) {
+  yesterdayCutoffBkk.setUTCDate(yesterdayCutoffBkk.getUTCDate() - 1);
+}
+yesterdayCutoffBkk.setUTCHours(14, 0, 0, 0);
 
 // แปลง cutoff เวลาไทยกลับเป็น timestamp UTC
 const minAllowedTimeMs =
@@ -87,7 +89,7 @@ return $input.all().flatMap(({ json: row = {} }) => {
         sendFacebookRoute: bkk_cutoff_route,
         send_telegram_route: bkk_cutoff_route,
 
-        // สถานะใหม่: ผ่าน cutoff เมื่อวาน 14:00 เวลาไทย
+        // สถานะใหม่: ผ่าน cutoff รอบธุรกิจ 14:00 เวลาไทย
         is_after_yesterday_1400_bkk: isAfterCutoff,
 
         // คงสถานะ 24 ชั่วโมงไว้ตามความหมายเดิม

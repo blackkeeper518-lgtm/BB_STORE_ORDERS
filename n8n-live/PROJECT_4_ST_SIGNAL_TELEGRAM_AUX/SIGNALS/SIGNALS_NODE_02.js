@@ -113,10 +113,11 @@ function formatPackerProduct(rawProduct, fallbackQty) {
 // -------------------------------------------------------
 // 🎯 คำนวณจุดตัดรอบธุรกิจบ่าย 2 (14:00 BKK Cutoff)
 // -------------------------------------------------------
-// 🎯 เสกคำนวณจุดตัดรอบ: ล็อคเป้าสี่ทุ่มตรงของเมื่อวาน (22:00 น. Yesterday)
-const yesterdayCutoff = new Date(nowBKK);
-yesterdayCutoff.setDate(yesterdayCutoff.getDate() - 2); // ถอยหลังกลับไปเมื่อวาน
-yesterdayCutoff.setHours(13, 45, 0, 0);                 // ตั้งเวลาล็อกตายที่ 22:00 น. ตรงเป๊ะ
+// รอบธุรกิจเริ่มทุกวันเวลา 14:00 น. Asia/Bangkok
+// ก่อน 14:00 ให้ถือว่ายังอยู่ในรอบของเมื่อวาน; ตั้งแต่ 14:00 เป็นต้นไปใช้รอบวันนี้
+const businessCutoff = new Date(nowBKK);
+if (nowBKK.getHours() < 14) businessCutoff.setDate(businessCutoff.getDate() - 1);
+businessCutoff.setHours(14, 0, 0, 0);
 
 const calendarTodaySetting = colorMap[dayNames[nowBKK.getDay()]] || { color: WHITE_ROUTE, emoji: "⚪" };
 
@@ -443,8 +444,8 @@ for (const item of items) {
 
   // 6. ROUTING LOGIC (ตัดรอบบ่าย 2 แน่นอน คลีน ไร้หนอนเหลือง)
   const routingOrderTimeMs = orderExactDate.getTime();
-  const hoursPastCutoff = (yesterdayCutoff.getTime() - routingOrderTimeMs) / (1000 * 3600);
-  const isCurrentBusinessOrder = routingOrderTimeMs >= yesterdayCutoff.getTime();
+  const hoursPastCutoff = (businessCutoff.getTime() - routingOrderTimeMs) / (1000 * 3600);
+  const isCurrentBusinessOrder = routingOrderTimeMs >= businessCutoff.getTime();
 
   const orderCalendarDate = new Date(targetDateObj);
   const orderDayName = dayNames[orderCalendarDate.getDay()];

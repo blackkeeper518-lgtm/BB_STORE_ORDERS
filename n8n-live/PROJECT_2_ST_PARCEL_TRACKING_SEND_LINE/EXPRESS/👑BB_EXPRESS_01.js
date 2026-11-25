@@ -18,11 +18,13 @@ const now = new Date();
 const nowUtcMs = now.getTime();
 const thaiNow = new Date(nowUtcMs + (7 * 60 * 60 * 1000));
 
-// ⏰ ตั้งเวลา Cutoff รอบแพ็กของ "บ่ายสองโมงตรงของเมื่อวาน" (13:45 UTC ตามสูตรดั้งเดิม)
-const yesterdayCutoff = new Date(thaiNow);
-yesterdayCutoff.setUTCDate(yesterdayCutoff.getUTCDate() - 3); 
-yesterdayCutoff.setUTCHours(13, 45, 0, 4); 
-const minAllowedTimeMs = yesterdayCutoff.getTime() - (7 * 60 * 60 * 1000);
+// ⏰ รอบแพ็กของทั้งระบบเริ่มเวลา 14:00 น. Asia/Bangkok
+const businessCutoff = new Date(thaiNow);
+if (thaiNow.getUTCHours() < 14) {
+  businessCutoff.setUTCDate(businessCutoff.getUTCDate() - 1);
+}
+businessCutoff.setUTCHours(14, 0, 0, 0);
+const minAllowedTimeMs = businessCutoff.getTime() - (7 * 60 * 60 * 1000);
 
 // 🚨 เกณฑ์เหล็กป้องกันระบบสะดุด: ถอยหลัง 24 ชม. ตรงๆ นับจากวินาทีนี้เป๊ะ
 const absolute24hAgoMs = nowUtcMs - (24 * 60 * 60 * 1000);
