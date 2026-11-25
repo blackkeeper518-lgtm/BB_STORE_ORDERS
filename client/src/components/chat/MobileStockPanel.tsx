@@ -102,20 +102,20 @@ export default function MobileStockPanel({ onClose }: MobileStockPanelProps) {
           const state = classifyStockAvailability(item.stockStatus, item.stockQty, item.adminAvailability);
           const family = getStockFamily(item);
           const isInStock = state === "in";
-          const label = state === "in" ? "มีสินค้า" : state === "out" ? "หมด" : "ยังไม่กำหนด";
+          const label = state === "in" ? "มีของ" : state === "out" ? "ไม่มีของ" : "ยังไม่กำหนด";
           return (
             <article key={`${item.id}-${item.sku}`} className="mobile-stock-card" data-stock-family={family} data-stock-pattern={family === "fruit" ? getStockPattern(item) : item.emoji}>
               <div className="mobile-stock-card-main">
                 <span className="mobile-stock-emoji" aria-hidden="true">{item.emoji || "📦"}</span>
                 <div className="min-w-0 flex-1">
                   <strong>{item.thName || item.label || item.sku}</strong>
-                  <small>{item.sku} · คงเหลือจริง {item.stockQty}</small>
+                  <small>{item.sku} · ราคา {item.price == null ? "—" : `${item.price.toLocaleString("th-TH")} บาท`} · จำนวนจริง {item.stockQty.toLocaleString("th-TH")}</small>
                 </div>
                 <span className={`mobile-stock-status ${state === "in" ? "is-in" : state === "out" ? "is-out" : "is-unknown"}`}>{label}</span>
               </div>
               <div className="mobile-stock-toggle" role="group" aria-label={`เปลี่ยนสถานะ ${item.sku}`}>
                 <button type="button" aria-pressed={isInStock} disabled={availability.isPending} onClick={() => { setNotice(""); availability.mutate({ item, available: true }); }} className={isInStock ? "is-in" : ""}><Check className="h-4 w-4" />มีของ</button>
-                <button type="button" aria-pressed={state === "out"} disabled={availability.isPending} onClick={() => { setNotice(""); availability.mutate({ item, available: false }); }} className={state === "out" ? "is-out" : ""}><X className="h-4 w-4" />หมด</button>
+                <button type="button" aria-pressed={state === "out"} disabled={availability.isPending} onClick={() => { setNotice(""); availability.mutate({ item, available: false }); }} className={state === "out" ? "is-out" : ""}><X className="h-4 w-4" />ไม่มีของ</button>
               </div>
               {item.adminAvailability ? <button type="button" disabled={availability.isPending} onClick={() => { setNotice(""); availability.mutate({ item, available: null }); }} className="mt-2 text-xs text-cyan-200/80 underline decoration-cyan-200/30 underline-offset-2">ใช้สถานะจากจำนวนจริง</button> : null}
             </article>

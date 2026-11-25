@@ -2505,3 +2505,20 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
     padding-bottom: 9px;
   }
 }
+
+/* Mobile stock v2: full-screen compact rows for fast stock updates. */
+@media (max-width: 600px) {
+  .mobile-inbox-stock-panel { position: fixed !important; inset: 0 !important; width: 100vw; height: 100dvh; max-height: none; padding: max(8px,env(safe-area-inset-top)) 8px max(8px,env(safe-area-inset-bottom)); border-radius: 0; transform: none; animation: none; }
+  .mobile-inbox-stock-panel .mobile-stock-card { gap: 5px; border-radius: 9px; padding: 6px; box-shadow: 0 0 8px color-mix(in srgb,var(--mobile-primary) 12%,transparent); }
+  .mobile-inbox-stock-panel .mobile-stock-card::before, .mobile-inbox-stock-panel .mobile-stock-card::after { opacity: .18; }
+  .mobile-inbox-stock-panel .mobile-stock-emoji { width: 28px; height: 28px; border-radius: 7px; font-size: 15px; }
+  .mobile-inbox-stock-panel .mobile-stock-card-main { gap: 6px; }
+  .mobile-inbox-stock-panel .mobile-stock-card-main strong { font-size: 12px; }
+  .mobile-inbox-stock-panel .mobile-stock-card-main small { margin-top: 1px; font-size: 8px; line-height: 1.25; }
+  .mobile-inbox-stock-panel .mobile-stock-status { padding: 3px 6px; font-size: 9px; }
+  .mobile-inbox-stock-panel .mobile-stock-toggle { gap: 4px; }
+  .mobile-inbox-stock-panel .mobile-stock-toggle button { min-height: 30px; border-radius: 7px; font-size: 10px; }
+}
+.mobile-inbox-stock-panel .mobile-stock-toggle button.is-out { border-color: rgba(255,92,126,.9); background: linear-gradient(135deg,rgba(244,63,94,.34),rgba(251,113,133,.14)); color: #ffe4e6; text-shadow: 0 0 8px rgba(255,92,126,.82); box-shadow: 0 0 9px rgba(255,75,110,.62), 0 0 18px rgba(255,75,110,.28), inset 0 0 8px rgba(255,126,150,.16); animation: mobile-stock-out-glow 2.4s ease-in-out infinite alternate; }
+@keyframes mobile-stock-out-glow { from { filter: brightness(.92); } to { filter: brightness(1.16); } }
+@media (prefers-reduced-motion: reduce) { .mobile-inbox-stock-panel .mobile-stock-toggle button.is-out { animation: none; } }

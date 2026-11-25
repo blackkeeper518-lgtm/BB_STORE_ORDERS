@@ -99,7 +99,7 @@ export function OrderDeckFrame(props: OrderDeckFrameProps) {
       } else if (operation === "parcelLookup") {
         result = await projectApi.projects.parcelLookup.mutate({ phone: String(input.phone || "").slice(0, 24) });
       } else if (operation === "productCatalog") {
-        result = await projectApi.projects.execute.mutate({ project: "vault", table: "🛒product_master", method: "GET", params: { select: "emoji,master_sku,th_name,name_standard,brand,variant,unit_price,alias,status", status: "eq.ACTIVE", order: "th_name.asc", limit: "500" } });
+        result = await projectApi.projects.execute.mutate({ project: "vault", table: "🛒product_master", method: "GET", params: { select: "emoji,master_sku,th_name,name_standard,brand,variant,unit_price,alias,status,stock_qty,stock_status,admin_availability", status: "eq.ACTIVE", order: "th_name.asc", limit: "500" } });
       } else if (operation === "scriptCardsList") {
         const offset = Math.max(0, Math.min(4500, Math.floor(Number(input.offset) || 0)));
         result = await projectApi.projects.execute.mutate({ project: "vault", table: "sales_script_cards", method: "GET", params: { select: "id,sku,title,blocks_json,updated_at", order: "updated_at.desc", limit: "500", offset: String(offset) } });

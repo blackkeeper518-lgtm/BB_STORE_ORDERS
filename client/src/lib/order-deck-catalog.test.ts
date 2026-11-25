@@ -50,11 +50,12 @@ describe("ORDER DECK product catalog integration", () => {
     expect(catalogBranch).toContain('project: "vault"');
     expect(catalogBranch).toContain('table: "🛒product_master"');
     expect(catalogBranch).toContain('status: "eq.ACTIVE"');
+    expect(catalogBranch).toContain("stock_qty,stock_status,admin_availability");
     expect(catalogBranch).not.toContain('project: "main"');
   });
 
   it("allows the bounded product fields to staff and includes the catalog in ROOM 04 connection checks", () => {
-    expect(supabase).toContain('"vault:🛒product_master": new Set(["emoji", "master_sku", "th_name", "name_standard", "brand", "variant", "unit_price", "alias", "status"])');
+    expect(supabase).toContain('"vault:🛒product_master": new Set(["emoji", "master_sku", "th_name", "name_standard", "brand", "variant", "unit_price", "alias", "status", "stock_qty", "stock_status", "admin_availability"])');
     expect(supabase).toContain('{ table: "🛒product_master", label: "Product Catalog" }');
   });
 
