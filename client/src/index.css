@@ -1107,6 +1107,10 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .mobile-inbox-product-dock__items button { position:relative; z-index:2; display:flex; min-height:44px; align-items:center; gap:8px; border:1px solid rgba(255,255,255,.17); border-radius:11px; padding:5px 7px; background:rgba(11,10,16,.43); color:#fffaf0; text-align:left; backdrop-filter:blur(8px); }
 .mobile-inbox-product-dock__items button:disabled { opacity:.42; }
 .mobile-inbox-product-dock__items img { width:32px; height:32px; flex:none; border-radius:8px; background:rgba(255,255,255,.06); object-fit:cover; }
+.mobile-inbox-product-dock__thumb { position:relative; display:grid; flex:none; width:32px; height:32px; place-items:center; }
+.mobile-inbox-product-dock__thumb img { width:32px; height:32px; }
+.mobile-inbox-product-dock__loader { position:absolute; width:19px; height:19px; color:#fff; filter:drop-shadow(0 0 5px #67e8f9) drop-shadow(0 0 8px #ff62ce); animation:mobile-product-dock-loader-spin  .8s linear infinite; }
+@keyframes mobile-product-dock-loader-spin { to { transform:rotate(360deg); } }
 .mobile-inbox-product-dock__items span { min-width:0; overflow:hidden; font-size:10px; font-weight:600; text-overflow:ellipsis; white-space:nowrap; }
 @keyframes mobile-product-dock-in { from { opacity:0; transform:translateY(12px) scale(.98); } to { opacity:1; transform:translateY(0) scale(1); } }
 @keyframes mobile-product-dock-twinkle { 0%,100% { opacity:.28; transform:scale(.72) rotate(0deg); } 48% { opacity:1; transform:scale(1.18) rotate(36deg); } }

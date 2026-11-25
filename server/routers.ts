@@ -9,7 +9,6 @@ import * as db from "./db";
 import { generateOrderSummary } from "./order-summary";
 
 const ownerId = (ctx: { user: { id: number } | null }) => ctx.user?.id ?? 0;
-const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
 const kind = z.enum(["code", "sql", "workflow", "document", "config", "other"]);
 function requireServerChatConfig() {
   const credentials = {
@@ -104,13 +103,20 @@ export const appRouter = router({
       if (!outgoing.length) outgoing.push({ stickerId: input.stickerId });
       let finalResult: Awaited<ReturnType<typeof sendMetaMessage>> | undefined;
       let chatHistoryPersisted = true;
+      let multiImageResult: Awaited<ReturnType<typeof sendMetaMessage>> | undefined;
+      const firstImageIndex = outgoing.findIndex(item => Boolean(item.imageUrl));
       for (const [index, item] of outgoing.entries()) {
-        // Meta can accept the first image and still reject the next request with
-        // -1/2018012 while the conversation attachment is settling. Pace a
-        // multi-image send without changing the payload or retrying accepted sends.
-        if (index > 0 && item.imageUrl) await sleep(900);
         try {
-          const result = await sendMetaMessage({ pageId: input.pageId, recipientId: input.recipientId, text: item.text, imageUrl: item.imageUrl, stickerId: item.stickerId, surface: input.surface ?? "web" }, credentials);
+          // Meta supports multiple image attachments in one message. Use that
+          // contract for 2–4 images so one conversation turn cannot fail after
+          // accepting only the first sequential POST. Reuse that single result
+          // for the per-image audit rows below; never issue duplicate POSTs.
+          const isMultiImage = imagesToSend.length > 1 && Boolean(item.imageUrl);
+          const result = isMultiImage && index !== firstImageIndex
+            ? multiImageResult
+            : await sendMetaMessage({ pageId: input.pageId, recipientId: input.recipientId, text: item.text, imageUrl: isMultiImage ? undefined : item.imageUrl, imageUrls: isMultiImage ? imagesToSend : undefined, stickerId: item.stickerId, surface: input.surface ?? "web" }, credentials);
+          if (!result) throw new Error("Meta did not return a message result for the image batch");
+          if (isMultiImage && index === firstImageIndex) multiImageResult = result;
           item.result = result;
           finalResult = result;
         } catch (error) {
@@ -121,9 +127,11 @@ export const appRouter = router({
         }
         const result = finalResult;
         if (!result) throw new Error("Meta did not return a message result");
-        chatHistoryPersisted = (await persistOutgoingChatBestEffort({ portalKey: input.portalKey, chatLinkKey: input.chatLinkKey, pageId: input.pageId, pageName: input.pageName, threadId: input.threadId, recipientId: input.recipientId, messageId: result.message_id, text: item.text || (item.imageUrl ? "📷 ส่งรูปภาพ" : undefined), imageUrl: item.imageUrl }, credentials)) && chatHistoryPersisted;
-        void persistLocalChatBestEffort({ pageId: input.pageId, threadId: input.threadId, senderId: input.pageId, senderType: "page", direction: "outbound", text: item.text || (item.imageUrl ? "📷 ส่งรูปภาพ" : undefined), attachments: item.imageUrl ? [{ url: item.imageUrl }] : undefined, adminUserId: ctx.user?.id, providerMessageId: result.message_id });
-        void db.createAuditLog({ actorUserId: ctx.user.id, actorName: ctx.user.name, action: "CHAT_REPLY_SENT", entityType: "chat_message", entityId: result.message_id, pageId: input.pageId, threadId: input.threadId, metadata: { deviceId: ctx.adminDeviceId || null, userAgent: ctx.userAgent || null, hasText: Boolean(item.text), hasImage: Boolean(item.imageUrl) } });
+        const imageIndex = item.imageUrl ? imagesToSend.indexOf(item.imageUrl) + 1 : 0;
+        const persistedMessageId = result.message_id && imageIndex > 0 && imagesToSend.length > 1 ? `${result.message_id}:image-${imageIndex}` : result.message_id;
+        chatHistoryPersisted = (await persistOutgoingChatBestEffort({ portalKey: input.portalKey, chatLinkKey: input.chatLinkKey, pageId: input.pageId, pageName: input.pageName, threadId: input.threadId, recipientId: input.recipientId, messageId: persistedMessageId, text: item.text || (item.imageUrl ? "📷 ส่งรูปภาพ" : undefined), imageUrl: item.imageUrl }, credentials)) && chatHistoryPersisted;
+        void persistLocalChatBestEffort({ pageId: input.pageId, threadId: input.threadId, senderId: input.pageId, senderType: "page", direction: "outbound", text: item.text || (item.imageUrl ? "📷 ส่งรูปภาพ" : undefined), attachments: item.imageUrl ? [{ url: item.imageUrl }] : undefined, adminUserId: ctx.user?.id, providerMessageId: persistedMessageId });
+        void db.createAuditLog({ actorUserId: ctx.user.id, actorName: ctx.user.name, action: "CHAT_REPLY_SENT", entityType: "chat_message", entityId: persistedMessageId, pageId: input.pageId, threadId: input.threadId, metadata: { deviceId: ctx.adminDeviceId || null, userAgent: ctx.userAgent || null, hasText: Boolean(item.text), hasImage: Boolean(item.imageUrl) } });
       }
       if (!finalResult) throw new Error("ไม่มีข้อความหรือรูปภาพสำหรับส่ง");
       return { ...finalResult, chatHistoryPersisted };

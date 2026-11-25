@@ -1,4 +1,5 @@
 import type { DeckImageProduct } from "@/lib/order-deck-product-index";
+import { LoaderCircle } from "lucide-react";
 
 type MobileInboxProductDockProps = {
   products: DeckImageProduct[];
@@ -6,11 +7,12 @@ type MobileInboxProductDockProps = {
   dismissed: boolean;
   collapsed: boolean;
   disabled: boolean;
+  loadingProduct?: string | null;
   onSelect: (product: string) => void;
   onToggleCollapsed: () => void;
 };
 
-export function MobileInboxProductDock({ products, visible, dismissed, collapsed, disabled, onSelect, onToggleCollapsed }: MobileInboxProductDockProps) {
+export function MobileInboxProductDock({ products, visible, dismissed, collapsed, disabled, loadingProduct, onSelect, onToggleCollapsed }: MobileInboxProductDockProps) {
   if (!visible || dismissed || products.length === 0) return null;
   if (collapsed) return <button type="button" className="mobile-inbox-product-dock__reopen" onClick={onToggleCollapsed} aria-label="เปิดสินค้าไฮไลท์">
     <span aria-hidden="true">📌</span> สินค้าไฮไลท์ <span className="mobile-inbox-product-dock__sparkle" aria-hidden="true">✦</span>
@@ -23,7 +25,7 @@ export function MobileInboxProductDock({ products, visible, dismissed, collapsed
       </div>
       <div className="mobile-inbox-product-dock__items">
         {products.map(item => <button key={item.product} type="button" onClick={() => onSelect(item.product)} disabled={disabled} title={`เตรียมรูป ${item.product} · ยังไม่ส่ง`}>
-          <img src={item.imageUrls[0]} alt="" loading="lazy" />
+          <span className="mobile-inbox-product-dock__thumb"><img src={item.imageUrls[0]} alt="" loading="lazy" />{loadingProduct === item.product ? <LoaderCircle className="mobile-inbox-product-dock__loader" aria-label="กำลังโหลดภาพสินค้า" /> : null}</span>
           <span>{item.product}</span>
         </button>)}
       </div>
