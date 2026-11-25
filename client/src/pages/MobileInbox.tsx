@@ -6,7 +6,7 @@ import { uploadChatImageToVault } from "@/lib/chat-image-upload";
 import { getLatestBBChatCustomerMessage, getSelectedOrderMessageText, isImportableLatestCustomerMessage } from "@/lib/order-deck-context";
 import { applySharedDeckHighlights, selectFeaturedDeckImageProducts } from "@/lib/order-deck-product-index";
 import { useChatProductHighlights } from "@/hooks/useChatProductHighlights";
-import { CYBER_FRAME_EVENT, CYBER_FRAME_OPTIONS, readCyberFrame, readCyberFrameRooms, saveCyberFrameRoom } from "@/lib/cyber-frame";
+import { CYBER_FRAME_EVENT, CYBER_FRAME_V2_OPTIONS, normalizeCyberFrameId, readCyberFrame, readCyberFrameRooms, saveCyberFrameRoom } from "@/lib/cyber-frame";
 import { CYBER_THEME_PRESETS, readCyberTheme, saveCyberTheme, type CyberTheme } from "@/lib/theme-lab";
 import { CHAT_NOTIFICATION_EVENT, countUnreadChatMessages, isChatNotificationSoundEnabled, markChatNotificationsRead, playChatNotificationSound, readChatNotificationState, reconcileChatNotificationRows, setChatNotificationSound, setChatNotificationSoundEnabled, unlockChatNotificationAudio, writeChatNotificationState, type ChatNotification } from "@/lib/chat-notifications";
 import { metaTransientSendNotice } from "@/lib/meta-send-notice";
@@ -83,9 +83,9 @@ export default function MobileInbox() {
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [installGuideOpen, setInstallGuideOpen] = useState(false);
   const [appUpdateReady, setAppUpdateReady] = useState(false);
-  const [cyberFrame, setCyberFrame] = useState(() => readCyberFrame());
+  const [cyberFrame, setCyberFrame] = useState(() => normalizeCyberFrameId(readCyberFrame()));
   const [cyberFrameRooms, setCyberFrameRooms] = useState(() => readCyberFrameRooms());
-  const [frameOptions, setFrameOptions] = useState<Array<{ id: string; name: string }>>(CYBER_FRAME_OPTIONS.map(option => ({ id: option.id, name: option.name })));
+  const [frameOptions, setFrameOptions] = useState<Array<{ id: string; name: string }>>(CYBER_FRAME_V2_OPTIONS.map(option => ({ id: option.id, name: option.name })));
   const [soundOptions, setSoundOptions] = useState<Array<{ key: string; name: string; volume: number }>>([]);
   const [selectedSoundKey, setSelectedSoundKey] = useState(() => { try { return typeof window === "undefined" ? "" : JSON.parse(window.localStorage.getItem("nightops-chat-sound-v1") || "{}").soundKey || ""; } catch { return ""; } });
   const [framePickerOpen, setFramePickerOpen] = useState(false);
@@ -182,7 +182,7 @@ export default function MobileInbox() {
     return () => window.removeEventListener("storage", refreshTheme);
   }, []);
   useEffect(() => {
-    const refreshFrames = () => { setCyberFrame(readCyberFrame()); setCyberFrameRooms(readCyberFrameRooms()); };
+    const refreshFrames = () => { setCyberFrame(normalizeCyberFrameId(readCyberFrame())); setCyberFrameRooms(readCyberFrameRooms()); };
     window.addEventListener("storage", refreshFrames);
     window.addEventListener(CYBER_FRAME_EVENT, refreshFrames);
     return () => { window.removeEventListener("storage", refreshFrames); window.removeEventListener(CYBER_FRAME_EVENT, refreshFrames); };
@@ -227,9 +227,10 @@ export default function MobileInbox() {
       if (!api) return;
       const result = await api.from("app_chat_frames").select("frame_key,name,is_enabled,sort_order").eq("is_enabled", true).order("sort_order", { ascending: true });
       if (cancelled || result.error || !Array.isArray(result.data) || !result.data.length) return;
-      const databaseFrames = result.data.map(row => { const raw = String(row.frame_key ?? "").trim().toLowerCase(); const match = raw.match(/^f(\d+)$/); return { id: match ? `f${match[1].padStart(2, "0")}` : raw, name: String(row.name ?? raw) }; }).filter(option => option.id);
+      const v2Keys = new Set<string>(CYBER_FRAME_V2_OPTIONS.map(option => option.id));
+      const databaseFrames = result.data.map(row => { const raw = String(row.frame_key ?? "").trim().toLowerCase(); return { id: raw, name: String(row.name ?? raw) }; }).filter(option => v2Keys.has(option.id));
       const databaseKeys = new Set(databaseFrames.map(option => option.id));
-      const missingFrames = CYBER_FRAME_OPTIONS.filter(option => !databaseKeys.has(option.id)).map(option => ({ frame_key: option.id, name: option.name, description: option.description, base_frame_key: option.id, is_enabled: true, sort_order: option.number }));
+      const missingFrames = CYBER_FRAME_V2_OPTIONS.filter(option => !databaseKeys.has(option.id)).map(option => ({ frame_key: option.id, name: option.name, description: option.description, base_frame_key: option.id, is_enabled: true, sort_order: option.number }));
       if (missingFrames.length) await api.from("app_chat_frames").upsert(missingFrames, { onConflict: "frame_key" });
       const merged = new Map<string, { id: string; name: string }>(databaseFrames.map(option => [option.id, option]));
       missingFrames.forEach(option => merged.set(option.frame_key, { id: option.frame_key, name: option.name }));
@@ -354,6 +355,7 @@ export default function MobileInbox() {
   const selectedPageId = selected?.pageId ?? "";
   const selectedThreadId = selected?.threadId ?? "";
   const selectedCustomerId = selected?.customerId ?? "";
+  const activeFrame = normalizeCyberFrameId(cyberFrameRooms[selected?.key || selectedKey || ""] || cyberFrameRooms["__default__"] || cyberFrame);
   const messagesQuery = trpc.chat.messages.useQuery({ pageId: selectedPageId, threadId: selectedThreadId, surface: "mobile" }, { enabled: hasConfig && platform === "facebook" && openRoom && Boolean(selectedPageId && selectedThreadId), staleTime: 0, refetchInterval: 8_000, refetchIntervalInBackground: false, refetchOnWindowFocus: true, refetchOnReconnect: true, select: mapChatRowsToMessages });
   const refreshInbox = () => { void Promise.all([threadsQuery.refetch(), lineConversationsQuery.refetch(), messagesQuery.refetch()]); };
   const optimisticMessageIdRef = useRef<string | null>(null);
@@ -420,7 +422,7 @@ export default function MobileInbox() {
     setSelectedOrderMessage(null);
     setOrderDeckMessageRequest(null);
     const roomFrame = cyberFrameRooms[thread.key];
-    if (roomFrame) setCyberFrame(roomFrame);
+    if (roomFrame) setCyberFrame(normalizeCyberFrameId(roomFrame));
     setOpenRoom(true);
     setNotice("");
     if (!roomHistoryRef.current) {
@@ -665,7 +667,7 @@ export default function MobileInbox() {
     {customPanel === "stock" ? <MobileStockPanel onClose={() => setCustomPanel(null)} /> : null}
     <div className="mobile-inbox-tabs"><button type="button" className="platform-facebook is-active" aria-label={`Facebook ${filteredThreads.length} ห้อง`}><Facebook /><span>Facebook</span><b className="mobile-inbox-tab-count">{filteredThreads.length}</b></button><button type="button" className="platform-line" onClick={() => setPlatform("line")} aria-label={`LINE ${lineConversationsQuery.data?.length ?? 0} ห้อง`}><MessageCircle /><span>LINE</span><b className="mobile-inbox-tab-count">{lineConversationsQuery.data?.length ?? 0}</b></button></div>
     <section className="mobile-inbox-list-panel">
-      <div className={`mobile-inbox-search cyber-frame-card cyber-frame-${cyberFrameRooms[selectedKey || ""] || cyberFrame}`}><Search /><Input value={search} onChange={event => setSearch(event.target.value)} placeholder="ค้นหาชื่อลูกค้าหรือข้อความ…" /></div>
+      <div className={`mobile-inbox-search cyber-frame-card cyber-frame-${activeFrame}`}><Search /><Input value={search} onChange={event => setSearch(event.target.value)} placeholder="ค้นหาชื่อลูกค้าหรือข้อความ…" /></div>
       <div className="mobile-inbox-filters"><select aria-label="เลือกเพจ" value={pageFilter} onChange={event => setPageFilter(event.target.value)}><option value="all">ทุกเพจ</option>{availablePages.map(([pageId, pageName]) => <option key={pageId} value={pageId}>{pageName}</option>)}</select>{([ ["all", "ทั้งหมด"], ["ordered", "ออเดอร์"], ["tracking", "เลขพัสดุ"], ["unread", `ยังไม่อ่าน ${visibleUnreadRoomCount}`] ] as const).map(([value, label]) => <button key={value} type="button" className={filter === value ? "is-active" : ""} onClick={() => setFilter(value)}>{label}</button>)}</div>
       {chatConfiguredQuery.isLoading || chatConfiguredQuery.isFetching ? <div className="mobile-inbox-empty"><LoaderCircle className="animate-spin" /><p>กำลังโหลดข้อมูลแชท…</p><small>รอสักครู่ ระบบกำลังเชื่อมต่อจาก Server</small></div> : !hasConfig ? <div className="mobile-inbox-empty"><MessageCircle /><p>ยังไม่พบการเชื่อมต่อ Chat จาก Server</p><button type="button" onClick={() => setLocation("/secret-gallery")}>ตรวจการเชื่อมต่อ</button></div> : threadsQuery.isLoading ? <div className="mobile-inbox-empty"><LoaderCircle className="animate-spin" /><p>กำลังโหลดข้อความ…</p></div> : filteredThreads.length === 0 ? <div className="mobile-inbox-empty"><MessageCircle /><p>{filter === "unread" ? "ไม่มีห้องที่ยังไม่อ่าน" : "ไม่พบห้องแชท"}</p></div> : <div className="mobile-inbox-threads">{filteredThreads.map(thread => <button type="button" key={thread.key} onClick={() => selectRoom(thread)} className={`mobile-inbox-thread ${selected?.key === thread.key ? "is-selected" : ""}`}><span className="mobile-inbox-avatar">{profileAvatar(thread)}</span><span className="mobile-inbox-thread-body"><span className="mobile-inbox-thread-top"><strong>{thread.customerName || ""}</strong><time>{timeLabel(thread.latestAt)}</time></span><span className="mobile-inbox-thread-preview">{thread.preview || "ยังไม่มีข้อความ"}</span><span className="mobile-inbox-thread-tags"><span className="mobile-inbox-platform-badge" aria-label="Facebook"><Facebook /> Facebook</span><span>{thread.pageName || "ไม่ระบุเพจ"}</span>{unreadThreadKeys.has(thread.key) ? <b>ยังไม่อ่าน</b> : null}{thread.orderCount > 0 ? <b>ออเดอร์</b> : null}</span></span></button>)}</div>}
     </section>
@@ -673,7 +675,7 @@ export default function MobileInbox() {
     {openRoom && selected ? <div className="mobile-inbox-deck-bridge" aria-hidden="true">
       <OrderDeckFrame pageId={selectedPageId} pageName={selected.pageName || "ไม่ระบุเพจ"} threadId={selectedThreadId} customerName={selected.customerName || "ลูกค้า"} customerPhone={String(selected.customerPhone || selected.phone || "")} selectedCustomerMessage={selectedOrderMessageText} messageMode="latest" roomStatus="พร้อมใช้งาน" onProductImagesSelected={receiveProductImages} onProductImagesResponse={product => setLoadingProduct(current => !product || current === product ? null : current)} onProductIndexReady={setDeckImageProducts} sharedHighlights={sharedProductHighlights} onFeaturedProductsChange={saveSharedProductHighlights} productImagesRequest={productImagesRequest} onClose={() => {}} />
     </div> : null}
-    {openRoom && selected ? <div className="mobile-inbox-conversation"><div className="mobile-inbox-conversation-shell"><header className="mobile-inbox-conversation-header"><button type="button" aria-label="กลับไปหน้ารวมแชท" onClick={closeRoom}><ArrowLeft /></button><span className="mobile-inbox-avatar">{profileAvatar(selected)}</span><div className="min-w-0 flex-1"><strong className="block truncate">{selected.customerName || ""}</strong><small>{selected.pageName || "ไม่ระบุเพจ"}</small></div><button type="button" onClick={openOrderDeck} disabled={messagesQuery.isLoading || messagesQuery.isFetching} className="mobile-inbox-order-summary-button" aria-label="ดึงข้อความลูกค้าล่าสุด ณ เวลากดแล้วเปิดสรุปบิล" title="กดเพื่อดึงข้อความลูกค้าล่าสุดจาก 🌌ST_CHAT แล้วเปิดสรุปบิล"><Clipboard /><span>{messagesQuery.isFetching ? "กำลังดึง…" : "🧾สรุปบิล"}</span></button></header><div ref={timelineRef} onScroll={event => { const node = event.currentTarget; stickTimelineToBottomRef.current = node.scrollHeight - node.scrollTop - node.clientHeight < 48; }} className="mobile-inbox-timeline">{messages.length ? messages.map(message => { const outgoing = message.direction === "outbound" || message.senderType === "page"; const text = messageText(message); const images = imageUrls(message.attachmentsJson); const mediaOnly = images.length > 0 && (!text.trim() || /^\[รูปภาพ\]$|^ส่งรูปภาพ$/i.test(text.trim())); const roomFrame = cyberFrameRooms[selected.key] || cyberFrame; return (
+    {openRoom && selected ? <div className="mobile-inbox-conversation"><div className="mobile-inbox-conversation-shell"><header className="mobile-inbox-conversation-header"><button type="button" aria-label="กลับไปหน้ารวมแชท" onClick={closeRoom}><ArrowLeft /></button><span className="mobile-inbox-avatar">{profileAvatar(selected)}</span><div className="min-w-0 flex-1"><strong className="block truncate">{selected.customerName || ""}</strong><small>{selected.pageName || "ไม่ระบุเพจ"}</small></div><button type="button" onClick={openOrderDeck} disabled={messagesQuery.isLoading || messagesQuery.isFetching} className="mobile-inbox-order-summary-button" aria-label="ดึงข้อความลูกค้าล่าสุด ณ เวลากดแล้วเปิดสรุปบิล" title="กดเพื่อดึงข้อความลูกค้าล่าสุดจาก 🌌ST_CHAT แล้วเปิดสรุปบิล"><Clipboard /><span>{messagesQuery.isFetching ? "กำลังดึง…" : "🧾สรุปบิล"}</span></button></header><div ref={timelineRef} onScroll={event => { const node = event.currentTarget; stickTimelineToBottomRef.current = node.scrollHeight - node.scrollTop - node.clientHeight < 48; }} className="mobile-inbox-timeline">{messages.length ? messages.map(message => { const outgoing = message.direction === "outbound" || message.senderType === "page"; const text = messageText(message); const images = imageUrls(message.attachmentsJson); const mediaOnly = images.length > 0 && (!text.trim() || /^\[รูปภาพ\]$|^ส่งรูปภาพ$/i.test(text.trim())); const roomFrame = activeFrame; return (
               <div key={message.id} className={`mobile-inbox-message-row ${outgoing ? "is-outgoing" : ""}`}>
                 <div className={`mobile-inbox-message chat-bubble-frame ${roomFrame ? `cyber-frame-card cyber-frame-${roomFrame}` : ""} ${mediaOnly ? "is-media-only" : ""}`}>
                   {!mediaOnly && text ? <p>{text}</p> : null}
