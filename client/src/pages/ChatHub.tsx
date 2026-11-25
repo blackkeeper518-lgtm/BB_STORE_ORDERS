@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useIsMobile } from "@/hooks/useMobile";
 import { extractChatImageUrls, getSupabase, mapChatRowsToMessages, mapChatRowsToThreads, reconcileOptimisticMessages } from "@/lib/canonical";
-import { normalizeChatImageForMeta, uploadChatImageToVault } from "@/lib/chat-image-upload";
+import { uploadChatImageToVault } from "@/lib/chat-image-upload";
 import { buildMetaConversationUrl } from "@/lib/meta-inbox";
 import { metaTransientSendNotice } from "@/lib/meta-send-notice";
 import { getImportableLatestCustomerMessage, getSelectedOrderMessageText, isSelectableCustomerMessage } from "@/lib/order-deck-context";
@@ -283,21 +283,8 @@ export default function ChatHub() {
   const availableToolValues = toolValues.filter(item => String(item.value ?? "").trim());
   const chatEvidenceQuery = trpc.orders.chatEvidence.useQuery({ pageId: selectedPageId, threadId: selectedThreadId }, { enabled: Boolean(selectedPageId && selectedThreadId && orderDetailOpen), refetchInterval: 60_000 });
   const totalMessages = useMemo(() => threads.reduce((total, thread) => total + thread.messageCount, 0), [threads]);
-  const verifySentMessage = async (sentText: string) => {
-    const target = sentText.trim();
-    if (!target) return false;
-    try {
-      const refreshed = await messagesQuery.refetch();
-      return (refreshed.data ?? []).some((message: any) => {
-        const body = String(message?.text ?? message?.message_text ?? message?.messageText ?? "").trim();
-        if (body !== target) return false;
-        const at = new Date(message?.occurredAt ?? message?.createdAt ?? 0).getTime();
-        return Number.isFinite(at) && at >= Date.now() - 120_000;
-      });
-    } catch { return false; }
-  };
   const sendReply = trpc.chat.sendReply.useMutation({
-    onMutate: () => { setDeliveryStatus("sending"); setReplyNotice(""); },
+    onMutate: () => { setDeliveryStatus("sending"); setReplyNotice("กำลังส่งไปยัง Facebook…"); },
     onSuccess: result => {
       const historyFailed = result.chatHistoryPersisted === false;
       setDeliveryStatus(historyFailed ? "warning" : "sent");
@@ -308,36 +295,20 @@ export default function ChatHub() {
         setOptimisticMessages(current => current.map(message => message.id === optimisticMessageIdRef.current ? { ...message, messageId: result.message_id } : message));
       }
       if (replyImages.length > 0) setProductFloatDismissed(true);
+      setReplyText("");
+      setReplyImages([]);
       setEmojiPickerOpen(false);
       setStickerId("");
       void Promise.all([messagesQuery.refetch(), threadsQuery.refetch()]);
     },
-    onError: (error, variables) => {
+    onError: error => {
+      setDeliveryStatus("failed");
+      const message = error.message || "ส่งข้อความไม่สำเร็จ";
+      setReplyNotice(metaTransientSendNotice(message) ?? message);
       const failedId = optimisticMessageIdRef.current;
-      const payload = variables as { text?: string; imageUrls?: string[] } | undefined;
-      const sentText = String(payload?.text ?? "");
-      const imageUrls = Array.isArray(payload?.imageUrls) ? payload.imageUrls.filter(Boolean) : [];
-      if (failedId) {
-        setOptimisticMessages(current => current.map(message => message.id === failedId ? { ...message, deliveryFailed: true } : message));
-      }
+      if (failedId) setOptimisticMessages(current => current.filter(message => message.id !== failedId));
       optimisticMessageIdRef.current = null;
-      if (imageUrls.length) {
-        setReplyImages(current => current.length ? current : imageUrls.map((url, index) => ({ url, sendUrl: url, name: `ภาพที่ส่งไม่ครบ-${index + 1}` })));
-      }
-      const raw = error.message || "ส่งข้อความไม่สำเร็จ";
       void Promise.all([messagesQuery.refetch(), threadsQuery.refetch()]);
-      if (!metaTransientSendNotice(raw)) { setDeliveryStatus("failed"); setReplyNotice(imageUrls.length ? `ส่งภาพไม่ครบ · ${raw} · ภาพยังค้างไว้ ห้ามกดส่งซ้ำจนกว่าจะตรวจ Meta` : raw); return; }
-      // Meta code -1 / subcode 2018012 = internal error ฝั่ง Meta · ตรวจก่อนแล้วค่อยเตือน
-      setDeliveryStatus("sending");
-      setReplyNotice("");
-      window.setTimeout(() => {
-        void verifySentMessage(sentText).then(delivered => {
-          if (delivered) { setDeliveryStatus("sent"); return; }
-          setDeliveryStatus("warning");
-          setReplyNotice("ยังไม่ยืนยันการส่ง · ตรวจใน Business Suite");
-          if (sentText) setReplyText(current => (current.trim() ? current : sentText));
-        });
-      }, 1_500);
     },
   });
   const generateSummary = trpc.orders.generateSummary.useMutation({ onSuccess: result => { setSummary(result); setSummaryText(""); setReplyText(result.copyText); } });
@@ -467,7 +438,7 @@ export default function ChatHub() {
 
   const sendCurrentReply = () => {
     const text = replyText.trim();
-    if (!selectedPageId || !selectedThreadId || (!text && replyImages.length === 0)) return;
+    if (sendReply.isPending || !selectedPageId || !selectedThreadId || (!text && replyImages.length === 0)) return;
     if (!selectedCustomerId) { setDeliveryStatus("failed"); setReplyNotice("ห้องนี้ยังไม่มี Customer PSID จึงยังส่งข้อความไม่ได้"); return; }
     const optimisticId = `optimistic-${Date.now()}`;
     optimisticMessageIdRef.current = optimisticId;
@@ -482,9 +453,6 @@ export default function ChatHub() {
       text: text || undefined,
       imageUrls: replyImages.map(image => image.sendUrl || image.url),
     });
-    setReplyText("");
-    setReplyImages([]);
-    setReplyNotice("");
   };
   const handleImageUpload = async (input?: File | File[]) => {
     const files = (Array.isArray(input) ? input : input ? [input] : []).slice(0, 4 - replyImages.length);
@@ -498,8 +466,7 @@ export default function ChatHub() {
     try {
       for (const file of files) {
         const extension = file.type.split("/")[1] || "png";
-        const namedFile = file.name ? file : new File([file], `pasted-image-${Date.now()}-${uploaded.length + 1}.${extension}`, { type: file.type });
-        const normalizedFile = await normalizeChatImageForMeta(namedFile);
+        const normalizedFile = file.name ? file : new File([file], `pasted-image-${Date.now()}-${uploaded.length + 1}.${extension}`, { type: file.type });
         if (!supportedTypes.includes(normalizedFile.type as typeof supportedTypes[number]) || normalizedFile.size > 6_000_000) {
           setReplyNotice("รองรับ JPG, PNG, GIF หรือ WebP ขนาดไม่เกิน 6 MB ต่อภาพ");
           continue;

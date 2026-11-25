@@ -11,26 +11,6 @@ type VaultStorageApi = {
   };
 };
 
-/** Meta may label animated/GIF-like uploads as GIF in Business Suite. Keep the
- * original local preview, but upload a real PNG for image replies. */
-export async function normalizeChatImageForMeta(file: File) {
-  if (file.type !== "image/gif" && file.type !== "image/webp") return file;
-  if (typeof createImageBitmap !== "function" || typeof document === "undefined") return file;
-  const bitmap = await createImageBitmap(file);
-  try {
-    const canvas = document.createElement("canvas");
-    canvas.width = bitmap.width;
-    canvas.height = bitmap.height;
-    const context = canvas.getContext("2d");
-    if (!context) return file;
-    context.drawImage(bitmap, 0, 0);
-    const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, "image/png"));
-    return blob ? new File([blob], `${file.name.replace(/\.[^.]+$/, "") || "image"}.png`, { type: "image/png" }) : file;
-  } finally {
-    bitmap.close();
-  }
-}
-
 export async function uploadChatImageToVault(api: VaultStorageApi, file: File) {
   const safeName = file.name.toLowerCase().replace(/[^a-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 120) || "image";
   const id = typeof crypto !== "undefined" && "randomUUID" in crypto

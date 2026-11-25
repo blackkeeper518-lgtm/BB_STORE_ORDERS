@@ -1356,7 +1356,7 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
   .mobile-inbox-theme-swatch { padding:7px 6px; font-size:9px; }
   .mobile-inbox-install-button { height:31px; padding:0 7px; font-size:9px; }
   .mobile-inbox-install-button svg { width:14px; height:14px; }
-  .mobile-inbox-conversation-header { --mobile-inbox-top-clearance:max(40px,calc(env(safe-area-inset-top) + 8px)); height:calc(64px + var(--mobile-inbox-top-clearance)); min-height:calc(64px + var(--mobile-inbox-top-clearance)); padding:calc(8px + var(--mobile-inbox-top-clearance)) 11px 8px; gap:9px; }
+  .mobile-inbox-conversation-header { height:64px; padding:8px 11px; gap:9px; }
   .mobile-inbox-conversation-header > button { width:34px; height:34px; }
   .mobile-inbox-conversation-header > button svg { width:18px; height:18px; }
   .mobile-inbox-conversation-header .mobile-inbox-avatar { width:38px; height:38px; font-size:15px; }
@@ -1804,7 +1804,7 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .mobile-inbox-order-deck { position:fixed !important; z-index:2147483000 !important; inset:0 !important; display:flex !important; align-items:center; justify-content:center; padding:max(8px,env(safe-area-inset-top)) 8px max(8px,env(safe-area-inset-bottom)); background:rgba(4,4,13,.78); backdrop-filter:blur(8px); overscroll-behavior:contain; }
 .mobile-inbox-order-deck-panel { position:relative; z-index:1; display:flex; width:min(100%,760px); height:min(100%,960px); min-height:0; overflow:hidden; border:1px solid rgba(173,114,255,.42); border-radius:20px; background:#080b14; box-shadow:0 24px 90px rgba(0,0,0,.65),0 0 34px rgba(173,114,255,.16); }
 .mobile-inbox-order-deck-panel > section { width:100%; height:100%; min-height:0; }
-@media(max-width:560px){.mobile-inbox-order-deck{--mobile-inbox-top-clearance:max(40px,calc(env(safe-area-inset-top) + 8px));padding:var(--mobile-inbox-top-clearance) 6px max(8px,env(safe-area-inset-bottom));}.mobile-inbox-order-deck-panel{width:100%;height:calc(100dvh - var(--mobile-inbox-top-clearance) - max(8px,env(safe-area-inset-bottom)));border-radius:16px;}}
+@media(max-width:560px){.mobile-inbox-order-deck{padding:max(6px,env(safe-area-inset-top)) 6px max(6px,env(safe-area-inset-bottom));}.mobile-inbox-order-deck-panel{width:100%;height:100%;border-radius:16px;}}
 
 
 /* Mobile stock room: compact neon modal with a scrollable product list. */
@@ -2419,107 +2419,3 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .global-theme-runtime .daily-order-summary-room .text-violet-100 {
   color: color-mix(in srgb, var(--global-accent) 72%, var(--global-text)) !important;
 }
-
-/* Mobile inbox viewport guard: keep content clear of status/navigation bars. */
-@supports (padding: env(safe-area-inset-bottom)) {
-  .mobile-inbox-page {
-    min-height: 100svh;
-    height: 100dvh;
-    padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
-    box-sizing: border-box;
-  }
-  .mobile-inbox-list-panel {
-    min-height: 0;
-    overflow: hidden;
-  }
-  .mobile-inbox-composer {
-    padding-bottom: max(10px, env(safe-area-inset-bottom));
-  }
-  .mobile-inbox-bottom-nav {
-    min-height: 64px;
-    padding-bottom: max(12px, env(safe-area-inset-bottom));
-    box-sizing: border-box;
-  }
-}
-
-/* Final mobile viewport fit: let flex calculate the usable area instead of subtracting fixed pixels. */
-@media (max-width: 767px) {
-  .mobile-inbox-page {
-    min-height: 100svh;
-    height: 100dvh;
-    max-height: 100dvh;
-    padding: 0;
-    overflow: hidden;
-    box-sizing: border-box;
-  }
-  .mobile-inbox-list-panel {
-    display: flex;
-    min-height: 0;
-    flex: 1 1 auto;
-    flex-direction: column;
-    overflow: hidden;
-  }
-  .mobile-inbox-threads {
-    height: auto;
-    min-height: 0;
-    flex: 1 1 auto;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    -webkit-overflow-scrolling: touch;
-  }
-  .mobile-inbox-bottom-nav {
-    height: auto;
-    min-height: 56px;
-    flex: 0 0 auto;
-    padding-bottom: max(10px, env(safe-area-inset-bottom));
-    box-sizing: border-box;
-  }
-  .mobile-inbox-conversation,
-  .mobile-inbox-conversation-shell {
-    height: 100dvh;
-    min-height: 100svh;
-    max-height: 100dvh;
-  }
-  .mobile-inbox-conversation-header {
-    height: auto;
-    min-height: calc(64px + env(safe-area-inset-top));
-    padding: calc(8px + env(safe-area-inset-top)) 11px 8px;
-    box-sizing: border-box;
-  }
-  .mobile-inbox-timeline {
-    min-height: 0;
-    flex: 1 1 auto;
-    overflow-y: auto;
-  }
-  .mobile-inbox-composer {
-    flex: 0 0 auto;
-    padding-bottom: max(10px, env(safe-area-inset-bottom));
-  }
-}
-
-/* Keep a small, stable clearance for the phone's system navigation area. */
-@media (max-width: 767px) {
-  .mobile-inbox-page {
-    --mobile-device-clearance: max(14px, env(safe-area-inset-bottom));
-    height: calc(100dvh - var(--mobile-device-clearance));
-    min-height: calc(100svh - var(--mobile-device-clearance));
-    max-height: calc(100dvh - var(--mobile-device-clearance));
-    margin-bottom: 0;
-    border-radius: 0 0 14px 14px;
-  }
-  .mobile-inbox-conversation {
-    inset: 0 0 var(--mobile-device-clearance) 0;
-  }
-  .mobile-inbox-conversation,
-  .mobile-inbox-conversation-shell {
-    height: 100%;
-    min-height: 0;
-    max-height: none;
-  }
-}
-
-/* Mobile room action: open the same conversation in Meta Business Suite. */
-.mobile-inbox-meta-link { display:inline-flex; min-width:42px; height:34px; align-items:center; justify-content:center; gap:4px; flex:none; border:1px solid color-mix(in srgb,var(--mobile-primary) 44%,transparent); border-radius:10px; padding:0 7px; background:color-mix(in srgb,var(--mobile-primary) 12%,transparent); color:var(--mobile-primary); font-size:10px; font-weight:700; text-decoration:none; }
-.mobile-inbox-meta-link:hover { background:color-mix(in srgb,var(--mobile-accent) 18%,transparent); color:#fff; }
-.mobile-inbox-meta-link svg { width:15px; height:15px; }

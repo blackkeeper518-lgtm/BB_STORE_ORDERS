@@ -2,8 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { extractChatImageUrls, getActiveCamp, getSupabase, mapChatRowsToMessages, mapChatRowsToThreads, readCanonicalOrders, reconcileOptimisticMessages } from "@/lib/canonical";
-import { normalizeChatImageForMeta, uploadChatImageToVault } from "@/lib/chat-image-upload";
-import { buildMetaConversationUrl } from "@/lib/meta-inbox";
+import { uploadChatImageToVault } from "@/lib/chat-image-upload";
 import { getLatestBBChatCustomerMessage, getSelectedOrderMessageText, isImportableLatestCustomerMessage } from "@/lib/order-deck-context";
 import { applySharedDeckHighlights, selectFeaturedDeckImageProducts } from "@/lib/order-deck-product-index";
 import { useChatProductHighlights } from "@/hooks/useChatProductHighlights";
@@ -38,11 +37,7 @@ function imageUrls(value: string | null | undefined) {
 }
 function messageText(message: Record<string, any> | null | undefined) {
   if (!message || typeof message !== "object") return "";
-  const text = String(message.text ?? "").trim();
-  if (text) return text;
-  const legacyText = String(message.message_text ?? "").trim();
-  if (legacyText) return legacyText;
-  return imageUrls(message.attachmentsJson).length ? "ส่งรูปภาพ" : "";
+  return String(message.text ?? message.message_text ?? (imageUrls(message.attachmentsJson).length ? "ส่งรูปภาพ" : ""));
 }
 function profileAvatar(thread: Thread) { return thread.profilePictureUrl ? <img src={thread.profilePictureUrl} alt="" loading="lazy" referrerPolicy="no-referrer" /> : (thread.customerName || "").slice(0, 1); }
 
@@ -310,56 +305,27 @@ export default function MobileInbox() {
   const selectedPageId = selected?.pageId ?? "";
   const selectedThreadId = selected?.threadId ?? "";
   const selectedCustomerId = selected?.customerId ?? "";
-  const selectedMetaInboxUrl = buildMetaConversationUrl(selected?.chatLinkKey || (selectedPageId && selectedThreadId ? `${selectedPageId}_t_${selectedThreadId}` : ""));
   const messagesQuery = trpc.chat.messages.useQuery({ pageId: selectedPageId, threadId: selectedThreadId, surface: "mobile" }, { enabled: hasConfig && platform === "facebook" && openRoom && Boolean(selectedPageId && selectedThreadId), staleTime: 0, refetchInterval: 8_000, refetchIntervalInBackground: false, refetchOnWindowFocus: true, refetchOnReconnect: true, select: mapChatRowsToMessages });
   const refreshInbox = () => { void Promise.all([threadsQuery.refetch(), lineConversationsQuery.refetch(), messagesQuery.refetch()]); };
   const optimisticMessageIdRef = useRef<string | null>(null);
-  const verifySentMessage = async (sentText: string) => {
-    const target = sentText.trim();
-    if (!target) return false;
-    try {
-      const refreshed = await messagesQuery.refetch();
-      return (refreshed.data ?? []).some(message => {
-        if (messageText(message).trim() !== target) return false;
-        const at = new Date(message.occurredAt ?? 0).getTime();
-        return Number.isFinite(at) && at >= Date.now() - 120_000;
-      });
-    } catch { return false; }
-  };
   const sendReply = trpc.chat.sendReply.useMutation({
-    onMutate: () => setNotice(""),
+    onMutate: () => setNotice("กำลังส่งไปยัง Facebook…"),
     onSuccess: result => {
       setOptimisticMessages(current => current.map(message => message.id === optimisticMessageIdRef.current ? { ...message, messageId: result.message_id } : message));
       if (replyImages.length > 0) setProductDockDismissed(true);
       else if (replyText.trim()) setProductDockCollapsed(true);
-      setNotice("");
+      setReplyText("");
+      setReplyImages([]);
+      setNotice("ส่งแล้ว");
       void Promise.all([messagesQuery.refetch(), threadsQuery.refetch()]);
     },
-    onError: (error, variables) => {
+    onError: error => {
       const failedId = optimisticMessageIdRef.current;
-      const payload = variables as { text?: string; imageUrls?: string[] } | undefined;
-      const sentText = String(payload?.text ?? "");
-      const imageUrls = Array.isArray(payload?.imageUrls) ? payload.imageUrls.filter(Boolean) : [];
-      if (failedId) {
-        setOptimisticMessages(current => current.map(message => message.id === failedId ? { ...message, deliveryFailed: true } : message));
-      }
+      if (failedId) setOptimisticMessages(current => current.filter(message => message.id !== failedId));
       optimisticMessageIdRef.current = null;
-      if (imageUrls.length) {
-        setReplyImages(current => current.length ? current : imageUrls.map((url, index) => ({ url, sendUrl: url, name: `ภาพที่ส่งไม่ครบ-${index + 1}` })));
-      }
-      const raw = error.message || "ส่งไม่สำเร็จ";
+      const message = error.message || "ส่งไม่สำเร็จ";
+      setNotice(metaTransientSendNotice(message) ?? message);
       void Promise.all([messagesQuery.refetch(), threadsQuery.refetch()]);
-      if (!metaTransientSendNotice(raw)) { setNotice(imageUrls.length ? `ส่งภาพไม่ครบ · ${raw} · ภาพยังค้างไว้ ห้ามกดส่งซ้ำจนกว่าจะตรวจ Meta` : raw); return; }
-      // Meta code -1 / subcode 2018012 = internal error ฝั่ง Meta · ข้อความมักเข้าปกติ
-      // จึงไม่ขึ้นเตือนทันที: ตรวจก่อนว่าข้อความเข้าจริงหรือไม่
-      setNotice("");
-      window.setTimeout(() => {
-        void verifySentMessage(sentText).then(delivered => {
-          if (delivered) return;
-          setNotice("ยังไม่ยืนยันการส่ง · ตรวจใน Business Suite");
-          if (sentText) setReplyText(current => (current.trim() ? current : sentText));
-        });
-      }, 1_500);
     },
   });
   const generateSummary = trpc.orders.generateSummary.useMutation({
@@ -453,8 +419,7 @@ export default function MobileInbox() {
     try {
       for (const file of files) {
         const extension = file.type.split("/")[1] || "png";
-        const namedFile = file.name ? file : new File([file], `pasted-image-${Date.now()}-${uploaded.length + 1}.${extension}`, { type: file.type });
-        const normalizedFile = await normalizeChatImageForMeta(namedFile);
+        const normalizedFile = file.name ? file : new File([file], `pasted-image-${Date.now()}-${uploaded.length + 1}.${extension}`, { type: file.type });
         if (!["image/jpeg", "image/png", "image/gif", "image/webp"].includes(normalizedFile.type) || normalizedFile.size > 6_000_000) continue;
         const result = await uploadChatImageToVault(vault, normalizedFile);
         uploaded.push({ url: result.url, sendUrl: result.url, name: normalizedFile.name });
@@ -466,15 +431,12 @@ export default function MobileInbox() {
   };
   const send = () => {
     const text = replyText.trim();
-    if (!selectedPageId || !selectedThreadId || (!text && replyImages.length === 0)) return;
+    if (sendReply.isPending || !selectedPageId || !selectedThreadId || (!text && replyImages.length === 0)) return;
     if (!selectedCustomerId) { setNotice("ห้องนี้ยังไม่มี Customer PSID"); return; }
     const optimisticId = `optimistic-${Date.now()}`;
     optimisticMessageIdRef.current = optimisticId;
     setOptimisticMessages(current => [...current, { id: optimisticId, text: text || "ส่งรูปภาพ", message_text: text, direction: "outbound", senderType: "page", side: "right", occurredAt: new Date().toISOString(), attachmentsJson: replyImages.length ? JSON.stringify(replyImages.map(image => ({ url: image.url }))) : "[]" }]);
     sendReply.mutate({ pageId: selectedPageId, pageName: selected?.pageName ?? undefined, portalKey: selected?.portalKey ?? undefined, chatLinkKey: selected?.chatLinkKey ?? undefined, threadId: selectedThreadId, recipientId: selectedCustomerId, text: text || undefined, imageUrls: replyImages.map(image => image.sendUrl || image.url), surface: "mobile" });
-    setReplyText("");
-    setReplyImages([]);
-    setNotice("");
   };
   const chooseTheme = (preset: CyberTheme) => {
     const next = { ...cyberTheme, ...preset, preset: preset.preset };
@@ -648,7 +610,7 @@ export default function MobileInbox() {
     {openRoom && selected ? <div className="mobile-inbox-deck-bridge" aria-hidden="true">
       <OrderDeckFrame pageId={selectedPageId} pageName={selected.pageName || "ไม่ระบุเพจ"} threadId={selectedThreadId} customerName={selected.customerName || "ลูกค้า"} customerPhone={String(selected.customerPhone || selected.phone || "")} selectedCustomerMessage={selectedOrderMessageText} messageMode="latest" roomStatus="พร้อมใช้งาน" onProductImagesSelected={receiveProductImages} onProductIndexReady={setDeckImageProducts} sharedHighlights={sharedProductHighlights} onFeaturedProductsChange={saveSharedProductHighlights} productImagesRequest={productImagesRequest} onClose={() => {}} />
     </div> : null}
-    {openRoom && selected ? <div className="mobile-inbox-conversation"><div className="mobile-inbox-conversation-shell"><header className="mobile-inbox-conversation-header"><button type="button" aria-label="กลับไปหน้ารวมแชท" onClick={closeRoom}><ArrowLeft /></button><span className="mobile-inbox-avatar">{profileAvatar(selected)}</span><div className="min-w-0 flex-1"><strong className="block truncate">{selected.customerName || ""}</strong><small>{selected.pageName || "ไม่ระบุเพจ"}</small></div>{selectedMetaInboxUrl ? <a href={selectedMetaInboxUrl} target="_blank" rel="noopener noreferrer" className="mobile-inbox-meta-link" aria-label="เปิดแชทจริงใน Meta Business Suite" title="เปิดแชทจริงใน Meta Business Suite"><ExternalLink /><span>Meta</span></a> : null}<button type="button" onClick={openOrderDeck} disabled={messagesQuery.isLoading || messagesQuery.isFetching} className="mobile-inbox-order-summary-button" aria-label="ดึงข้อความลูกค้าล่าสุด ณ เวลากดแล้วเปิดสรุปบิล" title="กดเพื่อดึงข้อความลูกค้าล่าสุดจาก 🌌ST_CHAT แล้วเปิดสรุปบิล"><Clipboard /><span>{messagesQuery.isFetching ? "กำลังดึง…" : "🧾สรุปบิล"}</span></button></header><div ref={timelineRef} onScroll={event => { const node = event.currentTarget; stickTimelineToBottomRef.current = node.scrollHeight - node.scrollTop - node.clientHeight < 48; }} className="mobile-inbox-timeline">{messages.length ? messages.map(message => { const outgoing = message.direction === "outbound" || message.senderType === "page"; const text = messageText(message); const images = imageUrls(message.attachmentsJson); const mediaOnly = images.length > 0 && (!text.trim() || /^\[รูปภาพ\]$|^ส่งรูปภาพ$/i.test(text.trim())); const roomFrame = cyberFrameRooms[selected.key] || cyberFrame; return (
+    {openRoom && selected ? <div className="mobile-inbox-conversation"><div className="mobile-inbox-conversation-shell"><header className="mobile-inbox-conversation-header"><button type="button" aria-label="กลับไปหน้ารวมแชท" onClick={closeRoom}><ArrowLeft /></button><span className="mobile-inbox-avatar">{profileAvatar(selected)}</span><div className="min-w-0 flex-1"><strong className="block truncate">{selected.customerName || ""}</strong><small>{selected.pageName || "ไม่ระบุเพจ"}</small></div><button type="button" onClick={openOrderDeck} disabled={messagesQuery.isLoading || messagesQuery.isFetching} className="mobile-inbox-order-summary-button" aria-label="ดึงข้อความลูกค้าล่าสุด ณ เวลากดแล้วเปิดสรุปบิล" title="กดเพื่อดึงข้อความลูกค้าล่าสุดจาก 🌌ST_CHAT แล้วเปิดสรุปบิล"><Clipboard /><span>{messagesQuery.isFetching ? "กำลังดึง…" : "🧾สรุปบิล"}</span></button></header><div ref={timelineRef} onScroll={event => { const node = event.currentTarget; stickTimelineToBottomRef.current = node.scrollHeight - node.scrollTop - node.clientHeight < 48; }} className="mobile-inbox-timeline">{messages.length ? messages.map(message => { const outgoing = message.direction === "outbound" || message.senderType === "page"; const text = messageText(message); const images = imageUrls(message.attachmentsJson); const mediaOnly = images.length > 0 && (!text.trim() || /^\[รูปภาพ\]$|^ส่งรูปภาพ$/i.test(text.trim())); const roomFrame = cyberFrameRooms[selected.key] || cyberFrame; return (
               <div key={message.id} className={`mobile-inbox-message-row ${outgoing ? "is-outgoing" : ""}`}>
                 <div className={`mobile-inbox-message chat-bubble-frame ${roomFrame ? `cyber-frame-card cyber-frame-${roomFrame}` : ""} ${mediaOnly ? "is-media-only" : ""}`}>
                   {!mediaOnly && text ? <p>{text}</p> : null}
