@@ -9,6 +9,7 @@ import * as db from "./db";
 import { generateOrderSummary } from "./order-summary";
 
 const ownerId = (ctx: { user: { id: number } | null }) => ctx.user?.id ?? 0;
+const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
 const kind = z.enum(["code", "sql", "workflow", "document", "config", "other"]);
 function requireServerChatConfig() {
   const credentials = {
@@ -103,7 +104,11 @@ export const appRouter = router({
       if (!outgoing.length) outgoing.push({ stickerId: input.stickerId });
       let finalResult: Awaited<ReturnType<typeof sendMetaMessage>> | undefined;
       let chatHistoryPersisted = true;
-      for (const item of outgoing) {
+      for (const [index, item] of outgoing.entries()) {
+        // Meta can accept the first image and still reject the next request with
+        // -1/2018012 while the conversation attachment is settling. Pace a
+        // multi-image send without changing the payload or retrying accepted sends.
+        if (index > 0 && item.imageUrl) await sleep(900);
         try {
           const result = await sendMetaMessage({ pageId: input.pageId, recipientId: input.recipientId, text: item.text, imageUrl: item.imageUrl, stickerId: item.stickerId, surface: input.surface ?? "web" }, credentials);
           item.result = result;
