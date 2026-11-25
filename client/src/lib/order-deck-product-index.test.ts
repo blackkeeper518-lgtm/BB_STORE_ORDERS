@@ -116,6 +116,10 @@ describe("Order Deck floating product shortcuts", () => {
   it("mounts the pinned-image dock and Deck bridge in Mobile Inbox before opening the Deck", () => {
     expect(mobileInbox).toContain('openRoom && selected ? <div className="mobile-inbox-deck-bridge"');
     expect(mobileInbox).toContain("onProductIndexReady={setDeckImageProducts}");
+    const modalDeck = mobileInbox.slice(mobileInbox.indexOf("{orderDeckOpen && selected"));
+    expect(modalDeck).toContain("sharedHighlights={sharedProductHighlights}");
+    expect(modalDeck).toContain("onFeaturedProductsChange={saveSharedProductHighlights}");
+    expect(modalDeck).toContain("onProductIndexReady={setDeckImageProducts}");
     expect(mobileInbox).toContain("productImagesRequest={productImagesRequest}");
     expect(mobileInbox).toContain("onProductImagesSelected={receiveProductImages}");
     expect(mobileInbox).toContain("<MobileInboxProductDock products={featuredImageProducts}");
@@ -134,6 +138,7 @@ describe("Order Deck floating product shortcuts", () => {
   it("does not sync unrelated Deck saves as highlight changes", () => {
     expect(deckSource).toContain("function saveAdPages(syncOnline=false)");
     expect(deckSource).toContain("if(syncOnline&&window.parent!==window)");
+    expect(deckSource).toContain("productNames:[...new Set([...(currentAdPage()?.selected||[]),...adPages.filter(page=>page.id!==activeAdPageId)");
     expect(deckSource).toContain("currentAdPage().selected=cb.checked?[name,...current.filter(item=>item!==name)]:current.filter(item=>item!==name)");
     expect(deckSource).toContain("page.selected=isPinned?current.filter(item=>item!==name):[name,...current.filter(item=>item!==name)]");
     expect(deckSource).toContain("saveAdPages(false);renderAdPageSelect();renderAdProductChecks()");
