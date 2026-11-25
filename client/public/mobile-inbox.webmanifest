@@ -4,7 +4,7 @@
   "description": "กล่องข้อความแอดมินสำหรับตอบแชทลูกค้า BB STORE",
   "lang": "th",
   "id": "/mobile-inbox",
-  "start_url": "/mobile-inbox",
+  "start_url": "/daily-order-summary",
   "scope": "/",
   "display": "standalone",
   "display_override": ["standalone"],

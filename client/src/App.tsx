@@ -35,7 +35,7 @@ function HomeRoute() {
   useEffect(() => {
     const userAgent = typeof navigator === "undefined" ? "" : navigator.userAgent;
     const isPhone = /Android|iPhone|iPad|iPod|Mobile/i.test(userAgent) || (typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches);
-    setLocation(isPhone ? "/mobile-inbox" : "/orders");
+    setLocation(isPhone ? "/daily-order-summary" : "/orders");
   }, [setLocation]);
   return null;
 }
