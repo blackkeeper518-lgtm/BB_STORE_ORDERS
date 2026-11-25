@@ -18,6 +18,8 @@ import { Check, CheckCircle2, ChevronDown, CircleUserRound, Clipboard, ExternalL
 import { type ClipboardEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { OrderDeckFrame } from "@/components/chat/OrderDeckFrame";
+import { detectTrackingNumber, extractOrderFields, tacticalAudio } from "@/lib/darkside-skin-engine";
+import { useGlobalThemeRuntime } from "@/contexts/GlobalThemeRuntime";
 
 function timeLabel(value: string | null | undefined) {
   if (!value) return "—";
@@ -72,6 +74,7 @@ function SendStatusBadge({ label, value, route }: { label: string; value: unknow
 export default function ChatHub() {
   const [, setLocation] = useLocation();
   const isMobile = useIsMobile();
+  const { theme } = useGlobalThemeRuntime();
   const chatConfiguredQuery = trpc.chat.configured.useQuery(undefined, { staleTime: 60_000, retry: false });
   const hasServerChatConfig = Boolean(chatConfiguredQuery.data?.configured);
   const [search, setSearch] = useState("");
@@ -89,6 +92,7 @@ export default function ChatHub() {
   });
   const [statusFilter, setStatusFilter] = useState<"all" | "ordered" | "tracking_over_24h">("all");
   const [replyText, setReplyText] = useState("");
+  const parsedCustomerFields = useMemo(() => extractOrderFields(replyText), [replyText]);
   const [replyImages, setReplyImages] = useState<Array<{ url: string; sendUrl: string; name: string }>>([]);
   const [deckImageProducts, setDeckImageProducts] = useState<Array<{ product: string; terms: string[]; imageUrls: string[]; featured: boolean }>>([]);
   const [productFloatVisible, setProductFloatVisible] = useState(false);
@@ -104,6 +108,18 @@ export default function ChatHub() {
   const optimisticMessageIdRef = useRef<string | null>(null);
   const [deliveryStatus, setDeliveryStatus] = useState<"idle" | "sending" | "sent" | "warning" | "failed">("idle");
   const [replyNotice, setReplyNotice] = useState("");
+  useEffect(() => {
+    const onPaste = (event: globalThis.ClipboardEvent) => {
+      const value = event.clipboardData?.getData("text") || "";
+      const tracking = detectTrackingNumber(value);
+      if (!tracking) return;
+      setReplyText(current => current || `เลขพัสดุ ${tracking}`);
+      setReplyNotice(`จับเลขพัสดุ ${tracking} จาก Clipboard แล้ว · กดส่งได้ทันที`);
+      tacticalAudio.play("notification", theme);
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  }, [theme]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const replyTextareaRef = useRef<HTMLTextAreaElement>(null);
   const [summaryOpen, setSummaryOpen] = useState(false);
