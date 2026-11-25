@@ -37,7 +37,11 @@ function imageUrls(value: string | null | undefined) {
 }
 function messageText(message: Record<string, any> | null | undefined) {
   if (!message || typeof message !== "object") return "";
-  return String(message.text ?? message.message_text ?? (imageUrls(message.attachmentsJson).length ? "ส่งรูปภาพ" : ""));
+  const text = String(message.text ?? "").trim();
+  if (text) return text;
+  const legacyText = String(message.message_text ?? "").trim();
+  if (legacyText) return legacyText;
+  return imageUrls(message.attachmentsJson).length ? "ส่งรูปภาพ" : "";
 }
 function profileAvatar(thread: Thread) { return thread.profilePictureUrl ? <img src={thread.profilePictureUrl} alt="" loading="lazy" referrerPolicy="no-referrer" /> : (thread.customerName || "").slice(0, 1); }
 
