@@ -80,6 +80,11 @@ describe("Order Deck floating product shortcuts", () => {
     expect(mobileInbox).toContain("onFeaturedProductsChange={saveSharedProductHighlights}");
   });
 
+  it("imports script-card images only from ACTIVE rows, never DRAFT rows", () => {
+    expect(deckFrame).toContain('select: "id,sku,title,status,blocks_json,updated_at", status: "eq.ACTIVE"');
+    expect(deckSource).toContain("String(row.status||'').trim().toUpperCase()!=='ACTIVE'");
+  });
+
   it("passes local images from pinned editor records through the Deck index and iframe bridge", () => {
     expect(deckSource).toContain("const embeddedPinnedImage=featured&&imageUrl.length<=8100000");
     expect(deckSource).toContain("const imageUrls=remoteImage||embeddedPinnedImage?[imageUrl]:[]");

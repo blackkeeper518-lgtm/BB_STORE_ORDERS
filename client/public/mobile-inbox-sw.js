@@ -1,4 +1,4 @@
-const CACHE_NAME = "bb-store-inbox-shell-v6";
+const CACHE_NAME = "bb-store-inbox-shell-v7";
 const APP_SHELL = "/mobile-inbox";
 
 self.addEventListener("install", event => {

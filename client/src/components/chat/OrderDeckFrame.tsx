@@ -102,7 +102,7 @@ export function OrderDeckFrame(props: OrderDeckFrameProps) {
         result = await projectApi.projects.execute.mutate({ project: "vault", table: "🛒product_master", method: "GET", params: { select: "emoji,master_sku,th_name,name_standard,brand,variant,unit_price,alias,status,stock_qty,stock_status,admin_availability", status: "eq.ACTIVE", order: "th_name.asc", limit: "500" } });
       } else if (operation === "scriptCardsList") {
         const offset = Math.max(0, Math.min(4500, Math.floor(Number(input.offset) || 0)));
-        result = await projectApi.projects.execute.mutate({ project: "vault", table: "sales_script_cards", method: "GET", params: { select: "id,sku,title,blocks_json,updated_at", order: "updated_at.desc", limit: "500", offset: String(offset) } });
+        result = await projectApi.projects.execute.mutate({ project: "vault", table: "sales_script_cards", method: "GET", params: { select: "id,sku,title,status,blocks_json,updated_at", status: "eq.ACTIVE", order: "updated_at.desc", limit: "500", offset: String(offset) } });
       } else if (operation === "scriptCardByTitle") {
         const title = String(input.title || "").trim().slice(0, 160);
         result = await projectApi.projects.execute.mutate({ project: "vault", table: "sales_script_cards", method: "GET", params: { select: "id,title,subtitle,script_text,ai_context,ai_instruction,blocks_json,status,version,updated_at", title: `eq.${title}`, order: "updated_at.desc", limit: "1" } });
