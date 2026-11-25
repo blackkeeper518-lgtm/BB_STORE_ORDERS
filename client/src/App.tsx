@@ -25,6 +25,7 @@ import OrderEditor from "./pages/OrderEditor";
 import ScriptAtelier from "./pages/ScriptAtelier";
 import MobileInbox from "./pages/MobileInbox";
 import LineChat from "./pages/LineChat";
+import SkinPackPreview from "./pages/SkinPackPreview";
 import { GlobalThemeRuntime } from "./contexts/GlobalThemeRuntime";
 import { useEffect } from "react";
 
@@ -45,6 +46,7 @@ function Router() {
     <Route path="/secret-gallery/images"><SecretGallery /></Route>
     <Route path="/secret-gallery"><SecretGallery /></Route>
     <Route path="/mobile-inbox"><MobileInbox /></Route>
+    <Route path="/skin-pack-preview"><SkinPackPreview /></Route>
     <Route path="/orders"><Shell><OrderControl /></Shell></Route>
     <Route path="/order-editor"><Shell><OrderEditor /></Shell></Route>
     <Route path="/script-atelier"><Shell><ScriptAtelier /></Shell></Route>
