@@ -1431,22 +1431,48 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
   background:linear-gradient(120deg, color-mix(in srgb, var(--depth-surface) 94%, #000), color-mix(in srgb, var(--depth-accent) 10%, var(--depth-bg)) 72%, transparent);
   box-shadow:0 12px 28px rgba(0,0,0,.28), inset 0 -1px 0 color-mix(in srgb, var(--depth-accent) 22%, transparent);
 }
-.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-header::before {
-  content:"BB";
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-header::before { content:none; }
+.mobile-inbox-brand-mark {
   position:absolute;
-  left:18px;
-  top:23px;
-  display:grid;
-  place-items:center;
-  width:31px;
-  height:31px;
-  border:1px solid var(--depth-primary);
-  border-radius:9px 3px 9px 3px;
-  color:var(--depth-primary);
-  font:700 12px 'IBM Plex Mono', monospace;
+  left:16px;
+  top:19px;
+  z-index:2;
+  display:block;
+  width:43px;
+  height:43px;
+  overflow:visible;
+  border-radius:13px 5px 13px 5px;
   transform:skew(-8deg);
-  box-shadow:0 0 14px color-mix(in srgb, var(--depth-primary) 52%, transparent), inset 0 0 10px color-mix(in srgb, var(--depth-primary) 20%, transparent);
 }
+.mobile-inbox-brand-mark::before {
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:13px 5px 13px 5px;
+  background:conic-gradient(from 0deg, #ff3cac, #784ba0, #2b86c5, #21d4fd, #b721ff, #ff3cac);
+  box-shadow:0 0 18px color-mix(in srgb, var(--depth-primary) 48%, transparent), 0 0 34px rgba(33,212,253,.18);
+  animation:bb-logo-border-spin 3.6s linear infinite;
+}
+.mobile-inbox-brand-mark::after {
+  content:"";
+  position:absolute;
+  inset:2px;
+  z-index:1;
+  border-radius:11px 3px 11px 3px;
+  background:var(--depth-bg);
+}
+.mobile-inbox-brand-mark img {
+  position:absolute;
+  inset:4px;
+  z-index:2;
+  display:block;
+  width:35px;
+  height:35px;
+  border-radius:9px 3px 9px 3px;
+  object-fit:cover;
+  transform:skew(8deg);
+}
+@keyframes bb-logo-border-spin { to { transform:rotate(360deg); } }
 .mobile-inbox-page.mobile-inbox-themed .mobile-inbox-header::after {
   content:"DARKSIDE // INBOX";
   position:absolute;
