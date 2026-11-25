@@ -338,12 +338,19 @@ export default function MobileInbox() {
     },
     onError: (error, variables) => {
       const failedId = optimisticMessageIdRef.current;
-      if (failedId) setOptimisticMessages(current => current.filter(message => message.id !== failedId));
+      const payload = variables as { text?: string; imageUrls?: string[] } | undefined;
+      const sentText = String(payload?.text ?? "");
+      const imageUrls = Array.isArray(payload?.imageUrls) ? payload.imageUrls.filter(Boolean) : [];
+      if (failedId) {
+        setOptimisticMessages(current => current.map(message => message.id === failedId ? { ...message, deliveryFailed: true } : message));
+      }
       optimisticMessageIdRef.current = null;
+      if (imageUrls.length) {
+        setReplyImages(current => current.length ? current : imageUrls.map((url, index) => ({ url, sendUrl: url, name: `ภาพที่ส่งไม่ครบ-${index + 1}` })));
+      }
       const raw = error.message || "ส่งไม่สำเร็จ";
-      const sentText = String((variables as { text?: string } | undefined)?.text ?? "");
       void Promise.all([messagesQuery.refetch(), threadsQuery.refetch()]);
-      if (!metaTransientSendNotice(raw)) { setNotice(raw); return; }
+      if (!metaTransientSendNotice(raw)) { setNotice(imageUrls.length ? `ส่งภาพไม่ครบ · ${raw} · ภาพยังค้างไว้ ห้ามกดส่งซ้ำจนกว่าจะตรวจ Meta` : raw); return; }
       // Meta code -1 / subcode 2018012 = internal error ฝั่ง Meta · ข้อความมักเข้าปกติ
       // จึงไม่ขึ้นเตือนทันที: ตรวจก่อนว่าข้อความเข้าจริงหรือไม่
       setNotice("");

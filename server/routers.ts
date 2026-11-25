@@ -25,6 +25,15 @@ async function persistOutgoingChatBestEffort(
   try { await recordOutgoingChatMessage(input, credentials); return true; }
   catch (error) { console.error("[chat] outgoing write-back failed after Meta accepted message", error); return false; }
 }
+
+function isRetryableMetaSendError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return /META_TRANSIENT_INTERNAL|HTTP 429|HTTP 5\d\d|fetch failed|network|timed out|timeout/i.test(message);
+}
+
+function waitForMetaTurn(milliseconds: number) {
+  return new Promise<void>(resolve => setTimeout(resolve, milliseconds));
+}
 async function persistLocalChatBestEffort(input: Parameters<typeof db.saveChatMessage>[0]) {
   if (!process.env.DATABASE_URL?.trim()) return;
   try { await db.saveChatMessage(input); }
@@ -103,22 +112,33 @@ export const appRouter = router({
       if (!outgoing.length) outgoing.push({ stickerId: input.stickerId });
       let finalResult: Awaited<ReturnType<typeof sendMetaMessage>> | undefined;
       let chatHistoryPersisted = true;
-      for (const item of outgoing) {
-        try {
-          const result = await sendMetaMessage({ pageId: input.pageId, recipientId: input.recipientId, text: item.text, imageUrl: item.imageUrl, stickerId: item.stickerId, surface: input.surface ?? "web" }, credentials);
-          item.result = result;
-          finalResult = result;
-        } catch (error) {
-          if (outgoing.some(sent => sent.result)) {
-            throw new Error(`ส่งข้อความแล้ว แต่ส่งรูปไม่สำเร็จ: ${error instanceof Error ? error.message : String(error)}`);
+      for (const [index, item] of outgoing.entries()) {
+        if (index > 0) await waitForMetaTurn(350);
+        let result: Awaited<ReturnType<typeof sendMetaMessage>> | undefined;
+        let lastError: unknown;
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+          try {
+            result = await sendMetaMessage({ pageId: input.pageId, recipientId: input.recipientId, text: item.text, imageUrl: item.imageUrl, stickerId: item.stickerId, surface: input.surface ?? "web" }, credentials);
+            break;
+          } catch (error) {
+            lastError = error;
+            if (!isRetryableMetaSendError(error) || attempt === 2) break;
+            await waitForMetaTurn(500 * (attempt + 1));
           }
-          throw error;
         }
-        const result = finalResult;
-        if (!result) throw new Error("Meta did not return a message result");
-        chatHistoryPersisted = (await persistOutgoingChatBestEffort({ portalKey: input.portalKey, chatLinkKey: input.chatLinkKey, pageId: input.pageId, pageName: input.pageName, threadId: input.threadId, recipientId: input.recipientId, messageId: result.message_id, text: item.text || (item.imageUrl ? "📷 ส่งรูปภาพ" : undefined), imageUrl: item.imageUrl }, credentials)) && chatHistoryPersisted;
-        void persistLocalChatBestEffort({ pageId: input.pageId, threadId: input.threadId, senderId: input.pageId, senderType: "page", direction: "outbound", text: item.text, attachments: item.imageUrl ? [{ url: item.imageUrl }] : undefined, adminUserId: ctx.user?.id, providerMessageId: result.message_id });
-        void db.createAuditLog({ actorUserId: ctx.user.id, actorName: ctx.user.name, action: "CHAT_REPLY_SENT", entityType: "chat_message", entityId: result.message_id, pageId: input.pageId, threadId: input.threadId, metadata: { deviceId: ctx.adminDeviceId || null, userAgent: ctx.userAgent || null, hasText: Boolean(item.text), hasImage: Boolean(item.imageUrl) } });
+        if (!result) {
+          const detail = lastError instanceof Error ? lastError.message : String(lastError);
+          const sentCount = outgoing.filter(sent => sent.result).length;
+          if (sentCount > 0) throw new Error(`ส่งแล้ว ${sentCount}/${outgoing.length} รายการ แต่รายการถัดไปไม่สำเร็จ: ${detail}`);
+          throw lastError instanceof Error ? lastError : new Error(detail);
+        }
+        item.result = result;
+        finalResult = result;
+        const sentResult = finalResult;
+        if (!sentResult) throw new Error("Meta did not return a message result");
+        chatHistoryPersisted = (await persistOutgoingChatBestEffort({ portalKey: input.portalKey, chatLinkKey: input.chatLinkKey, pageId: input.pageId, pageName: input.pageName, threadId: input.threadId, recipientId: input.recipientId, messageId: sentResult.message_id, text: item.text || (item.imageUrl ? "📷 ส่งรูปภาพ" : undefined), imageUrl: item.imageUrl }, credentials)) && chatHistoryPersisted;
+        void persistLocalChatBestEffort({ pageId: input.pageId, threadId: input.threadId, senderId: input.pageId, senderType: "page", direction: "outbound", text: item.text, attachments: item.imageUrl ? [{ url: item.imageUrl }] : undefined, adminUserId: ctx.user?.id, providerMessageId: sentResult.message_id });
+        void db.createAuditLog({ actorUserId: ctx.user.id, actorName: ctx.user.name, action: "CHAT_REPLY_SENT", entityType: "chat_message", entityId: sentResult.message_id, pageId: input.pageId, threadId: input.threadId, metadata: { deviceId: ctx.adminDeviceId || null, userAgent: ctx.userAgent || null, hasText: Boolean(item.text), hasImage: Boolean(item.imageUrl) } });
       }
       if (!finalResult) throw new Error("ไม่มีข้อความหรือรูปภาพสำหรับส่ง");
       return { ...finalResult, chatHistoryPersisted };
