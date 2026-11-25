@@ -14,7 +14,7 @@ import { trpc } from "@/lib/trpc";
 import { OrderDeckFrame } from "@/components/chat/OrderDeckFrame";
 import { MobileInboxProductDock } from "@/components/chat/MobileInboxProductDock";
 import MobileStockPanel from "@/components/chat/MobileStockPanel";
-import { ArrowLeft, Bell, Boxes, Check, Clipboard, Download, ExternalLink, Facebook, LoaderCircle, Menu, MessageCircle, MessagesSquare, Palette, Paperclip, Search, Send, Smile, Volume2, VolumeX, X } from "lucide-react";
+import { ArrowLeft, Bell, Boxes, Check, Clipboard, Download, ExternalLink, Facebook, LoaderCircle, Menu, MessageCircle, MessagesSquare, Palette, Paperclip, RefreshCw, Search, Send, Smile, Volume2, VolumeX, X } from "lucide-react";
 import { type ClipboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useLocation } from "wouter";
@@ -61,6 +61,7 @@ export default function MobileInbox() {
   const [cyberTheme, setCyberTheme] = useState<CyberTheme>(() => readCyberTheme());
   const [themeOptions, setThemeOptions] = useState<CyberTheme[]>(CYBER_THEME_PRESETS);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [appUpdateReady, setAppUpdateReady] = useState(false);
   const [cyberFrame, setCyberFrame] = useState(() => readCyberFrame());
   const [cyberFrameRooms, setCyberFrameRooms] = useState(() => readCyberFrameRooms());
   const [frameOptions, setFrameOptions] = useState<Array<{ id: string; name: string }>>(CYBER_FRAME_OPTIONS.map(option => ({ id: option.id, name: option.name })));
@@ -215,8 +216,17 @@ export default function MobileInbox() {
     const hadController = Boolean(navigator.serviceWorker.controller);
     const registrationPromise = navigator.serviceWorker.register("/mobile-inbox-sw.js", { scope: "/mobile-inbox" });
     const refreshAfterUpdate = () => { if (hadController) window.location.reload(); };
+    const watchRegistration = (registration: ServiceWorkerRegistration) => {
+      const markReady = () => { if (registration.waiting && navigator.serviceWorker.controller) setAppUpdateReady(true); };
+      registration.addEventListener("updatefound", () => {
+        registration.installing?.addEventListener("statechange", () => {
+          if (registration.installing?.state === "installed") markReady();
+        });
+      });
+      markReady();
+    };
     navigator.serviceWorker.addEventListener("controllerchange", refreshAfterUpdate);
-    void registrationPromise.then(registration => registration.update()).catch(() => undefined);
+    void registrationPromise.then(registration => { watchRegistration(registration); return registration.update(); }).catch(() => undefined);
     const captureInstall = (event: Event) => { event.preventDefault(); setInstallPrompt(event as BeforeInstallPromptEvent); };
     window.addEventListener("beforeinstallprompt", captureInstall);
     return () => {
@@ -457,6 +467,17 @@ export default function MobileInbox() {
     await installPrompt.prompt();
     setInstallPrompt(null);
   };
+  const updateApp = async () => {
+    setAppUpdateReady(false);
+    const registration = await navigator.serviceWorker.ready.catch(() => null);
+    if (!registration) { window.location.reload(); return; }
+    await registration.update().catch(() => undefined);
+    if (registration.waiting) {
+      registration.waiting.postMessage({ type: "SKIP_WAITING" });
+      return;
+    }
+    window.location.reload();
+  };
   const enableBrowserNotifications = async () => {
     if (!("Notification" in window) || Notification.permission !== "default") return;
     try { await Notification.requestPermission(); } catch { /* browser may require a separate settings action */ }
@@ -592,7 +613,7 @@ export default function MobileInbox() {
     {customPanel === "stock" ? <MobileStockPanel onClose={() => setCustomPanel(null)} /> : null}
     <nav className="mobile-inbox-bottom-nav"><button type="button" className="is-active" onClick={() => { setPlatform("line"); }}><MessagesSquare /><span>ข้อความ</span></button><button type="button" onClick={() => { document.querySelector<HTMLInputElement>(".line-mobile-search input")?.focus(); }}><Search /><span>ค้นหา</span></button><button type="button" onClick={openDrawer}><Menu /><span>เมนู</span></button></nav></main>
   return <main onPointerDown={handlePagePointerDown} className="mobile-inbox-page mobile-inbox-themed" style={{ "--mobile-bg": cyberTheme.bg, "--mobile-surface": cyberTheme.surface, "--mobile-primary": cyberTheme.primary, "--mobile-accent": cyberTheme.accent, "--mobile-radius": `${cyberTheme.radius}px`, "--mobile-glow": `${cyberTheme.glow}px` } as React.CSSProperties}>
-    <header className="mobile-inbox-header"><div><p className="mobile-inbox-kicker"><img src="/bb-app-icon-192.png" alt="" aria-hidden="true" className="mr-1.5 inline-block h-5 w-5 rounded-md align-middle" />BB STORE</p><button type="button" onClick={refreshInbox} className="mobile-inbox-title-button"><h1>กล่องข้อความ{threadsQuery.isFetching ? <LoaderCircle className="ml-2 inline-block h-5 w-5 animate-spin" /> : null}</h1></button><small className="mobile-inbox-theme-name">กดชื่อเพื่อรีเฟรช · ธีม {cyberTheme.name}</small></div><div className="mobile-inbox-header-actions"><button type="button" aria-label="เปิดการแจ้งเตือน" className="mobile-inbox-bell-button" onClick={() => setNotificationOpen(value => !value)}><Bell /><span>{visibleChatUnreadCount + orderUnreadCount > 99 ? "99+" : visibleChatUnreadCount + orderUnreadCount}</span></button>{installPrompt ? <button type="button" aria-label="ติดตั้งแอป BB STORE Inbox" onClick={() => void installApp()} className="mobile-inbox-install-button"><Download /><span>ติดตั้งแอป</span></button> : null}</div></header>
+    <header className="mobile-inbox-header"><div><p className="mobile-inbox-kicker"><img src="/bb-app-icon-192.png" alt="" aria-hidden="true" className="mr-1.5 inline-block h-5 w-5 rounded-md align-middle" />BB STORE</p><button type="button" onClick={refreshInbox} className="mobile-inbox-title-button"><h1>กล่องข้อความ{threadsQuery.isFetching ? <LoaderCircle className="ml-2 inline-block h-5 w-5 animate-spin" /> : null}</h1></button><small className="mobile-inbox-theme-name">กดชื่อเพื่อรีเฟรช · ธีม {cyberTheme.name}</small></div><div className="mobile-inbox-header-actions"><button type="button" aria-label="เปิดการแจ้งเตือน" className="mobile-inbox-bell-button" onClick={() => setNotificationOpen(value => !value)}><Bell /><span>{visibleChatUnreadCount + orderUnreadCount > 99 ? "99+" : visibleChatUnreadCount + orderUnreadCount}</span></button>{appUpdateReady ? <button type="button" aria-label="อัปเดตแอป BB STORE Inbox" onClick={() => void updateApp()} className="mobile-inbox-install-button"><RefreshCw /><span>อัปเดต</span></button> : installPrompt ? <button type="button" aria-label="ติดตั้งแอป BB STORE Inbox" onClick={() => void installApp()} className="mobile-inbox-install-button"><Download /><span>ติดตั้งแอป</span></button> : null}</div></header>
     {notificationOpen ? <section className="mobile-inbox-notification-panel"><div className="mobile-inbox-notification-head"><strong>การแจ้งเตือน</strong><div className="mobile-inbox-notification-actions"><button type="button" className="mobile-inbox-notification-read" onClick={markAllNotificationsRead}><Check /><span>อ่านแล้ว</span></button><button type="button" className="mobile-inbox-notification-sound" onClick={toggleNotificationSound}>{notificationSoundEnabled ? <Volume2 /> : <VolumeX />}<span>{notificationSoundEnabled ? "เปิดเสียง" : "ปิดเสียง"}</span></button></div></div><div className="mobile-inbox-notification-summary"><span>ข้อความใหม่ <b>{visibleChatUnreadCount}</b></span><span>ออเดอร์ใหม่ <b>{orderUnreadCount}</b></span></div>{visibleChatNotifications.length ? <div className="mobile-inbox-notification-list">{visibleChatNotifications.slice(0, 8).map(item => <button type="button" key={item.threadKey} onClick={() => { setNotificationOpen(false); setPlatform("facebook"); setPageFilter(item.pageId); const room = threads.find(thread => thread.key === item.threadKey); if (room) selectRoom(room); }}><strong>{item.customerName || "ลูกค้า"}</strong><small><Facebook /> {item.pageName || "ไม่ระบุเพจ"} · {timeLabel(item.messageAt)}</small><small>{item.message}</small></button>)}</div> : <p className="mobile-inbox-notification-empty">ยังไม่มีข้อความใหม่สำหรับเพจนี้</p>}</section> : null}
     {drawerOpen && !customPanel ? <><button type="button" aria-label="ปิดเมนู" className="mobile-inbox-drawer-scrim" onClick={() => setDrawerOpen(false)} /><aside className="mobile-inbox-drawer"><div className="mobile-inbox-drawer-head"><strong>เมนูจัดการแชท</strong><button type="button" onClick={() => setDrawerOpen(false)}><X /></button></div><button type="button" onClick={() => openCustomizer("theme")}><Palette /><span>ธีม</span></button><button type="button" onClick={() => openCustomizer("stock")}><Boxes /><span>คลังสินค้า · Product Master</span></button><button type="button" onClick={() => openCustomizer("frame")}><MessagesSquare /><span>กรอบแชท</span></button><button type="button" onClick={() => openCustomizer("sound")}><Volume2 /><span>เสียง</span></button><a className="mobile-inbox-drawer-link" href="https://bbstorefullv-1.vercel.app/" target="_blank" rel="noreferrer"><ExternalLink /><span>เช็คเลขพัสดุ</span><small>กรอกเบอร์โทรลูกค้า</small></a></aside></> : null}
     {customPanel === "theme" ? <section className="mobile-inbox-custom-panel"><div className="mobile-inbox-theme-panel-head"><div><strong>ธีมแอป</strong><small>จาก app_themes · เลือกแล้วเห็นผลทันที</small></div><button type="button" onClick={() => setCustomPanel(null)}><X /></button></div><div className="mobile-inbox-theme-grid">{themeOptions.map(preset => <button type="button" key={`${preset.name}-${preset.preset}`} className={`mobile-inbox-theme-swatch ${cyberTheme.name === preset.name ? "is-active" : ""}`} style={{ "--swatch-bg": preset.bg, "--swatch-primary": preset.primary, "--swatch-accent": preset.accent } as React.CSSProperties} onClick={() => chooseTheme(preset)}><span className="mobile-inbox-theme-swatch-light" /><span>{preset.name}</span>{cyberTheme.name === preset.name ? <Check /> : null}</button>)}</div></section> : null}
