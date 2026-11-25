@@ -38,7 +38,7 @@ function FramePreview({ draft, compact = false }: { draft: Row; compact?: boolea
     <p className="mb-2 text-[10px] uppercase tracking-[0.18em] text-cyan-200/55">LIVE PREVIEW · ขนาดจริง</p>
     <div className={`cyber-frame-card cyber-frame-${key} ${compact ? "min-h-[182px]" : "min-h-[230px]"} flex flex-col justify-between`} style={{ ...cssVars, borderWidth: `${Math.max(1, Number(draft.border_width) || 1)}px` }}>
       <div className="content">
-        <div className="topline"><span>BB CHAT · {key.toUpperCase()}</span><span className="online">ONLINE</span></div>
+        <div className="topline"><span>ST CHAT · {key.toUpperCase()}</span><span className="online">ONLINE</span></div>
         <p className="track">{draft.name || "ชื่อลูกค้าตัวอย่าง"}</p>
         <p className="carrier">{draft.description || "ตัวอย่างข้อความล่าสุดจากลูกค้า จะแสดงในกรอบนี้"}</p>
       </div>
