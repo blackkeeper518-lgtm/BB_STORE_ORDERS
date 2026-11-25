@@ -27,6 +27,23 @@ const SELECTED_ROOM_KEY = "bb-orders-mobile-inbox-selected-v1";
 type Thread = ReturnType<typeof mapChatRowsToThreads>[number];
 type BeforeInstallPromptEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: "accepted" | "dismissed" }> };
 type SelectedOrderMessage = { id: string; threadKey: string; text: string };
+type QuickReply = { id: string; name: string; tag: string; content: string };
+const DEFAULT_QUICK_REPLIES: QuickReply[] = [
+  { id: "s1", name: "สคริปต์เจ้าของร้านเครียด", tag: "COLD", content: "สวัสดีค่ะ เข้าใจเลยนะคะว่าช่วงนี้เจ้าของร้านมีหลายเรื่องให้จัดการ\nถ้าสะดวก เล่าให้ฟังได้ไหมคะว่าตอนนี้เรื่องไหนอยากแก้ก่อนที่สุด?" },
+  { id: "s2", name: "สคริปต์แม่ค้าออนไลน์ท้อ", tag: "WARM", content: "เข้าใจเลยค่ะ ทำร้านออนไลน์เหนื่อยจริง ๆ โดยเฉพาะเวลาตั้งใจทำคอนเทนต์แล้วผลยังไม่เป็นอย่างหวัง\nถ้าสะดวก ส่งรายละเอียดร้านหรือปัญหาที่เจอมาได้เลยนะคะ เดี๋ยวช่วยดูแนวทางให้ค่ะ" },
+  { id: "s3", name: "สคริปต์โค้ชขายไม่ออก", tag: "HOT", content: "ขอเข้าใจสถานการณ์ก่อนนะคะ ตอนนี้ลูกค้าส่วนใหญ่ติดตรงไหนคะ—ยังไม่ทัก, ทักแล้วไม่ซื้อ หรือซื้อครั้งเดียวแล้วหาย?\nจะได้แนะนำวิธีที่ตรงกับปัญหาจริงค่ะ" },
+  { id: "s4", name: "สคริปต์ยิงแอดไม่เข้าเป้า", tag: "DARK", content: "ถ้าแอดยังไม่เข้าเป้า อย่าเพิ่งเพิ่มงบค่ะ ลองเช็กกลุ่มเป้าหมาย ครีเอทีฟ และหน้าปิดการขายก่อน\nส่งผลลัพธ์แคมเปญคร่าว ๆ มาได้เลยนะคะ จะช่วยไล่ดูจุดที่ควรปรับให้ค่ะ" },
+];
+function readQuickReplies(): QuickReply[] {
+  try {
+    const raw = window.localStorage.getItem("drak-scripts-v2");
+    const rows: unknown = raw ? JSON.parse(raw) : DEFAULT_QUICK_REPLIES;
+    if (!Array.isArray(rows)) return DEFAULT_QUICK_REPLIES;
+    return rows.filter((row): row is Record<string, unknown> => Boolean(row && typeof row === "object"))
+      .map((row, index) => ({ id: String(row.id || `script-${index}`), name: String(row.name || "คำตอบด่วน").slice(0, 120), tag: String(row.tag || "CUSTOM").slice(0, 24), content: String(row.content || "").slice(0, 20_000) }))
+      .filter(row => row.content.trim()).slice(0, 30);
+  } catch { return DEFAULT_QUICK_REPLIES; }
+}
 
 function timeLabel(value: string | null | undefined) {
   if (!value) return "";
@@ -52,6 +69,7 @@ export default function MobileInbox() {
   const [filter, setFilter] = useState<"all" | "ordered" | "tracking" | "unread">("all");
   const [openRoom, setOpenRoom] = useState(false);
   const [replyText, setReplyText] = useState("");
+  const [quickReplies, setQuickReplies] = useState<QuickReply[]>(() => typeof window === "undefined" ? DEFAULT_QUICK_REPLIES : readQuickReplies());
   const [replyImages, setReplyImages] = useState<Array<{ url: string; sendUrl: string; name: string }>>([]);
   const [uploading, setUploading] = useState(false);
   const [notice, setNotice] = useState("");
@@ -84,8 +102,6 @@ export default function MobileInbox() {
   const [selectedOrderMessage, setSelectedOrderMessage] = useState<SelectedOrderMessage | null>(null);
   const [orderDeckMessageRequest, setOrderDeckMessageRequest] = useState<{ id: number } | null>(null);
   const [deckImageProducts, setDeckImageProducts] = useState<Array<{ product: string; terms: string[]; imageUrls: string[]; featured: boolean }>>([]);
-  const [productDockVisible, setProductDockVisible] = useState(false);
-  const [productDockDismissed, setProductDockDismissed] = useState(false);
   const [productDockCollapsed, setProductDockCollapsed] = useState(false);
   const [productImagesRequest, setProductImagesRequest] = useState<{ id: number; product: string } | null>(null);
   const [loadingProduct, setLoadingProduct] = useState<string | null>(null);
@@ -144,6 +160,11 @@ export default function MobileInbox() {
     textarea.style.height = `${Math.min(maxHeight, Math.max(minHeight, textarea.scrollHeight))}px`;
     textarea.style.overflowY = textarea.scrollHeight > maxHeight ? "auto" : "hidden";
   }, [replyText, openRoom]);
+  useEffect(() => {
+    const refreshQuickReplies = () => setQuickReplies(readQuickReplies());
+    window.addEventListener("storage", refreshQuickReplies);
+    return () => window.removeEventListener("storage", refreshQuickReplies);
+  }, []);
   useEffect(() => {
     const sync = () => {
       const state = readChatNotificationState();
@@ -340,8 +361,7 @@ export default function MobileInbox() {
     onMutate: () => setNotice("กำลังส่งไปยัง Facebook…"),
     onSuccess: result => {
       setOptimisticMessages(current => current.map(message => message.id === optimisticMessageIdRef.current ? { ...message, messageId: result.message_id } : message));
-      if (replyImages.length > 0) setProductDockDismissed(true);
-      else if (replyText.trim()) setProductDockCollapsed(true);
+      setProductDockCollapsed(true);
       setReplyText("");
       setReplyImages([]);
       setNotice("ส่งแล้ว");
@@ -365,14 +385,10 @@ export default function MobileInbox() {
   useEffect(() => { setOptimisticMessages([]); optimisticMessageIdRef.current = null; setSelectedOrderMessage(null); setOrderDeckOpen(false); setOrderDeckMessageRequest(null); }, [selectedPageId, selectedThreadId]);
   useEffect(() => {
     setDeckImageProducts([]);
-    setProductDockVisible(false);
-    setProductDockDismissed(false);
     setProductDockCollapsed(false);
     setProductImagesRequest(null);
     setLoadingProduct(null);
     if (!openRoom || !selectedPageId || !selectedThreadId) return;
-    const timer = window.setTimeout(() => setProductDockVisible(true), 3000);
-    return () => window.clearTimeout(timer);
   }, [openRoom, selectedPageId, selectedThreadId]);
   useEffect(() => { setOptimisticMessages(current => reconcileOptimisticMessages(current, messagesQuery.data ?? [])); }, [messagesQuery.data, optimisticMessages]);
   useEffect(() => {
@@ -665,7 +681,7 @@ export default function MobileInbox() {
                   <time>{timeLabel(message.occurredAt)}</time>
                 </div>
               </div>
-            ); }) : <div className="mobile-inbox-empty"><MessageCircle /><p>{selected.preview || "ยังไม่มีข้อความ"}</p></div>}</div><div className="mobile-inbox-composer"><MobileInboxProductDock products={featuredImageProducts} visible={productDockVisible} dismissed={productDockDismissed} collapsed={productDockCollapsed} disabled={uploading || sendReply.isPending || replyImages.length >= 4} loadingProduct={loadingProduct} onSelect={requestProductImagesFromDeck} onToggleCollapsed={() => setProductDockCollapsed(value => !value)} />{emojiOpen ? <div className="mobile-inbox-emoji">{["😊", "👍", "🙏", "❤️", "📦"].map(emoji => <button type="button" key={emoji} onClick={() => { addEmoji(emoji); setEmojiOpen(false); }}>{emoji}</button>)}</div> : null}{replyImages.length ? <div className="mobile-inbox-attachment">{replyImages.map((image, index) => <span key={image.url} className="relative inline-flex items-center gap-1"><img src={image.url} alt={`ภาพแนบ ${index + 1}`} className="h-10 w-10 rounded-md object-cover" /><button type="button" aria-label={`เอาภาพที่ ${index + 1} ออก`} onClick={() => setReplyImages(current => current.filter((_, imageIndex) => imageIndex !== index))}><X /></button></span>)}<small>{replyImages.length}/4</small></div> : null}{notice ? <div className="mobile-inbox-notice">{notice}</div> : null}<div className="mobile-inbox-compose-row"><input ref={fileRef} hidden multiple type="file" accept="image/jpeg,image/png,image/gif,image/webp" onChange={event => { void handleUpload(Array.from(event.target.files ?? [])); event.currentTarget.value = ""; }} /><button type="button" aria-label="แนบภาพ" onClick={() => fileRef.current?.click()} disabled={uploading || replyImages.length >= 4}><Paperclip /></button><Textarea ref={replyTextareaRef} value={replyText} onChange={event => setReplyText(event.target.value)} placeholder="พิมพ์ข้อความ…" disabled={!selectedCustomerId} onPaste={handleComposerPaste} onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); send(); } }} /><button type="button" aria-label="อีโมจิ" onClick={() => setEmojiOpen(value => !value)}><Smile /></button><Button type="button" aria-label="ส่งข้อความ" onClick={send} disabled={sendReply.isPending || uploading || !selectedCustomerId || (!replyText.trim() && replyImages.length === 0)}>{sendReply.isPending ? <LoaderCircle className="animate-spin" /> : <Send />}</Button></div></div></div></div> : null}
+            ); }) : <div className="mobile-inbox-empty"><MessageCircle /><p>{selected.preview || "ยังไม่มีข้อความ"}</p></div>}</div><div className="mobile-inbox-composer"><MobileInboxProductDock products={featuredImageProducts} collapsed={productDockCollapsed} disabled={uploading || sendReply.isPending || replyImages.length >= 4} busy={uploading || sendReply.isPending || messagesQuery.isFetching || Boolean(loadingProduct)} loadingProduct={loadingProduct} onSelect={requestProductImagesFromDeck} onToggleCollapsed={() => setProductDockCollapsed(value => !value)} />{quickReplies.length ? <div className="mobile-inbox-quick-replies" aria-label="คำตอบด่วนจากสคริปต์ที่บันทึกไว้">{quickReplies.slice(0, 30).map(reply => <button type="button" key={reply.id} title={`${reply.name} · ${reply.tag}`} disabled={!selectedCustomerId} onClick={() => { setReplyText(current => current.trim() ? `${current.trim()}\n\n${reply.content}` : reply.content); setNotice("ใส่คำตอบลงร่างแล้ว · ตรวจสอบก่อนส่ง"); requestAnimationFrame(() => replyTextareaRef.current?.focus()); }}><span>{reply.name}</span><small>{reply.tag}</small></button>)}</div> : null}{emojiOpen ? <div className="mobile-inbox-emoji">{["😊", "👍", "🙏", "❤️", "📦"].map(emoji => <button type="button" key={emoji} onClick={() => { addEmoji(emoji); setEmojiOpen(false); }}>{emoji}</button>)}</div> : null}{replyImages.length ? <div className="mobile-inbox-attachment">{replyImages.map((image, index) => <span key={image.url} className="relative inline-flex items-center gap-1"><img src={image.url} alt={`ภาพแนบ ${index + 1}`} className="h-10 w-10 rounded-md object-cover" /><button type="button" aria-label={`เอาภาพที่ ${index + 1} ออก`} onClick={() => setReplyImages(current => current.filter((_, imageIndex) => imageIndex !== index))}><X /></button></span>)}<small>{replyImages.length}/4</small></div> : null}{notice ? <div className="mobile-inbox-notice">{notice}</div> : null}<div className="mobile-inbox-compose-row"><input ref={fileRef} hidden multiple type="file" accept="image/jpeg,image/png,image/gif,image/webp" onChange={event => { void handleUpload(Array.from(event.target.files ?? [])); event.currentTarget.value = ""; }} /><button type="button" aria-label="แนบภาพ" onClick={() => fileRef.current?.click()} disabled={uploading || replyImages.length >= 4}><Paperclip /></button><Textarea ref={replyTextareaRef} value={replyText} onChange={event => setReplyText(event.target.value)} placeholder="พิมพ์ข้อความ…" disabled={!selectedCustomerId} onPaste={handleComposerPaste} onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); send(); } }} /><button type="button" aria-label="อีโมจิ" onClick={() => setEmojiOpen(value => !value)}><Smile /></button><Button type="button" aria-label="ส่งข้อความ" onClick={send} disabled={sendReply.isPending || uploading || !selectedCustomerId || (!replyText.trim() && replyImages.length === 0)}>{sendReply.isPending ? <LoaderCircle className="animate-spin" /> : <Send />}</Button></div></div></div></div> : null}
     {orderDeckOpen && selected && typeof document !== "undefined" ? createPortal(
       <div className="mobile-inbox-order-deck" role="presentation" onClick={() => setOrderDeckOpen(false)}>
         <div ref={orderDeckDialogRef} tabIndex={-1} className="mobile-inbox-order-deck-panel" role="dialog" aria-modal="true" aria-label={`สรุปออเดอร์ · ${selected.customerName || "ลูกค้า"}`} onClick={event => event.stopPropagation()}>

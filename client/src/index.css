@@ -1103,6 +1103,15 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .mobile-inbox-product-dock__reopen { position:absolute; z-index:20; right:12px; bottom:calc(100% + 8px); display:inline-flex; min-height:36px; align-items:center; gap:6px; border:1px solid rgba(255,255,255,.98); border-radius:999px; padding:0 13px; background:linear-gradient(135deg,rgba(255,255,255,.94),rgba(239,246,255,.79) 58%,rgba(255,255,255,.88)); color:#191c28; box-shadow:0 0 0 1px rgba(255,255,255,.28),0 0 12px rgba(255,255,255,.7),0 0 24px rgba(174,207,255,.52),0 0 34px rgba(222,176,255,.32),0 6px 18px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.98),inset 0 -1px 0 rgba(156,173,211,.22); backdrop-filter:blur(16px) saturate(1.35); -webkit-backdrop-filter:blur(16px) saturate(1.35); font-size:11px; font-weight:800; letter-spacing:.01em; text-shadow:0 1px rgba(255,255,255,.65); animation:mobile-product-dock-in .24s ease-out both,mobile-product-dock-glow 2.8s ease-in-out infinite; }
 .mobile-inbox-product-dock__reopen:active { transform:scale(.97); }
 .mobile-inbox-product-dock__sparkle { color:#7054a4; font-size:14px; text-shadow:0 0 5px rgba(255,255,255,.95),0 0 11px rgba(173,205,255,.9); animation:mobile-product-dock-twinkle 1.8s ease-in-out infinite; }
+.mobile-inbox-product-dock__header button.is-loading { position:relative; }
+.mobile-inbox-product-dock__reopen.is-loading::after,.mobile-inbox-product-dock__header button.is-loading::after { content:""; position:absolute; inset:-4px; border:2px solid transparent; border-top-color:#35e7ff; border-right-color:#ff55cb; border-bottom-color:#ffd45a; border-radius:999px; pointer-events:none; filter:drop-shadow(0 0 5px #51eaff) drop-shadow(0 0 8px #ff55cb); animation:mobile-product-dock-ring .9s linear infinite; }
+.mobile-inbox-product-dock__empty { position:relative; z-index:2; margin:3px 2px 1px; color:rgba(255,250,240,.76); font-size:10px; text-align:center; }
+.mobile-inbox-quick-replies { display:flex; gap:6px; margin:0 0 6px; overflow-x:auto; overscroll-behavior-x:contain; padding:2px 1px 4px; scrollbar-width:none; }
+.mobile-inbox-quick-replies::-webkit-scrollbar { display:none; }
+.mobile-inbox-quick-replies button { display:inline-flex; min-width:0; max-width:180px; flex:none; align-items:center; gap:5px; border:1px solid color-mix(in srgb,var(--mobile-primary,#57d9ff) 34%,transparent); border-radius:999px; padding:5px 9px; background:color-mix(in srgb,var(--mobile-primary,#57d9ff) 9%,rgba(12,18,30,.94)); color:#eafaff; box-shadow:0 0 9px color-mix(in srgb,var(--mobile-primary,#57d9ff) 12%,transparent); font-size:10px; }
+.mobile-inbox-quick-replies button:disabled { opacity:.45; }
+.mobile-inbox-quick-replies button span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.mobile-inbox-quick-replies button small { flex:none; color:var(--mobile-accent,#ff58c8); font-size:8px; font-weight:800; }
 .mobile-inbox-product-dock__items { display:flex; max-height:38dvh; flex-direction:column-reverse; gap:6px; overflow-y:auto; overscroll-behavior:contain; }
 .mobile-inbox-product-dock__items button { position:relative; z-index:2; display:flex; min-height:44px; align-items:center; gap:8px; border:1px solid rgba(255,255,255,.17); border-radius:11px; padding:5px 7px; background:rgba(11,10,16,.43); color:#fffaf0; text-align:left; backdrop-filter:blur(8px); }
 .mobile-inbox-product-dock__items button:disabled { opacity:.42; }
@@ -1111,6 +1120,7 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .mobile-inbox-product-dock__thumb img { width:32px; height:32px; }
 .mobile-inbox-product-dock__loader { position:absolute; width:19px; height:19px; color:#fff; filter:drop-shadow(0 0 5px #67e8f9) drop-shadow(0 0 8px #ff62ce); animation:mobile-product-dock-loader-spin  .8s linear infinite; }
 @keyframes mobile-product-dock-loader-spin { to { transform:rotate(360deg); } }
+@keyframes mobile-product-dock-ring { to { transform:rotate(1turn); } }
 .mobile-inbox-product-dock__items span { min-width:0; overflow:hidden; font-size:10px; font-weight:600; text-overflow:ellipsis; white-space:nowrap; }
 @keyframes mobile-product-dock-in { from { opacity:0; transform:translateY(12px) scale(.98); } to { opacity:1; transform:translateY(0) scale(1); } }
 @keyframes mobile-product-dock-twinkle { 0%,100% { opacity:.28; transform:scale(.72) rotate(0deg); } 48% { opacity:1; transform:scale(1.18) rotate(36deg); } }

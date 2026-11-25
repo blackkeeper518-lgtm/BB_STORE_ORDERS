@@ -136,15 +136,18 @@ describe("Order Deck floating product shortcuts", () => {
     expect(mobileInbox).toContain("onProductImagesSelected={receiveProductImages}");
     expect(mobileInbox).toContain("<MobileInboxProductDock products={featuredImageProducts}");
     expect(mobileInbox).toContain("onSelect={requestProductImagesFromDeck}");
-    expect(mobileInbox).toContain("window.setTimeout(() => setProductDockVisible(true), 3000)");
-    expect(mobileInbox).toContain("if (replyImages.length > 0) setProductDockDismissed(true);");
-    expect(mobileInbox).toContain("else if (replyText.trim()) setProductDockCollapsed(true);");
+    expect(mobileInbox).toContain("setProductDockCollapsed(true);");
+    expect(mobileInbox).not.toContain("productDockDismissed");
+    expect(mobileInbox).toContain("busy={uploading || sendReply.isPending || messagesQuery.isFetching || Boolean(loadingProduct)}");
+    expect(mobileInbox).toContain("aria-label=\"คำตอบด่วนจากสคริปต์ที่บันทึกไว้\"");
     expect(mobileInbox).toContain("collapsed={productDockCollapsed}");
     expect(mobileInbox).toContain("onToggleCollapsed={() => setProductDockCollapsed(value => !value)}");
     expect(mobileDock).toContain("📌 สินค้าไฮไลท์");
-    expect(mobileDock).toContain("className=\"mobile-inbox-product-dock__reopen\"");
+    expect(mobileDock).toContain("mobile-inbox-product-dock__reopen");
     expect(mobileDock).toContain("onClick={() => onSelect(item.product)}");
     expect(mobileDock).toContain("onClick={onToggleCollapsed}");
+    expect(mobileDock).toContain("products.length ?");
+    expect(mobileDock).toContain("aria-busy={busy}");
   });
 
   it("does not sync unrelated Deck saves as highlight changes", () => {
