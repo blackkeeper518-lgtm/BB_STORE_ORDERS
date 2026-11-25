@@ -137,8 +137,11 @@ describe("Order Deck floating product shortcuts", () => {
 
   it("does not sync unrelated Deck saves as highlight changes", () => {
     expect(deckSource).toContain("function saveAdPages(syncOnline=false)");
-    expect(deckSource).toContain("if(syncOnline&&window.parent!==window)");
-    expect(deckSource).toContain("productNames:[...new Set([...(currentAdPage()?.selected||[]),...adPages.filter(page=>page.id!==activeAdPageId)");
+    expect(deckSource).toContain("if(syncOnline&&activeAdPageId===adPages[0]?.id&&window.parent!==window)");
+    expect(deckSource).toContain("page.id==='page-1'||adPageNameKey(page.name)==='เพจ 1'");
+    expect(deckSource).toContain("activeAdPageId=localStorage.getItem('drak-active-ad-page-v1')||adPages[0].id");
+    expect(deckSource).toContain("productNames:[...new Set([...(adPages[0]?.selected||[])");
+    expect(deckSource).toContain("adPages=adPages.map((page,index)=>index===0?{...page,selected:[...selected]}:page)");
     expect(deckSource).toContain("currentAdPage().selected=cb.checked?[name,...current.filter(item=>item!==name)]:current.filter(item=>item!==name)");
     expect(deckSource).toContain("page.selected=isPinned?current.filter(item=>item!==name):[name,...current.filter(item=>item!==name)]");
     expect(deckSource).toContain("saveAdPages(false);renderAdPageSelect();renderAdProductChecks()");
