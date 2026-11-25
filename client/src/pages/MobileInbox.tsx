@@ -312,8 +312,7 @@ export default function MobileInbox() {
     onMutate: () => setNotice("กำลังส่งไปยัง Facebook…"),
     onSuccess: result => {
       setOptimisticMessages(current => current.map(message => message.id === optimisticMessageIdRef.current ? { ...message, messageId: result.message_id } : message));
-      if (replyImages.length > 0) setProductDockDismissed(true);
-      else if (replyText.trim()) setProductDockCollapsed(true);
+      if (!replyImages.length && replyText.trim()) setProductDockCollapsed(true);
       setReplyText("");
       setReplyImages([]);
       setNotice("ส่งแล้ว");
