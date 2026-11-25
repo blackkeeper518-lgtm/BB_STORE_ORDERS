@@ -517,12 +517,21 @@ function getChatStatusFromThaiDisplay(lastCustomerTime) {
       // คัดสรรความบริสุทธิ์ของธงเบิกทาง (คุณสมบัติชี้ขาดออเดอร์แท้)
       const hasOrderSignature = botFlag !== "" || BBFlag !== "" || successFlag !== "" || readyFlag !== "" || GuFlag !== "";
 
+      // ออเดอร์แท้บางรูปแบบไม่มี emoji/signature แต่มีโครงสร้างครบจากแอดมิน:
+      // COD มีจำนวน + เบอร์ + รหัสไปรษณีย์ + บรรทัดสินค้าและจำนวน
+      // ห้ามใช้คำว่า COD อย่างเดียวหรือเลขสุ่มในข้อความแชทเป็นหลักฐาน
+      const structuredPhone = /(?:^|\D)0[689]\d{8}(?:\D|$)/u.test(SNIPER_X_TEXT.replace(/[\s-]/gu, ""));
+      const structuredPostal = /(?<!\d)\d{5}(?!\d)/u.test(SNIPER_X_TEXT);
+      const structuredProduct = /(?:^|\n)[^\n]*(?:\d+(?:\.\d+)?\s*(?:คอต\.?|หีบ|กล่อง|ชิ้น|แพ็ค|แพ็ก)|(?:x|×)\s*\d+(?:\.\d+)?|\s\d{1,3})\s*(?:\n|$)/iu.test(SNIPER_X_TEXT);
+      const hasStructuredOrderEvidence =
+        !codConflict && hascodAmount >= 200 && structuredPhone && structuredPostal && structuredProduct;
+
       // ============================================================
       // 🔥 [ด่านชี้ขาดความปลอดภัยสูงสุดตามสั่ง - ดีดขยะทิ้ง 100%] 🔥
       // ============================================================
       // แถวที่มีธงออเดอร์แต่ COD ต่ำ/ขัดแย้งต้องเก็บไว้เป็น BLACK_REVIEW
       // ห้ามปล่อยผ่าน และห้ามตัดทิ้งจนไม่เหลือหลักฐานให้ตรวจสอบ
-      if (!hasOrderSignature) {
+      if (!hasOrderSignature && !hasStructuredOrderEvidence) {
         continue; 
       }
 
