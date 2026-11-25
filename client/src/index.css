@@ -2505,7 +2505,7 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
     height: calc(100dvh - var(--mobile-device-clearance));
     min-height: calc(100svh - var(--mobile-device-clearance));
     max-height: calc(100dvh - var(--mobile-device-clearance));
-    margin-bottom: var(--mobile-device-clearance);
+    margin-bottom: 0;
     border-radius: 0 0 14px 14px;
   }
   .mobile-inbox-conversation {
