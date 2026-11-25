@@ -3,7 +3,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { startLogin } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { Activity, Archive, Bell, Boxes, Database, LayoutDashboard, LockKeyhole, MessageCircle, PanelLeft, Search, Send, Skull, Truck, WandSparkles } from "lucide-react";
+import { Activity, Archive, Bell, Boxes, CalendarDays, Database, LayoutDashboard, LockKeyhole, MessageCircle, PanelLeft, Search, Send, Skull, Truck, WandSparkles } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
@@ -16,6 +16,7 @@ import { THEME_LAB_EVENT, prepareThemeCss, readThemeLab, themeRoomFromPath } fro
 import { useGlobalThemeRuntime } from "@/contexts/GlobalThemeRuntime";
 
 const menuItems = [
+  { icon: CalendarDays, label: "สรุปออเดอร์รายวัน", path: "/daily-order-summary" },
   { icon: LayoutDashboard, label: "Order Control", path: "/orders" },
   { icon: MessageCircle, label: "แอปแชท Mobile Inbox", path: "/mobile-inbox" },
   { icon: MessageCircle, label: "รวมแชทเพจ", path: "/chats" },

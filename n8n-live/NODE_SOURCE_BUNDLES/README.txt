@@ -1,4 +1,4 @@
-ST SINGTO STORE — NODE SOURCE BUNDLES
+BB STORE — NODE SOURCE BUNDLES
 
 ไฟล์ *_NODE_SOURCES.txt รวม source ของโหนด JS ในแต่ละ Project ไว้ในไฟล์เดียว
 เพื่อเปิดค้นหาและก๊อปโค้ดทีละ node ได้ง่าย

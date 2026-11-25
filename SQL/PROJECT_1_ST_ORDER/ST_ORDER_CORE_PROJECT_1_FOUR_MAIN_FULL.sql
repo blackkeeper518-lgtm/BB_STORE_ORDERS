@@ -1,4 +1,4 @@
--- ST SINGTO STORE · PROJECT 1 · ORDER CORE · FOUR MAIN FULL SET
+-- BB STORE · PROJECT 1 · ORDER CORE · FOUR MAIN FULL SET
 -- ================================================================================
 -- ชุดนี้จัดจาก source SQL จริงใน repository เพื่อให้ตรวจดูเป็นไฟล์เดียวก่อนนำไปรัน
 --

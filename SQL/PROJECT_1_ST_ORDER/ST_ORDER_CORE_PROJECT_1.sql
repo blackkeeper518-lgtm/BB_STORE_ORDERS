@@ -1,4 +1,4 @@
--- ST SINGTO STORE · PROJECT 1 · ORDER CORE ONLY
+-- BB STORE · PROJECT 1 · ORDER CORE ONLY
 -- ================================================================
 -- ใช้เฉพาะ Supabase project/account ของสาย Order หลัก
 -- ไม่รวม Chat, Product Master, Parcel, Telegram, Send, Signal

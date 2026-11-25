@@ -1,13 +1,13 @@
 // ⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘
 // 🎯 BB OrderControl : DATA ROUTE RULES
 // ⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘
-// Scope: BB deployment · ใช้ ST logic เดิม อ่านและตรวจออเดอร์
+// Scope: ST only · อ่านและตรวจออเดอร์
 // โต๊ะหลัก: 🗝️HERMES_ARCHIVE
 // สินค้า/หัวบิล: ฟิลด์จาก FOUR_SEND_BILL_BUILDER
 // หน้าเว็บอ่าน projection ที่ตรงกับ schema ปัจจุบันและใช้ upsert_key เป็นคีย์
 // คีย์หลัก: upsert_key · เวลาหลัก: order_time_display
 // ที่อยู่สำรอง: address_display_packer
-// สถานะส่งใช้ delivery_state · ห้ามลบหลักฐาน · คง ST logic เดิม
+// สถานะส่งใช้ delivery_state · ห้ามลบหลักฐาน · ห้ามเอา ST logic มาปน
 // ⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘
 
 import { cacheServerProjectStatus, clearLegacyBrowserSupabaseSettings, createServerSupabaseClient, getCachedServerProjectStatus, projectApi, type ServerProjectStatus } from "@/lib/server-project-client";

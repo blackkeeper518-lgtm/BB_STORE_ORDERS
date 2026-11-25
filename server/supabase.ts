@@ -457,11 +457,11 @@ function normalizeChatProductHighlights(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return [...new Set(value.filter((item): item is string => typeof item === "string").map(item => item.trim().slice(0, 120)).filter(Boolean))].slice(0, 30);
 }
-export async function fetchChatProductHighlights(appKey: "BB_STORE_ORDERS" | "ST_SINGTO_STORE"): Promise<ChatProductHighlights> {
+export async function fetchChatProductHighlights(appKey: "BB_STORE_ORDERS" | "BB_STORE_ORDERS"): Promise<ChatProductHighlights> {
   const rows = await supabaseGet<Array<{ product_names?: unknown }>>(`chat_product_highlights?select=product_names&app_key=eq.${encodeURIComponent(appKey)}&limit=1`, "vault");
   return { configured: rows.length > 0, productNames: normalizeChatProductHighlights(rows[0]?.product_names) };
 }
-export async function saveChatProductHighlights(appKey: "BB_STORE_ORDERS" | "ST_SINGTO_STORE", productNames: unknown): Promise<ChatProductHighlights> {
+export async function saveChatProductHighlights(appKey: "BB_STORE_ORDERS" | "BB_STORE_ORDERS", productNames: unknown): Promise<ChatProductHighlights> {
   const normalized = normalizeChatProductHighlights(productNames);
   const rows = await supabasePost<Array<{ product_names?: unknown }>>("chat_product_highlights?on_conflict=app_key", { app_key: appKey, product_names: normalized }, "vault", "resolution=merge-duplicates,return=representation");
   return { configured: true, productNames: normalizeChatProductHighlights(rows[0]?.product_names ?? normalized) };

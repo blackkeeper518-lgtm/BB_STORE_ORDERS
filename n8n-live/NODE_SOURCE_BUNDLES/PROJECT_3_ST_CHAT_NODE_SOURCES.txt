@@ -1,4 +1,4 @@
-ST SINGTO STORE — PROJECT_3_ST_CHAT — NODE SOURCE BUNDLE
+BB STORE — PROJECT_3_ST_CHAT — NODE SOURCE BUNDLE
 หมายเหตุ: ไฟล์นี้รวม source ของ Code/Function nodes เพื่ออ่าน ค้นหา และก๊อปทีละ node เท่านั้น
 ไม่ใช่ n8n workflow import เพราะไม่มี connections; ใช้ *_PASTE.json สำหรับ Import from Clipboard
 ====================================================================================================

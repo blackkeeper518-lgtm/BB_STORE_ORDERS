@@ -1,4 +1,4 @@
--- ST SINGTO STORE · Theme Runtime
+-- BB STORE · Theme Runtime
 -- ใช้ตารางกลางเดิม public.app_themes ร่วมกับระบบเดิม
 -- รันใน Supabase โปรเจกต์ ROOM 04 / Private Vault
 -- สคริปต์นี้ทำงานแบบ idempotent และไม่ลบข้อมูลธีมเดิม

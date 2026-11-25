@@ -122,11 +122,11 @@ alter table public.app_sounds
 
 -- 4) Current selections ------------------------------------------------------
 -- One active value per app/scope/type. Examples:
---   app_key=ST_SINGTO_STORE, scope_key=global, asset_type=theme, asset_key=theme-005
---   app_key=ST_SINGTO_STORE, scope_key=line:Uxxxx, asset_type=frame, asset_key=f03
+--   app_key=BB_STORE_ORDERS, scope_key=global, asset_type=theme, asset_key=theme-005
+--   app_key=BB_STORE_ORDERS, scope_key=line:Uxxxx, asset_type=frame, asset_key=f03
 create table if not exists public.app_customization_selections (
   id uuid primary key default gen_random_uuid(),
-  app_key text not null default 'ST_SINGTO_STORE',
+  app_key text not null default 'BB_STORE_ORDERS',
   scope_key text not null default 'global',
   asset_type text not null check (asset_type in ('theme','frame','sound','image','background','other')),
   asset_key text not null,

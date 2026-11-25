@@ -4,31 +4,31 @@ import { buildOrderDeckContextMessage, getImportableLatestCustomerMessage, getLa
 describe("Order Deck chat context", () => {
   it("sends the page name when the Order Deck is opened without importing a message", () => {
     const message = buildOrderDeckContextMessage({
-      pageName: "BB STORE",
+      pageName: "ST Singto Store",
       selectedCustomerMessage: "อภิโชค เสระ 0655310082 ที่อยู่ลูกค้า",
     });
 
-    expect(message).toEqual({ type: "ST_ORDER_DECK_CONTEXT", pageName: "BB STORE" });
+    expect(message).toEqual({ type: "ST_ORDER_DECK_CONTEXT", pageName: "ST Singto Store" });
   });
 
   it("sends an explicit clear request when the latest customer row is not importable", () => {
-    expect(buildOrderDeckContextMessage({ pageName: "BB STORE" }, false, true)).toEqual({
+    expect(buildOrderDeckContextMessage({ pageName: "ST Singto Store" }, false, true)).toEqual({
       type: "ST_ORDER_DECK_CONTEXT",
-      pageName: "BB STORE",
+      pageName: "ST Singto Store",
       clearSelectedCustomerMessage: true,
     });
   });
 
   it("sends the page name and only the one customer message after explicit import", () => {
     const message = buildOrderDeckContextMessage({
-      pageName: " BB STORE ",
+      pageName: " ST Singto Store ",
       selectedCustomerMessage: "  อภิโชค เสระ 0655310082 ที่อยู่ลูกค้า  ",
     }, true);
 
     expect(message).toEqual({
       type: "ST_ORDER_DECK_CONTEXT",
       importSelectedCustomerMessage: true,
-      pageName: "BB STORE",
+      pageName: "ST Singto Store",
       selectedCustomerMessage: "อภิโชค เสระ 0655310082 ที่อยู่ลูกค้า",
     });
     expect(message).not.toHaveProperty("customerMessages");
@@ -37,8 +37,8 @@ describe("Order Deck chat context", () => {
   });
 
   it("does not import the message when no message has been selected", () => {
-    const message = buildOrderDeckContextMessage({ pageName: "BB STORE", selectedCustomerMessage: "  " }, true);
-    expect(message).toEqual({ type: "ST_ORDER_DECK_CONTEXT", pageName: "BB STORE" });
+    const message = buildOrderDeckContextMessage({ pageName: "ST Singto Store", selectedCustomerMessage: "  " }, true);
+    expect(message).toEqual({ type: "ST_ORDER_DECK_CONTEXT", pageName: "ST Singto Store" });
   });
 
   it("allows selection only for inbound customer messages", () => {
@@ -96,7 +96,7 @@ describe("Order Deck chat context", () => {
   });
 
   it("caps imported text at 2,400 characters", () => {
-    const message = buildOrderDeckContextMessage({ pageName: "BB STORE", selectedCustomerMessage: "x".repeat(3_000) }, true);
+    const message = buildOrderDeckContextMessage({ pageName: "ST Singto Store", selectedCustomerMessage: "x".repeat(3_000) }, true);
     expect(message).toMatchObject({ selectedCustomerMessage: "x".repeat(2_400) });
   });
 });

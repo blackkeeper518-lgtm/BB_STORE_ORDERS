@@ -23,7 +23,7 @@ export function MobileInboxProductDock({ products, visible, dismissed, collapsed
       </div>
       <div className="mobile-inbox-product-dock__items">
         {products.map(item => <button key={item.product} type="button" onClick={() => onSelect(item.product)} disabled={disabled} title={`เตรียมรูป ${item.product} · ยังไม่ส่ง`}>
-          <img src={item.imageUrls[0]} alt="" loading="lazy" decoding="async" />
+          <img src={item.imageUrls[0]} alt="" loading="lazy" />
           <span>{item.product}</span>
         </button>)}
       </div>

@@ -33,4 +33,4 @@ grant all on public.line_channels to service_role;
 
 -- Example only; replace values before running.
 -- insert into public.line_channels (channel_id, channel_name, oa_id, channel_access_token, channel_secret)
--- values ('2009895812', 'ST SINGTO STORE', 'U7abbb0356ee92548feac19124976abd3', 'CHANNEL_ACCESS_TOKEN', 'CHANNEL_SECRET');
+-- values ('2009895812', 'BB STORE', 'U7abbb0356ee92548feac19124976abd3', 'CHANNEL_ACCESS_TOKEN', 'CHANNEL_SECRET');

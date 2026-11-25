@@ -1,4 +1,4 @@
-ST SINGTO STORE — n8n Clipboard Paste Pack
+BB STORE — n8n Clipboard Paste Pack
 
 วิธีใช้:
 1. เปิดไฟล์ *_PASTE.json หรือ *_PASTE.json ในตัวอ่านไฟล์แบบ Plain Text

@@ -1,4 +1,4 @@
--- ST SINGTO STORE · PROJECT PERMISSIONS BUNDLE
+-- BB STORE · PROJECT PERMISSIONS BUNDLE
 -- ================================================================
 -- ใช้กับ Supabase project ของ ST เท่านั้น
 -- ไฟล์นี้จัดสิทธิ์ ไม่สร้าง/ลบข้อมูล และไม่เปิด PUBLIC แบบกว้าง

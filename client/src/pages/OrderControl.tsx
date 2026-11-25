@@ -9,7 +9,6 @@ import OrderEditWorkbench from "@/components/OrderEditWorkbench";
 import { getActiveCamp, mapChatRowsToThreads, orderTimeSortKey, readBbAlertRoom, readBlackboxRoom, readCanonicalOrders, readParcelByTrackingNumber, readParcelMappingQueue, readTelegramDeliveryOrders } from "@/lib/canonical";
 import { buildMetaInboxPageUrl, parseMetaChatLinkKey } from "@/lib/meta-inbox";
 import { getOrderWarnings } from "@/lib/orderWarnings";
-import { getOrderBusinessDayRange } from "@/lib/order-business-day";
 import { useQuery } from "@tanstack/react-query";
 import { CalendarDays, Check, CheckCircle2, Clock3, Database, Download, ExternalLink, MessageCircle, Pencil, RefreshCw, Search, Send, ShoppingCart, WalletCards, XCircle } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -79,10 +78,18 @@ function exportOrdersCsv(rows: CanonicalOrderRow[]) {
   URL.revokeObjectURL(url);
 }
 
-// ⫘ BUSINESS DAY · “วันนี้” ของ BB ตัดรอบ 14:00 น. ตามเวลาไทย
+// ⫘ BUSINESS DAY · “วันนี้” ของ BB ตัดรอบ 22:00 น. ไม่ใช่วันปฏิทิน
 // แหล่งเวลาเดียว: order_time_display ซึ่งเป็นเวลาก้อนออเดอร์จาก n8n
 function isToday(row: CanonicalOrderRow) {
-  const { startKey, endKey } = getOrderBusinessDayRange();
+  const now = new Date();
+  const bkk = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(now);
+  const part = (name: string) => Number(bkk.find((item) => item.type === name)?.value ?? 0);
+  const businessDay = new Date(Date.UTC(part("year"), part("month") - 1, part("day"), part("hour"), part("minute")));
+  if (part("hour") < 22) businessDay.setUTCDate(businessDay.getUTCDate() - 1);
+  const startKey = Number(`${businessDay.getUTCFullYear()}${String(businessDay.getUTCMonth() + 1).padStart(2, "0")}${String(businessDay.getUTCDate()).padStart(2, "0")}2200`);
+  const end = new Date(businessDay);
+  end.setUTCDate(end.getUTCDate() + 1);
+  const endKey = Number(`${end.getUTCFullYear()}${String(end.getUTCMonth() + 1).padStart(2, "0")}${String(end.getUTCDate()).padStart(2, "0")}2200`);
   const valueKey = orderTimeSortKey(row.order_time_display);
   return valueKey >= startKey && valueKey < endKey;
 }
@@ -426,9 +433,9 @@ export default function OrderControl() {
       {/* ⫘ SUMMARY CARDS · การ์ดสรุปยอดด้านบน: แก้สี/ขนาดที่ component Metric ด้านล่าง */}
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
         <Metric icon={ShoppingCart} label="ออเดอร์ทั้งหมด" value={orders.length} suffix="รายการ" tone="fuchsia" />
-        <Metric icon={CalendarDays} label="ออเดอร์วันนี้" value={todayOrders.length} suffix="รายการ · รอบ 14:00" tone="violet" />
+        <Metric icon={CalendarDays} label="ออเดอร์วันนี้" value={todayOrders.length} suffix="รายการ · รอบ 22:00" tone="violet" />
         <Metric icon={WalletCards} label="ยอด COD ทั้งหมด" value={money(totalCod)} tone="cyan" />
-        <Metric icon={WalletCards} label="ยอด COD วันนี้" value={money(todayCod)} suffix="รอบ 14:00" tone="amber" />
+        <Metric icon={WalletCards} label="ยอด COD วันนี้" value={money(todayCod)} suffix="รอบ 22:00" tone="amber" />
         <Metric icon={CheckCircle2} label="ส่งแล้ว" value={sentOrders.length} suffix="รายการ" tone="green" />
         <Metric icon={Send} label="ส่งได้" value={sendableOrders.length} suffix="รายการ" tone="sky" />
         <Metric icon={XCircle} label="ส่งไม่ได้ / ต้องตรวจ" value={blockedOrders.length} suffix="รายการ" tone="rose" />

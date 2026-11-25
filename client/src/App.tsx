@@ -11,6 +11,7 @@ import OrderPerformance from "./pages/OrderPerformance";
 import StockRoom from "./pages/StockRoom";
 import MappingDashboard from "./pages/MappingDashboard";
 import OrderBuckets from "./pages/OrderBuckets";
+import DailyOrderSummary from "./pages/DailyOrderSummary";
 import OrderHistory from "./pages/OrderHistory";
 import SystemManual from "./pages/SystemManual";
 import TelegramDeliveryRoom from "@/lib/TelegramDeliveryRoom";
@@ -33,7 +34,7 @@ function HomeRoute() {
   useEffect(() => {
     const userAgent = typeof navigator === "undefined" ? "" : navigator.userAgent;
     const isPhone = /Android|iPhone|iPad|iPod|Mobile/i.test(userAgent) || (typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches);
-    setLocation(isPhone ? "/mobile-inbox" : "/orders");
+    setLocation(isPhone ? "/daily-order-summary" : "/orders");
   }, [setLocation]);
   return null;
 }
@@ -62,6 +63,7 @@ function Router() {
     <Route path="/system-manual"><Shell><SystemManual /></Shell></Route>
     <Route path="/mapping-dashboard"><Shell><MappingDashboard /></Shell></Route>
     <Route path="/order-buckets"><Shell><OrderBuckets /></Shell></Route>
+    <Route path="/daily-order-summary"><Shell><DailyOrderSummary /></Shell></Route>
     <Route path="/order-history"><Shell><OrderHistory /></Shell></Route>
     <Route path="/"><HomeRoute /></Route>
     <Route path="/404" component={NotFound} />

@@ -1,4 +1,4 @@
--- ST SINGTO STORE · FULL RECOVERY BUNDLE
+-- BB STORE · FULL RECOVERY BUNDLE
 -- ================================================================
 -- รวม schema ตาราง + functions + indexes/migrations + views + permissions
 -- สำหรับกู้โครงสร้าง Supabase ของ ST ในการรันครั้งเดียว
@@ -1896,11 +1896,11 @@ alter table public.app_sounds
 
 -- 4) Current selections ------------------------------------------------------
 -- One active value per app/scope/type. Examples:
---   app_key=ST_SINGTO_STORE, scope_key=global, asset_type=theme, asset_key=theme-005
---   app_key=ST_SINGTO_STORE, scope_key=line:Uxxxx, asset_type=frame, asset_key=f03
+--   app_key=BB_STORE_ORDERS, scope_key=global, asset_type=theme, asset_key=theme-005
+--   app_key=BB_STORE_ORDERS, scope_key=line:Uxxxx, asset_type=frame, asset_key=f03
 create table if not exists public.app_customization_selections (
   id uuid primary key default gen_random_uuid(),
-  app_key text not null default 'ST_SINGTO_STORE',
+  app_key text not null default 'BB_STORE_ORDERS',
   scope_key text not null default 'global',
   asset_type text not null check (asset_type in ('theme','frame','sound','image','background','other')),
   asset_key text not null,
@@ -2035,7 +2035,7 @@ grant all on public.line_channels to service_role;
 
 -- Example only; replace values before running.
 -- insert into public.line_channels (channel_id, channel_name, oa_id, channel_access_token, channel_secret)
--- values ('2009895812', 'ST SINGTO STORE', 'U7abbb0356ee92548feac19124976abd3', 'CHANNEL_ACCESS_TOKEN', 'CHANNEL_SECRET');
+-- values ('2009895812', 'BB STORE', 'U7abbb0356ee92548feac19124976abd3', 'CHANNEL_ACCESS_TOKEN', 'CHANNEL_SECRET');
 
 
 -- ================================================================
@@ -4057,7 +4057,7 @@ COMMIT;
 -- ================================================================
 -- SOURCE: SQL/views/parcel_delivery_views_combined.sql
 -- ================================================================
--- ST SINGTO STORE ORDERS · Parcel Delivery Views
+-- BB STORE ORDERS · Parcel Delivery Views
 -- รวมจากไฟล์แนบ pasted_content_2.txt
 -- ลำดับ dependency: SHADOW -> ROGUE -> VOID -> DEAD
 -- คง logic ของ SQL เดิม ไม่ได้เพิ่มเงื่อนไขทางธุรกิจ
@@ -4457,7 +4457,7 @@ where
 -- ================================================================
 -- SOURCE: SQL/migrations/ST_PROJECT_PERMISSIONS_ALL.sql
 -- ================================================================
--- ST SINGTO STORE · PROJECT PERMISSIONS BUNDLE
+-- BB STORE · PROJECT PERMISSIONS BUNDLE
 -- ================================================================
 -- ใช้กับ Supabase project ของ ST เท่านั้น
 -- ไฟล์นี้จัดสิทธิ์ ไม่สร้าง/ลบข้อมูล และไม่เปิด PUBLIC แบบกว้าง

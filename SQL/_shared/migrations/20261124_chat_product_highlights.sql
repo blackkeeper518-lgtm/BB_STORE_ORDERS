@@ -3,7 +3,7 @@
 -- The app server accesses this table with its VAULT service-role key; browser roles
 -- have no direct access to the configuration rows.
 create table if not exists public.chat_product_highlights (
-  app_key text primary key check (app_key in ('BB_STORE_ORDERS', 'ST_SINGTO_STORE')),
+  app_key text primary key check (app_key in ('BB_STORE_ORDERS', 'BB_STORE_ORDERS')),
   product_names jsonb not null default '[]'::jsonb,
   updated_at timestamptz not null default now(),
   constraint chat_product_highlights_product_names_array check (

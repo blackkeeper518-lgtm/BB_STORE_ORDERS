@@ -67,11 +67,9 @@ describe("Order Deck floating product shortcuts", () => {
     expect(mobileInbox).toContain("onFeaturedProductsChange={saveSharedProductHighlights}");
   });
 
-  it("keeps local pinned images available while sending lightweight previews through the Deck index", () => {
+  it("passes local images from pinned editor records through the Deck index and iframe bridge", () => {
     expect(deckSource).toContain("const embeddedPinnedImage=featured&&imageUrl.length<=8100000");
-    expect(deckSource).toContain("const imageUrls=remoteImage?[imageUrl]:(embeddedPinnedImage?[await productDockThumbnail(imageUrl)].filter(Boolean):[])");
-    expect(deckSource).toContain("canvas.toDataURL('image/webp',.55)");
-    expect(deckSource).toContain("productDockThumbnailActive<3");
+    expect(deckSource).toContain("const imageUrls=remoteImage||embeddedPinnedImage?[imageUrl]:[]");
     expect(deckFrame).toContain("isUsableDeckProductImageUrl(url)");
   });
 
@@ -117,7 +115,6 @@ describe("Order Deck floating product shortcuts", () => {
     expect(mobileDock).toContain("📌 สินค้าไฮไลท์");
     expect(mobileDock).toContain("className=\"mobile-inbox-product-dock__reopen\"");
     expect(mobileDock).toContain("onClick={() => onSelect(item.product)}");
-    expect(mobileDock).toContain('loading="lazy" decoding="async"');
     expect(mobileDock).toContain("onClick={onToggleCollapsed}");
   });
 

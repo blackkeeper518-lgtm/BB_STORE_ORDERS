@@ -1,4 +1,4 @@
--- ST SINGTO STORE ORDERS · Parcel Delivery Views
+-- BB STORE ORDERS · Parcel Delivery Views
 -- รวมจากไฟล์แนบ pasted_content_2.txt
 -- ลำดับ dependency: SHADOW -> ROGUE -> VOID -> DEAD
 -- คง logic ของ SQL เดิม ไม่ได้เพิ่มเงื่อนไขทางธุรกิจ
