@@ -1432,7 +1432,7 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
   box-shadow:0 12px 28px rgba(0,0,0,.28), inset 0 -1px 0 color-mix(in srgb, var(--depth-accent) 22%, transparent);
 }
 .mobile-inbox-page.mobile-inbox-themed .mobile-inbox-header::before {
-  content:"◈";
+  content:"BB";
   position:absolute;
   left:18px;
   top:23px;
@@ -1443,7 +1443,7 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
   border:1px solid var(--depth-primary);
   border-radius:9px 3px 9px 3px;
   color:var(--depth-primary);
-  font:700 18px 'IBM Plex Mono', monospace;
+  font:700 12px 'IBM Plex Mono', monospace;
   transform:skew(-8deg);
   box-shadow:0 0 14px color-mix(in srgb, var(--depth-primary) 52%, transparent), inset 0 0 10px color-mix(in srgb, var(--depth-primary) 20%, transparent);
 }
