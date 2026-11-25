@@ -2497,3 +2497,24 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
     padding-bottom: max(10px, env(safe-area-inset-bottom));
   }
 }
+
+/* Keep a small, stable clearance for the phone's system navigation area. */
+@media (max-width: 767px) {
+  .mobile-inbox-page {
+    --mobile-device-clearance: max(14px, env(safe-area-inset-bottom));
+    height: calc(100dvh - var(--mobile-device-clearance));
+    min-height: calc(100svh - var(--mobile-device-clearance));
+    max-height: calc(100dvh - var(--mobile-device-clearance));
+    margin-bottom: var(--mobile-device-clearance);
+    border-radius: 0 0 14px 14px;
+  }
+  .mobile-inbox-conversation {
+    inset: 0 0 var(--mobile-device-clearance) 0;
+  }
+  .mobile-inbox-conversation,
+  .mobile-inbox-conversation-shell {
+    height: 100%;
+    min-height: 0;
+    max-height: none;
+  }
+}
