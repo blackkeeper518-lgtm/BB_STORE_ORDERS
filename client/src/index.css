@@ -2419,3 +2419,49 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .global-theme-runtime .daily-order-summary-room .text-violet-100 {
   color: color-mix(in srgb, var(--global-accent) 72%, var(--global-text)) !important;
 }
+
+
+/* Meta-style mobile frame: reserve the device bars outside the app, then keep the app viewport stable. */
+@media (max-width: 767px) {
+  .mobile-inbox-page.mobile-inbox-themed {
+    height: 100dvh;
+    min-height: 100dvh;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .mobile-inbox-page.mobile-inbox-themed > .mobile-inbox-bottom-nav {
+    padding-bottom: 0;
+  }
+  .mobile-inbox-page.mobile-inbox-themed > .mobile-inbox-conversation {
+    inset: env(safe-area-inset-top) 0 env(safe-area-inset-bottom) !important;
+    height: auto !important;
+    min-height: 0 !important;
+  }
+  .mobile-inbox-page.mobile-inbox-themed > .mobile-inbox-conversation .mobile-inbox-conversation-shell {
+    height: 100%;
+    min-height: 0;
+  }
+  .mobile-inbox-page.mobile-inbox-themed > .mobile-inbox-conversation .mobile-inbox-conversation-header {
+    height: 64px;
+    min-height: 64px;
+    padding: 8px 11px;
+  }
+  .mobile-inbox-page.mobile-inbox-themed .mobile-line-embedded:has(.line-mobile-room) {
+    inset: env(safe-area-inset-top) 0 env(safe-area-inset-bottom) !important;
+    height: auto !important;
+    min-height: 0 !important;
+  }
+  .mobile-inbox-page.mobile-inbox-themed .mobile-line-embedded > .line-mobile-shell > .line-mobile-room {
+    inset: env(safe-area-inset-top) 0 env(safe-area-inset-bottom) !important;
+    height: auto !important;
+    min-height: 0 !important;
+  }
+  .mobile-inbox-page.mobile-inbox-themed .line-mobile-room-header {
+    height: 68px;
+    padding-top: 8px;
+  }
+  .mobile-inbox-page.mobile-inbox-themed .line-mobile-composer {
+    padding-bottom: 9px;
+  }
+}
