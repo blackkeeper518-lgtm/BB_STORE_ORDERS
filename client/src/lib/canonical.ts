@@ -11,6 +11,7 @@
 // ⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘
 
 import { cacheServerProjectStatus, clearLegacyBrowserSupabaseSettings, createServerSupabaseClient, getCachedServerProjectStatus, projectApi, type ServerProjectStatus } from "@/lib/server-project-client";
+import { isCurrentBangkokBusinessDay } from "@/lib/business-day";
 
 export type Camp = "ST";
 export type SupabaseProject = "main" | "tracking" | "parcel" | "vault";
@@ -164,12 +165,6 @@ function chatDateMs(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function isBangkokToday(value: unknown, now = new Date()) {
-  const timestamp = chatDateMs(value);
-  if (timestamp == null) return false;
-  const format = (date: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok", year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
-  return format(new Date(timestamp)) === format(now);
-}
 function displayDateKey(value: unknown): string {
   const match = String(value ?? "").trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
   if (!match) return "";
@@ -932,8 +927,8 @@ export function mapChatRowsToThreads(sourceRows: any[]) {
     current._searchTokens = [current._searchTokens, row.phone, row.customer_id, row.recipient_id, row.order_number, row.order_number_display, row.upsert_key, row.chat_link_key].filter(Boolean).join(" ");
 
     const hasOrderNumber = Boolean(String(current.order_number_display ?? current.order_number ?? "").trim());
-    const orderTime = current.order_time_display ?? current.order_time ?? row.order_time_display ?? row.order_time ?? row.occurred_at;
-    current.orderTodayActive = current.orderTodayActive || (hasOrderNumber && isBangkokToday(orderTime));
+    const orderTimeDisplay = current.order_time_display ?? row.order_time_display;
+    current.orderTodayActive = current.orderTodayActive || (hasOrderNumber && isCurrentBangkokBusinessDay(orderTimeDisplay));
     if (current.tracking_number) {
       const trackingTime = [
         current.tracking_created_at, current.tracking_number_created_at, current.tracking_time,
