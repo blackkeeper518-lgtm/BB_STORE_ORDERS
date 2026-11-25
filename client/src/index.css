@@ -1318,8 +1318,18 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .mobile-inbox-themed .mobile-inbox-compose-row > button:last-child { background:linear-gradient(135deg,var(--mobile-primary),var(--mobile-accent)); color:#07121c; }
 .mobile-inbox-themed .mobile-inbox-compose-row textarea { border-color:color-mix(in srgb,var(--mobile-primary) 22%,transparent); background:color-mix(in srgb,var(--mobile-bg) 80%,var(--mobile-surface)); color:var(--mobile-text); }
 
-.mobile-inbox-install-button { display:inline-flex; align-items:center; gap:5px; height:34px; border:1px solid color-mix(in srgb,var(--mobile-primary) 48%,transparent); border-radius:10px; padding:0 9px; background:color-mix(in srgb,var(--mobile-primary) 16%,var(--mobile-surface)); color:var(--mobile-text); font-size:10px; font-weight:700; white-space:nowrap; }
-.mobile-inbox-install-button svg { width:15px; height:15px; color:var(--mobile-primary); }
+.mobile-inbox-install-button { position:relative; isolation:isolate; display:inline-flex; align-items:center; gap:6px; height:36px; border:1px solid rgba(255,255,255,.4); border-radius:12px; padding:0 11px; background:linear-gradient(135deg,#ff2f92 0%,#8b3dff 48%,#00d9ff 100%); color:#fff; font-size:10px; font-weight:800; letter-spacing:.01em; white-space:nowrap; box-shadow:0 0 0 1px rgba(255,255,255,.12) inset,0 0 12px rgba(255,47,146,.72),0 0 28px rgba(0,217,255,.42); text-shadow:0 1px 5px rgba(0,0,0,.55); overflow:visible; animation:bb-download-pulse 2.4s ease-in-out infinite; }
+.mobile-inbox-install-button::before { content:""; position:absolute; inset:-5px; z-index:-1; border-radius:15px; background:conic-gradient(from 0deg,rgba(255,47,146,.9),rgba(255,218,77,.85),rgba(0,217,255,.9),rgba(139,61,255,.9),rgba(255,47,146,.9)); filter:blur(7px); opacity:.72; animation:bb-download-spark 3.2s linear infinite; }
+.mobile-inbox-install-button svg { width:16px; height:16px; color:#fff; filter:drop-shadow(0 0 5px rgba(255,255,255,.9)); }
+.mobile-inbox-update-button { background:linear-gradient(135deg,#19d3ae,#1677ff 52%,#a63dff); }
+.mobile-inbox-install-guide { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 12px 8px; padding:10px 12px; border:1px solid rgba(255,95,190,.48); border-radius:14px; background:linear-gradient(110deg,rgba(255,47,146,.2),rgba(42,119,255,.2)); box-shadow:0 0 20px rgba(255,47,146,.2); }
+.mobile-inbox-install-guide div { display:grid; gap:2px; min-width:0; }
+.mobile-inbox-install-guide strong { color:#fff; font-size:11px; }
+.mobile-inbox-install-guide small { color:rgba(255,255,255,.68); font-size:9px; line-height:1.45; }
+.mobile-inbox-install-guide button { flex:none; border:1px solid rgba(255,255,255,.28); border-radius:8px; padding:5px 8px; color:#fff; font-size:10px; background:rgba(0,0,0,.24); }
+@keyframes bb-download-pulse { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-1px); } }
+@keyframes bb-download-spark { to { transform:rotate(360deg); } }
+@media (display-mode: standalone) { .mobile-inbox-download-button { display:none; } }
 
 /* Mobile Inbox compact density: closer to Meta Inbox on phone */
 @media (max-width:767px) {
