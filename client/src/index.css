@@ -2518,3 +2518,8 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
     max-height: none;
   }
 }
+
+/* Mobile room action: open the same conversation in Meta Business Suite. */
+.mobile-inbox-meta-link { display:inline-flex; min-width:42px; height:34px; align-items:center; justify-content:center; gap:4px; flex:none; border:1px solid color-mix(in srgb,var(--mobile-primary) 44%,transparent); border-radius:10px; padding:0 7px; background:color-mix(in srgb,var(--mobile-primary) 12%,transparent); color:var(--mobile-primary); font-size:10px; font-weight:700; text-decoration:none; }
+.mobile-inbox-meta-link:hover { background:color-mix(in srgb,var(--mobile-accent) 18%,transparent); color:#fff; }
+.mobile-inbox-meta-link svg { width:15px; height:15px; }

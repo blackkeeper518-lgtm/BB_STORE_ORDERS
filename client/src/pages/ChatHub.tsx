@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useIsMobile } from "@/hooks/useMobile";
 import { extractChatImageUrls, getSupabase, mapChatRowsToMessages, mapChatRowsToThreads, reconcileOptimisticMessages } from "@/lib/canonical";
-import { uploadChatImageToVault } from "@/lib/chat-image-upload";
+import { normalizeChatImageForMeta, uploadChatImageToVault } from "@/lib/chat-image-upload";
 import { buildMetaConversationUrl } from "@/lib/meta-inbox";
 import { metaTransientSendNotice } from "@/lib/meta-send-notice";
 import { getImportableLatestCustomerMessage, getSelectedOrderMessageText, isSelectableCustomerMessage } from "@/lib/order-deck-context";
@@ -491,7 +491,8 @@ export default function ChatHub() {
     try {
       for (const file of files) {
         const extension = file.type.split("/")[1] || "png";
-        const normalizedFile = file.name ? file : new File([file], `pasted-image-${Date.now()}-${uploaded.length + 1}.${extension}`, { type: file.type });
+        const namedFile = file.name ? file : new File([file], `pasted-image-${Date.now()}-${uploaded.length + 1}.${extension}`, { type: file.type });
+        const normalizedFile = await normalizeChatImageForMeta(namedFile);
         if (!supportedTypes.includes(normalizedFile.type as typeof supportedTypes[number]) || normalizedFile.size > 6_000_000) {
           setReplyNotice("รองรับ JPG, PNG, GIF หรือ WebP ขนาดไม่เกิน 6 MB ต่อภาพ");
           continue;

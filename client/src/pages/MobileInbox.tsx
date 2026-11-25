@@ -2,7 +2,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { extractChatImageUrls, getActiveCamp, getSupabase, mapChatRowsToMessages, mapChatRowsToThreads, readCanonicalOrders, reconcileOptimisticMessages } from "@/lib/canonical";
-import { uploadChatImageToVault } from "@/lib/chat-image-upload";
+import { normalizeChatImageForMeta, uploadChatImageToVault } from "@/lib/chat-image-upload";
+import { buildMetaConversationUrl } from "@/lib/meta-inbox";
 import { getLatestBBChatCustomerMessage, getSelectedOrderMessageText, isImportableLatestCustomerMessage } from "@/lib/order-deck-context";
 import { applySharedDeckHighlights, selectFeaturedDeckImageProducts } from "@/lib/order-deck-product-index";
 import { useChatProductHighlights } from "@/hooks/useChatProductHighlights";
@@ -309,6 +310,7 @@ export default function MobileInbox() {
   const selectedPageId = selected?.pageId ?? "";
   const selectedThreadId = selected?.threadId ?? "";
   const selectedCustomerId = selected?.customerId ?? "";
+  const selectedMetaInboxUrl = buildMetaConversationUrl(selected?.chatLinkKey || (selectedPageId && selectedThreadId ? `${selectedPageId}_t_${selectedThreadId}` : ""));
   const messagesQuery = trpc.chat.messages.useQuery({ pageId: selectedPageId, threadId: selectedThreadId, surface: "mobile" }, { enabled: hasConfig && platform === "facebook" && openRoom && Boolean(selectedPageId && selectedThreadId), staleTime: 0, refetchInterval: 8_000, refetchIntervalInBackground: false, refetchOnWindowFocus: true, refetchOnReconnect: true, select: mapChatRowsToMessages });
   const refreshInbox = () => { void Promise.all([threadsQuery.refetch(), lineConversationsQuery.refetch(), messagesQuery.refetch()]); };
   const optimisticMessageIdRef = useRef<string | null>(null);
@@ -444,7 +446,8 @@ export default function MobileInbox() {
     try {
       for (const file of files) {
         const extension = file.type.split("/")[1] || "png";
-        const normalizedFile = file.name ? file : new File([file], `pasted-image-${Date.now()}-${uploaded.length + 1}.${extension}`, { type: file.type });
+        const namedFile = file.name ? file : new File([file], `pasted-image-${Date.now()}-${uploaded.length + 1}.${extension}`, { type: file.type });
+        const normalizedFile = await normalizeChatImageForMeta(namedFile);
         if (!["image/jpeg", "image/png", "image/gif", "image/webp"].includes(normalizedFile.type) || normalizedFile.size > 6_000_000) continue;
         const result = await uploadChatImageToVault(vault, normalizedFile);
         uploaded.push({ url: result.url, sendUrl: result.url, name: normalizedFile.name });
@@ -638,7 +641,7 @@ export default function MobileInbox() {
     {openRoom && selected ? <div className="mobile-inbox-deck-bridge" aria-hidden="true">
       <OrderDeckFrame pageId={selectedPageId} pageName={selected.pageName || "ไม่ระบุเพจ"} threadId={selectedThreadId} customerName={selected.customerName || "ลูกค้า"} customerPhone={String(selected.customerPhone || selected.phone || "")} selectedCustomerMessage={selectedOrderMessageText} messageMode="latest" roomStatus="พร้อมใช้งาน" onProductImagesSelected={receiveProductImages} onProductIndexReady={setDeckImageProducts} sharedHighlights={sharedProductHighlights} onFeaturedProductsChange={saveSharedProductHighlights} productImagesRequest={productImagesRequest} onClose={() => {}} />
     </div> : null}
-    {openRoom && selected ? <div className="mobile-inbox-conversation"><div className="mobile-inbox-conversation-shell"><header className="mobile-inbox-conversation-header"><button type="button" aria-label="กลับไปหน้ารวมแชท" onClick={closeRoom}><ArrowLeft /></button><span className="mobile-inbox-avatar">{profileAvatar(selected)}</span><div className="min-w-0 flex-1"><strong className="block truncate">{selected.customerName || ""}</strong><small>{selected.pageName || "ไม่ระบุเพจ"}</small></div><button type="button" onClick={openOrderDeck} disabled={messagesQuery.isLoading || messagesQuery.isFetching} className="mobile-inbox-order-summary-button" aria-label="ดึงข้อความลูกค้าล่าสุด ณ เวลากดแล้วเปิดสรุปบิล" title="กดเพื่อดึงข้อความลูกค้าล่าสุดจาก 🌌ST_CHAT แล้วเปิดสรุปบิล"><Clipboard /><span>{messagesQuery.isFetching ? "กำลังดึง…" : "🧾สรุปบิล"}</span></button></header><div ref={timelineRef} onScroll={event => { const node = event.currentTarget; stickTimelineToBottomRef.current = node.scrollHeight - node.scrollTop - node.clientHeight < 48; }} className="mobile-inbox-timeline">{messages.length ? messages.map(message => { const outgoing = message.direction === "outbound" || message.senderType === "page"; const text = messageText(message); const images = imageUrls(message.attachmentsJson); const mediaOnly = images.length > 0 && (!text.trim() || /^\[รูปภาพ\]$|^ส่งรูปภาพ$/i.test(text.trim())); const roomFrame = cyberFrameRooms[selected.key] || cyberFrame; return (
+    {openRoom && selected ? <div className="mobile-inbox-conversation"><div className="mobile-inbox-conversation-shell"><header className="mobile-inbox-conversation-header"><button type="button" aria-label="กลับไปหน้ารวมแชท" onClick={closeRoom}><ArrowLeft /></button><span className="mobile-inbox-avatar">{profileAvatar(selected)}</span><div className="min-w-0 flex-1"><strong className="block truncate">{selected.customerName || ""}</strong><small>{selected.pageName || "ไม่ระบุเพจ"}</small></div>{selectedMetaInboxUrl ? <a href={selectedMetaInboxUrl} target="_blank" rel="noopener noreferrer" className="mobile-inbox-meta-link" aria-label="เปิดแชทจริงใน Meta Business Suite" title="เปิดแชทจริงใน Meta Business Suite"><ExternalLink /><span>Meta</span></a> : null}<button type="button" onClick={openOrderDeck} disabled={messagesQuery.isLoading || messagesQuery.isFetching} className="mobile-inbox-order-summary-button" aria-label="ดึงข้อความลูกค้าล่าสุด ณ เวลากดแล้วเปิดสรุปบิล" title="กดเพื่อดึงข้อความลูกค้าล่าสุดจาก 🌌ST_CHAT แล้วเปิดสรุปบิล"><Clipboard /><span>{messagesQuery.isFetching ? "กำลังดึง…" : "🧾สรุปบิล"}</span></button></header><div ref={timelineRef} onScroll={event => { const node = event.currentTarget; stickTimelineToBottomRef.current = node.scrollHeight - node.scrollTop - node.clientHeight < 48; }} className="mobile-inbox-timeline">{messages.length ? messages.map(message => { const outgoing = message.direction === "outbound" || message.senderType === "page"; const text = messageText(message); const images = imageUrls(message.attachmentsJson); const mediaOnly = images.length > 0 && (!text.trim() || /^\[รูปภาพ\]$|^ส่งรูปภาพ$/i.test(text.trim())); const roomFrame = cyberFrameRooms[selected.key] || cyberFrame; return (
               <div key={message.id} className={`mobile-inbox-message-row ${outgoing ? "is-outgoing" : ""}`}>
                 <div className={`mobile-inbox-message chat-bubble-frame ${roomFrame ? `cyber-frame-card cyber-frame-${roomFrame}` : ""} ${mediaOnly ? "is-media-only" : ""}`}>
                   {!mediaOnly && text ? <p>{text}</p> : null}
