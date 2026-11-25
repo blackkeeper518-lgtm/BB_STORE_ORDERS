@@ -49,27 +49,17 @@ export function verifyMetaSignature(rawBody: string, signature: string | undefin
   return expected.length === received.length && timingSafeEqual(expected, received);
 }
 
-export async function sendMetaMessage(input: { pageId: string; portalKey?: string; chatLinkKey?: string; recipientId: string; text?: string; imageUrl?: string; imageUrls?: string[]; stickerId?: string; surface?: "web" | "mobile" }, credentials?: ChatSupabaseCredentials) {
+export async function sendMetaMessage(input: { pageId: string; portalKey?: string; chatLinkKey?: string; recipientId: string; text?: string; imageUrl?: string; stickerId?: string; surface?: "web" | "mobile" }, credentials?: ChatSupabaseCredentials) {
   const accessToken = await pageToken(input.pageId, credentials, input.surface ?? "web");
   if (!accessToken) throw new Error(`No Meta page token configured for page ${input.pageId}`);
   const text = input.text?.trim() || "";
   const imageUrl = input.imageUrl?.trim() || "";
-  const imageUrls = [...new Set((input.imageUrls ?? []).map(url => url.trim()).filter(Boolean))];
   const stickerId = input.stickerId?.trim() || "";
-  const contentCount = [Boolean(text), Boolean(imageUrl || imageUrls.length), Boolean(stickerId)].filter(Boolean).length;
+  const contentCount = [Boolean(text), Boolean(imageUrl), Boolean(stickerId)].filter(Boolean).length;
   if (contentCount === 0) throw new Error("Message text, image, or sticker is required");
   if (contentCount > 1) throw new Error("META_PAYLOAD_CONFLICT: ส่งได้ทีละชนิดเท่านั้น กรุณาเลือกข้อความ รูปภาพ หรือสติกเกอร์อย่างใดอย่างหนึ่ง");
   if (imageUrl && !/^https:\/\//i.test(imageUrl)) throw new Error("META_IMAGE_URL_INVALID: รูปภาพต้องเป็น HTTPS URL ที่ Meta เข้าถึงได้");
-  if (imageUrls.some(url => !/^https:\/\//i.test(url))) throw new Error("META_IMAGE_URL_INVALID: รูปภาพต้องเป็น HTTPS URL ที่ Meta เข้าถึงได้");
-  const message: Record<string, unknown> = text
-    ? { text }
-    : imageUrls.length > 1
-      ? { attachments: imageUrls.map(url => ({ type: "image", payload: { url } })) }
-      : imageUrl
-        ? { attachment: { type: "image", payload: { url: imageUrl, is_reusable: false } } }
-        : imageUrls.length === 1
-          ? { attachment: { type: "image", payload: { url: imageUrls[0], is_reusable: false } } }
-          : { sticker_id: stickerId };
+  const message: Record<string, unknown> = text ? { text } : imageUrl ? { attachment: { type: "image", payload: { url: imageUrl, is_reusable: false } } } : { sticker_id: stickerId };
   const response = await fetch(`https://graph.facebook.com/v26.0/${encodeURIComponent(input.pageId)}/messages?access_token=${encodeURIComponent(accessToken)}`, {
     method: "POST",
     headers: { "content-type": "application/json" },

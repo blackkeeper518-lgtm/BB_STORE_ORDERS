@@ -31,34 +31,6 @@ function pageFetch(page: Record<string, unknown>) {
 }
 
 describe("Meta Page surface status", () => {
-  it("sends multiple images in one attachments array without singular attachment payload", async () => {
-    const bodies: Array<Record<string, any>> = [];
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input);
-      if (url.includes("/rest/v1/")) {
-        return new Response(JSON.stringify([{ page_id: "page-123", access_token: "test-page-token", status: "ON", status_web: "ON" }]), { status: 200 });
-      }
-      bodies.push(JSON.parse(String(init?.body)) as Record<string, any>);
-      return new Response(JSON.stringify({ message_id: "meta-batch-1" }), { status: 200 });
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
-    await expect(sendMetaMessage({
-      pageId: "page-123",
-      recipientId: "customer-1",
-      imageUrls: ["https://cdn.example.com/one.jpg", "https://cdn.example.com/two.jpg"],
-      surface: "mobile",
-    }, credentials)).resolves.toEqual({ message_id: "meta-batch-1" });
-
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(bodies).toHaveLength(1);
-    expect(bodies[0]?.message?.attachment).toBeUndefined();
-    expect(bodies[0]?.message?.attachments).toEqual([
-      { type: "image", payload: { url: "https://cdn.example.com/one.jpg" } },
-      { type: "image", payload: { url: "https://cdn.example.com/two.jpg" } },
-    ]);
-  });
-
   it("allows web replies when status_web is ON even if app status is OFF", async () => {
     const { fetchMock, requests } = pageFetch({
       page_id: "page-123",
