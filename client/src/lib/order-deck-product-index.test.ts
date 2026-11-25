@@ -37,8 +37,21 @@ describe("Order Deck floating product shortcuts", () => {
     ];
     expect(applySharedDeckHighlights(products, { configured: false, productNames: [] })).toEqual(products);
     expect(applySharedDeckHighlights(products, { configured: true, productNames: ["cloud-shared"] }).map(item => [item.product, item.featured])).toEqual([
-      ["legacy-local", false],
       ["cloud-shared", true],
+      ["legacy-local", false],
+    ]);
+  });
+
+  it("keeps shared highlight order newest-first while leaving unselected products after it", () => {
+    const products = [
+      { product: "older", terms: [], imageUrls: ["https://cdn.example/older.jpg"], featured: false },
+      { product: "unselected", terms: [], imageUrls: ["https://cdn.example/unselected.jpg"], featured: true },
+      { product: "newest", terms: [], imageUrls: ["https://cdn.example/newest.jpg"], featured: false },
+    ];
+    expect(applySharedDeckHighlights(products, { configured: true, productNames: ["newest", "older"] }).map(item => item.product)).toEqual([
+      "newest",
+      "older",
+      "unselected",
     ]);
   });
 
@@ -121,8 +134,8 @@ describe("Order Deck floating product shortcuts", () => {
   it("does not sync unrelated Deck saves as highlight changes", () => {
     expect(deckSource).toContain("function saveAdPages(syncOnline=false)");
     expect(deckSource).toContain("if(syncOnline&&window.parent!==window)");
-    expect(deckSource).toContain("currentAdPage().selected=[...selected];saveAdPages(true)");
-    expect(deckSource).toContain("page.selected=[...next];saveAdPages(true)");
+    expect(deckSource).toContain("currentAdPage().selected=cb.checked?[name,...current.filter(item=>item!==name)]:current.filter(item=>item!==name)");
+    expect(deckSource).toContain("page.selected=isPinned?current.filter(item=>item!==name):[name,...current.filter(item=>item!==name)]");
     expect(deckSource).toContain("saveAdPages(false);renderAdPageSelect();renderAdProductChecks()");
   });
 

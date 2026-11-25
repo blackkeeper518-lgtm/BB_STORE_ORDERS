@@ -25,5 +25,15 @@ export function selectFeaturedDeckImageProducts(products: readonly DeckImageProd
 export function applySharedDeckHighlights(products: readonly DeckImageProduct[], settings: SharedDeckHighlights): DeckImageProduct[] {
   if (!settings?.configured) return [...products];
   const selected = new Set(settings.productNames);
-  return products.map(item => ({ ...item, featured: selected.has(item.product) }));
+  const selectedOrder = new Map(settings.productNames.map((name, index) => [name, index]));
+  return products
+    .map(item => ({ ...item, featured: selected.has(item.product) }))
+    .sort((a, b) => {
+      const aRank = selectedOrder.get(a.product);
+      const bRank = selectedOrder.get(b.product);
+      if (aRank !== undefined && bRank !== undefined) return aRank - bRank;
+      if (aRank !== undefined) return -1;
+      if (bRank !== undefined) return 1;
+      return 0;
+    });
 }
