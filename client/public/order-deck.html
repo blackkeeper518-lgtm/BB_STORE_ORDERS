@@ -593,8 +593,8 @@ function renderImageProducts(){
   const holder=$('imageCategories');holder.innerHTML='';
   const selected=new Set(currentAdPage()?.selected||[]),inPageView=activeProductTab==='📌';
   const selectedOrder=new Map((currentAdPage()?.selected||[]).map((name,index)=>[name,index]));
-  const visibleProducts=imageProducts.filter(name=>productIsAvailable(name)&&(inPageView?selected.has(name):activeProductTab==='ทั้งหมด'||(activeProductTab==='💢'?isUnclassifiedProduct(name):groupOf(name)===activeProductTab))
-    .sort((a,b)=>inPageView?(selectedOrder.get(a)??99999)-(selectedOrder.get(b)??99999):Number((activeProductTab==='ทั้งหมด'||activeProductTab==='💢'?focusedProducts.has(b):selected.has(b)))-Number((activeProductTab==='ทั้งหมด'||activeProductTab==='💢'?focusedProducts.has(a):selected.has(a))));
+  const visibleProducts=imageProducts.filter(name=>productIsAvailable(name)&&(inPageView?selected.has(name):activeProductTab==='ทั้งหมด'||(activeProductTab==='💢'?isUnclassifiedProduct(name):groupOf(name)===activeProductTab)))
+    .sort((a,b)=>{if(inPageView)return(selectedOrder.get(a)??99999)-(selectedOrder.get(b)??99999);const isFocused=name=>activeProductTab==='ทั้งหมด'||activeProductTab==='💢'?focusedProducts.has(name):selected.has(name);return Number(isFocused(b))-Number(isFocused(a))});
   if(!visibleProducts.length){
     const empty=document.createElement('div');empty.className='product-import-empty';
     empty.textContent=inPageView?'เพจนี้ยังไม่มีสินค้า · เพิ่มได้จากคลังกลางด้วยปุ่ม pin หรือเปิด “ไฮไลต์สินค้า”':activeProductTab==='💢'?'ไม่มีสินค้าที่รอจัดสายแล้ว':'ยังไม่มีสินค้าในหมวดนี้ · ไปที่ ทั้งหมด เพื่อจัดการคลังสินค้า';
