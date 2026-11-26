@@ -2,20 +2,16 @@
    Desktop shell only. Mobile Inbox and its skin/frame system remain untouched. */
 @media (min-width: 768px) {
   :root {
-    --ops-bg: #020a13;
-    --ops-panel: #071522;
-    --ops-panel-soft: rgba(7, 21, 34, .82);
-    --ops-line: rgba(65, 190, 215, .24);
-    --ops-line-strong: rgba(65, 213, 234, .55);
-    --ops-cyan: #36d8ec;
-    --ops-cyan-bright: #b9f7ff;
-    --ops-aqua: #48e4ca;
-    --ops-purple: #b64be4;
-    --ops-magenta: #ed62b5;
-    --ops-pink: #f28ac8;
-    --ops-lime: #b6ed3f;
-    --ops-text: #dceef4;
-    --ops-muted: #7f99a8;
+    --ops-bg: #050b14;
+    --ops-panel: #0a1420;
+    --ops-panel-soft: rgba(10, 20, 32, .78);
+    --ops-line: rgba(112, 211, 232, .20);
+    --ops-line-strong: rgba(112, 211, 232, .45);
+    --ops-cyan: #71d3e8;
+    --ops-cyan-bright: #b5f4ff;
+    --ops-magenta: #d778c8;
+    --ops-text: #e3edf4;
+    --ops-muted: #8195a5;
   }
 
   .ops-console-provider,
@@ -30,8 +26,8 @@
     isolation: isolate;
     overflow: hidden;
     background-image:
-      radial-gradient(ellipse at 76% -12%, rgba(54, 216, 236, .13), transparent 34%),
-      radial-gradient(ellipse at 12% 112%, rgba(182, 75, 228, .08), transparent 36%),
+      radial-gradient(ellipse at 76% -12%, rgba(61, 156, 187, .12), transparent 34%),
+      radial-gradient(ellipse at 12% 112%, rgba(183, 77, 158, .07), transparent 36%),
       linear-gradient(rgba(109, 173, 194, .025) 1px, transparent 1px),
       linear-gradient(90deg, rgba(109, 173, 194, .025) 1px, transparent 1px) !important;
     background-size: auto, auto, 32px 32px, 32px 32px !important;
@@ -150,13 +146,13 @@
   .global-theme-runtime .ops-console-shell .signal-metric::after { display: none !important; }
   .global-theme-runtime .ops-console-shell .signal-metric:hover,
   .global-theme-runtime .ops-console-shell .order-list-card:hover { transform: none; filter: none; box-shadow: inset 0 1px rgba(189, 232, 241, .05), 0 0 0 1px rgba(113, 211, 232, .16) !important; }
-  .global-theme-runtime .ops-console-shell .signal-pink { color: var(--ops-pink) !important; }
-  .global-theme-runtime .ops-console-shell .signal-violet { color: var(--ops-purple) !important; }
+  .global-theme-runtime .ops-console-shell .signal-pink,
+  .global-theme-runtime .ops-console-shell .signal-violet,
   .global-theme-runtime .ops-console-shell .signal-fuchsia,
   .global-theme-runtime .ops-console-shell .signal-rose { color: var(--ops-magenta) !important; }
-  .global-theme-runtime .ops-console-shell .signal-cyan { color: var(--ops-cyan) !important; }
-  .global-theme-runtime .ops-console-shell .signal-sky { color: #5d9ff4 !important; }
-  .global-theme-runtime .ops-console-shell .signal-green { color: var(--ops-lime) !important; }
+  .global-theme-runtime .ops-console-shell .signal-cyan,
+  .global-theme-runtime .ops-console-shell .signal-sky,
+  .global-theme-runtime .ops-console-shell .signal-green { color: var(--ops-cyan) !important; }
   .global-theme-runtime .ops-console-shell h1,
   .global-theme-runtime .ops-console-shell h2,
   .global-theme-runtime .ops-console-shell h3 { text-shadow: none !important; }
