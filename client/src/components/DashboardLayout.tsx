@@ -16,11 +16,7 @@ import { THEME_LAB_EVENT, prepareThemeCss, readThemeLab, themeRoomFromPath } fro
 import { useGlobalThemeRuntime } from "@/contexts/GlobalThemeRuntime";
 
 const menuItems = [
-  { icon: CalendarDays, label: "สรุปออเดอร์รายวัน", path: "/daily-order-summary" },
   { icon: LayoutDashboard, label: "Order Control", path: "/orders" },
-  { icon: MessageCircle, label: "แอปแชท Mobile Inbox", path: "/mobile-inbox" },
-  { icon: MessageCircle, label: "รวมแชทเพจ", path: "/chats" },
-  { icon: MessageCircle, label: "LINE OA · ห้องตอบแชท", path: "/line-chat" },
   { icon: Truck, label: "แมปเลขพัสดุ", path: "/parcel-mapping" },
   { icon: Database, label: "คู่มือระบบ · System Manual", path: "/system-manual" },
   { icon: Send, label: "PIONEER · คิวพัก / ดักสองชั้น", path: "/telegram-delivery" },
@@ -33,6 +29,10 @@ const menuItems = [
   { icon: Boxes, label: "แยก 1/2/3 คอต", path: "/order-buckets" },
   { icon: Activity, label: "ประสิทธิภาพดูดออเดอร์", path: "/order-performance" },
   { icon: Database, label: "คลังโปรเจกต์", path: "/" },
+  { icon: CalendarDays, label: "สรุปออเดอร์รายวัน", path: "/daily-order-summary" },
+  { icon: MessageCircle, label: "แอปแชท Mobile Inbox", path: "/mobile-inbox" },
+  { icon: MessageCircle, label: "รวมแชทเพจ", path: "/chats" },
+  { icon: MessageCircle, label: "LINE OA · ห้องตอบแชท", path: "/line-chat" },
 ];
 const SIDEBAR_WIDTH_KEY = "sidebar-width-compact-v2";
 const DEFAULT_WIDTH = 190;
