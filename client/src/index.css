@@ -2750,9 +2750,9 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 
 /* BLACKBOX PALETTE LOCK · follows the selected runtime theme: Black Signal / Black Ember / Red Static. */
 .global-theme-runtime .blackbox-room {
-  --bb-danger: color-mix(in srgb, var(--global-primary) 88%, #ff3030);
-  --bb-hot: color-mix(in srgb, var(--global-primary) 72%, #ff6b35);
-  --bb-amber: color-mix(in srgb, var(--global-accent) 84%, #ffc247);
+  --bb-danger: color-mix(in srgb, var(--room-primary, #ff304f) 82%, var(--global-primary) 18%);
+  --bb-hot: color-mix(in srgb, var(--room-hot, #ff6b35) 78%, var(--global-primary) 22%);
+  --bb-amber: color-mix(in srgb, var(--room-accent, #ff9f43) 78%, var(--global-accent) 22%);
   --bb-ink: color-mix(in srgb, var(--global-bg) 94%, #000);
   --bb-panel: color-mix(in srgb, var(--global-surface) 92%, #08090c);
   color: var(--global-text) !important;
@@ -2818,3 +2818,12 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .global-theme-runtime .blackbox-room .radar-blip.blip-two { background: var(--bb-amber); box-shadow: 0 0 12px var(--bb-amber); }
 .global-theme-runtime .blackbox-room .blackbox-console { box-shadow: inset 0 0 30px color-mix(in srgb, var(--bb-danger) 4%, transparent), 0 18px 40px rgba(0,0,0,.32) !important; }
 .global-theme-runtime .blackbox-room .console-grid { background-image: linear-gradient(color-mix(in srgb, var(--bb-danger) 9%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--bb-danger) 9%, transparent) 1px, transparent 1px); }
+
+
+/* ROOM IDENTITY TOKENS · global themes supply material; rooms keep their operational character. */
+.global-theme-runtime [data-room-key="blackbox"] { --room-primary: #ff304f; --room-hot: #ff5733; --room-accent: #ff9f43; --room-bg: #08090d; --room-surface: #19151b; }
+.global-theme-runtime [data-room-key="telegram-delivery"] { --room-primary: #ffb347; --room-hot: #ff6b35; --room-accent: #ffd166; }
+.global-theme-runtime [data-room-key="alert-room"] { --room-primary: #ff4068; --room-hot: #e5093f; --room-accent: #ff9cb0; }
+.global-theme-runtime [data-room-key="chats"],
+.global-theme-runtime [data-room-key="mobile-inbox"] { --room-primary: #48f0ff; --room-hot: #d45cff; --room-accent: #b8f3ff; }
+.global-theme-runtime [data-room-key="order-history"] { --room-primary: #d7dde8; --room-hot: #64748b; --room-accent: #ffc857; }

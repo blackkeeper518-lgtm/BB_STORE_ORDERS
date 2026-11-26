@@ -337,6 +337,22 @@ async function playConfiguredSound(settings: ReturnType<typeof readSoundSettings
 }
 
 let audioContext: AudioContext | null = null;
+let activeThemeSoundProfile = "default";
+
+function themeSoundProfile(themeKey = ""): string {
+  const key = themeKey.toUpperCase();
+  if (/BLACK|OBSIDIAN|VOID|PHANTOM|OPERATOR|DARKSIDE/.test(key)) return "dark";
+  if (/CRIMSON|RED|EMBER|INFERNO|MARS|FIREWALL/.test(key)) return "hot";
+  if (/GOLD|AMBER|COPPER|SANDSTORM/.test(key)) return "metal";
+  if (/MINT|EMERALD|TOXIC|LIME|RADIOACTIVE|SIGNAL-GREEN/.test(key)) return "green";
+  if (/ARCTIC|LUNAR|CYAN|DEEP-SEA|OCEAN|STEEL|BLUE/.test(key)) return "cold";
+  if (/VIOLET|PLASMA|LASER|MAGENTA|ROYAL|ULTRAVIOLET|PINK/.test(key)) return "violet";
+  return "default";
+}
+
+export function setThemeSoundProfile(themeKey: string): void {
+  activeThemeSoundProfile = themeSoundProfile(themeKey);
+}
 
 function getAudioContext(): AudioContext | null {
   if (typeof window === "undefined") return null;
@@ -345,6 +361,33 @@ function getAudioContext(): AudioContext | null {
   if (!AudioContextCtor) return null;
   audioContext ??= new AudioContextCtor();
   return audioContext;
+}
+
+export function playThemeUiSound(kind: "click" | "switch" = "click", themeKey?: string): void {
+  const settings = readSoundSettings();
+  if (!settings.enabled) return;
+  if (themeKey) setThemeSoundProfile(themeKey);
+  const context = getAudioContext();
+  if (!context) return;
+  const play = () => {
+    if (context.state !== "running") return;
+    const base = activeThemeSoundProfile === "dark" ? 104 : activeThemeSoundProfile === "hot" ? 196 : activeThemeSoundProfile === "metal" ? 278 : activeThemeSoundProfile === "green" ? 392 : activeThemeSoundProfile === "cold" ? 520 : activeThemeSoundProfile === "violet" ? 660 : 330;
+    const start = context.currentTime;
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    oscillator.type = activeThemeSoundProfile === "dark" ? "triangle" : kind === "switch" ? "sine" : "square";
+    oscillator.frequency.setValueAtTime(base, start);
+    oscillator.frequency.exponentialRampToValueAtTime(kind === "switch" ? base * 1.8 : base * 1.12, start + (kind === "switch" ? 0.16 : 0.045));
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.exponentialRampToValueAtTime(Math.min(0.08, settings.volume * (kind === "switch" ? 0.22 : 0.12)), start + 0.008);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + (kind === "switch" ? 0.19 : 0.065));
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start(start);
+    oscillator.stop(start + (kind === "switch" ? 0.2 : 0.075));
+  };
+  if (context.state === "suspended") void context.resume().then(play).catch(() => undefined);
+  else play();
 }
 
 export async function unlockChatNotificationAudio(): Promise<void> {
@@ -374,8 +417,9 @@ function playSynthNotificationSound(settings: ReturnType<typeof readSoundSetting
     const oscillator = context.createOscillator();
     const gain = context.createGain();
     const start = context.currentTime;
-    const frequency = settings.tone === "bell" ? 880 : settings.tone === "pop" ? 520 : 740;
-    oscillator.type = settings.tone === "pop" ? "square" : "sine";
+    const profileBase = activeThemeSoundProfile === "dark" ? 120 : activeThemeSoundProfile === "hot" ? 260 : activeThemeSoundProfile === "metal" ? 360 : activeThemeSoundProfile === "cold" ? 720 : 520;
+    const frequency = settings.tone === "bell" ? profileBase * 1.5 : settings.tone === "pop" ? profileBase : profileBase * 1.25;
+    oscillator.type = settings.tone === "pop" || activeThemeSoundProfile === "hot" ? "square" : "sine";
     oscillator.frequency.setValueAtTime(frequency, start);
     gain.gain.setValueAtTime(0.0001, start);
     gain.gain.exponentialRampToValueAtTime(settings.volume, start + 0.025);
