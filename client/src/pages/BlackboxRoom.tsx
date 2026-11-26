@@ -88,6 +88,8 @@ export default function BlackboxRoom() {
   const botCount = rows.filter((r: any) => r.is_bot_summary).length;
   const duplicateCount = rows.filter((r: any) => Number(r.duplicate_signature_count) > 1).length;
   const people = useMemo(() => new Set(rows.map((r: any) => r.person_key).filter(Boolean)).size, [rows]);
+  const completeCount = rows.filter((row: any) => orderVerdict(row).label.startsWith("✅")).length;
+  const reviewCount = rows.length - completeCount;
   const hotRows = rows.filter((r: any) => r.is_bot_summary || Number(r.duplicate_signature_count) > 1 || routeValue(r) !== "⚫").slice(0, 5);
 
   return <div className="blackbox-receive-room blackbox-room min-h-full space-y-5 p-2 text-white sm:p-4 lg:p-6">
@@ -95,17 +97,18 @@ export default function BlackboxRoom() {
       <div className="hero-scanline" />
       <div className="relative z-10 flex flex-wrap items-start justify-between gap-5">
         <div>
-          <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.32em] text-fuchsia-300"><Skull className="h-4 w-4" /> BLACKBOX ROOM <span className="text-cyan-300/80">/ THANATOS DEATH NOTE</span></div>
-          <h1 className="mt-3 font-mono text-3xl font-semibold tracking-tight text-white sm:text-5xl">บัญชีดำ · ออเดอร์ต้องเฝ้าระวัง</h1>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-fuchsia-100/60">ดึงจาก 💀THANATOS_xXx_DEATH_NOTE · ห้องตรวจว่าออเดอร์ดีแค่ไหน และถูก route มาที่นี่เพราะอะไร โดยยึดหลักฐานจาก n8n</p>
+          <div className="flex flex-wrap items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.32em] text-fuchsia-300"><span className="flex h-8 w-8 items-center justify-center rounded-xl border border-fuchsia-300/35 bg-fuchsia-400/10"><Skull className="h-4 w-4" /></span><span>BLACKBOX ROOM</span><span className="text-cyan-300/80">· THANATOS</span></div>
+          <h1 className="mt-3 font-mono text-3xl font-semibold tracking-tight text-white sm:text-5xl">ห้องตรวจออเดอร์</h1>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-fuchsia-100/60">ออเดอร์ที่ n8n ส่งมาให้คนตรวจต่อ · ดูว่าออเดอร์ครบไหม เข้ามาเพราะอะไร และมีหลักฐานอะไรบ้าง</p>
+          <div className="mt-4 flex flex-wrap gap-2 text-[10px] font-semibold text-fuchsia-100/65"><span className="rounded-full border border-cyan-300/20 bg-cyan-400/[.06] px-3 py-1">ข้อมูลจาก n8n</span><span className="rounded-full border border-fuchsia-300/20 bg-fuchsia-400/[.06] px-3 py-1">เว็บไม่ตัดสินแทนระบบ</span><span className="rounded-full border border-emerald-300/20 bg-emerald-400/[.06] px-3 py-1">อัปเดตทุก 30 วิ</span></div>
         </div>
         <div className="flex items-center gap-2"><div className="live-chip"><span className="live-dot" />LIVE · 30s</div><Button variant="outline" onClick={() => query.refetch()} className="border-fuchsia-300/35 bg-fuchsia-500/10 text-fuchsia-100 hover:bg-fuchsia-500/20"><RefreshCw className={query.isFetching ? "mr-2 h-4 w-4 animate-spin" : "mr-2 h-4 w-4"} />สแกนใหม่</Button></div>
       </div>
       <div className="relative z-10 mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <SignalMetric icon={<Radio />} label="รายการในห้อง" value={rows.length} color="pink" hint="หลักฐานที่ยังมองเห็น" />
-        <SignalMetric icon={<Waypoints />} label="เส้นทางลูกค้า" value={people} color="violet" hint="กลุ่มตัวตนที่ระบบพบ" />
-        <SignalMetric icon={<Bot />} label="รอยมือบอท" value={botCount} color="cyan" hint="ข้อความสรุปที่ต้องเทียบ" />
-        <SignalMetric icon={<Zap />} label="จุดร้อน" value={duplicateCount} color="fuchsia" hint="ลายเซ็นที่กำลังซ้อน" />
+        <SignalMetric icon={<Waypoints />} label="ข้อมูลครบ" value={completeCount} color="violet" hint="n8n ส่งข้อมูลครบ" />
+        <SignalMetric icon={<Bot />} label="ต้องตรวจ" value={reviewCount} color="cyan" hint="ยังมีจุดให้เปิดดู" />
+        <SignalMetric icon={<Zap />} label="รอยซ้ำ" value={duplicateCount} color="fuchsia" hint="ลายเซ็นชนกัน" />
       </div>
     </header>
 
