@@ -2564,6 +2564,11 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .mobile-inbox-filters button.is-active { border-bottom-color:rgba(52,211,153,.9); }
 .mobile-inbox-filters select { height:38px; }
 .mobile-inbox-filter-count { display:inline-grid; min-width:18px; height:18px; margin-left:5px; place-items:center; border:1px solid rgba(52,211,153,.36); border-radius:999px; padding:0 5px; background:rgba(16,185,129,.15); color:#6ee7b7; font-size:10px; font-weight:800; line-height:1; }
+.mobile-inbox-thread-tags { width:100%; min-width:0; align-items:center; justify-content:space-between; gap:8px; }
+.mobile-inbox-thread-source { display:flex; min-width:0; align-items:center; gap:5px; overflow:hidden; }
+.mobile-inbox-thread-source .mobile-inbox-platform-badge,.mobile-inbox-thread-page-separator { flex:none; }
+.mobile-inbox-thread-page-name { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.mobile-inbox-thread-tags > .mobile-inbox-order-neon-badge,.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-thread-tags > .mobile-inbox-order-neon-badge { margin:0; padding:2px 8px; border:1px solid rgba(16,185,129,.5); border-radius:999px; background:rgba(16,185,129,.15); color:#34D399; font-size:10px; font-weight:700; line-height:1.35; letter-spacing:0; box-shadow:none; animation:none; }
 @media (max-width:480px) {
   .mobile-inbox-filters { gap:5px; padding-inline:10px; }
   .mobile-inbox-filters button { padding:7px 9px 9px; }
