@@ -1,3 +1,4 @@
+import { chatPathForDevice } from "@/lib/device-routing";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { readCloseJobCases, type CloseJobCase } from "@/lib/canonical";
@@ -55,7 +56,7 @@ export default function CloseJobHistory() {
   ];
   const openChat = (pageId: string, threadId: string) => {
     if (!pageId || !threadId) return;
-    setLocation(`/chats?page_id=${encodeURIComponent(pageId)}&thread_id=${encodeURIComponent(threadId)}`);
+    setLocation(chatPathForDevice(`page_id=${encodeURIComponent(pageId)}&thread_id=${encodeURIComponent(threadId)}`));
   };
 
   return <div className="close-job-room relative mx-auto flex h-full min-h-0 max-w-7xl flex-col gap-4 text-white">

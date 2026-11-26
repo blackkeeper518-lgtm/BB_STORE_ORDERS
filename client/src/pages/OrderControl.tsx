@@ -1,6 +1,7 @@
 // ⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘
 // IMPORTS · รายการเครื่องมือของห้องออเดอร์
 // ⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘
+import { chatPathForDevice } from "@/lib/device-routing";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -388,7 +389,7 @@ export default function OrderControl() {
                     return <article key={thread.key} className="order-chat-match rounded-xl border p-3">
                       <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="text-xs font-semibold text-white">{String(thread.customerName || "ไม่ระบุชื่อลูกค้า")}</p><p className="mt-1 font-mono text-[10px] text-cyan-100/80">{String(thread.customerPhone || thread.phone || "ไม่พบเบอร์ในแชท")}</p><p className="mt-1 font-mono text-[10px] text-emerald-200/80">{String(thread.latestOrderNumber || thread.order_number || "ไม่พบเลขออเดอร์")}</p></div><span className="text-[10px] text-violet-200/75">{String(thread.pageName || "ไม่ระบุเพจ")}</span></div>
                       <p className="mt-2 line-clamp-2 text-[10px] leading-4 text-slate-300">{String(thread.preview || "ไม่มีข้อความตัวอย่าง")}</p>
-                      <div className="mt-2 flex flex-wrap items-center justify-between gap-2"><span className="max-w-full truncate font-mono text-[9px] text-violet-200/70">{thread.chatLinkKey ? `chat_link_key · ${String(thread.chatLinkKey)}` : `thread key · ${String(thread.key)}`}</span><Link href={`/chats?search=${encodeURIComponent(chatSearch)}`} className="inline-flex items-center gap-1 rounded-lg border border-cyan-300/20 bg-cyan-400/[0.04] px-2.5 py-1.5 text-[10px] font-semibold text-cyan-100 hover:bg-cyan-400/[0.1]">เปิดห้องแชท <ExternalLink className="h-3 w-3" /></Link></div>
+                      <div className="mt-2 flex flex-wrap items-center justify-between gap-2"><span className="max-w-full truncate font-mono text-[9px] text-violet-200/70">{thread.chatLinkKey ? `chat_link_key · ${String(thread.chatLinkKey)}` : `thread key · ${String(thread.key)}`}</span><Link href={chatPathForDevice(`search=${encodeURIComponent(chatSearch)}`)} className="inline-flex items-center gap-1 rounded-lg border border-cyan-300/20 bg-cyan-400/[0.04] px-2.5 py-1.5 text-[10px] font-semibold text-cyan-100 hover:bg-cyan-400/[0.1]">เปิดห้องแชท <ExternalLink className="h-3 w-3" /></Link></div>
                     </article>;
                   })}
                 </div>
@@ -505,7 +506,7 @@ export default function OrderControl() {
                 <Button type="button" variant="outline" onClick={() => void copySelectedOrder()} className="border-emerald-300/30 bg-emerald-400/5 text-emerald-100 hover:bg-emerald-400/15">{copied ? <Check className="mr-2 h-4 w-4" /> : <Download className="mr-2 h-4 w-4" />} {copied ? "คัดลอกแล้ว" : "คัดลอกข้อมูลออเดอร์"}</Button>
                 <Link href={`/order-history?search=${encodeURIComponent(selectedOrder.upsert_key)}`}><Button variant="outline" className="border-cyan-300/25 bg-cyan-400/5 text-cyan-100"><ExternalLink className="mr-2 h-4 w-4" />ประวัติ</Button></Link>
                 <Link href={`/telegram-delivery?search=${encodeURIComponent(selectedOrder.upsert_key)}&room=${isSent(selectedOrder) ? "sent" : "queue"}`}><Button variant="outline" className="border-fuchsia-300/25 bg-fuchsia-400/5 text-fuchsia-100"><Send className="mr-2 h-4 w-4" />เปิดสถานะ Telegram</Button></Link>
-                <Link href={`/chats?search=${encodeURIComponent(selectedOrder.customer_name ?? selectedOrder.order_number ?? "")}`}><Button variant="outline" className="border-emerald-300/25 bg-emerald-400/5 text-emerald-100"><MessageCircle className="mr-2 h-4 w-4" />ไปห้องแชท</Button></Link>
+                <Link href={chatPathForDevice(`search=${encodeURIComponent(selectedOrder.customer_name ?? selectedOrder.order_number ?? "")}`)}><Button variant="outline" className="border-emerald-300/25 bg-emerald-400/5 text-emerald-100"><MessageCircle className="mr-2 h-4 w-4" />ไปห้องแชท</Button></Link>
                 <Button type="button" variant="outline" onClick={() => setEditOpen(true)} className="border-pink-300/25 bg-pink-400/5 text-pink-100"><Pencil className="mr-2 h-4 w-4" />EDIT TARGET · แก้ไขออเดอร์</Button>
               </div>
             </>}

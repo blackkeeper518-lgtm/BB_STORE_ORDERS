@@ -1,3 +1,4 @@
+import { chatPathForDevice } from "@/lib/device-routing";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -89,7 +90,7 @@ export default function OrderHistory() {
                 <td className="p-3"><Badge className="border-fuchsia-300/20 bg-fuchsia-400/10 text-fuchsia-100">{Number(order.cod_amount ?? 0).toLocaleString("th-TH")} บาท</Badge></td>
                 <td className="p-3"><p className="text-cyan-100/80">{order.page_name || "—"}</p><p className="mt-1 text-violet-100/50">{order.shipping_carrier || "—"}</p></td>
                 <td className="whitespace-nowrap p-3 font-mono text-cyan-100/70">{order.order_time_display || "—"}</td>
-                <td className="p-3">{order.page_id && order.thread_id ? <Link href={`/chats?page_id=${encodeURIComponent(order.page_id)}&thread_id=${encodeURIComponent(order.thread_id)}`}><Button size="sm" variant="outline" className="border-cyan-300/25 bg-cyan-400/[0.06] text-cyan-100 hover:bg-cyan-400/15"><ExternalLink className="mr-1 h-3.5 w-3.5" />เปิดแชท</Button></Link> : <span className="text-violet-100/40">ไม่มีคีย์แชท</span>}</td>
+                <td className="p-3">{order.page_id && order.thread_id ? <Link href={chatPathForDevice(`page_id=${encodeURIComponent(order.page_id)}&thread_id=${encodeURIComponent(order.thread_id)}`)}><Button size="sm" variant="outline" className="border-cyan-300/25 bg-cyan-400/[0.06] text-cyan-100 hover:bg-cyan-400/15"><ExternalLink className="mr-1 h-3.5 w-3.5" />เปิดแชท</Button></Link> : <span className="text-violet-100/40">ไม่มีคีย์แชท</span>}</td>
               </tr>)}
             </tbody>
           </table>

@@ -1,3 +1,4 @@
+import { chatPathForDevice } from "@/lib/device-routing";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -260,7 +261,7 @@ export default function ParcelMapping() {
 
   function chatHref(row: ParcelMappingRow) {
     const { pageId, threadId } = chatRoomIds(row);
-    return pageId && threadId ? `/chats?page_id=${encodeURIComponent(pageId)}&thread_id=${encodeURIComponent(threadId)}` : "";
+    return pageId && threadId ? chatPathForDevice(`page_id=${encodeURIComponent(pageId)}&thread_id=${encodeURIComponent(threadId)}`) : "";
   }
   function stageChatHandoff(row: ParcelMappingRow) {
     const { pageId, threadId } = chatRoomIds(row);

@@ -27,16 +27,27 @@ import MobileInbox from "./pages/MobileInbox";
 import LineChat from "./pages/LineChat";
 import { GlobalThemeRuntime } from "./contexts/GlobalThemeRuntime";
 import { useEffect } from "react";
+import { chatPathForDevice, isMobileDevice } from "./lib/device-routing";
 
 function Shell({ children }: { children: React.ReactNode }) { return <DashboardLayout>{children}</DashboardLayout>; }
 function HomeRoute() {
   const [, setLocation] = useLocation();
   useEffect(() => {
-    const userAgent = typeof navigator === "undefined" ? "" : navigator.userAgent;
-    const isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(userAgent);
-    setLocation(isMobileDevice ? "/mobile-inbox" : "/chats");
+    setLocation(chatPathForDevice());
   }, [setLocation]);
   return null;
+}
+function DeviceChatRoute({ mobile }: { mobile: boolean }) {
+  const [, setLocation] = useLocation();
+  const shouldBeMobile = isMobileDevice();
+  useEffect(() => {
+    if (shouldBeMobile !== mobile) {
+      const query = typeof window === "undefined" ? "" : window.location.search;
+      setLocation(chatPathForDevice(query));
+    }
+  }, [mobile, setLocation, shouldBeMobile]);
+  if (shouldBeMobile !== mobile) return null;
+  return mobile ? <MobileInbox /> : <Shell><ChatHub /></Shell>;
 }
 function Router() {
   return <Switch>
@@ -44,12 +55,12 @@ function Router() {
     <Route path="/secret-gallery/connect"><SecretGallery /></Route>
     <Route path="/secret-gallery/images"><SecretGallery /></Route>
     <Route path="/secret-gallery"><SecretGallery /></Route>
-    <Route path="/mobile-inbox"><MobileInbox /></Route>
+    <Route path="/mobile-inbox"><DeviceChatRoute mobile /></Route>
     <Route path="/orders"><Shell><OrderControl /></Shell></Route>
     <Route path="/order-editor"><Shell><OrderEditor /></Shell></Route>
     <Route path="/script-atelier"><Shell><ScriptAtelier /></Shell></Route>
     <Route path="/parcel-mapping"><Shell><ParcelMapping /></Shell></Route>
-    <Route path="/chats"><Shell><ChatHub /></Shell></Route>
+    <Route path="/chats"><DeviceChatRoute mobile={false} /></Route>
     <Route path="/line-chat"><Shell><LineChat /></Shell></Route>
     <Route path="/vagabond"><Shell><CloseJobHistory /></Shell></Route>
     <Route path="/close-job-history"><Shell><CloseJobHistory /></Shell></Route>
