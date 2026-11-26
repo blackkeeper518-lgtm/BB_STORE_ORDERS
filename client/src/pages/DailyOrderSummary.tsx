@@ -1,4 +1,3 @@
-import { chatPathForDevice } from "@/lib/device-routing";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -59,7 +58,7 @@ export default function DailyOrderSummary() {
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap"><Input aria-label="เลือกวันที่" type="date" value={date} onChange={event => setDate(event.target.value)} className="col-span-2 w-full border-cyan-300/25 bg-[#09091a]/80 text-white [color-scheme:dark] sm:w-40" /><Button variant="outline" onClick={() => void query.refetch()} className="border-cyan-300/25 bg-cyan-400/10 text-cyan-100"><RefreshCw className={`mr-1.5 h-4 w-4 ${query.isFetching ? "animate-spin" : ""}`} />รีเฟรช</Button><Button variant="outline" onClick={exportCsv} disabled={!orders.length} className="border-emerald-300/25 bg-emerald-400/10 text-emerald-100"><Download className="mr-1.5 h-4 w-4" />CSV</Button></div>
       </div>
       <div className="relative mt-4 flex items-center gap-2 rounded-2xl border border-cyan-300/20 bg-black/25 px-3"><Search className="h-4 w-4 shrink-0 text-cyan-200/70" /><Input value={search} onChange={event => setSearch(event.target.value)} placeholder="ค้นหาออเดอร์ / ลูกค้า / เบอร์ / เพจ" className="border-0 bg-transparent text-sm text-white placeholder:text-violet-100/35 focus-visible:ring-0" /></div>
-      <div className="relative mt-3 flex flex-wrap gap-2"><Link href="/orders"><Button size="sm" variant="outline" className="border-fuchsia-300/25 bg-fuchsia-400/[.07] text-fuchsia-100">เปิดหน้าจัดการออเดอร์</Button></Link><Link href={chatPathForDevice()}><Button size="sm" variant="outline" className="border-cyan-300/25 bg-cyan-400/[.07] text-cyan-100">เปิดแอปแชท Mobile Inbox</Button></Link></div>
+      <div className="relative mt-3 flex flex-wrap gap-2"><Link href="/orders"><Button size="sm" variant="outline" className="border-fuchsia-300/25 bg-fuchsia-400/[.07] text-fuchsia-100">เปิดหน้าจัดการออเดอร์</Button></Link><Link href="/mobile-inbox"><Button size="sm" variant="outline" className="border-cyan-300/25 bg-cyan-400/[.07] text-cyan-100">เปิดแอปแชท Mobile Inbox</Button></Link></div>
     </header>
 
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3"><SummaryStat icon={CheckCircle2} label="ส่งแล้ว" value={stats.total.toLocaleString("th-TH")} tone="text-emerald-300" /><SummaryStat icon={WalletCards} label="COD รวม" value={`${stats.cod.toLocaleString("th-TH")} ฿`} tone="text-orange-300" /><SummaryStat icon={Store} label="จำนวนเพจ" value={stats.pages.toLocaleString("th-TH")} tone="text-fuchsia-200" /><SummaryStat icon={Send} label="ขนส่ง" value={stats.carriers.toLocaleString("th-TH")} tone="text-cyan-200" /></div>
