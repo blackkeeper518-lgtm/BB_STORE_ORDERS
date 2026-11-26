@@ -104,7 +104,7 @@ return items.map(item => {
   const timelineContent = Array.isArray(row.chat_timeline) ? row.chat_timeline.join("\n") : String(row.chat_timeline || "");
   const latestMessageContent = String(row.page_latest_message || "");
   
-  const hasAutoTrackingSignal = timelineContent.includes("📌") || latestMessageContent.includes("📌");
+  const hasAutoTrackingSignal = timelineContent.includes("📌📣") || latestMessageContent.includes("📌📣");
 
   const trackingCheck = bindTrackingRequestToOrder(row, { maxDays: 3 });
   row.tracking_check = trackingCheck;
@@ -123,7 +123,7 @@ return items.map(item => {
     row.node2_route_signal = "TRACKING_REQUEST_AUTO";
     row.node2_tracking_request_detected = true;
     row.node2_tracking_request_48h = false;
-    row.node2_tracking_request_event = "พบสัญญาณแจ้งเลขพัสดุอัตโนมัติ 📌";
+    row.node2_tracking_request_event = "พบมาร์กส่งเลขแล้ว 📌📣";
     row.node2_tracking_request_route_hint = "🔴";
   } else if (trackingCheck.detected && askTime && orderTime) {
     const diffAfter = (askTime - orderTime) / 3600000;
