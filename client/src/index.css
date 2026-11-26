@@ -1621,6 +1621,19 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 @keyframes mobile-inbox-star-drift { from { background-position:0 0,0 0,18px 22px; transform:translate3d(0,0,0); } to { background-position:0 0,0 0,-34px 44px; transform:translate3d(-12px,18px,0); } }
 @media (prefers-reduced-motion:reduce) { .mobile-inbox-page.mobile-inbox-themed::before,.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-timeline::before { animation:none; } }
 
+/* Mobile cyber frame · keep Theme Frame colors, brighten only the edges. */
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-thread {
+  border-color: color-mix(in srgb, var(--depth-primary) 18%, transparent);
+  box-shadow: 0 8px 22px rgba(0,0,0,.16), 0 0 12px color-mix(in srgb, var(--depth-primary) 8%, transparent), inset 0 1px 0 rgba(255,255,255,.03);
+}
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-thread::after { background: color-mix(in srgb, var(--depth-primary) 44%, transparent); box-shadow: 0 0 11px color-mix(in srgb, var(--depth-primary) 43%, transparent); }
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-thread.is-selected,
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-thread:hover { border-color: color-mix(in srgb, var(--depth-primary) 68%, transparent); box-shadow: 0 0 25px color-mix(in srgb, var(--depth-primary) 20%, transparent), inset 0 0 18px color-mix(in srgb, var(--depth-accent) 8%, transparent); }
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-avatar { border-color: color-mix(in srgb, var(--depth-primary) 62%, transparent); box-shadow: 0 0 17px color-mix(in srgb, var(--depth-primary) 31%, transparent), inset 0 0 12px rgba(255,255,255,.12); }
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-message { border-color: color-mix(in srgb, var(--depth-primary) 29%, transparent); }
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-message-row.is-outgoing .mobile-inbox-message { border-color: color-mix(in srgb, var(--depth-accent) 72%, transparent); box-shadow: 0 8px 26px color-mix(in srgb, var(--depth-accent) 21%, transparent), inset 0 1px 0 rgba(255,255,255,.1); }
+.mobile-inbox-page.mobile-inbox-themed .mobile-inbox-bottom-nav { border-color: color-mix(in srgb, var(--depth-primary) 32%, transparent); box-shadow: 0 -10px 30px rgba(0,0,0,.32), inset 0 1px 0 color-mix(in srgb, var(--depth-primary) 34%, transparent); }
+
 /* Secret Gallery · Darkside Theme Studio visual system */
 .secret-gallery-page {
   --sg-bg: #09070b;
