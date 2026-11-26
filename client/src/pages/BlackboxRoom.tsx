@@ -87,12 +87,10 @@ export default function BlackboxRoom() {
   const rows = query.data ?? [];
   const botCount = rows.filter((r: any) => r.is_bot_summary).length;
   const duplicateCount = rows.filter((r: any) => Number(r.duplicate_signature_count) > 1).length;
-  const routeCount = (...routes: string[]) => rows.filter((row: any) => routes.includes(routeValue(row))).length;
-  const blackCount = routeCount("⚫", "⬛");
-  const whiteCount = routeCount("⚪");
-  const redCount = routeCount("🔴", "🟥");
-  const ghostCount = routeCount("👻");
-  const hotRows = rows.filter((r: any) => r.is_bot_summary || Number(r.duplicate_signature_count) > 1 || routeValue(r) !== "⚫").slice(0, 5);
+  const completeCount = rows.filter((row: any) => orderVerdict(row).label.startsWith("✅")).length;
+  const reviewCount = rows.length - completeCount;
+  const evidenceCount = rows.filter((row: any) => Boolean(evidenceText(row))).length;
+  const hotRows = rows.filter((r: any) => routeValue(r) === "⚫" || routeValue(r) === "⬛").slice(0, 5);
 
   return <div className="blackbox-receive-room blackbox-room min-h-full space-y-5 p-2 text-white sm:p-4 lg:p-6">
     <header className="blackbox-hero relative overflow-hidden rounded-[2rem] border border-fuchsia-300/25 bg-[#13091d]/90 p-5 shadow-[0_0_70px_rgba(215,45,220,.12)] sm:p-7">
@@ -107,10 +105,10 @@ export default function BlackboxRoom() {
         <div className="flex items-center gap-2"><div className="live-chip"><span className="live-dot" />LIVE · 30s</div><Button variant="outline" onClick={() => query.refetch()} className="border-fuchsia-300/35 bg-fuchsia-500/10 text-fuchsia-100 hover:bg-fuchsia-500/20"><RefreshCw className={query.isFetching ? "mr-2 h-4 w-4 animate-spin" : "mr-2 h-4 w-4"} />สแกนใหม่</Button></div>
       </div>
       <div className="relative z-10 mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <SignalMetric icon={<Skull />} label="⚫ ดำ" value={blackCount} color="pink" hint="route จาก n8n" />
-        <SignalMetric icon={<CircleDot />} label="⚪ ขาว" value={whiteCount} color="violet" hint="route จาก n8n" />
-        <SignalMetric icon={<ShieldAlert />} label="🔴 แดง" value={redCount} color="cyan" hint="รวม 🟥 แดง 48 ชม." />
-        <SignalMetric icon={<Sparkles />} label="👻 ผี" value={ghostCount} color="fuchsia" hint="ตกรอบจาก n8n" />
+        <SignalMetric icon={<Skull />} label="⚫ ในห้องดำ" value={rows.length} color="pink" hint="รายการที่ n8n route มา" />
+        <SignalMetric icon={<CircleDot />} label="✅ ออเดอร์ดี" value={completeCount} color="violet" hint="ข้อมูลครบจาก n8n" />
+        <SignalMetric icon={<ShieldAlert />} label="⚠️ ต้องตรวจ" value={reviewCount} color="cyan" hint="มีจุดให้เปิดดูต่อ" />
+        <SignalMetric icon={<Sparkles />} label="📎 มีหลักฐาน" value={evidenceCount} color="fuchsia" hint="แชท / บิล / ข้อความต้นทาง" />
       </div>
     </header>
 
