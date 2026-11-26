@@ -2358,23 +2358,50 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .global-theme-runtime .order-history-runtime-room table thead { background: color-mix(in srgb, var(--global-primary) 10%, var(--global-surface)) !important; }
 .global-theme-runtime .order-history-runtime-room::before {
   display: block;
-  inset: -12%;
-  opacity: .22;
+  inset: -16%;
+  opacity: .28;
   background-image:
+    radial-gradient(ellipse at 50% 76%, color-mix(in srgb, var(--global-accent) 18%, transparent), transparent 34%),
     radial-gradient(circle at 12% 18%, color-mix(in srgb, var(--global-primary) 72%, white) 0 1px, transparent 1.5px),
     radial-gradient(circle at 72% 42%, color-mix(in srgb, var(--global-accent) 68%, white) 0 1px, transparent 1.6px),
     radial-gradient(circle at 38% 76%, color-mix(in srgb, var(--global-primary) 54%, white) 0 .8px, transparent 1.4px),
     radial-gradient(circle at 88% 82%, color-mix(in srgb, var(--global-accent) 50%, white) 0 .8px, transparent 1.4px);
-  background-size: 230px 190px, 310px 260px, 180px 220px, 270px 240px;
-  background-position: 0 0, 40px 30px, 90px 10px, 20px 80px;
+  background-size: 100% 100%, 230px 190px, 310px 260px, 180px 220px, 270px 240px;
+  background-position: 0 0, 0 0, 40px 30px, 90px 10px, 20px 80px;
   animation: genesis-space-drift 30s linear infinite;
+}
+.global-theme-runtime .order-history-runtime-room::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+  left: -12%;
+  right: -12%;
+  bottom: -8%;
+  height: 68%;
+  opacity: .24;
+  transform: perspective(520px) rotateX(58deg) scale(1.18);
+  transform-origin: 50% 100%;
+  background-image:
+    linear-gradient(to top, color-mix(in srgb, var(--global-bg) 92%, #000) 0 18%, transparent 62%),
+    repeating-linear-gradient(90deg, transparent 0 38px, color-mix(in srgb, var(--global-primary) 28%, transparent) 39px 41px, transparent 42px 78px),
+    repeating-linear-gradient(0deg, transparent 0 30px, color-mix(in srgb, var(--global-accent) 25%, transparent) 31px 33px, transparent 34px 60px),
+    radial-gradient(ellipse at 50% 100%, color-mix(in srgb, var(--global-accent) 55%, transparent), transparent 58%);
+  background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%;
+  animation: genesis-neon-city 18s linear infinite;
 }
 @keyframes genesis-space-drift {
   from { transform: translate3d(0, 0, 0); }
   to { transform: translate3d(-46px, 34px, 0); }
 }
+@keyframes genesis-neon-city {
+  0% { background-position: 0 0, 0 0, 0 0, 0 0; filter: hue-rotate(0deg); }
+  50% { background-position: 0 0, -42px 0, 0 34px, 0 0; filter: hue-rotate(8deg); }
+  100% { background-position: 0 0, -84px 0, 0 68px, 0 0; filter: hue-rotate(0deg); }
+}
 @media (prefers-reduced-motion: reduce) {
-  .global-theme-runtime .order-history-runtime-room::before { animation: none; opacity: .12; }
+  .global-theme-runtime .order-history-runtime-room::before { animation: none; opacity: .14; }
+  .global-theme-runtime .order-history-runtime-room::after { animation: none; opacity: .12; }
 }
 @keyframes genesis-card-scan {
   0% { transform: translateX(0); }
