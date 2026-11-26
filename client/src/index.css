@@ -882,6 +882,9 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .chat-tool-action { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:31px; border:1px solid rgba(0,229,255,.22) !important; border-radius:10px !important; background:rgba(16,35,58,.52) !important; color:#E8F7FF !important; font-size:10px !important; font-weight:600; line-height:1; transition:background .18s,border-color .18s,box-shadow .18s,color .18s; }
 .chat-tool-action:hover:not(:disabled) { border-color:rgba(0,229,255,.62) !important; background:rgba(0,229,255,.08) !important; box-shadow:0 0 12px rgba(0,229,255,.14); color:#fff !important; }
 .chat-tool-action--primary { border-color:rgba(0,229,255,.42) !important; background:rgba(0,140,255,.14) !important; }
+.chat-tool-action--highlight { border-color:rgba(52,211,153,.48) !important; background:rgba(16,185,129,.12) !important; color:#a7f3d0 !important; box-shadow:inset 0 0 12px rgba(16,185,129,.05),0 0 10px rgba(16,185,129,.08); }
+.chat-tool-action--highlight:hover:not(:disabled) { border-color:rgba(52,211,153,.78) !important; background:rgba(16,185,129,.2) !important; box-shadow:0 0 16px rgba(16,185,129,.18); color:#ecfdf5 !important; }
+@media (max-width: 767px) { .global-theme-runtime .chat-cosmos-shell .chat-tool-action.chat-tool-action--mobile-white { border-color:rgba(255,255,255,.46) !important; background:rgba(255,255,255,.08) !important; color:#fff !important; box-shadow:inset 0 0 10px rgba(255,255,255,.04),0 0 10px rgba(255,255,255,.09) !important; } .global-theme-runtime .chat-cosmos-shell .chat-tool-action.chat-tool-action--mobile-white:hover:not(:disabled) { border-color:rgba(255,255,255,.78) !important; background:rgba(255,255,255,.14) !important; color:#fff !important; box-shadow:0 0 14px rgba(255,255,255,.15) !important; } }
 .chat-tool-action--active { border-color:rgba(255,56,232,.58) !important; background:rgba(255,0,217,.14) !important; box-shadow:inset 0 0 10px rgba(255,0,217,.08),0 0 10px rgba(255,0,217,.12); color:#fff !important; }
 .chat-tool-action--filter { min-height:30px; padding:0 10px !important; }
 .chat-tool-action--icon { width:32px; height:32px; min-height:32px; padding:0 !important; }
@@ -2573,4 +2576,20 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
   .mobile-inbox-filters { gap:5px; padding-inline:10px; }
   .mobile-inbox-filters button { padding:7px 9px 9px; }
   .mobile-inbox-thread-side { min-width:60px; }
+}
+
+/* Keep the mobile Meta and summary actions in the requested white highlight style after runtime theme overrides. */
+@media (max-width: 1024px) {
+  .global-theme-runtime .chat-cosmos-shell .chat-tool-action.chat-tool-action--mobile-white {
+    border-color: rgba(255,255,255,.58) !important;
+    background: rgba(255,255,255,.1) !important;
+    color: #fff !important;
+    box-shadow: inset 0 0 10px rgba(255,255,255,.05), 0 0 12px rgba(255,255,255,.11) !important;
+  }
+  .global-theme-runtime .chat-cosmos-shell .chat-tool-action.chat-tool-action--mobile-white:hover:not(:disabled) {
+    border-color: rgba(255,255,255,.84) !important;
+    background: rgba(255,255,255,.16) !important;
+    color: #fff !important;
+    box-shadow: 0 0 16px rgba(255,255,255,.18) !important;
+  }
 }

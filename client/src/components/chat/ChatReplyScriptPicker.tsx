@@ -11,10 +11,13 @@ import { FileText, LoaderCircle, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 
 type ReplyScriptCard = {
-  id: string | number;
+  id: string;
   title: string | null;
-  subtitle: string | null;
   script_text: string | null;
+  stage: string | null;
+  situation: string | null;
+  situation_tags: string[] | null;
+  product_sku: string | null;
   status: string | null;
   updated_at: string | null;
 };
@@ -40,9 +43,11 @@ export function ChatReplyScriptPicker({
     try {
       const api = getSupabase("vault");
       const { data, error: queryError } = await api
-        .from("sales_script_cards")
-        .select("id,title,subtitle,script_text,status,updated_at")
+        .from("order_deck_customer_scripts")
+        .select("id,title,script_text,stage,situation,situation_tags,product_sku,status,updated_at")
+        .eq("app_key", "BB_STORE_ORDERS")
         .eq("status", "ACTIVE")
+        .order("sort_order", { ascending: true })
         .order("updated_at", { ascending: false })
         .limit(200);
       if (queryError) throw queryError;
@@ -60,7 +65,7 @@ export function ChatReplyScriptPicker({
     const usable = scripts.filter((script) => Boolean(script.script_text?.trim()));
     if (!query) return usable;
     return usable.filter((script) =>
-      `${script.title ?? ""}\n${script.subtitle ?? ""}\n${script.script_text ?? ""}`
+      `${script.title ?? ""}\n${script.stage ?? ""}\n${script.situation ?? ""}\n${(script.situation_tags ?? []).join(" ")}\n${script.product_sku ?? ""}\n${script.script_text ?? ""}`
         .toLocaleLowerCase()
         .includes(query),
     );
@@ -116,6 +121,9 @@ export function ChatReplyScriptPicker({
               visibleScripts.map((script) => {
                 const title = script.title?.trim() || "ไม่มีชื่อสคริปต์";
                 const text = script.script_text?.trim() ?? "";
+                const subtitle = [script.situation?.trim(), script.stage?.trim(), script.product_sku?.trim()]
+                  .filter(Boolean)
+                  .join(" · ");
                 return (
                   <button
                     key={script.id}
@@ -129,8 +137,8 @@ export function ChatReplyScriptPicker({
                     <span className="flex items-start justify-between gap-3">
                       <span className="min-w-0">
                         <span className="block truncate text-sm font-semibold text-white">{title}</span>
-                        {script.subtitle ? (
-                          <span className="mt-1 block truncate text-xs text-fuchsia-100/55">{script.subtitle}</span>
+                        {subtitle ? (
+                          <span className="mt-1 block truncate text-xs text-fuchsia-100/55">{subtitle}</span>
                         ) : null}
                       </span>
                       <span className="shrink-0 rounded-full border border-emerald-300/20 px-2 py-0.5 text-[9px] text-emerald-200/80">ACTIVE</span>

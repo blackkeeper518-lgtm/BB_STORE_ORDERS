@@ -27,6 +27,28 @@ type OrderDeckFrameProps = {
   onClose: () => void;
 };
 
+function normalizeCustomerScriptFields(value: unknown, includeIdentity = false) {
+  const source = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  const text = (key: string, max: number, fallback = "") => typeof source[key] === "string" ? String(source[key]).trim().slice(0, max) : fallback;
+  const status = text("status", 20, "DRAFT").toUpperCase();
+  const tags = Array.isArray(source.situation_tags)
+    ? Array.from(new Set(source.situation_tags.filter((item): item is string => typeof item === "string").map(item => item.trim().slice(0, 80)).filter(Boolean))).slice(0, 30)
+    : [];
+  const fields = {
+    title: text("title", 240),
+    script_text: typeof source.script_text === "string" ? source.script_text.slice(0, 20_000) : "",
+    stage: text("stage", 80, "CUSTOM") || "CUSTOM",
+    situation: text("situation", 2_000),
+    situation_tags: tags,
+    product_sku: text("product_sku", 120) || null,
+    status: ["ACTIVE", "DRAFT", "ARCHIVED"].includes(status) ? status : "DRAFT",
+    sort_order: Math.max(0, Math.min(100_000, Math.floor(Number(source.sort_order) || 0))),
+  };
+  if (!fields.title) throw new Error("สคริปต์ต้องมีชื่อ");
+  if (!includeIdentity) return fields;
+  return { ...fields, app_key: "BB_STORE_ORDERS", legacy_id: text("legacy_id", 240) || null };
+}
+
 export function OrderDeckFrame(props: OrderDeckFrameProps) {
   const frameRef = useRef<HTMLIFrameElement>(null);
   const currentProps = useRef(props);
@@ -112,6 +134,19 @@ export function OrderDeckFrame(props: OrderDeckFrameProps) {
         result = await projectApi.projects.execute.mutate({ project: "vault", table: "sales_script_cards", method: "PATCH", params: { id: `eq.${id}`, select: "id" }, body, prefer: "return=representation" });
       } else if (operation === "insertScriptCard") {
         result = await projectApi.projects.execute.mutate({ project: "vault", table: "sales_script_cards", method: "POST", params: { select: "id" }, body: input.body, prefer: "return=minimal" });
+      } else if (operation === "customerScriptsList") {
+        const offset = Math.max(0, Math.min(5000, Math.floor(Number(input.offset) || 0)));
+        result = await projectApi.projects.execute.mutate({ project: "vault", table: "order_deck_customer_scripts", method: "GET", params: { select: "id,app_key,legacy_id,title,script_text,stage,situation,situation_tags,product_sku,status,sort_order,created_at,updated_at", app_key: "eq.BB_STORE_ORDERS", order: "sort_order.asc,updated_at.desc", limit: "500", offset: String(offset) } });
+      } else if (operation === "customerScriptInsert") {
+        result = await projectApi.projects.execute.mutate({ project: "vault", table: "order_deck_customer_scripts", method: "POST", params: { select: "id,legacy_id" }, body: normalizeCustomerScriptFields(input.body, true), prefer: "return=representation" });
+      } else if (operation === "customerScriptUpdate") {
+        const id = String(input.id || "").trim();
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) throw new Error("รหัสสคริปต์ไม่ถูกต้อง");
+        result = await projectApi.projects.execute.mutate({ project: "vault", table: "order_deck_customer_scripts", method: "PATCH", params: { id: `eq.${id}`, app_key: "eq.BB_STORE_ORDERS", select: "id,legacy_id" }, body: normalizeCustomerScriptFields(input.body), prefer: "return=representation" });
+      } else if (operation === "customerScriptDelete") {
+        const id = String(input.id || "").trim();
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) throw new Error("รหัสสคริปต์ไม่ถูกต้อง");
+        result = await projectApi.projects.execute.mutate({ project: "vault", table: "order_deck_customer_scripts", method: "DELETE", params: { id: `eq.${id}`, app_key: "eq.BB_STORE_ORDERS", select: "id" }, prefer: "return=representation" });
       } else if (operation === "uploadWarpImage") {
         const path = String(input.path || "");
         const contentBase64 = String(input.contentBase64 || "");
