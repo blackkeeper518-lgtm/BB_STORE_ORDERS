@@ -11,7 +11,8 @@
 // ⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘
 
 import { cacheServerProjectStatus, clearLegacyBrowserSupabaseSettings, createServerSupabaseClient, getCachedServerProjectStatus, projectApi, type ServerProjectStatus } from "@/lib/server-project-client";
-import { isCurrentBangkokBusinessDay } from "@/lib/business-day";
+import { isCurrentBangkokBusinessDay, isTimestampInCurrentBangkokBusinessDay } from "@/lib/business-day";
+import { detectOrderSignal } from "../../../server/order-summary";
 
 export type Camp = "ST";
 export type SupabaseProject = "main" | "tracking" | "parcel" | "vault";
@@ -828,7 +829,7 @@ function chatOrderRow(row: any) {
     lab_product_display_text: row.final_display_for_packer || row.final_product || row.manus_for_packer || row.telegram_product_display || "",
   };
 }
-export function mapChatRowsToThreads(sourceRows: any[]) {
+export function mapChatRowsToThreads(sourceRows: any[], now = new Date()) {
   const rows = normalizeChatReadRows(sourceRows);
   const map = new Map<string, any>();
   const customerThreadKeys = new Set(
@@ -856,7 +857,8 @@ export function mapChatRowsToThreads(sourceRows: any[]) {
       pageLatestMessage: null, pageMessageTimeTh: null,
       pagerMessageTimeTh: row.pager_message_time_th || null,
       upsert_key: row.upsert_key || null, order_number: row.order_number || null,
-      orderCount: 0, orders: [],
+      orderCount: 0, orders: [], orderSignalCountToday: 0,
+      orderSignalFormatsToday: { compact: false, summary: false, closed: false },
       _searchTokens: "",
       is_sent: row.is_sent === true || row.is_sent === "true",
       order_number_display: row.order_number_display || null, currentThreadTotalBills: row.currentThreadTotalBills ?? null,
@@ -887,6 +889,16 @@ export function mapChatRowsToThreads(sourceRows: any[]) {
     const rowOrderKey = chatOrderKey(row);
     const rowBillCount = Number(row.currentThreadTotalBills ?? 0);
     if (Number.isFinite(rowBillCount) && rowBillCount > 0) current.orderCount = Math.max(current.orderCount ?? 0, rowBillCount);
+    if (row._speaker === "page") {
+      const signal = detectOrderSignal(row._text);
+      const signalIsToday = signal.detected && (signal.orderTimeDisplay
+        ? isCurrentBangkokBusinessDay(signal.orderTimeDisplay, now)
+        : isTimestampInCurrentBangkokBusinessDay(row._occurred, now));
+      if (signal.detected && signalIsToday) {
+        current.orderSignalCountToday = 1;
+        current.orderSignalFormatsToday[signal.format] = true;
+      }
+    }
     const hasOrderPayload = rowBillCount > 0 || Boolean(String(row.order_number_display ?? row.order_number ?? "").trim());
     if (hasOrderPayload && rowOrderKey && !current.orders.some((order: any) => chatOrderKey(order) === rowOrderKey)) current.orders.push(chatOrderRow(row));
     for (const [source, target] of [

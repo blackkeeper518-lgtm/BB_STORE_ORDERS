@@ -34,7 +34,7 @@ export default function OrderHistory() {
     : allOrders;
   const codTotal = orders.reduce((sum: number, order: any) => sum + (Number(order.cod_amount) || 0), 0);
 
-  return <div className="st-runtime-room order-history-runtime-room min-h-[calc(100vh-2rem)] space-y-5 bg-[#070716] p-2 text-white sm:p-4 lg:p-6">
+  return <div className="st-runtime-room order-history-runtime-room mx-auto min-h-[calc(100vh-2rem)] w-full max-w-[1280px] space-y-5 bg-transparent p-2 text-white sm:p-4 lg:p-6">
     <header className="relative overflow-hidden rounded-3xl border border-fuchsia-400/25 bg-[radial-gradient(ellipse_at_top_left,_rgba(168,85,247,0.20),_transparent_50%),linear-gradient(120deg,_#120d28,_#09091a)] p-5 shadow-[0_0_18px_rgba(168,85,247,.18),0_0_42px_rgba(34,211,238,.08)] sm:p-6">
       <div className="pointer-events-none absolute -right-8 -top-10 h-40 w-40 rounded-full bg-fuchsia-500/10 blur-3xl" />
       <div className="relative flex flex-wrap items-start justify-between gap-4">
@@ -68,7 +68,7 @@ export default function OrderHistory() {
       <p className="mt-2 text-xs text-rose-100/55">ห้องนี้ไม่สลับไปอ่านโต๊ะอื่นอัตโนมัติ</p>
     </CardContent></Card> : null}
 
-    <Card className="overflow-hidden rounded-3xl border-violet-300/15 bg-[#0b0a1b]/95 shadow-[0_0_18px_rgba(34,211,238,.07)]">
+    <Card className="genesis-sent-card relative overflow-hidden rounded-3xl border-violet-300/15 bg-[#0b0a1b]/95 shadow-[0_0_18px_rgba(34,211,238,.07)]">
       <CardHeader className="border-b border-violet-300/10 bg-gradient-to-r from-violet-500/[0.08] to-cyan-400/[0.04]">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <CardTitle className="text-base text-violet-50">🔥 SENT · GENESIS</CardTitle>

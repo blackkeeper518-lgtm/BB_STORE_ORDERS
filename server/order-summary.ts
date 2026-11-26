@@ -54,6 +54,46 @@ const productAliases = [
   { pattern: /วีส\s*เขียว|vess[_ -]?green/i, label: "🟩 VESS_GREEN(วีสเขียว)" },
 ];
 
+export type OrderSignalFormat = "compact" | "summary" | "closed";
+export type OrderSignalDetection =
+  | { detected: false; format: null; orderNumber: null; orderTimeDisplay: null }
+  | { detected: true; format: OrderSignalFormat; orderNumber: string | null; orderTimeDisplay: string | null };
+
+/** Classifies confirmed bill-shaped chat text; it does not build or send a live Deck bill. */
+export function detectOrderSignal(rawText: unknown): OrderSignalDetection {
+  const text = String(rawText ?? "").trim();
+  if (!text) return { detected: false, format: null, orderNumber: null, orderTimeDisplay: null };
+
+  const hasCodAmount = /(?:ยอด\s*(?:รวม\s*)?COD|COD|ยอดรวม|เก็บปลายทาง)\s*[:：]?\s*(?:฿\s*)?[\d,]+(?:\.\d+)?/i.test(text);
+  const hasProductSection = /รายการสินค้า\s*[:：]?/i.test(text);
+  const orderTimeDisplay = text.match(/เวลาสั่งซื้อ\s*[:：]\s*(\d{1,2}\/\d{1,2}\/\d{2,4}\s+\d{1,2}:\d{2}(?::\d{2})?)/i)?.[1] ?? null;
+  const firstLine = text.split(/\r?\n/, 1)[0] ?? "";
+  const hasTopBillMarker = /^\s*[^A-Za-zก-๙0-9]*(?:COD\b|ยอดรวม)/i.test(firstLine);
+  const hasProductQuantityLine = text.split(/\r?\n/).some(line => {
+    if (!/[A-Za-zก-๙]/.test(line) || /^(?:ชื่อ|ลูกค้า|ผู้รับ|โทร|เบอร์|phone|tel|cod|ยอด|ที่อยู่|บ้านเลขที่|หมายเหตุ|ขนส่ง|เวลาสั่งซื้อ|order|เลขที่)\s*[:：]/i.test(line.trim())) return false;
+    return /(?:[x×]\s*\d{1,2}(?:\.\d+)?|จำนวน\s*\d{1,2}(?:\.\d+)?|\s(?<!\d)\d{1,2}(?:\.\d+)?\s*(?:คอค|คอต|คอตตอน|กล่อง|ชิ้น|ซอง|แพ็ค|แพ็ก|ขวด|ชุด)?\s*\.?\s*$)/i.test(line);
+  });
+
+  const closedOrderNumber = text.match(/(?:เลขที่ออเดอร์|เลขออเดอร์)\s*[:：]\s*(\d{8}-[A-Z0-9]+)/i)?.[1] ?? null;
+  if (/ปิดยอดสำเร็จ/i.test(text) && /#\s*BB_ORDER/i.test(text) && hasCodAmount && hasProductSection) {
+    return { detected: true, format: "closed", orderNumber: closedOrderNumber, orderTimeDisplay };
+  }
+
+  const summaryOrderNumber = text.match(/\b(ORD-\d{6}-\d{6})\b/i)?.[1] ?? null;
+  if (/สรุปรายการสั่งซื้อ/i.test(text) && /เวลาสั่งซื้อ/i.test(text) && hasCodAmount && hasProductSection) {
+    return { detected: true, format: "summary", orderNumber: summaryOrderNumber, orderTimeDisplay };
+  }
+
+  const hasPhone = /\(?0\d{8,9}\)?/.test(text);
+  const hasAddress = /บ้านเลขที่|บ้านเอื้ออาทร|ที่อยู่|ส่งที่|อาคาร|ถนน|ซอย|แขวง|เขต|ตำบล|อำเภอ|จังหวัด|(?:^|\s)(?:ต\.|อ\.|จ\.)/im.test(text);
+  const hasPostalMarker = /\*{2,}\s*ปณ\s*\*{2,}/i.test(text);
+  if (hasTopBillMarker || (hasCodAmount && hasPhone && (hasAddress || hasPostalMarker) && hasProductQuantityLine)) {
+    return { detected: true, format: "compact", orderNumber: null, orderTimeDisplay: null };
+  }
+
+  return { detected: false, format: null, orderNumber: null, orderTimeDisplay: null };
+}
+
 function normalizeProduct(value: string, customAliases: OrderSummaryInput["productAliases"] = []) {
   const quantity = value.match(/(\d+(?:\.\d+)?)\s*(?:คอค|คอต|คอตตอน|กล่อง|ชิ้น)?\s*$/i)?.[1];
   const custom = customAliases.find(alias => alias.isActive !== false && value.toLowerCase().includes(alias.alias.toLowerCase()));

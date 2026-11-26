@@ -45,6 +45,22 @@ function bangkokWallClockTimestamp(now: Date): number | null {
   return Date.UTC(year, month - 1, day, hour, minute, second);
 }
 
+/** True when an ISO/epoch message timestamp falls in BB's current 14:00–14:00 Bangkok business day. */
+export function isTimestampInCurrentBangkokBusinessDay(value: unknown, now = new Date()): boolean {
+  const event = value instanceof Date ? value : typeof value === "number" ? new Date(value) : new Date(String(value ?? "").trim());
+  const eventWallClock = bangkokWallClockTimestamp(event);
+  const nowWallClock = bangkokWallClockTimestamp(now);
+  if (eventWallClock == null || nowWallClock == null) return false;
+
+  const todayStart = new Date(nowWallClock);
+  todayStart.setUTCHours(BB_CUTOFF_HOUR, 0, 0, 0);
+  const minuteOfDay = new Date(nowWallClock).getUTCHours() * 60 + new Date(nowWallClock).getUTCMinutes();
+  if (minuteOfDay < BB_CUTOFF_HOUR * 60) todayStart.setUTCDate(todayStart.getUTCDate() - 1);
+
+  const start = todayStart.getTime();
+  return eventWallClock >= start && eventWallClock < start + 24 * 60 * 60 * 1000;
+}
+
 /** True when order_time_display falls in BB's current 14:00–14:00 Bangkok business day. */
 export function isCurrentBangkokBusinessDay(orderTimeDisplay: unknown, now = new Date()): boolean {
   const orderTimestamp = orderDisplayTimestamp(orderTimeDisplay);
