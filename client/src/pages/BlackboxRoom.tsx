@@ -87,9 +87,11 @@ export default function BlackboxRoom() {
   const rows = query.data ?? [];
   const botCount = rows.filter((r: any) => r.is_bot_summary).length;
   const duplicateCount = rows.filter((r: any) => Number(r.duplicate_signature_count) > 1).length;
-  const people = useMemo(() => new Set(rows.map((r: any) => r.person_key).filter(Boolean)).size, [rows]);
-  const completeCount = rows.filter((row: any) => orderVerdict(row).label.startsWith("✅")).length;
-  const reviewCount = rows.length - completeCount;
+  const routeCount = (...routes: string[]) => rows.filter((row: any) => routes.includes(routeValue(row))).length;
+  const blackCount = routeCount("⚫", "⬛");
+  const whiteCount = routeCount("⚪");
+  const redCount = routeCount("🔴", "🟥");
+  const ghostCount = routeCount("👻");
   const hotRows = rows.filter((r: any) => r.is_bot_summary || Number(r.duplicate_signature_count) > 1 || routeValue(r) !== "⚫").slice(0, 5);
 
   return <div className="blackbox-receive-room blackbox-room min-h-full space-y-5 p-2 text-white sm:p-4 lg:p-6">
@@ -105,10 +107,10 @@ export default function BlackboxRoom() {
         <div className="flex items-center gap-2"><div className="live-chip"><span className="live-dot" />LIVE · 30s</div><Button variant="outline" onClick={() => query.refetch()} className="border-fuchsia-300/35 bg-fuchsia-500/10 text-fuchsia-100 hover:bg-fuchsia-500/20"><RefreshCw className={query.isFetching ? "mr-2 h-4 w-4 animate-spin" : "mr-2 h-4 w-4"} />สแกนใหม่</Button></div>
       </div>
       <div className="relative z-10 mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <SignalMetric icon={<Radio />} label="รายการในห้อง" value={rows.length} color="pink" hint="หลักฐานที่ยังมองเห็น" />
-        <SignalMetric icon={<Waypoints />} label="ข้อมูลครบ" value={completeCount} color="violet" hint="n8n ส่งข้อมูลครบ" />
-        <SignalMetric icon={<Bot />} label="ต้องตรวจ" value={reviewCount} color="cyan" hint="ยังมีจุดให้เปิดดู" />
-        <SignalMetric icon={<Zap />} label="รอยซ้ำ" value={duplicateCount} color="fuchsia" hint="ลายเซ็นชนกัน" />
+        <SignalMetric icon={<Skull />} label="⚫ ดำ" value={blackCount} color="pink" hint="route จาก n8n" />
+        <SignalMetric icon={<CircleDot />} label="⚪ ขาว" value={whiteCount} color="violet" hint="route จาก n8n" />
+        <SignalMetric icon={<ShieldAlert />} label="🔴 แดง" value={redCount} color="cyan" hint="รวม 🟥 แดง 48 ชม." />
+        <SignalMetric icon={<Sparkles />} label="👻 ผี" value={ghostCount} color="fuchsia" hint="ตกรอบจาก n8n" />
       </div>
     </header>
 
