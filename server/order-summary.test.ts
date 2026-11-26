@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { generateOrderSummary } from "./order-summary";
+import { detectOrderSignal, generateOrderSummary } from "./order-summary";
 
 describe("generateOrderSummary", () => {
   it("creates an ORD number and extracts common Thai order fields", () => {
@@ -70,5 +70,31 @@ describe("generateOrderSummary", () => {
     expect(result.product).toContain("🟥 SEVIOS_RED(ซีวอสแดง) 1 คอต");
     expect(result.product.split("\n")).toHaveLength(2);
     expect(result.copyText).toContain("🟩 MOND_GREEN(มอนด์เขียว) 2 คอต\n🟥 SEVIOS_RED(ซีวอสแดง) 1 คอต");
+  });
+});
+
+describe("detectOrderSignal", () => {
+  it("detects the compact COD/address/phone/product bill without requiring an order number", () => {
+    const bill = "COD 220 อมรยินดีพจน์ บ้านเลขที่355 ซอยเพชรเกษม112 แขวงหนองค้างพลู เขตหนองแขม กรุงเทพฯ 10160 โทร 0620090155\nซีวอสแดง 1";
+    expect(detectOrderSignal(bill)).toEqual({ detected: true, format: "compact", orderNumber: null, orderTimeDisplay: null });
+    expect(detectOrderSignal("ยอดรวม: ฿220\nอมร บ้านเลขที่ 12 กรุงเทพฯ โทร 0812345678\nซีวอสแดง 1")).toMatchObject({ detected: true, format: "compact" });
+    expect(detectOrderSignal("COD")).toMatchObject({ detected: true, format: "compact", orderNumber: null });
+  });
+
+  it("detects the ORD summary bill and extracts its printed order time", () => {
+    const bill = "🍁[สรุปรายการสั่งซื้อ]\nเลขออเดอร์: ORD-261126-062741\nเวลาสั่งซื้อ: 26/11/2026 06:27:41\nเพจ: BB STORE\nCOD: ฿220 บาท\nรายการสินค้า:\n🟩 SEVIOS_GREEN x 1\nขนส่ง: Flash";
+    expect(detectOrderSignal(bill)).toEqual({ detected: true, format: "summary", orderNumber: "ORD-261126-062741", orderTimeDisplay: "26/11/2026 06:27:41" });
+    expect(detectOrderSignal(bill.replace(/^เลขออเดอร์: ORD-261126-062741$/m, ""))).toMatchObject({ detected: true, format: "summary", orderNumber: null });
+  });
+
+  it("detects a closed bill from its status and BB_ORDER marker without requiring an order ID", () => {
+    const bill = "🚨 [สถานะ: ปิดยอดสำเร็จ]\nเลขที่ออเดอร์: 20261126-001\nเวลาสั่งซื้อ: 26/11/2026 06:27\nยอด COD: 220 บาท\nรายการสินค้า:\nSEVIOS_GREEN จำนวน 1\n#BB_ORDER✅";
+    expect(detectOrderSignal(bill)).toEqual({ detected: true, format: "closed", orderNumber: "20261126-001", orderTimeDisplay: "26/11/2026 06:27" });
+    expect(detectOrderSignal(bill.replace(/^เลขที่ออเดอร์: 20261126-001$/m, ""))).toMatchObject({ detected: true, format: "closed", orderNumber: null });
+  });
+
+  it("does not treat a customer's purchase intent or an incomplete bill fragment as a bill", () => {
+    expect(detectOrderSignal("สนใจสั่งซื้อครับ ขอรายละเอียดเพิ่มก่อน COD 220")).toMatchObject({ detected: false });
+    expect(detectOrderSignal("ข้อความทั่วไปที่พูดถึง COD 220 กลางประโยค")).toMatchObject({ detected: false });
   });
 });

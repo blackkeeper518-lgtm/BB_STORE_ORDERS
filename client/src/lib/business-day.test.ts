@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isCurrentBangkokBusinessDay } from "./business-day";
+import { isCurrentBangkokBusinessDay, isTimestampInCurrentBangkokBusinessDay } from "./business-day";
 
 describe("BB Bangkok business day from order_time_display", () => {
   it("uses the previous day's 14:00 boundary before 14:00 Bangkok", () => {
@@ -27,5 +27,17 @@ describe("BB Bangkok business day from order_time_display", () => {
     expect(isCurrentBangkokBusinessDay(null, now)).toBe(false);
     expect(isCurrentBangkokBusinessDay("2026-11-25T07:00:00.000Z", now)).toBe(false);
     expect(isCurrentBangkokBusinessDay("31/02/69 14:00", now)).toBe(false);
+  });
+});
+
+describe("BB Bangkok business day from chat message timestamps", () => {
+  it("uses the same 14:00 cutoff for chat messages", () => {
+    const beforeCutoff = new Date("2026-11-26T03:00:00.000Z"); // 26 Nov 10:00 Bangkok
+    expect(isTimestampInCurrentBangkokBusinessDay("2026-11-26T06:59:59.000Z", beforeCutoff)).toBe(true);
+    expect(isTimestampInCurrentBangkokBusinessDay("2026-11-25T06:59:59.000Z", beforeCutoff)).toBe(false);
+
+    const atCutoff = new Date("2026-11-26T07:00:00.000Z"); // 26 Nov 14:00 Bangkok
+    expect(isTimestampInCurrentBangkokBusinessDay("2026-11-26T06:59:59.000Z", atCutoff)).toBe(false);
+    expect(isTimestampInCurrentBangkokBusinessDay("2026-11-26T07:00:00.000Z", atCutoff)).toBe(true);
   });
 });

@@ -68,7 +68,9 @@ export function MobileInboxProductDock({
               type="button"
               onClick={() => onSelect(item.product)}
               disabled={disabled || isLoading}
-              title={`เตรียมรูป ${item.product} · ยังไม่ส่ง`}
+              className={loadingProduct === item.product ? "is-loading" : ""}
+              title={loadingProduct === item.product ? loadingLabel : `เตรียมรูป ${item.product} · ยังไม่ส่ง`}
+              aria-busy={loadingProduct === item.product}
             >
               <span className="mobile-inbox-product-dock__thumb">
                 <img src={item.imageUrls[0]} alt="" loading="lazy" />
@@ -76,7 +78,8 @@ export function MobileInboxProductDock({
                   <LoaderCircle className="mobile-inbox-product-dock__loader" aria-label="กำลังโหลดภาพสินค้า" />
                 ) : null}
               </span>
-              <span>{item.product}</span>
+              <span>{item.product}{loadingProduct === item.product ? <small className="mobile-inbox-product-dock__item-loading-label">กำลังโหลดภาพ…</small> : null}</span>
+              {loadingProduct === item.product ? <span className="mobile-inbox-product-dock__item-sparkle" aria-hidden="true">✦</span> : null}
             </button>
           ))}
         </div>

@@ -505,4 +505,41 @@ describe("ChatHub read contract v5", () => {
     expect(message.direction).toBe("inbound");
     expect(message.side).toBe("left");
   });
+
+  it("marks each room once for page-sent bills and preserves n8n ORD counts", () => {
+    const compactBill = "COD 220 อมร บ้านเลขที่ 12 ซอย 3 กรุงเทพฯ 10110 โทร 0812345678\nซีวอสแดง 1";
+    const summaryBill = "🍁[สรุปรายการสั่งซื้อ]\nเลขออเดอร์: ORD-261126-062741\nเวลาสั่งซื้อ: 26/11/2026 06:27:41\nเพจ: BB STORE\nCOD: ฿220 บาท\nรายการสินค้า:\nSEVIOS_GREEN x 1";
+    const closedBill = "🚨 [สถานะ: ปิดยอดสำเร็จ]\nเลขที่ออเดอร์: 20261126-001\nเวลาสั่งซื้อ: 25/11/2026 15:02\nยอด COD: 220 บาท\nรายการสินค้า:\nSEVIOS_GREEN จำนวน 1\n#BB_ORDER✅";
+    const threads = mapChatRowsToThreads([
+      { _source_table: CHAT_CUSTOMER_TABLE, page_id: "page-1", thread_id: "thread-1", facebook_name: "ลูกค้าหนึ่ง", message_id: "c1", message_text: compactBill, occurred_at: "2026-11-26T03:00:00.000Z", currentThreadTotalBills: 8 },
+      { _source_table: CHAT_PAGE_TABLE, page_id: "page-1", thread_id: "thread-1", message_id: "p1", page_message_text: compactBill, occurred_at: "2026-11-26T03:00:00.000Z" },
+      { _source_table: CHAT_PAGE_TABLE, page_id: "page-1", thread_id: "thread-1", message_id: "p2", page_message_text: summaryBill, occurred_at: "2026-11-26T03:01:00.000Z" },
+      { _source_table: CHAT_PAGE_TABLE, page_id: "page-1", thread_id: "thread-1", message_id: "p3", page_message_text: summaryBill, occurred_at: "2026-11-26T03:02:00.000Z" },
+      { _source_table: CHAT_CUSTOMER_TABLE, page_id: "page-2", thread_id: "thread-2", facebook_name: "ลูกค้าสอง", message_id: "c2", message_text: "สนใจสั่งซื้อครับ", occurred_at: "2026-11-26T03:00:00.000Z" },
+      { _source_table: CHAT_PAGE_TABLE, page_id: "page-2", thread_id: "thread-2", message_id: "p4", page_message_text: closedBill, occurred_at: "2026-11-26T03:02:00.000Z" },
+      { _source_table: CHAT_PAGE_TABLE, page_id: "page-2", thread_id: "thread-2", message_id: "p5", page_message_text: "รับทราบครับ กำลังเช็กสินค้าให้", occurred_at: "2026-11-26T03:03:00.000Z" },
+      { _source_table: CHAT_CUSTOMER_TABLE, page_id: "page-3", thread_id: "thread-3", facebook_name: "แอดมินสาม", message_id: "c3", message_text: "ขอรายละเอียดครับ", occurred_at: "2026-11-26T03:00:00.000Z" },
+      { _source_table: CHAT_PAGE_TABLE, page_id: "page-3", thread_id: "thread-3", message_id: "p6", page_message_text: "COD", occurred_at: "2026-11-26T03:03:00.000Z" },
+      { _source_table: CHAT_CUSTOMER_TABLE, page_id: "page-4", thread_id: "thread-4", facebook_name: "ลูกค้าสี่", message_id: "c4", message_text: "COD", occurred_at: "2026-11-26T03:03:00.000Z" },
+    ], new Date("2026-11-26T03:00:00.000Z"));
+
+    const firstRoom = threads.find(thread => thread.pageId === "page-1");
+    const secondRoom = threads.find(thread => thread.pageId === "page-2");
+    const adminCodRoom = threads.find(thread => thread.pageId === "page-3");
+    const customerCodRoom = threads.find(thread => thread.pageId === "page-4");
+    expect(firstRoom).toMatchObject({ orderSignalCountToday: 1, orderSignalFormatsToday: { compact: true, summary: true, closed: false }, orderCount: 8 });
+    expect(secondRoom).toMatchObject({ orderSignalCountToday: 1, orderSignalFormatsToday: { compact: false, summary: false, closed: true } });
+    expect(adminCodRoom).toMatchObject({ orderSignalCountToday: 1, orderSignalFormatsToday: { compact: true } });
+    expect(customerCodRoom).toMatchObject({ orderSignalCountToday: 0 });
+  });
+
+  it("does not count a page bill whose printed order time falls outside the current business day", () => {
+    const outOfWindowBill = "🍁[สรุปรายการสั่งซื้อ]\nเลขออเดอร์: ORD-251126-135900\nเวลาสั่งซื้อ: 25/11/2026 13:59:00\nCOD: 220 บาท\nรายการสินค้า:\nSEVIOS_GREEN x 1";
+    const [thread] = mapChatRowsToThreads([
+      { _source_table: CHAT_CUSTOMER_TABLE, page_id: "page-1", thread_id: "thread-1", message_id: "customer", message_text: "ครับ", occurred_at: "2026-11-26T03:00:00.000Z" },
+      { _source_table: CHAT_PAGE_TABLE, page_id: "page-1", thread_id: "thread-1", message_id: "bill", page_message_text: outOfWindowBill, occurred_at: "2026-11-26T03:00:00.000Z" },
+    ], new Date("2026-11-26T03:00:00.000Z"));
+
+    expect(thread.orderSignalCountToday).toBe(0);
+  });
 });
