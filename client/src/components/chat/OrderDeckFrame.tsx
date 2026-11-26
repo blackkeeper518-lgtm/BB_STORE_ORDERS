@@ -16,7 +16,7 @@ type OrderDeckFrameProps = {
   messageRequest?: { id: number; clearMessage?: boolean } | null;
   onMessageRequestHandled?: (id: number) => void;
   onProductImagesSelected?: (imageUrls: string[], productName?: string) => void | Promise<void>;
-  onProductImagesResponse?: (productName?: string) => void;
+  onProductImagesResponse?: (productName?: string, imageCount?: number) => void;
   onProductSelected?: (payload: { product: string; textVariants: string[]; productInfo: Record<string, unknown>; imageUrls: string[] }) => void | Promise<void>;
   onProductIndexReady?: (products: Array<{ product: string; terms: string[]; imageUrls: string[]; featured: boolean }>) => void;
   sharedHighlights?: { configured: boolean; productNames: string[] };
@@ -200,7 +200,7 @@ export function OrderDeckFrame(props: OrderDeckFrameProps) {
       const urls = Array.isArray(event.data.imageUrls)
         ? event.data.imageUrls.filter((url: unknown): url is string => typeof url === "string" && (/^https?:\/\//i.test(url) || (url.length <= 8_100_000 && /^data:image\/(?:png|jpeg|gif|webp);base64,/i.test(url)))).slice(0, 4)
         : [];
-      currentProps.current.onProductImagesResponse?.(typeof event.data.product === "string" ? event.data.product : undefined);
+      currentProps.current.onProductImagesResponse?.(typeof event.data.product === "string" ? event.data.product : undefined, urls.length);
       if (urls.length) currentProps.current.onProductImagesSelected?.(urls, typeof event.data.product === "string" ? event.data.product : undefined);
     };
     window.addEventListener("message", receiveDeckMessage);

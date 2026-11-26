@@ -18,6 +18,7 @@ import { Check, CheckCircle2, ChevronDown, CircleUserRound, Clipboard, ExternalL
 import { type ClipboardEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { OrderDeckFrame } from "@/components/chat/OrderDeckFrame";
+import { ChatReplyScriptPicker } from "@/components/chat/ChatReplyScriptPicker";
 
 function timeLabel(value: string | null | undefined) {
   if (!value) return "—";
@@ -137,7 +138,7 @@ export default function ChatHub() {
   useLayoutEffect(() => {
     const field = replyTextareaRef.current;
     if (!field) return;
-    const maxHeight = Math.min(136, Math.max(80, Math.floor(window.innerHeight * 0.22)));
+    const maxHeight = 10 * 24 + 16;
     const minHeight = Math.min(80, maxHeight);
     field.style.height = "auto";
     const contentHeight = field.scrollHeight;
@@ -613,7 +614,8 @@ export default function ChatHub() {
     {productSuggestions.length ? <div role="list" aria-label="ปุ่มส่งรูปสินค้าที่ตรงกับข้อความ" className="mb-1 flex max-w-full flex-wrap justify-start gap-1.5">{productSuggestions.map(item => <button key={item.product} type="button" role="listitem" onClick={() => requestDeckProductImages(item.product, item.imageUrls)} disabled={imageUploading || sendReply.isPending || replyImages.length >= 4} className="flex max-w-[220px] items-center gap-2 rounded-xl border border-cyan-300/25 bg-[#0b1924]/95 px-2.5 py-1.5 text-left shadow-[0_0_16px_rgba(34,211,238,.12)] transition hover:border-cyan-200/60 hover:bg-cyan-300/10 disabled:opacity-40" title={`เพิ่มภาพ ${item.product} ลงช่องรอส่ง`}>{item.imageUrls[0] ? <img src={item.imageUrls[0]} alt="" className="h-7 w-7 shrink-0 rounded-lg object-cover" /> : <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-emerald-300/20 bg-emerald-300/[0.07] text-[10px] text-emerald-200">IMG</span>}<span className="min-w-0"><span className="block truncate text-[11px] font-semibold text-cyan-50">{item.product}</span><span className="block text-[9px] text-cyan-100/55">แตะเพื่อเตรียมรูป · ยังไม่ส่ง</span></span></button>)}</div> : null}
     <div className="flex min-w-0 items-end gap-1.5 rounded-xl border border-cyan-300/20 bg-[#0a111b] p-1.5 sm:gap-2 sm:p-2">
       <Button type="button" aria-label="แนบรูปภาพ" title={imageUploading ? "กำลังอัปโหลด…" : "แนบรูปภาพ"} variant="ghost" onClick={() => fileInputRef.current?.click()} disabled={imageUploading || sendReply.isPending || replyImages.length >= 4} className="h-10 w-10 shrink-0 rounded-lg p-0 text-cyan-100/75 hover:bg-cyan-300/10 hover:text-cyan-100"><Paperclip className="h-5 w-5" /></Button>
-      <Textarea ref={replyTextareaRef} value={replyText} onChange={event => setReplyText(event.target.value)} placeholder={selectedCustomerId ? "พิมพ์ข้อความ…" : "ไม่พบ Customer PSID ของห้องนี้"} disabled={!selectedCustomerId} className="field-sizing-fixed h-20 max-h-[136px] min-h-20 min-w-0 flex-1 resize-none overflow-y-auto border-0 bg-transparent px-2 py-2 text-sm leading-6 text-white placeholder:text-cyan-100/35 focus-visible:ring-0 focus-visible:ring-offset-0" onPaste={handleComposerPaste} onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing && event.nativeEvent.keyCode !== 229) { event.preventDefault(); sendCurrentReply(); } }} />
+      <ChatReplyScriptPicker disabled={!selectedCustomerId} onSelect={(text, title) => { setReplyText(current => current.trim() ? `${current.trim()}\n${text}` : text); setReplyNotice(`ใส่สคริปต์ “${title}” ลงช่องแล้ว · ตรวจและกดส่งเอง`); setDeliveryStatus("idle"); }} />
+      <Textarea ref={replyTextareaRef} value={replyText} onChange={event => setReplyText(event.target.value)} placeholder={selectedCustomerId ? "พิมพ์ข้อความ…" : "ไม่พบ Customer PSID ของห้องนี้"} disabled={!selectedCustomerId} className="field-sizing-fixed h-20 max-h-[256px] min-h-20 min-w-0 flex-1 resize-none overflow-y-auto border-0 bg-transparent px-2 py-2 text-sm leading-6 text-white placeholder:text-cyan-100/35 focus-visible:ring-0 focus-visible:ring-offset-0" onPaste={handleComposerPaste} onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing && event.nativeEvent.keyCode !== 229) { event.preventDefault(); sendCurrentReply(); } }} />
       <Button type="button" aria-label="เลือกอีโมจิ" title="เลือกอีโมจิ" variant="ghost" aria-expanded={emojiPickerOpen} onClick={() => setEmojiPickerOpen(value => !value)} className="h-10 w-10 shrink-0 rounded-lg p-0 text-cyan-100/75 hover:bg-cyan-300/10 hover:text-cyan-100"><Smile className="h-5 w-5" /></Button>
       <Button aria-label="ส่งข้อความ" title="ส่งข้อความ" disabled={sendReply.isPending || imageUploading || !selectedCustomerId || (!replyText.trim() && replyImages.length === 0)} onClick={sendCurrentReply} className="h-10 min-w-10 shrink-0 rounded-lg bg-gradient-to-br from-cyan-300 to-violet-400 px-3 text-[#07101a] shadow-[0_0_14px_rgba(34,211,238,.22)] transition hover:brightness-110">{sendReply.isPending ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}</Button>
     </div>
