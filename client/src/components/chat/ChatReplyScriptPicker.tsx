@@ -81,10 +81,9 @@ export function ChatReplyScriptPicker({
         title="เลือกสคริปต์"
         disabled={disabled}
         onClick={openPicker}
-        className="inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-fuchsia-300/25 bg-fuchsia-400/[0.07] px-2 text-[10px] font-semibold text-fuchsia-100 transition hover:border-fuchsia-200/50 hover:bg-fuchsia-300/[0.14] disabled:cursor-not-allowed disabled:opacity-40"
+        className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg border border-fuchsia-300/25 bg-fuchsia-400/[0.07] p-0 text-fuchsia-100 transition hover:border-fuchsia-200/50 hover:bg-fuchsia-300/[0.14] disabled:cursor-not-allowed disabled:opacity-40"
       >
         <FileText className="h-4 w-4" aria-hidden="true" />
-        <span>สคริป</span>
       </button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-h-[82dvh] overflow-hidden border-fuchsia-400/25 bg-[#100b18] p-4 text-fuchsia-50 shadow-[0_20px_80px_rgba(0,0,0,.7)] sm:max-w-xl">
