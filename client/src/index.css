@@ -1826,17 +1826,17 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
   .line-mobile-composer { padding-bottom:calc(9px + env(safe-area-inset-bottom)); }
 }
 
-/* Mobile Inbox order summary: primary neon action in the room header. */
-.mobile-inbox-order-summary-button { position:relative; isolation:isolate; display:flex; min-height:40px; flex:none; align-items:center; justify-content:center; gap:6px; overflow:hidden; border:1px solid rgba(255,154,236,.86); border-radius:13px; padding:8px 12px; background:linear-gradient(135deg,rgba(255,38,178,.62),rgba(146,50,255,.58) 48%,rgba(20,207,255,.48)); color:#fff8fe; font-size:11px; font-weight:900; letter-spacing:.02em; text-shadow:0 1px 7px rgba(31,0,38,.9); box-shadow:0 0 8px rgba(255,53,201,.78),0 0 22px rgba(211,65,255,.42),inset 0 0 12px rgba(255,255,255,.2); animation:mobile-order-glow 2.2s ease-in-out infinite alternate; }
-.mobile-inbox-order-summary-button::before { content:""; position:absolute; z-index:-1; inset:-60% -20%; background:linear-gradient(105deg,transparent 38%,rgba(255,255,255,.8) 48%,rgba(255,255,255,.08) 55%,transparent 66%); transform:translateX(-55%) rotate(8deg); animation:mobile-order-sheen 2.8s ease-in-out infinite; }
+/* Mobile Inbox room-header actions: match the translucent white highlight buttons. */
+.mobile-inbox-order-summary-button, .mobile-inbox-meta-link-button { position:relative; isolation:isolate; display:flex; min-height:40px; flex:none; align-items:center; justify-content:center; gap:6px; overflow:hidden; border:1px solid rgba(255,255,255,.72); border-radius:13px; padding:8px 12px; background:rgba(255,255,255,.08); color:#fff; font-size:11px; font-weight:900; letter-spacing:.02em; text-decoration:none; text-shadow:0 1px 7px rgba(0,0,0,.85); box-shadow:0 0 8px rgba(255,255,255,.34),inset 0 0 12px rgba(255,255,255,.12); animation:mobile-order-glow 2.2s ease-in-out infinite alternate; }
+.mobile-inbox-order-summary-button::before, .mobile-inbox-meta-link-button::before { content:""; position:absolute; z-index:-1; inset:-60% -20%; background:linear-gradient(105deg,transparent 38%,rgba(255,255,255,.8) 48%,rgba(255,255,255,.08) 55%,transparent 66%); transform:translateX(-55%) rotate(8deg); animation:mobile-order-sheen 2.8s ease-in-out infinite; }
 .mobile-inbox-order-summary-button::after { content:"✦  ˚  ·  ✧"; position:absolute; z-index:1; inset:2px 5px auto auto; color:rgba(255,255,255,.9); font-size:9px; letter-spacing:2px; pointer-events:none; animation:mobile-order-sparkle 1.8s ease-in-out infinite; }
-.mobile-inbox-order-summary-button svg { position:relative; z-index:2; width:18px; height:18px; filter:drop-shadow(0 0 5px #fff); }
-.mobile-inbox-order-summary-button span { position:relative; z-index:2; white-space:nowrap; }
-.mobile-inbox-order-summary-button:active { transform:scale(.95); box-shadow:0 0 5px rgba(255,53,201,.9),inset 0 0 16px rgba(0,0,0,.22); }
+.mobile-inbox-order-summary-button svg, .mobile-inbox-meta-link-button svg { position:relative; z-index:2; width:18px; height:18px; filter:drop-shadow(0 0 5px #fff); }
+.mobile-inbox-order-summary-button span, .mobile-inbox-meta-link-button span { position:relative; z-index:2; white-space:nowrap; }
+.mobile-inbox-order-summary-button:active, .mobile-inbox-meta-link-button:active { transform:scale(.95); box-shadow:0 0 8px rgba(255,255,255,.55),inset 0 0 16px rgba(0,0,0,.22); }
 @keyframes mobile-order-glow { from { filter:brightness(.96); } to { filter:brightness(1.18); } }
 @keyframes mobile-order-sheen { 0%,25% { transform:translateX(-55%) rotate(8deg); opacity:0; } 45% { opacity:1; } 72%,100% { transform:translateX(55%) rotate(8deg); opacity:0; } }
 @keyframes mobile-order-sparkle { 0%,100% { opacity:.45; transform:scale(.9) rotate(-8deg); } 50% { opacity:1; transform:scale(1.14) rotate(8deg); } }
-@media (prefers-reduced-motion:reduce) { .mobile-inbox-order-summary-button, .mobile-inbox-order-summary-button::before, .mobile-inbox-order-summary-button::after { animation:none; } }
+@media (prefers-reduced-motion:reduce) { .mobile-inbox-order-summary-button, .mobile-inbox-order-summary-button::before, .mobile-inbox-order-summary-button::after, .mobile-inbox-meta-link-button, .mobile-inbox-meta-link-button::before { animation:none; } }
 .mobile-inbox-summary-overlay { position:fixed; z-index:120; inset:0; display:flex; align-items:flex-end; justify-content:center; padding:12px; background:rgba(3,2,10,.78); backdrop-filter:blur(10px); }
 .mobile-inbox-summary-panel { width:min(100%,620px); max-height:calc(100dvh - 24px); overflow:auto; border:1px solid rgba(255,91,207,.35); border-radius:24px; padding:16px; background:linear-gradient(145deg,rgba(30,10,45,.98),rgba(7,15,31,.98)); color:#fff; box-shadow:0 0 45px rgba(215,57,255,.22); animation:mobile-summary-in .24s ease-out; }
 .mobile-inbox-summary-panel > header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
