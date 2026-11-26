@@ -2356,6 +2356,26 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 }
 .global-theme-runtime .order-history-runtime-room [data-slot="card"] > [data-slot="card-header"] { background: color-mix(in srgb, var(--global-primary) 6%, transparent) !important; }
 .global-theme-runtime .order-history-runtime-room table thead { background: color-mix(in srgb, var(--global-primary) 10%, var(--global-surface)) !important; }
+.global-theme-runtime .order-history-runtime-room::before {
+  display: block;
+  inset: -12%;
+  opacity: .22;
+  background-image:
+    radial-gradient(circle at 12% 18%, color-mix(in srgb, var(--global-primary) 72%, white) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 72% 42%, color-mix(in srgb, var(--global-accent) 68%, white) 0 1px, transparent 1.6px),
+    radial-gradient(circle at 38% 76%, color-mix(in srgb, var(--global-primary) 54%, white) 0 .8px, transparent 1.4px),
+    radial-gradient(circle at 88% 82%, color-mix(in srgb, var(--global-accent) 50%, white) 0 .8px, transparent 1.4px);
+  background-size: 230px 190px, 310px 260px, 180px 220px, 270px 240px;
+  background-position: 0 0, 40px 30px, 90px 10px, 20px 80px;
+  animation: genesis-space-drift 30s linear infinite;
+}
+@keyframes genesis-space-drift {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-46px, 34px, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .global-theme-runtime .order-history-runtime-room::before { animation: none; opacity: .12; }
+}
 @keyframes genesis-card-scan {
   0% { transform: translateX(0); }
   100% { transform: translateX(500%); }
