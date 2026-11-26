@@ -2593,3 +2593,46 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
     box-shadow: 0 0 16px rgba(255,255,255,.18) !important;
   }
 }
+
+/* Blackbox follows the active runtime theme; data and layout stay unchanged. */
+.global-theme-runtime .blackbox-room {
+  color: var(--global-text) !important;
+  background-color: var(--global-bg) !important;
+  background-image: var(--global-graphic),
+    radial-gradient(ellipse at 8% 0%, color-mix(in srgb, var(--global-primary) 22%, transparent), transparent 32rem),
+    radial-gradient(ellipse at 94% 8%, color-mix(in srgb, var(--global-accent) 18%, transparent), transparent 30rem),
+    linear-gradient(120deg, color-mix(in srgb, var(--global-bg) 90%, #000), var(--global-bg)) !important;
+  background-blend-mode: screen, normal, normal, normal;
+}
+.global-theme-runtime .blackbox-room .blackbox-hero {
+  background: linear-gradient(112deg,
+    color-mix(in srgb, var(--global-primary) 24%, var(--global-bg)),
+    color-mix(in srgb, var(--global-surface) 92%, var(--global-primary)) 52%,
+    color-mix(in srgb, var(--global-accent) 16%, var(--global-bg))) !important;
+  border-color: color-mix(in srgb, var(--global-primary) 68%, transparent) !important;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 22%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--global-primary) 22%, transparent),
+    0 0 38px color-mix(in srgb, var(--global-primary) 24%, transparent) !important;
+}
+.global-theme-runtime .blackbox-room .signal-metric,
+.global-theme-runtime .blackbox-room > section > div,
+.global-theme-runtime .blackbox-room .blackbox-console {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--global-surface) 94%, var(--global-primary)), color-mix(in srgb, var(--global-bg) 92%, var(--global-accent))) !important;
+  border-color: color-mix(in srgb, var(--global-primary) 48%, transparent) !important;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 12%, transparent), 0 14px 38px rgba(0,0,0,.28), 0 0 20px color-mix(in srgb, var(--global-primary) 14%, transparent) !important;
+}
+.global-theme-runtime .blackbox-room input {
+  background: color-mix(in srgb, var(--global-surface) 88%, #000) !important;
+  border-color: color-mix(in srgb, var(--global-primary) 42%, transparent) !important;
+  color: var(--global-text) !important;
+}
+.global-theme-runtime .blackbox-room [class*="text-fuchsia-"],
+.global-theme-runtime .blackbox-room [class*="text-cyan-"],
+.global-theme-runtime .blackbox-room [class*="text-violet-"] {
+  color: color-mix(in srgb, var(--global-accent) 72%, var(--global-text)) !important;
+}
+.global-theme-runtime .blackbox-room [class*="border-fuchsia-"],
+.global-theme-runtime .blackbox-room [class*="border-cyan-"],
+.global-theme-runtime .blackbox-room [class*="border-violet-"] {
+  border-color: color-mix(in srgb, var(--global-primary) 38%, transparent) !important;
+}
