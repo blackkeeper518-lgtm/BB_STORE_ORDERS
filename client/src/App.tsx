@@ -55,7 +55,9 @@ function Router() {
     <Route path="/secret-gallery/connect"><SecretGallery /></Route>
     <Route path="/secret-gallery/images"><SecretGallery /></Route>
     <Route path="/secret-gallery"><SecretGallery /></Route>
-    <Route path="/mobile-inbox"><DeviceChatRoute mobile /></Route>
+    {/* Mobile Inbox is a stable app entry. Keep it renderable even when a
+        standalone browser/PWA reports a desktop-style user agent. */}
+    <Route path="/mobile-inbox"><MobileInbox /></Route>
     <Route path="/orders"><Shell><OrderControl /></Shell></Route>
     <Route path="/order-editor"><Shell><OrderEditor /></Shell></Route>
     <Route path="/script-atelier"><Shell><ScriptAtelier /></Shell></Route>
