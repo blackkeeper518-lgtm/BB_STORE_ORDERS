@@ -2746,3 +2746,75 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 }
 .global-theme-runtime .blackbox-room .trace-row:nth-child(odd) td:first-child { box-shadow: inset 3px 0 var(--global-primary); }
 .global-theme-runtime .blackbox-room .trace-row:nth-child(even) td:first-child { box-shadow: inset 3px 0 var(--global-accent); }
+
+
+/* BLACKBOX PALETTE LOCK · follows the selected runtime theme: Black Signal / Black Ember / Red Static. */
+.global-theme-runtime .blackbox-room {
+  --bb-danger: color-mix(in srgb, var(--global-primary) 88%, #ff3030);
+  --bb-hot: color-mix(in srgb, var(--global-primary) 72%, #ff6b35);
+  --bb-amber: color-mix(in srgb, var(--global-accent) 84%, #ffc247);
+  --bb-ink: color-mix(in srgb, var(--global-bg) 94%, #000);
+  --bb-panel: color-mix(in srgb, var(--global-surface) 92%, #08090c);
+  color: var(--global-text) !important;
+  background:
+    radial-gradient(ellipse at 8% 0%, color-mix(in srgb, var(--bb-danger) 16%, transparent), transparent 34rem),
+    radial-gradient(ellipse at 92% 8%, color-mix(in srgb, var(--bb-amber) 10%, transparent), transparent 30rem),
+    linear-gradient(135deg, var(--bb-ink), var(--global-bg)) !important;
+}
+.global-theme-runtime .blackbox-room > header,
+.global-theme-runtime .blackbox-room .blackbox-hero {
+  border-color: color-mix(in srgb, var(--bb-danger) 62%, transparent) !important;
+  background:
+    linear-gradient(105deg, color-mix(in srgb, var(--bb-panel) 98%, #000), color-mix(in srgb, var(--bb-danger) 11%, var(--bb-panel)) 58%, color-mix(in srgb, var(--bb-amber) 8%, var(--bb-ink))) !important;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--bb-danger) 12%, transparent), 0 18px 50px rgba(0,0,0,.34) !important;
+}
+.global-theme-runtime .blackbox-room .signal-metric,
+.global-theme-runtime .blackbox-room .blackbox-console,
+.global-theme-runtime .blackbox-room > section > div:first-child {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--bb-panel) 98%, var(--bb-danger)), var(--bb-ink)) !important;
+  border-color: color-mix(in srgb, var(--bb-danger) 42%, transparent) !important;
+}
+.global-theme-runtime .blackbox-room .signal-pink,
+.global-theme-runtime .blackbox-room .signal-fuchsia,
+.global-theme-runtime .blackbox-room .tone-pink,
+.global-theme-runtime .blackbox-room .tone-violet,
+.global-theme-runtime .blackbox-room .blackbox-reason-card,
+.global-theme-runtime .blackbox-room .page-orb {
+  color: var(--bb-danger) !important;
+}
+.global-theme-runtime .blackbox-room .signal-violet,
+.global-theme-runtime .blackbox-room .signal-cyan,
+.global-theme-runtime .blackbox-room .tone-cyan {
+  color: var(--bb-amber) !important;
+}
+.global-theme-runtime .blackbox-room .signal-metric::before {
+  background: radial-gradient(circle at 12% 0%, color-mix(in srgb, currentColor 20%, transparent), transparent 58%), linear-gradient(115deg, color-mix(in srgb, currentColor 10%, transparent), transparent 62%);
+}
+.global-theme-runtime .blackbox-room .signal-metric::after { opacity: .12; filter: blur(22px); }
+.global-theme-runtime .blackbox-room .blackbox-reason-card {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--bb-danger) 12%, var(--bb-panel)), var(--bb-ink)) !important;
+  border-color: color-mix(in srgb, var(--bb-danger) 34%, transparent) !important;
+  border-left-color: var(--bb-danger) !important;
+}
+.global-theme-runtime .blackbox-room .trace-row { border-bottom-color: color-mix(in srgb, var(--bb-danger) 16%, transparent); }
+.global-theme-runtime .blackbox-room .trace-row:hover { background: linear-gradient(90deg, color-mix(in srgb, var(--bb-danger) 11%, transparent), color-mix(in srgb, var(--bb-amber) 4%, transparent)); box-shadow: inset 3px 0 var(--bb-danger), 0 0 18px color-mix(in srgb, var(--bb-danger) 8%, transparent); }
+.global-theme-runtime .blackbox-room .trace-row:nth-child(odd) td:first-child,
+.global-theme-runtime .blackbox-room .trace-row:nth-child(even) td:first-child { box-shadow: inset 3px 0 color-mix(in srgb, var(--bb-danger) 74%, var(--bb-amber)); }
+.global-theme-runtime .blackbox-room [class*="text-fuchsia-"],
+.global-theme-runtime .blackbox-room [class*="text-pink-"] { color: color-mix(in srgb, var(--bb-danger) 72%, var(--global-text)) !important; }
+.global-theme-runtime .blackbox-room [class*="text-cyan-"],
+.global-theme-runtime .blackbox-room [class*="text-violet-"] { color: color-mix(in srgb, var(--bb-amber) 64%, var(--global-text)) !important; }
+.global-theme-runtime .blackbox-room [class*="border-fuchsia-"],
+.global-theme-runtime .blackbox-room [class*="border-pink-"] { border-color: color-mix(in srgb, var(--bb-danger) 34%, transparent) !important; }
+.global-theme-runtime .blackbox-room [class*="border-cyan-"],
+.global-theme-runtime .blackbox-room [class*="border-violet-"] { border-color: color-mix(in srgb, var(--bb-amber) 30%, transparent) !important; }
+.global-theme-runtime .blackbox-room [class*="bg-fuchsia-"],
+.global-theme-runtime .blackbox-room [class*="bg-pink-"] { background-color: color-mix(in srgb, var(--bb-danger) 10%, transparent) !important; }
+.global-theme-runtime .blackbox-room [class*="bg-cyan-"],
+.global-theme-runtime .blackbox-room [class*="bg-violet-"] { background-color: color-mix(in srgb, var(--bb-amber) 7%, transparent) !important; }
+.global-theme-runtime .blackbox-room .radar { border-color: color-mix(in srgb, var(--bb-amber) 48%, transparent); background: radial-gradient(circle, color-mix(in srgb, var(--bb-amber) 14%, transparent), color-mix(in srgb, var(--global-primary) 5%, transparent) 44%, transparent 70%); box-shadow: 0 0 28px color-mix(in srgb, var(--bb-amber) 12%, transparent), inset 0 0 28px color-mix(in srgb, var(--bb-amber) 9%, transparent); }
+.global-theme-runtime .blackbox-room .radar-core,
+.global-theme-runtime .blackbox-room .radar-blip { background: var(--bb-danger); box-shadow: 0 0 12px var(--bb-danger); }
+.global-theme-runtime .blackbox-room .radar-blip.blip-two { background: var(--bb-amber); box-shadow: 0 0 12px var(--bb-amber); }
+.global-theme-runtime .blackbox-room .blackbox-console { box-shadow: inset 0 0 30px color-mix(in srgb, var(--bb-danger) 4%, transparent), 0 18px 40px rgba(0,0,0,.32) !important; }
+.global-theme-runtime .blackbox-room .console-grid { background-image: linear-gradient(color-mix(in srgb, var(--bb-danger) 9%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--bb-danger) 9%, transparent) 1px, transparent 1px); }
