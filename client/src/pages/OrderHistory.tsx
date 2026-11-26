@@ -68,7 +68,7 @@ export default function OrderHistory() {
       <p className="mt-2 text-xs text-rose-100/55">ห้องนี้ไม่สลับไปอ่านโต๊ะอื่นอัตโนมัติ</p>
     </CardContent></Card> : null}
 
-    <Card className="overflow-hidden rounded-3xl border-violet-300/15 bg-[#0b0a1b]/95 shadow-[0_0_18px_rgba(34,211,238,.07)]">
+    <Card className="genesis-sent-card relative overflow-hidden rounded-3xl border-violet-300/15 bg-[#0b0a1b]/95 shadow-[0_0_18px_rgba(34,211,238,.07)]">
       <CardHeader className="border-b border-violet-300/10 bg-gradient-to-r from-violet-500/[0.08] to-cyan-400/[0.04]">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <CardTitle className="text-base text-violet-50">🔥 SENT · GENESIS</CardTitle>
