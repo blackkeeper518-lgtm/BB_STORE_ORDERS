@@ -2677,3 +2677,72 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .global-theme-runtime .blackbox-room [class*="text-violet-"] {
   color: color-mix(in srgb, var(--global-text-muted) 78%, var(--global-accent)) !important;
 }
+
+/* BLACKBOX COMMAND-DECK SURFACE · dark, layered, not flat. */
+.global-theme-runtime .blackbox-room {
+  position: relative;
+  isolation: isolate;
+  background-image: var(--global-graphic),
+    radial-gradient(ellipse at 12% 0%, color-mix(in srgb, var(--global-primary) 24%, transparent), transparent 30rem),
+    radial-gradient(ellipse at 88% 14%, color-mix(in srgb, var(--global-accent) 18%, transparent), transparent 26rem),
+    linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.014) 1px, transparent 1px),
+    linear-gradient(135deg, color-mix(in srgb, var(--global-bg) 94%, #000), var(--global-bg)) !important;
+  background-size: auto, auto, auto, 34px 34px, 34px 34px, auto !important;
+}
+.global-theme-runtime .blackbox-room::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: .24;
+  background-image: radial-gradient(circle, color-mix(in srgb, var(--global-accent) 65%, transparent) 0 1px, transparent 1.4px);
+  background-size: 137px 151px;
+  background-position: 22px 32px;
+  mask-image: linear-gradient(to bottom, #000, transparent 82%);
+}
+.global-theme-runtime .blackbox-room .blackbox-hero {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 82% 0%, color-mix(in srgb, var(--global-accent) 17%, transparent), transparent 34%),
+    linear-gradient(112deg, color-mix(in srgb, var(--global-surface) 92%, #000), color-mix(in srgb, var(--global-primary) 16%, var(--global-bg)) 58%, color-mix(in srgb, var(--global-bg) 88%, var(--global-accent))) !important;
+}
+.global-theme-runtime .blackbox-room .blackbox-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: .55;
+  background: linear-gradient(110deg, transparent 0 26%, color-mix(in srgb, var(--global-accent) 12%, transparent) 42%, transparent 61%);
+  transform: translateX(-18%);
+}
+.global-theme-runtime .blackbox-room .signal-metric {
+  --bb-card-signal: var(--global-primary);
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--global-surface) 94%, var(--bb-card-signal)), color-mix(in srgb, var(--global-bg) 92%, #000)) !important;
+  border-color: color-mix(in srgb, var(--bb-card-signal) 52%, transparent) !important;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 9%, transparent), inset 0 -18px 28px color-mix(in srgb, var(--bb-card-signal) 7%, transparent), 0 12px 28px rgba(0,0,0,.32) !important;
+}
+.global-theme-runtime .blackbox-room .signal-metric::before {
+  content: "";
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  top: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--bb-card-signal), transparent);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--bb-card-signal) 60%, transparent);
+}
+.global-theme-runtime .blackbox-room .signal-violet { --bb-card-signal: var(--global-accent); }
+.global-theme-runtime .blackbox-room .signal-cyan { --bb-card-signal: #ef4444; }
+.global-theme-runtime .blackbox-room .signal-fuchsia { --bb-card-signal: #f59e0b; }
+.global-theme-runtime .blackbox-room .blackbox-reason-card {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, #ef4444 11%, var(--global-surface)), color-mix(in srgb, var(--global-bg) 94%, #000)) !important;
+  border-left: 3px solid #ef4444 !important;
+}
+.global-theme-runtime .blackbox-room .trace-row:nth-child(odd) td:first-child { box-shadow: inset 3px 0 var(--global-primary); }
+.global-theme-runtime .blackbox-room .trace-row:nth-child(even) td:first-child { box-shadow: inset 3px 0 var(--global-accent); }
