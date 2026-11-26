@@ -2827,3 +2827,15 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .global-theme-runtime [data-room-key="chats"],
 .global-theme-runtime [data-room-key="mobile-inbox"] { --room-primary: #48f0ff; --room-hot: #d45cff; --room-accent: #b8f3ff; }
 .global-theme-runtime [data-room-key="order-history"] { --room-primary: #d7dde8; --room-hot: #64748b; --room-accent: #ffc857; }
+
+/* THANATOS ROOM LOCK · the global picker may change the rest of the app,
+   but BLACKBOX keeps its black / red / amber operational identity. */
+.global-theme-runtime .blackbox-room {
+  --global-bg: #070809;
+  --global-surface: #121318;
+  --global-primary: #e21d3f;
+  --global-accent: #ff9f43;
+  --global-text: #f7f1f1;
+  --global-text-muted: #c7aeb2;
+  --global-graphic: none;
+}
