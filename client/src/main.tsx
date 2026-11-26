@@ -8,6 +8,7 @@ import App from "./App";
 import { startLogin } from "./const";
 import "./index.css";
 import "./styles/darkside-skin-engine.css";
+import "./styles/ops-console-desktop.css";
 
 const queryClient = new QueryClient();
 const ADMIN_DEVICE_STORAGE_KEY = "bb-admin-device-id";
