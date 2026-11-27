@@ -217,7 +217,7 @@ select
   parcel.cod_amount as parcel_cod_amount,
   parcel.address as parcel_address,
   null::text as delivery_status,
-  null::timestamptz as sent_at,
+  null::text as sent_at,
   ord.upsert_key,
   ord.page_id,
   ord."threadId",
