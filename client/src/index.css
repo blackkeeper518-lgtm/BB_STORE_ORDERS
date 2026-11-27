@@ -78,8 +78,8 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .cosmic-stage::after { content:""; position:fixed; z-index:-1; inset:0; pointer-events:none; background:linear-gradient(115deg,transparent 0 42%,rgba(94,236,255,.035) 47%,transparent 52%),radial-gradient(ellipse at 50% 105%,rgba(184,70,255,.13),transparent 46%); }
 .chat-cosmos-shell { background-image:radial-gradient(circle at 8% 12%,rgba(65,224,255,.22),transparent 25rem),radial-gradient(circle at 92% 10%,rgba(255,42,197,.20),transparent 25rem),radial-gradient(ellipse at 50% 112%,rgba(74,222,128,.11),transparent 34rem); }
 .chat-cosmos-timeline { isolation:isolate; background:radial-gradient(circle at 82% 8%,rgba(16,185,129,.15),transparent 28%),radial-gradient(circle at 12% 74%,rgba(168,85,247,.16),transparent 30%),radial-gradient(ellipse at 50% 112%,rgba(34,211,238,.08),transparent 42%),linear-gradient(135deg,#070b14,#0d0918 56%,#090b12); }
-.chat-cosmos-timeline::before { content:""; position:absolute; z-index:-1; inset:0; pointer-events:none; opacity:.62; background-image:radial-gradient(circle,rgba(255,255,255,.92) 0 1px,transparent 1.5px),radial-gradient(circle,rgba(92,232,255,.75) 0 1px,transparent 1.7px); background-position:18px 26px,96px 118px; background-size:137px 151px,211px 193px; animation:chat-star-drift 24s linear infinite; }
-.chat-cosmos-timeline::after { content:""; position:absolute; z-index:-1; top:18%; right:-12%; width:230px; height:2px; pointer-events:none; border-radius:999px; background:linear-gradient(90deg,transparent,rgba(255,255,255,.95),#68efff,rgba(255,100,220,.8),transparent); box-shadow:0 0 8px #68efff,0 0 22px rgba(255,87,211,.7); transform:rotate(-24deg); animation:chat-meteor 7s ease-in-out infinite; }
+.chat-cosmos-timeline::before { content:""; position:absolute; z-index:-1; inset:0; pointer-events:none; opacity:.28; background-image:radial-gradient(circle,rgba(255,255,255,.72) 0 1px,transparent 1.5px),radial-gradient(circle,rgba(92,232,255,.48) 0 1px,transparent 1.7px); background-position:18px 26px,96px 118px; background-size:137px 151px,211px 193px; animation:chat-star-drift 24s linear infinite; }
+.chat-cosmos-timeline::after { content:""; position:absolute; z-index:-1; top:18%; right:-12%; width:230px; height:2px; pointer-events:none; border-radius:999px; background:linear-gradient(90deg,transparent,rgba(255,255,255,.6),rgba(104,239,255,.72),rgba(255,100,220,.45),transparent); box-shadow:0 0 5px rgba(104,239,255,.5),0 0 12px rgba(255,87,211,.32); transform:rotate(-24deg); animation:chat-meteor 7s ease-in-out infinite; }
 .chat-cosmos-composer { position:relative; isolation:isolate; }
 .chat-cosmos-composer::before { content:""; position:absolute; z-index:-1; inset:0; pointer-events:none; background:linear-gradient(90deg,transparent,rgba(75,231,255,.16),rgba(255,86,211,.18),transparent); background-size:220% 100%; animation:chat-running-light 5s linear infinite; }
 .chat-cosmos-tools { min-width:0; }
@@ -2299,7 +2299,7 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .global-theme-runtime .chat-cosmos-shell input::placeholder,
 .global-theme-runtime .chat-cosmos-shell textarea::placeholder { color: var(--global-text-muted) !important; opacity: .8; }
 .global-theme-runtime .chat-cosmos-shell .chat-cosmos-timeline {
-  background: transparent !important;
+  background: linear-gradient(135deg, rgba(5,8,15,.68), rgba(8,10,17,.68)) !important;
 }
 .global-theme-runtime .chat-cosmos-shell .chat-cosmos-composer {
   background: linear-gradient(180deg, color-mix(in srgb, var(--global-surface) 92%, var(--global-primary)), color-mix(in srgb, var(--global-bg) 96%, var(--global-accent))) !important;
@@ -2555,14 +2555,18 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .room-list-card .room-card-signal--order { border-color: rgba(97,255,180,.28); background: rgba(97,255,180,.08); color: #caffdf; }
 .room-list-card .room-card-meta { min-width: 0; align-items: center; }
 .global-theme-runtime .chat-cosmos-shell .room-list-card .room-card-page {
+  max-width: 100%;
+  flex: 0 1 auto;
+  overflow: hidden;
+  white-space: nowrap;
   border-color: color-mix(in srgb, var(--global-primary) 52%, transparent) !important;
-  background: linear-gradient(110deg, color-mix(in srgb, var(--global-primary) 16%, var(--global-surface)), color-mix(in srgb, var(--global-accent) 10%, var(--global-surface))) !important;
+  background: color-mix(in srgb, var(--global-surface) 76%, transparent) !important;
   color: color-mix(in srgb, var(--global-text-primary) 72%, var(--global-primary) 28%) !important;
-  box-shadow: 0 0 10px color-mix(in srgb, var(--global-primary) 12%, transparent) !important;
+  box-shadow: 0 0 3px color-mix(in srgb, var(--global-primary) 10%, transparent) !important;
 }
 .global-theme-runtime .chat-cosmos-shell .room-list-card .room-card-page:hover {
   border-color: color-mix(in srgb, var(--global-accent) 72%, transparent) !important;
-  background: linear-gradient(110deg, color-mix(in srgb, var(--global-primary) 24%, var(--global-surface)), color-mix(in srgb, var(--global-accent) 18%, var(--global-surface))) !important;
+  background: color-mix(in srgb, var(--global-surface) 84%, var(--global-accent) 16%) !important;
 }
 @media (prefers-reduced-motion: reduce) { .room-list-card:hover { transform: none; } }
 
