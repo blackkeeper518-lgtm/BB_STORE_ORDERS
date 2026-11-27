@@ -25,6 +25,7 @@ import OrderEditor from "./pages/OrderEditor";
 import ScriptAtelier from "./pages/ScriptAtelier";
 import MobileInbox from "./pages/MobileInbox";
 import LineChat from "./pages/LineChat";
+import WarpDriveRoom from "./pages/WarpDriveRoom";
 import { GlobalThemeRuntime } from "./contexts/GlobalThemeRuntime";
 import { useEffect } from "react";
 
@@ -49,6 +50,7 @@ function Router() {
     <Route path="/order-editor"><Shell><OrderEditor /></Shell></Route>
     <Route path="/script-atelier"><Shell><ScriptAtelier /></Shell></Route>
     <Route path="/parcel-mapping"><Shell><ParcelMapping /></Shell></Route>
+    <Route path="/warp-drive"><Shell><WarpDriveRoom /></Shell></Route>
     <Route path="/chats"><Shell><ChatHub /></Shell></Route>
     <Route path="/line-chat"><Shell><LineChat /></Shell></Route>
     <Route path="/vagabond"><Shell><CloseJobHistory /></Shell></Route>
