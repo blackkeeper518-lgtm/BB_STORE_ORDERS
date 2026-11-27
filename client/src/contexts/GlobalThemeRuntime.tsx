@@ -16,9 +16,9 @@ function fallbackTheme(): GlobalTheme {
   const skin = normalizeSkinRow({ theme_key: "local-default", name: DEFAULT_CYBER_THEME.name, background_color: DEFAULT_CYBER_THEME.bg, surface_color: DEFAULT_CYBER_THEME.surface, primary_color: DEFAULT_CYBER_THEME.primary, accent_color: DEFAULT_CYBER_THEME.accent }, 0);
   return { ...DEFAULT_CYBER_THEME, ...skin, preset: 0 } as GlobalTheme;
 }
-function fromRow(row: SkinRow, index: number, related?: { sound?: SkinRow }): GlobalTheme {
+function fromRow(row: SkinRow, index: number): GlobalTheme {
   const fallback = CYBER_THEME_PRESETS[index % CYBER_THEME_PRESETS.length] ?? DEFAULT_CYBER_THEME;
-  return { ...fallback, ...normalizeSkinRow(row, index, related), preset: index } as GlobalTheme;
+  return { ...fallback, ...normalizeSkinRow(row, index), preset: index } as GlobalTheme;
 }
 
 export function GlobalThemeRuntime({ children }: { children: React.ReactNode }) {
@@ -38,11 +38,7 @@ export function GlobalThemeRuntime({ children }: { children: React.ReactNode }) 
       const base = await api.from("app_themes").select("*").eq("is_enabled", true).order("sort_order", { ascending: true });
       if (base.error) throw base.error;
       const rows = (base.data ?? []) as SkinRow[];
-      const keys = rows.map(row => String(row.theme_key ?? "")).filter(Boolean);
-      const soundsResult = await api.from("sound_packs").select("*").in("theme_key", keys);
-      if (soundsResult.error) throw soundsResult.error;
-      const sounds = (soundsResult.data ?? []) as SkinRow[];
-      const next = rows.length ? rows.map((row, index) => { const key = String(row.theme_key ?? `theme-${index + 1}`); return fromRow(row, index, { sound: sounds.find(item => String(item.theme_key ?? "") === key) }); }) : [fallbackTheme()];
+      const next = rows.length ? rows.map((row, index) => fromRow(row, index)) : [fallbackTheme()];
       setThemes(next); setConnected(true); setActiveKey(current => next.some(item => item.themeKey === current) ? current : next[0].themeKey);
       next.forEach(item => tacticalAudio.preload(item));
     } catch { setConnected(false); } finally { setLoading(false); }
