@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getActiveCamp, readParcelMappingQueue } from "@/lib/canonical";
+import { parseMetaChatLinkKey } from "@/lib/meta-inbox";
 import { trpc } from "@/lib/trpc";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -25,6 +26,7 @@ type ParcelMappingRow = {
   message_id?: string | null;
   recipient_id?: string | null;
   chat_key?: string | null;
+  chat_link_key?: string | null;
   tracking_number?: string | null;
   matched_phone?: string | null;
   customer_name?: string | null;
@@ -98,6 +100,9 @@ function isSent(row: ParcelMappingRow) {
 }
 function asBool(value: unknown) {
   return value === true || value === "true" || value === 1 || value === "1";
+}
+function isMobileDevice() {
+  return typeof navigator !== "undefined" && /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
 }
 function parcelStatusEmoji(row: ParcelMappingRow) {
   return clean(row.parcel_status_emoji);
@@ -238,7 +243,10 @@ export default function ParcelMapping() {
   );
   const orbitLanes: OrbitLane[] = ["waiting", "send", "expired", "sent"];
   function chatRoomIds(row: ParcelMappingRow) {
-    return { pageId: clean(row.page_id), threadId: clean(row.thread_id || row.threadId) };
+    const parsedChatKey = parseMetaChatLinkKey(row.chat_link_key);
+    const pageId = clean(row.page_id || parsedChatKey?.pageId);
+    const threadId = clean(row.thread_id || row.threadId) || (parsedChatKey ? `t_${parsedChatKey.conversationId}` : "");
+    return { pageId, threadId };
   }
   const sendGateRows = useMemo(() => {
     const seen = new Set<string>();
@@ -260,13 +268,17 @@ export default function ParcelMapping() {
 
   function chatHref(row: ParcelMappingRow) {
     const { pageId, threadId } = chatRoomIds(row);
-    return pageId && threadId ? `/chats?page_id=${encodeURIComponent(pageId)}&thread_id=${encodeURIComponent(threadId)}` : "";
+    if (!pageId || !threadId) return "";
+    if (isMobileDevice()) {
+      return `/mobile-inbox?page=${encodeURIComponent(pageId)}&thread=${encodeURIComponent(threadId)}`;
+    }
+    return `/chats?page_id=${encodeURIComponent(pageId)}&thread_id=${encodeURIComponent(threadId)}`;
   }
   function stageChatHandoff(row: ParcelMappingRow) {
     const { pageId, threadId } = chatRoomIds(row);
     if (!pageId || !threadId || typeof window === "undefined") return;
     window.sessionStorage.setItem(`darkside-send-gate:${pageId}:${threadId}`, JSON.stringify({
-      chat_key: row.chat_key,
+      chat_key: row.chat_link_key || row.chat_key,
       message_id: row.message_id,
       recipient_id: row.recipient_id,
       tracking_number: row.tracking_number,
