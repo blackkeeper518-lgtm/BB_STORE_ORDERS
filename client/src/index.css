@@ -2560,6 +2560,16 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .room-list-card .room-card-signal { border: 1px solid rgba(255,75,186,.2); border-radius: 999px; background: rgba(255,75,186,.08); padding: 2px 6px; color: rgba(255,201,235,.82); font-size: 9px; }
 .room-list-card .room-card-signal--order { border-color: rgba(97,255,180,.28); background: rgba(97,255,180,.08); color: #caffdf; }
 .room-list-card .room-card-meta { min-width: 0; align-items: center; }
+.global-theme-runtime .chat-cosmos-shell .room-list-card .room-card-page {
+  border-color: color-mix(in srgb, var(--global-primary) 52%, transparent) !important;
+  background: linear-gradient(110deg, color-mix(in srgb, var(--global-primary) 16%, var(--global-surface)), color-mix(in srgb, var(--global-accent) 10%, var(--global-surface))) !important;
+  color: color-mix(in srgb, var(--global-text-primary) 72%, var(--global-primary) 28%) !important;
+  box-shadow: 0 0 10px color-mix(in srgb, var(--global-primary) 12%, transparent) !important;
+}
+.global-theme-runtime .chat-cosmos-shell .room-list-card .room-card-page:hover {
+  border-color: color-mix(in srgb, var(--global-accent) 72%, transparent) !important;
+  background: linear-gradient(110deg, color-mix(in srgb, var(--global-primary) 24%, var(--global-surface)), color-mix(in srgb, var(--global-accent) 18%, var(--global-surface))) !important;
+}
 @media (prefers-reduced-motion: reduce) { .room-list-card:hover { transform: none; } }
 
 /* ST GLOBAL THEME PASS · Daily Order Summary */
