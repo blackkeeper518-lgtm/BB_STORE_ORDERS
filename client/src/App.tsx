@@ -19,6 +19,8 @@ import AlertRoom from "./pages/AlertRoom";
 import BlackboxRoom from "./pages/BlackboxRoom";
 import SecretGallery from "./pages/SecretGallery";
 import ParcelMapping from "./pages/ParcelMapping";
+import ParcelImport from "./pages/ParcelImport";
+import ParcelLookup from "./pages/ParcelLookup";
 import CloseJobHistory from "./pages/CloseJobHistory";
 import TelegramSentHistory from "./pages/TelegramSentHistory";
 import OrderEditor from "./pages/OrderEditor";
@@ -45,6 +47,7 @@ function Router() {
     <Route path="/secret-gallery/images"><SecretGallery /></Route>
     <Route path="/secret-gallery"><SecretGallery /></Route>
     <Route path="/mobile-inbox"><MobileInbox /></Route>
+    <Route path="/shipping/import"><Shell><ParcelImport /></Shell></Route>
     <Route path="/orders"><Shell><OrderControl /></Shell></Route>
     <Route path="/order-editor"><Shell><OrderEditor /></Shell></Route>
     <Route path="/script-atelier"><Shell><ScriptAtelier /></Shell></Route>
@@ -70,4 +73,11 @@ function Router() {
     <Route component={NotFound} />
   </Switch>;
 }
-export default function App() { return <ErrorBoundary><ThemeProvider defaultTheme="dark"><GlobalThemeRuntime><TooltipProvider><Toaster /><Router /></TooltipProvider></GlobalThemeRuntime></ThemeProvider></ErrorBoundary>; }
+function ApplicationRouter() {
+  const [location] = useLocation();
+  if (location === "/track") return <ParcelLookup />;
+  return <GlobalThemeRuntime><Router /></GlobalThemeRuntime>;
+}
+export default function App() {
+  return <ErrorBoundary><ThemeProvider defaultTheme="dark"><TooltipProvider><Toaster /><ApplicationRouter /></TooltipProvider></ThemeProvider></ErrorBoundary>;
+}

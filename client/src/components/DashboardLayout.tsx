@@ -3,7 +3,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { startLogin } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { Activity, Archive, Bell, Boxes, CalendarDays, Database, LayoutDashboard, LockKeyhole, MessageCircle, PanelLeft, Search, Send, Skull, Truck, WandSparkles } from "lucide-react";
+import { Activity, Archive, Bell, Boxes, CalendarDays, Database, FileUp, LayoutDashboard, LockKeyhole, MessageCircle, PanelLeft, Search, Send, Skull, Truck, WandSparkles } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
@@ -22,6 +22,7 @@ const menuItems = [
   { icon: MessageCircle, label: "รวมแชทเพจ", path: "/chats" },
   { icon: MessageCircle, label: "LINE OA · ห้องตอบแชท", path: "/line-chat" },
   { icon: Truck, label: "แมปเลขพัสดุ", path: "/parcel-mapping" },
+  { icon: FileUp, label: "นำเข้าเลขขนส่ง", path: "/shipping/import" },
   { icon: Database, label: "คู่มือระบบ · System Manual", path: "/system-manual" },
   { icon: Send, label: "PIONEER · คิวพัก / ดักสองชั้น", path: "/telegram-delivery" },
   { icon: Bell, label: "ประวัติเปลี่ยนของ · PARADOX", path: "/alert-room" },
