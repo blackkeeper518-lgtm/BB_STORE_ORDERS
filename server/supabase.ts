@@ -20,16 +20,16 @@ function config(project: SupabaseProject = "main") {
     ? process.env.CHAT_SUPABASE_URL?.trim()
     : lane === "vault"
       ? process.env.VAULT_SUPABASE_URL?.trim()
-      : lane === "tracking"
-        ? process.env.TRACKING_SUPABASE_URL?.trim()
-        : process.env.ORDER_SUPABASE_URL?.trim() || process.env.SUPABASE_URL?.trim();
+    : lane === "tracking"
+      ? process.env.TRACKING_SUPABASE_URL?.trim()
+        : process.env.ORDER_SUPABASE_URL?.trim();
   const key = lane === "chat"
     ? process.env.CHAT_SUPABASE_SERVICE_ROLE_KEY?.trim()
     : lane === "vault"
       ? process.env.VAULT_SUPABASE_SERVICE_ROLE_KEY?.trim()
-      : lane === "tracking"
-        ? process.env.TRACKING_SUPABASE_SERVICE_ROLE_KEY?.trim()
-        : process.env.ORDER_SUPABASE_SERVICE_ROLE_KEY?.trim() || process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+    : lane === "tracking"
+      ? process.env.TRACKING_SUPABASE_SERVICE_ROLE_KEY?.trim()
+        : process.env.ORDER_SUPABASE_SERVICE_ROLE_KEY?.trim();
   if (!rawUrl || !key) throw new Error(`Supabase ${project} server credentials are not configured`);
   let parsed: URL;
   try { parsed = new URL(rawUrl); } catch { throw new Error("SUPABASE_URL is not a valid URL"); }
@@ -39,7 +39,7 @@ function config(project: SupabaseProject = "main") {
 export function getServerProjectStatus() {
   const has = (url?: string, key?: string) => Boolean(url?.trim() && key?.trim());
   return {
-    order: has(process.env.ORDER_SUPABASE_URL || process.env.SUPABASE_URL, process.env.ORDER_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY),
+    order: has(process.env.ORDER_SUPABASE_URL, process.env.ORDER_SUPABASE_SERVICE_ROLE_KEY),
     trackingParcel: has(process.env.TRACKING_SUPABASE_URL, process.env.TRACKING_SUPABASE_SERVICE_ROLE_KEY),
     vault: has(process.env.VAULT_SUPABASE_URL, process.env.VAULT_SUPABASE_SERVICE_ROLE_KEY),
     chat: has(process.env.CHAT_SUPABASE_URL, process.env.CHAT_SUPABASE_SERVICE_ROLE_KEY),
