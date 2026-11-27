@@ -8,8 +8,10 @@
 -- 1. SHADOW · จับคู่พัสดุจากไฟล์ขนส่งด้วยเบอร์โทร + วันที่
 -- สำคัญ: parcels จาก Warp/ไฟล์ขนส่งไม่มี upsert_key, order_number หรือ portal_key
 -- ดังนั้น upsert_key ต้องมาจาก ORDERCONTROL หลังจับคู่สำเร็จเท่านั้น
+-- ลูกค้าคนเดียวกันอาจมีประวัติบิลหลอนหลายใบ แต่เลขพัสดุหนึ่งเลขส่งครั้งเดียว
+-- จึงเลือกตัวแทนด้วย tracking_number: COD ตรงก่อน แล้วค่อยเลือกบิลล่าสุด
 create or replace view public."🔮SHADOW_xXx_RECALL" as
-select distinct on (bb.upsert_key)
+select distinct on (p.tracking_number)
   p.id,
   bb.portal_key,
   bb.page_name,
@@ -57,7 +59,18 @@ join lateral (
   order by parcel.pickup_date desc nulls last, parcel.id desc
   limit 1
 ) p on true
-order by bb.upsert_key, bb.created_at desc, p.pickup_date desc nulls last, p.id desc;
+order by
+  p.tracking_number,
+  case
+    when nullif(regexp_replace(coalesce(bb.cod_amount::text, ''), '[^0-9.]', '', 'g'), '')::numeric
+       = nullif(regexp_replace(coalesce(p.cod_amount::text, ''), '[^0-9.]', '', 'g'), '')::numeric
+    then 0
+    else 1
+  end,
+  bb.created_at desc nulls last,
+  bb.order_time desc nulls last,
+  p.pickup_date desc nulls last,
+  p.id desc;
   
 
 -- 2. ROGUE · คิวพัสดุรอส่งเลข
