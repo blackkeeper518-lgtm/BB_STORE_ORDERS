@@ -44,6 +44,7 @@ function isPageTimelineLine(line: string) { return /\[\s*เพจ\s*\]?\s*[:：
 function isCustomerTimelineLine(line: string) { return /\[\s*ลูกค้า\s*\]?\s*[:：]?/i.test(line); }
 function isThreadControlConflict(message: string) { return /META_THREAD_CONTROL_CONFLICT|another app|currently controlling|ควบคุมเธรด|แอพอื่นกำลังควบคุม/i.test(message); }
 function hasTimeSlotLabel(thread: Record<string, any>) { return Boolean(String(thread.timeSlotLabel ?? "").trim()); }
+function isOrderRoom(thread: Record<string, any>) { return Number(thread.currentThreadTotalBills ?? 0) > 0 || Number(thread.orderSignalCountToday ?? 0) > 0; }
 function hasTrackingOver24Hours(thread: Record<string, any>) {
   return Boolean(String(thread.tracking_number ?? "").trim()) && Number(thread.trackingAgeMs ?? 0) >= 24 * 60 * 60 * 1000;
 }
