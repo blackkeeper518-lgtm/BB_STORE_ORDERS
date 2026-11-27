@@ -5,12 +5,14 @@
 -- เทียบกับ ORDERCONTROL.phone / ORDERCONTROL.extracted_phone
 -- ลำดับ dependency: SHADOW -> ROGUE -> VOID -> DEAD
 
--- 1. SHADOW · จับคู่พัสดุกับออเดอร์ด้วยเบอร์โทรเท่านั้น
+-- 1. SHADOW · จับคู่พัสดุจากไฟล์ขนส่งด้วยเบอร์โทร + วันที่
+-- สำคัญ: parcels จาก Warp/ไฟล์ขนส่งไม่มี upsert_key, order_number หรือ portal_key
+-- ดังนั้น upsert_key ต้องมาจาก ORDERCONTROL หลังจับคู่สำเร็จเท่านั้น
 create or replace view public."🔮SHADOW_xXx_RECALL" as
-select
+select distinct on (bb.upsert_key)
   p.id,
-  ord.portal_key,
-  ord.page_name,
+  bb.portal_key,
+  bb.page_name,
   p.pickup_date,
   p.tracking_number,
   p.consignee,
@@ -19,73 +21,43 @@ select
   p.cod_amount,
   null::text as delivery_status,
   null::text as sent_at,
-  ord.parcel_status_emoji,
-  ord.upsert_key
-from public.parcels p
+  bb.parcel_status_emoji,
+  bb.upsert_key
+from public."🧿BB_xXx_ORDERCONTROL" bb
 join lateral (
-  select
-    o.portal_key,
-    o.page_name,
-    o.parcel_status_emoji,
-    o.upsert_key,
-    o.order_time,
-    o.updated_at
-  from public."🧿BB_xXx_ORDERCONTROL" o
-  where (
-    nullif(btrim(p.upsert_key), '') is not null
-    and nullif(btrim(o.upsert_key), '') is not null
-    and btrim(p.upsert_key) = btrim(o.upsert_key)
-  )
-  or (
-    nullif(btrim(p.order_number), '') is not null
-    and nullif(btrim(o.order_number), '') is not null
-    and btrim(p.order_number) = btrim(o.order_number)
-  )
-  or (
-    nullif(btrim(p.portal_key), '') is not null
-    and nullif(btrim(o.portal_key), '') is not null
-    and btrim(p.portal_key) = btrim(o.portal_key)
-  )
-  or (
-    regexp_replace(coalesce(o.phone, ''), '[^0-9]', '', 'g') <> ''
-    and regexp_replace(coalesce(p.phone_number, ''), '[^0-9]', '', 'g') <> ''
-    and regexp_replace(coalesce(o.phone, ''), '[^0-9]', '', 'g') = regexp_replace(coalesce(p.phone_number, ''), '[^0-9]', '', 'g')
-  )
-  or (
-    regexp_replace(coalesce(o.extracted_phone, ''), '[^0-9]', '', 'g') <> ''
-    and regexp_replace(coalesce(p.phone_number, ''), '[^0-9]', '', 'g') <> ''
-    and regexp_replace(coalesce(o.extracted_phone, ''), '[^0-9]', '', 'g') = regexp_replace(coalesce(p.phone_number, ''), '[^0-9]', '', 'g')
-  )
-  or (
-    regexp_replace(coalesce(o.phone, ''), '[^0-9]', '', 'g') <> ''
-    and regexp_replace(coalesce(p.order_phone, ''), '[^0-9]', '', 'g') <> ''
-    and regexp_replace(coalesce(o.phone, ''), '[^0-9]', '', 'g') = regexp_replace(coalesce(p.order_phone, ''), '[^0-9]', '', 'g')
-  )
-  or (
-    regexp_replace(coalesce(o.extracted_phone, ''), '[^0-9]', '', 'g') <> ''
-    and regexp_replace(coalesce(p.order_phone, ''), '[^0-9]', '', 'g') <> ''
-    and regexp_replace(coalesce(o.extracted_phone, ''), '[^0-9]', '', 'g') = regexp_replace(coalesce(p.order_phone, ''), '[^0-9]', '', 'g')
-  )
-  order by
-    case
-      when nullif(btrim(p.upsert_key), '') is not null and btrim(p.upsert_key) = btrim(o.upsert_key) then 0
-      when nullif(btrim(p.order_number), '') is not null and btrim(p.order_number) = btrim(o.order_number) then 1
-      when nullif(btrim(p.portal_key), '') is not null and btrim(p.portal_key) = btrim(o.portal_key) then 2
-      else 3
-    end,
-    case when p.pickup_date is not null and o.order_time is not null
-      then abs(extract(epoch from p.pickup_date::timestamptz - o.order_time))
-      else null end nulls last,
-    o.order_time desc nulls last,
-    o.updated_at desc nulls last,
-    o.upsert_key
+  select parcel.*
+  from public.parcels parcel
+  where nullif(btrim(parcel.tracking_number), '') is not null
+    and (
+      (
+        regexp_replace(coalesce(bb.phone, ''), '[^0-9]', '', 'g') <> ''
+        and regexp_replace(coalesce(parcel.phone_number, ''), '[^0-9]', '', 'g') <> ''
+        and regexp_replace(coalesce(bb.phone, ''), '[^0-9]', '', 'g') = regexp_replace(coalesce(parcel.phone_number, ''), '[^0-9]', '', 'g')
+      )
+      or (
+        regexp_replace(coalesce(bb.extracted_phone, ''), '[^0-9]', '', 'g') <> ''
+        and regexp_replace(coalesce(parcel.phone_number, ''), '[^0-9]', '', 'g') <> ''
+        and regexp_replace(coalesce(bb.extracted_phone, ''), '[^0-9]', '', 'g') = regexp_replace(coalesce(parcel.phone_number, ''), '[^0-9]', '', 'g')
+      )
+      or (
+        regexp_replace(coalesce(bb.phone, ''), '[^0-9]', '', 'g') <> ''
+        and regexp_replace(coalesce(parcel.order_phone, ''), '[^0-9]', '', 'g') <> ''
+        and regexp_replace(coalesce(bb.phone, ''), '[^0-9]', '', 'g') = regexp_replace(coalesce(parcel.order_phone, ''), '[^0-9]', '', 'g')
+      )
+      or (
+        regexp_replace(coalesce(bb.extracted_phone, ''), '[^0-9]', '', 'g') <> ''
+        and regexp_replace(coalesce(parcel.order_phone, ''), '[^0-9]', '', 'g') <> ''
+        and regexp_replace(coalesce(bb.extracted_phone, ''), '[^0-9]', '', 'g') = regexp_replace(coalesce(parcel.order_phone, ''), '[^0-9]', '', 'g')
+      )
+    )
+    and (
+      parcel.pickup_date::date = bb.created_at::date
+      or parcel.pickup_date::date = (bb.created_at + interval '1 day')::date
+    )
+  order by parcel.pickup_date desc nulls last, parcel.id desc
   limit 1
-) ord on true
-where nullif(btrim(p.tracking_number), '') is not null
-  and (
-    nullif(btrim(p.phone_number), '') is not null
-    or nullif(btrim(p.order_phone), '') is not null
-  );
+) p on true
+order by bb.upsert_key, bb.created_at desc, p.pickup_date desc nulls last, p.id desc;
   
 
 -- 2. ROGUE · คิวพัสดุรอส่งเลข
