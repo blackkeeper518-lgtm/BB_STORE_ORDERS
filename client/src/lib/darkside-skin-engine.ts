@@ -136,7 +136,9 @@ export function injectSkin(skin: SkinConfig) {
   };
   Object.entries(vars).forEach(([key, value]) => root.style.setProperty(key, value));
   root.dataset.skin = skin.themeKey; root.dataset.skinMaterial = skin.material; root.dataset.skinFrame = skin.frame; root.dataset.skinMotion = skin.motion && skin.borderMotion !== "none" ? skin.borderMotion : "none"; root.dataset.skinContrast = colorLuminance(skin.bg) > .42 ? "light" : "dark";
-  document.body.style.backgroundColor = skin.bg; document.body.style.color = text;
+  // Keep the deep-space canvas visible behind room-specific graphics. Theme colours
+  // remain available through CSS variables and continue to style panels/cards.
+  document.body.style.removeProperty("background-color"); document.body.style.color = text;
 }
 
 class TacticalAudioEngine {

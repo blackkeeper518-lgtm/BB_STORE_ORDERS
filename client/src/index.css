@@ -2273,9 +2273,14 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 }
 
 /* CHAT ROOM RUNTIME PASS · visual shell only; message and channel logic remain untouched */
+.global-theme-runtime [data-slot="sidebar-inset"] {
+  background-color: transparent !important;
+  background-image: none !important;
+}
 .global-theme-runtime .chat-cosmos-shell {
-  background-color: var(--global-bg) !important;
-  background-image: radial-gradient(ellipse at 8% 8%, color-mix(in srgb, var(--global-primary) 18%, transparent), transparent 38%), radial-gradient(ellipse at 92% 10%, color-mix(in srgb, var(--global-accent) 15%, transparent), transparent 40%), linear-gradient(135deg, var(--global-bg), color-mix(in srgb, var(--global-surface) 55%, var(--global-bg))) !important;
+  /* Let the native cosmic stage/body show through; theme colours still style panels below. */
+  background-color: transparent !important;
+  background-image: none !important;
   color: var(--global-text) !important;
 }
 .global-theme-runtime .chat-cosmos-shell .neon-sign {
@@ -2335,7 +2340,7 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .global-theme-runtime .chat-cosmos-shell .chat-message-bubble--page .text-cyan-100 { color: var(--global-text) !important; }
 
 /* ST GLOBAL THEME PASS · remaining rooms share the ROOM 04 runtime without changing data logic */
-.global-theme-runtime .st-runtime-room { color: var(--global-text) !important; background-color: var(--global-bg) !important; background-image: var(--global-graphic), radial-gradient(ellipse at 8% 0%, color-mix(in srgb, var(--global-primary) 14%, transparent), transparent 34rem), radial-gradient(ellipse at 92% 8%, color-mix(in srgb, var(--global-accent) 12%, transparent), transparent 30rem) !important; font-family: var(--global-font-body), system-ui, sans-serif; }
+.global-theme-runtime .st-runtime-room { color: var(--global-text) !important; background-color: transparent !important; font-family: var(--global-font-body), system-ui, sans-serif; }
 .global-theme-runtime .order-history-runtime-room { background-color: transparent !important; background-image: none !important; }
 .global-theme-runtime .st-runtime-room h1,.global-theme-runtime .st-runtime-room h2,.global-theme-runtime .st-runtime-room h3,.global-theme-runtime .st-runtime-room strong { font-family: var(--global-font-heading), var(--global-font-body), system-ui, sans-serif; }
 .global-theme-runtime .st-runtime-room input,.global-theme-runtime .st-runtime-room textarea,.global-theme-runtime .st-runtime-room button,.global-theme-runtime .st-runtime-room select { font-family: var(--global-font-body), system-ui, sans-serif; }
