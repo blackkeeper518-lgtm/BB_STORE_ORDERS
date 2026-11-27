@@ -94,7 +94,31 @@ export function injectSkin(skin: SkinConfig) {
   const root = document.documentElement;
   const text = contrastText(skin.bg);
   const muted = colorLuminance(skin.bg) > .42 ? "#26313b" : skin.textSecondary;
-  const vars: Record<string, string> = { "--skin-bg": skin.bg, "--skin-surface": skin.surface, "--skin-surface-alt": skin.surfaceAlt, "--skin-primary": skin.primary, "--skin-accent": skin.accent, "--skin-text": text, "--skin-text-primary": skin.textPrimary || text, "--skin-text-secondary": muted, "--skin-border": skin.border, "--skin-radius": `${skin.radius}px`, "--skin-blur": `${skin.blur}px`, "--skin-glow": `${skin.glow}px`, "--skin-font-body": skin.fontBody, "--skin-font-heading": skin.fontHeading };
+  const radius = `${skin.radius}px`;
+  const glow = `${skin.glow}px`;
+  const graphic = skin.graphicUrl ? `url("${skin.graphicUrl.replace(/"/g, "\\\"")}")` : "none";
+  const vars: Record<string, string> = {
+    // Keep the existing preview variables for the gallery.
+    "--skin-bg": skin.bg, "--skin-surface": skin.surface, "--skin-surface-alt": skin.surfaceAlt,
+    "--skin-primary": skin.primary, "--skin-accent": skin.accent, "--skin-text": text,
+    "--skin-text-primary": skin.textPrimary || text, "--skin-text-secondary": muted, "--skin-border": skin.border,
+    "--skin-radius": radius, "--skin-blur": `${skin.blur}px`, "--skin-glow": glow,
+    "--skin-font-body": skin.fontBody, "--skin-font-heading": skin.fontHeading,
+    // Exactly the same source colors MobileInbox reads from app_themes.
+    "--mobile-bg": skin.bg, "--mobile-surface": skin.surface, "--mobile-primary": skin.primary,
+    "--mobile-accent": skin.accent, "--mobile-radius": radius, "--mobile-glow": glow,
+    // Variables used by the dashboard's global CSS layer.
+    "--global-bg": skin.bg, "--global-surface": skin.surface, "--global-primary": skin.primary,
+    "--global-accent": skin.accent, "--global-text": text, "--global-text-muted": muted,
+    "--global-border": skin.border, "--global-radius": radius, "--global-glow": glow, "--global-motion": skin.motion ? "1" : "0",
+    "--global-font-body": skin.fontBody, "--global-font-heading": skin.fontHeading, "--global-graphic": graphic,
+    // Older shadcn/Tailwind tokens also point to the same source of truth.
+    "--background": skin.bg, "--foreground": text, "--card": skin.surface, "--card-foreground": text,
+    "--primary": skin.primary, "--primary-foreground": contrastText(skin.primary), "--secondary": skin.surfaceAlt,
+    "--secondary-foreground": text, "--muted": skin.surfaceAlt, "--muted-foreground": muted,
+    "--accent": skin.accent, "--accent-foreground": contrastText(skin.accent), "--border": skin.border,
+    "--input": skin.border, "--ring": skin.primary, "--radius": radius,
+  };
   Object.entries(vars).forEach(([key, value]) => root.style.setProperty(key, value));
   root.dataset.skin = skin.themeKey; root.dataset.skinMaterial = skin.material; root.dataset.skinFrame = skin.frame; root.dataset.skinMotion = skin.motion && skin.borderMotion !== "none" ? skin.borderMotion : "none"; root.dataset.skinContrast = colorLuminance(skin.bg) > .42 ? "light" : "dark";
   document.body.style.backgroundColor = skin.bg; document.body.style.color = text;

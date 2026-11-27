@@ -16,9 +16,27 @@ function fallbackTheme(): GlobalTheme {
   const skin = normalizeSkinRow({ theme_key: "local-default", name: DEFAULT_CYBER_THEME.name, background_color: DEFAULT_CYBER_THEME.bg, surface_color: DEFAULT_CYBER_THEME.surface, primary_color: DEFAULT_CYBER_THEME.primary, accent_color: DEFAULT_CYBER_THEME.accent }, 0);
   return { ...DEFAULT_CYBER_THEME, ...skin, preset: 0 } as GlobalTheme;
 }
+function validHex(value: unknown): value is string {
+  return typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value);
+}
 function fromRow(row: SkinRow, index: number): GlobalTheme {
   const fallback = CYBER_THEME_PRESETS[index % CYBER_THEME_PRESETS.length] ?? DEFAULT_CYBER_THEME;
-  return { ...fallback, ...normalizeSkinRow(row, index), preset: index } as GlobalTheme;
+  const theme = {
+    version: Number(row.version) || 1,
+    preset: index,
+    name: String(row.name || row.theme_key || `Theme ${index + 1}`),
+    bg: String(row.background_color),
+    surface: String(row.surface_color),
+    primary: String(row.primary_color),
+    accent: String(row.accent_color),
+    border: (["gradient", "neon", "rail", "hud", "minimal"].includes(String(row.border_style)) ? String(row.border_style) : "gradient") as CyberTheme["border"],
+    button: (["solid", "outline", "gradient"].includes(String(row.button_style)) ? String(row.button_style) : "solid") as CyberTheme["button"],
+    radius: Number(row.radius) || 16,
+    glow: Number(row.glow) || 12,
+    motion: row.motion_enabled !== false,
+  } satisfies CyberTheme;
+  const skin = normalizeSkinRow({ ...row, theme_key: row.theme_key || `theme-${index + 1}`, background_color: theme.bg, surface_color: theme.surface, primary_color: theme.primary, accent_color: theme.accent, radius: theme.radius, glow: theme.glow, motion_enabled: theme.motion }, index);
+  return { ...fallback, ...theme, ...skin, preset: index } as GlobalTheme;
 }
 
 export function GlobalThemeRuntime({ children }: { children: React.ReactNode }) {
@@ -35,9 +53,9 @@ export function GlobalThemeRuntime({ children }: { children: React.ReactNode }) 
       if (!status.vault) { setConnected(false); return; }
       const api = getSupabase("vault");
       if (!api) { setConnected(false); return; }
-      const base = await api.from("app_themes").select("*").eq("is_enabled", true).order("sort_order", { ascending: true });
+      const base = await api.from("app_themes").select("theme_key,name,description,background_color,surface_color,primary_color,accent_color,border_style,button_style,radius,glow,motion_enabled,is_enabled,sort_order,version").eq("is_enabled", true).order("sort_order", { ascending: true });
       if (base.error) throw base.error;
-      const rows = (base.data ?? []) as SkinRow[];
+      const rows = ((base.data ?? []) as SkinRow[]).filter(row => [row.background_color, row.surface_color, row.primary_color, row.accent_color].every(validHex));
       const next = rows.length ? rows.map((row, index) => fromRow(row, index)) : [fallbackTheme()];
       setThemes(next); setConnected(true); setActiveKey(current => next.some(item => item.themeKey === current) ? current : next[0].themeKey);
       next.forEach(item => tacticalAudio.preload(item));
