@@ -5,6 +5,7 @@ export const THEME_LAB_ROOMS = [
   { key: "orders", label: "Order Control", path: "/orders" },
   { key: "chats", label: "รวมแชทเพจ", path: "/chats" },
   { key: "parcel-mapping", label: "แมปเลขพัสดุ", path: "/parcel-mapping" },
+  { key: "warp-drive", label: "WARP DRIVE · ROOM 04", path: "/warp-drive" },
   { key: "telegram-delivery", label: "PIONEER · คิวพัก", path: "/telegram-delivery" },
   { key: "alert-room", label: "PARADOX · ประวัติเปลี่ยนของ", path: "/alert-room" },
   { key: "blackbox", label: "BLACKBOX · DEATH NOTE", path: "/blackbox" },

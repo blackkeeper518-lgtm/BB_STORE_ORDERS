@@ -59,7 +59,7 @@ type ParcelMappingRow = {
 };
 
 const flashTrackingUrl = "https://www.flashexpress.co.th/fle/tracking";
-const warpDriveUrl = "https://warpdrivetracking.vercel.app/";
+const warpDriveUrl = "/warp-drive";
 const customerLookupUrl = "https://bbstorefullv-1.vercel.app/";
 const money = new Intl.NumberFormat("th-TH");
 const filters: QueueFilter[] = ["all", "ready", "over24", "over48", "sent"];
