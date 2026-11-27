@@ -32,6 +32,21 @@ join lateral (
     o.updated_at
   from public."🧿BB_xXx_ORDERCONTROL" o
   where (
+    nullif(btrim(p.upsert_key), '') is not null
+    and nullif(btrim(o.upsert_key), '') is not null
+    and btrim(p.upsert_key) = btrim(o.upsert_key)
+  )
+  or (
+    nullif(btrim(p.order_number), '') is not null
+    and nullif(btrim(o.order_number), '') is not null
+    and btrim(p.order_number) = btrim(o.order_number)
+  )
+  or (
+    nullif(btrim(p.portal_key), '') is not null
+    and nullif(btrim(o.portal_key), '') is not null
+    and btrim(p.portal_key) = btrim(o.portal_key)
+  )
+  or (
     regexp_replace(coalesce(o.phone, ''), '[^0-9]', '', 'g') <> ''
     and regexp_replace(coalesce(p.phone_number, ''), '[^0-9]', '', 'g') <> ''
     and regexp_replace(coalesce(o.phone, ''), '[^0-9]', '', 'g') = regexp_replace(coalesce(p.phone_number, ''), '[^0-9]', '', 'g')
@@ -51,7 +66,19 @@ join lateral (
     and regexp_replace(coalesce(p.order_phone, ''), '[^0-9]', '', 'g') <> ''
     and regexp_replace(coalesce(o.extracted_phone, ''), '[^0-9]', '', 'g') = regexp_replace(coalesce(p.order_phone, ''), '[^0-9]', '', 'g')
   )
-  order by o.order_time desc nulls last, o.updated_at desc nulls last, o.upsert_key
+  order by
+    case
+      when nullif(btrim(p.upsert_key), '') is not null and btrim(p.upsert_key) = btrim(o.upsert_key) then 0
+      when nullif(btrim(p.order_number), '') is not null and btrim(p.order_number) = btrim(o.order_number) then 1
+      when nullif(btrim(p.portal_key), '') is not null and btrim(p.portal_key) = btrim(o.portal_key) then 2
+      else 3
+    end,
+    case when p.pickup_date is not null and o.order_time is not null
+      then abs(extract(epoch from p.pickup_date::timestamptz - o.order_time))
+      else null end nulls last,
+    o.order_time desc nulls last,
+    o.updated_at desc nulls last,
+    o.upsert_key
   limit 1
 ) ord on true
 where nullif(btrim(p.tracking_number), '') is not null
@@ -251,7 +278,7 @@ select
   ord.sku,
   ord.manus_for_packer,
   ord.telegram_copy_text,
-  ord.carton_count,a
+  ord.carton_count,
   ord.created_at,
   ord.updated_at,
   ord.assigned_agent,
