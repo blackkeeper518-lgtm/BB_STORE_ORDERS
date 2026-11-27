@@ -7,6 +7,7 @@ import { assertChatPageEnabled, canStaffExecuteProjectQuery, canStaffUploadVault
 import { checkLineConnection, fetchLineConversations, fetchLineMessages, sendLineText } from "./line";
 import * as db from "./db";
 import { generateOrderSummary } from "./order-summary";
+import { lookupPublicParcelByPhone } from "./supabase";
 
 const ownerId = (ctx: { user: { id: number } | null }) => ctx.user?.id ?? 0;
 const kind = z.enum(["code", "sql", "workflow", "document", "config", "other"]);
@@ -150,6 +151,16 @@ export const appRouter = router({
   }),
 
   parcels: router({
+    publicLookup: publicProcedure.input(z.object({ phone: z.string().trim().min(1).max(24) })).mutation(async ({ input }) => {
+      const normalized = input.phone.replace(/\D/g, "");
+      if (!/^0\d{9}$/.test(normalized)) return { success: false, reason: "กรุณากรอกเบอร์โทรศัพท์ 10 หลัก" };
+      try {
+        return await lookupPublicParcelByPhone(normalized);
+      } catch (error) {
+        console.error("[parcel lookup] public RPC failed:", error instanceof Error ? error.message : "unknown error");
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "ระบบค้นหาพัสดุขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง" });
+      }
+    }),
     mappingQueue: adminProcedure.input(z.object({ status: z.enum(["all", "ready", "over24", "over48", "sent"]).default("all"), limit: z.number().int().min(1).max(500).default(300) })).query(({ input }) => fetchParcelMappingQueue({ status: input.status === "sent" ? "sent" : "all", limit: input.limit })),
     purgeExpired: adminProcedure.input(z.object({ confirmation: z.literal("DELETE_PARCELS_OLDER_THAN_3_DAYS") })).mutation(() => purgeOldParcels()),
     sendTracking: adminProcedure.input(z.object({
