@@ -50,7 +50,16 @@ export function normalizeSkinRow(row: SkinRow, index = 0, related?: { frame?: Sk
   const colors = { ...asRecord(config.colors), ...asRecord(row.colors) };
   const frame = { ...asRecord(config.frame), ...asRecord(row.frame), ...asRecord(related?.frame?.config) };
   const audio = { ...asRecord(config.audio), ...asRecord(row.audio), ...asRecord(related?.sound?.config) };
-  const value = (...parts: (string | Record<string, unknown>)[]) => { const key = parts.find(part => typeof part === "string") as string | undefined; return parts.filter((part): part is Record<string, unknown> => typeof part === "object").map(source => key ? source[key] : undefined).find(item => item !== undefined); };
+  const value = (...parts: (string | Record<string, unknown>)[]) => {
+    const keys = parts.filter((part): part is string => typeof part === "string");
+    const sources = parts.filter((part): part is Record<string, unknown> => typeof part === "object");
+    for (const source of sources) {
+      for (const key of keys) {
+        if (source[key] !== undefined) return source[key];
+      }
+    }
+    return undefined;
+  };
   const fallbackKey = `theme-${String(index + 1).padStart(3, "0")}`;
   return {
     themeKey: str(value("theme_key", legacy, config), fallbackKey), name: str(value("name", legacy, config), `DARKSIDE ${index + 1}`),
