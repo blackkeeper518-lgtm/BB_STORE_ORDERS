@@ -291,6 +291,22 @@ export async function lookupParcelByPhone(phone: string) {
   if (!response.ok) throw new Error(`get_parcel_by_phone_v2 HTTP ${response.status}: ${text.slice(0, 300)}`);
   try { return JSON.parse(text) as unknown; } catch { throw new Error("Parcel RPC returned invalid JSON"); }
 }
+export async function lookupPublicParcelByPhone(phone: string) {
+  const raw = await lookupParcelByPhone(phone);
+  if (!raw || typeof raw !== "object") return { success: false, reason: "ไม่พบข้อมูลพัสดุ" };
+  const result = raw as Record<string, unknown>;
+  if (result.success !== true) {
+    return { success: false, reason: typeof result.reason === "string" ? result.reason.slice(0, 160) : "ไม่พบข้อมูลพัสดุ" };
+  }
+  const records = Array.isArray(result.data) ? result.data.slice(0, 50) : [];
+  const data = records.filter((row): row is Record<string, unknown> => Boolean(row) && typeof row === "object").map(row => ({
+    pickup_date: typeof row.pickup_date === "string" ? row.pickup_date.slice(0, 80) : null,
+    tracking_number: typeof row.tracking_number === "string" ? row.tracking_number.slice(0, 120) : null,
+    consignee: typeof row.consignee === "string" ? row.consignee.slice(0, 160) : null,
+    cod_amount: typeof row.cod_amount === "number" || typeof row.cod_amount === "string" ? row.cod_amount : null,
+  }));
+  return data.length ? { success: true, data } : { success: false, reason: "ไม่พบข้อมูลพัสดุ" };
+}
 export function getChatSupabaseConfig(credentials?: ChatSupabaseCredentials) {
   return config("chat");
 }

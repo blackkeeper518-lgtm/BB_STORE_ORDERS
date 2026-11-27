@@ -63,6 +63,26 @@ export const CYBER_FRAME_OPTIONS = [
   { id: "f60", name: 'Dream Finale', description: 'กรอบฟุ้งฟิ้งรุ่นปิดท้าย แสงหมุนหลายชั้น', number: 60 },
 ] as const;
 
+/**
+ * Production chat frames. These are intentionally separate from the legacy
+ * f01-f60 showroom frames: each V2 frame animates only its own bubble edge.
+ */
+export const CYBER_FRAME_V2_OPTIONS = [
+  { id: "frame-v2-aurora", name: "Aurora Edge", description: "แสงเหนือไหลรอบขอบแบบนุ่ม อ่านข้อความได้ชัด", number: 101 },
+  { id: "frame-v2-scan", name: "Signal Scan", description: "แถบสแกนวิ่งบนขอบด้านบน เหมาะกับห้องที่ต้องการสถานะสด", number: 102 },
+  { id: "frame-v2-orbit", name: "Orbit Line", description: "จุดแสงเดินรอบขอบโดยไม่หมุนตัวข้อความ", number: 103 },
+  { id: "frame-v2-pulse", name: "Pulse Halo", description: "ขอบหายใจเบา ๆ ไม่กะพริบจนรบกวนการอ่าน", number: 104 },
+  { id: "frame-v2-hud", name: "Clean HUD", description: "มุมตัดแบบ HUD พร้อมเส้นสถานะสองจุด", number: 105 },
+] as const;
+
+export type CyberFrameV2Option = (typeof CYBER_FRAME_V2_OPTIONS)[number];
+export const DEFAULT_CYBER_FRAME = CYBER_FRAME_V2_OPTIONS[0].id;
+
+export function normalizeCyberFrameId(value: unknown): string {
+  const id = String(value ?? "").trim().toLowerCase();
+  return CYBER_FRAME_V2_OPTIONS.some(option => option.id === id) ? id : DEFAULT_CYBER_FRAME;
+}
+
 export type CyberFrameOption = (typeof CYBER_FRAME_OPTIONS)[number];
 export const CYBER_FRAME_SELECTION_KEY = "nightops-cyber-frame-selection-v1";
 export const CYBER_FRAME_EVENT = "nightops-cyber-frame-change";
