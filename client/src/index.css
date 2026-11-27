@@ -2556,6 +2556,7 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .room-list-card .chat-customer-list-label { color: #f7f1ff; letter-spacing: .01em; }
 .room-list-card .room-card-page { display: inline-flex; max-width: 42%; align-items: center; gap: 4px; border: 1px solid rgba(72,240,255,.18); border-radius: 999px; background: rgba(72,240,255,.06); padding: 2px 7px; color: rgba(196,248,255,.78); font-size: 9px; }
 .room-list-card .room-card-preview { color: rgba(216,228,244,.58); }
+.room-list-card .room-card-page-trigger { cursor: pointer; font: inherit; line-height: 1.25; text-align: left; }
 .room-list-card .room-card-signal { border: 1px solid rgba(255,75,186,.2); border-radius: 999px; background: rgba(255,75,186,.08); padding: 2px 6px; color: rgba(255,201,235,.82); font-size: 9px; }
 .room-list-card .room-card-signal--order { border-color: rgba(97,255,180,.28); background: rgba(97,255,180,.08); color: #caffdf; }
 .room-list-card .room-card-meta { min-width: 0; align-items: center; }
