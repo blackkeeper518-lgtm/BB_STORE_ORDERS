@@ -138,7 +138,7 @@ export function injectSkin(skin: SkinConfig) {
   root.dataset.skin = skin.themeKey; root.dataset.skinMaterial = skin.material; root.dataset.skinFrame = skin.frame; root.dataset.skinMotion = skin.motion && skin.borderMotion !== "none" ? skin.borderMotion : "none"; root.dataset.skinContrast = colorLuminance(skin.bg) > .42 ? "light" : "dark";
   // Keep the deep-space canvas visible behind room-specific graphics. Theme colours
   // remain available through CSS variables and continue to style panels/cards.
-  document.body.style.removeProperty("background-color"); document.body.style.color = text;
+  document.body.style.removeProperty("background-color"); document.body.style.removeProperty("color");
 }
 
 class TacticalAudioEngine {
