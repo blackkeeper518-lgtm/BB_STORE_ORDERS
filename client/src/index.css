@@ -2971,3 +2971,23 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .global-theme-runtime .order-control-room .text-slate-300,
 .global-theme-runtime .order-control-room .text-slate-400,
 .global-theme-runtime .order-control-room .text-slate-500 { color: var(--global-text-secondary) !important; }
+
+/* Order Control labels must follow the active theme, not the legacy violet palette. */
+.global-theme-runtime .order-control-room .text-violet-100,
+.global-theme-runtime .order-control-room .text-violet-200\/60,
+.global-theme-runtime .order-control-room .text-violet-200\/70,
+.global-theme-runtime .order-control-room .text-violet-200\/75 {
+  color: color-mix(in srgb, var(--global-primary) 78%, var(--global-text-primary) 22%) !important;
+}
+.global-theme-runtime .order-control-room .border-violet-300\/10,
+.global-theme-runtime .order-control-room .border-violet-300\/15,
+.global-theme-runtime .order-control-room .border-violet-300\/20,
+.global-theme-runtime .order-control-room .border-violet-300\/25 {
+  border-color: color-mix(in srgb, var(--global-primary) 30%, transparent) !important;
+}
+.global-theme-runtime .order-control-room .bg-violet-400\/\[\.025\],
+.global-theme-runtime .order-control-room .bg-violet-400\/\[\.035\],
+.global-theme-runtime .order-control-room .bg-violet-400\/5,
+.global-theme-runtime .order-control-room .bg-violet-500\/\[\.04\] {
+  background-color: color-mix(in srgb, var(--global-primary) 7%, transparent) !important;
+}
