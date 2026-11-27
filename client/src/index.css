@@ -2935,3 +2935,39 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .global-theme-runtime [data-room-key="chats"],
 .global-theme-runtime [data-room-key="mobile-inbox"] { --room-primary: #48f0ff; --room-hot: #d45cff; --room-accent: #b8f3ff; }
 .global-theme-runtime [data-room-key="order-history"] { --room-primary: #d7dde8; --room-hot: #64748b; --room-accent: #ffc857; }
+.global-theme-runtime .order-control-room {
+  background-color: var(--global-bg) !important;
+  background-image: var(--global-graphic),
+    radial-gradient(circle at 90% 0%, color-mix(in srgb, var(--global-accent) 21%, transparent), transparent 38%),
+    radial-gradient(circle at 0% 100%, color-mix(in srgb, var(--global-primary) 21%, transparent), transparent 45%) !important;
+  background-size: cover, auto, auto;
+  background-blend-mode: screen, normal, normal;
+}
+.global-theme-runtime .order-control-room .blackbox-hero,
+.global-theme-runtime .order-control-room .order-list-panel,
+.global-theme-runtime .order-control-room .order-detail-card { border-radius: calc(var(--global-radius) + 8px) !important; }
+.global-theme-runtime .order-control-room .order-list-card,
+.global-theme-runtime .order-control-room .order-parcel-result,
+.global-theme-runtime .order-control-room .order-chat-match,
+.global-theme-runtime .order-control-room .order-summary-well,
+.global-theme-runtime .order-control-room .order-original-well {
+  border-radius: var(--global-radius) !important;
+  border-color: color-mix(in srgb, var(--global-primary) 40%, transparent) !important;
+}
+.global-theme-runtime .order-control-room .order-list-card {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--global-surface) 94%, #000), color-mix(in srgb, var(--global-bg) 88%, var(--global-primary))) !important;
+}
+.global-theme-runtime .order-control-room .order-list-card-selected,
+.global-theme-runtime .order-control-room .order-list-card:hover {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--global-primary) 38%, var(--global-surface)), color-mix(in srgb, var(--global-accent) 26%, var(--global-surface))) !important;
+  border-color: color-mix(in srgb, var(--global-primary) 68%, transparent) !important;
+}
+.global-theme-runtime .order-control-room .order-detail-card,
+.global-theme-runtime .order-control-room .order-list-panel {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--global-surface) 96%, #000), color-mix(in srgb, var(--global-bg) 94%, var(--global-accent))) !important;
+}
+.global-theme-runtime .order-control-room .order-detail-card pre,
+.global-theme-runtime .order-control-room .order-original-well pre { color: var(--global-text-primary) !important; }
+.global-theme-runtime .order-control-room .text-slate-300,
+.global-theme-runtime .order-control-room .text-slate-400,
+.global-theme-runtime .order-control-room .text-slate-500 { color: var(--global-text-secondary) !important; }

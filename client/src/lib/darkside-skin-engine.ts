@@ -20,6 +20,8 @@ export type SkinConfig = {
   textPrimary: string;
   textSecondary: string;
   border: string;
+  borderStyle: "gradient" | "neon" | "rail" | "hud" | "minimal";
+  buttonStyle: "solid" | "outline" | "gradient";
   radius: number;
   blur: number;
   glow: number;
@@ -75,6 +77,8 @@ export function normalizeSkinRow(row: SkinRow, index = 0, related?: { frame?: Sk
     textPrimary: str(value("text_primary", "textPrimary", "text_primary_color", colors, legacy, config), fallbackColors.textPrimary),
     textSecondary: str(value("text_secondary", "textSecondary", "text_secondary_color", colors, legacy, config), fallbackColors.textSecondary),
     border: str(value("border", "border_color", "border_style_color", colors, legacy, config), fallbackColors.border),
+    borderStyle: ["gradient", "neon", "rail", "hud", "minimal"].includes(String(value("border_style", legacy, config))) ? String(value("border_style", legacy, config)) as SkinConfig["borderStyle"] : "gradient",
+    buttonStyle: ["solid", "outline", "gradient"].includes(String(value("button_style", legacy, config))) ? String(value("button_style", legacy, config)) as SkinConfig["buttonStyle"] : "solid",
     radius: num(value("radius", "border_radius", legacy, frame, config), 16), blur: num(value("blur", "backdrop_blur", legacy, frame, config), 16), glow: num(value("glow", "glow_strength", legacy, frame, config), 18),
     motion: bool(value("motion_enabled", "motion", legacy, config), true), fontBody: str(value("font_body", legacy, config), "Space Grotesk"), fontHeading: str(value("font_heading", legacy, config), "IBM Plex Mono"),
     graphicUrl: str(value("graphic_url", "background_url", legacy, config), ""),
@@ -118,8 +122,10 @@ export function injectSkin(skin: SkinConfig) {
     "--mobile-accent": skin.accent, "--mobile-radius": radius, "--mobile-glow": glow,
     // Variables used by the dashboard's global CSS layer.
     "--global-bg": skin.bg, "--global-surface": skin.surface, "--global-primary": skin.primary,
-    "--global-accent": skin.accent, "--global-text": text, "--global-text-muted": muted,
-    "--global-border": skin.border, "--global-radius": radius, "--global-glow": glow, "--global-motion": skin.motion ? "1" : "0",
+    "--global-accent": skin.accent, "--global-text": text, "--global-text-primary": skin.textPrimary || text, "--global-text-muted": muted,
+    "--global-text-secondary": skin.textSecondary || muted, "--global-border": skin.border, "--global-radius": radius,
+    "--global-glow": glow, "--global-motion": skin.motion ? "1" : "0", "--global-border-style": skin.borderStyle,
+    "--global-button-style": skin.buttonStyle,
     "--global-font-body": skin.fontBody, "--global-font-heading": skin.fontHeading, "--global-graphic": graphic,
     // Older shadcn/Tailwind tokens also point to the same source of truth.
     "--background": skin.bg, "--foreground": text, "--card": skin.surface, "--card-foreground": text,
