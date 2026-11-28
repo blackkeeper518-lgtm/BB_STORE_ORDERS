@@ -1824,3 +1824,9 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 @keyframes mobile-product-dock-in { from { opacity:0; transform:translateY(12px) scale(.98); } to { opacity:1; transform:translateY(0) scale(1); } }
 @keyframes mobile-product-dock-twinkle { 0%,100% { opacity:.28; transform:scale(.72) rotate(0deg); } 48% { opacity:1; transform:scale(1.18) rotate(36deg); } }
 @keyframes mobile-product-dock-glow { 0%,100% { box-shadow:0 0 0 1px rgba(255,255,255,.28),0 0 10px rgba(255,255,255,.55),0 0 19px rgba(174,207,255,.38),0 0 27px rgba(222,176,255,.22),0 6px 18px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.98),inset 0 -1px 0 rgba(156,173,211,.22); } 50% { box-shadow:0 0 0 1px rgba(255,255,255,.42),0 0 16px rgba(255,255,255,.82),0 0 28px rgba(174,207,255,.58),0 0 38px rgba(222,176,255,.38),0 7px 20px rgba(0,0,0,.3),inset 0 1px 0 #fff,inset 0 -1px 0 rgba(156,173,211,.24); } }
+
+
+/* Mobile room action restored from c6ba2b9: open the same conversation in Meta. */
+.mobile-inbox-meta-link-button { display:inline-flex; min-width:42px; min-height:34px; height:34px; align-items:center; justify-content:center; gap:4px; flex:none; border:1px solid color-mix(in srgb,var(--mobile-primary,#1d869a) 44%,transparent); border-radius:10px; padding:0 7px; background:color-mix(in srgb,var(--mobile-primary,#1d869a) 12%,transparent); color:var(--mobile-primary,#1d869a); font-size:10px; font-weight:700; text-decoration:none; }
+.mobile-inbox-meta-link-button:hover { background:color-mix(in srgb,var(--mobile-accent,#168ba0) 18%,transparent); color:#fff; }
+.mobile-inbox-meta-link-button svg { width:15px; height:15px; }

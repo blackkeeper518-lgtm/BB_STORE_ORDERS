@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { extractChatImageUrls, getActiveCamp, getSupabase, mapChatRowsToMessages, mapChatRowsToThreads, readCanonicalOrders, reconcileOptimisticMessages } from "@/lib/canonical";
-import { uploadChatImageToVault } from "@/lib/chat-image-upload";
+import { normalizeChatImageForMeta, uploadChatImageToVault } from "@/lib/chat-image-upload";
 import { getLatestBBChatCustomerMessage, getSelectedOrderMessageText, isImportableLatestCustomerMessage } from "@/lib/order-deck-context";
 import { applySharedDeckHighlights, selectFeaturedDeckImageProducts } from "@/lib/order-deck-product-index";
 import { useChatProductHighlights } from "@/hooks/useChatProductHighlights";
@@ -445,7 +445,8 @@ export default function MobileInbox() {
     try {
       for (const file of files) {
         const extension = file.type.split("/")[1] || "png";
-        const normalizedFile = file.name ? file : new File([file], `pasted-image-${Date.now()}-${uploaded.length + 1}.${extension}`, { type: file.type });
+        const namedFile = file.name ? file : new File([file], `pasted-image-${Date.now()}-${uploaded.length + 1}.${extension}`, { type: file.type });
+        const normalizedFile = await normalizeChatImageForMeta(namedFile);
         if (!["image/jpeg", "image/png", "image/gif", "image/webp"].includes(normalizedFile.type) || normalizedFile.size > 6_000_000) continue;
         const result = await uploadChatImageToVault(vault, normalizedFile);
         uploaded.push({ url: result.url, sendUrl: result.url, name: normalizedFile.name });
