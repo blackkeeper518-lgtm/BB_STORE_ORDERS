@@ -1961,34 +1961,7 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 @media (hover:hover) { .mobile-inbox-stock-panel .mobile-stock-card:hover { transform: translateY(-1px); box-shadow: 0 0 14px color-mix(in srgb,var(--mobile-primary) 35%,transparent), 0 0 28px color-mix(in srgb,var(--mobile-primary) 18%,transparent), 0 0 12px color-mix(in srgb,var(--mobile-primary) 8%,transparent) inset; } }
 @media (prefers-reduced-motion: reduce) { .mobile-inbox-stock-panel .mobile-stock-status.is-in, .mobile-inbox-stock-panel, .mobile-inbox-stock-panel .mobile-stock-card { animation: none; transition: none; } }
 
-/* Global Theme Runtime · shared by ST and BB through ROOM 04 app_themes */
-.global-theme-runtime {
-  --global-shadow: 0 0 var(--global-glow) color-mix(in srgb, var(--global-primary) 24%, transparent);
-  min-height: 100%;
-  color: inherit;
-  font-family: inherit;
-  background: transparent;
-}
-.global-theme-runtime .singto-cyber-edge { min-height: 100%; background: transparent !important; color: inherit; }
-.global-theme-runtime [data-slot="sidebar-inner"],
-.global-theme-runtime [data-slot="sidebar-container"] { background-color: color-mix(in srgb, var(--global-surface) 92%, #000 8%) !important; color: var(--global-text) !important; border-color: color-mix(in srgb, var(--global-primary) 28%, transparent) !important; }
-.global-theme-runtime [data-slot="sidebar-inset"] { background: color-mix(in srgb, var(--global-bg) 88%, transparent) !important; }
-.global-theme-runtime .global-theme-picker { display: inline-flex; align-items: center; gap: .4rem; min-height: 2rem; padding: .25rem .5rem; border: 1px solid color-mix(in srgb, var(--global-primary) 35%, transparent); border-radius: var(--global-radius); background: color-mix(in srgb, var(--global-surface) 78%, transparent); color: var(--global-text-muted); font: 600 9px var(--global-font-heading), system-ui, sans-serif; letter-spacing: .08em; box-shadow: var(--global-shadow); }
-.global-theme-runtime .global-theme-picker select { max-width: 9rem; border: 0; outline: 0; background: transparent; color: var(--global-text); font: 600 10px var(--global-font-body), system-ui, sans-serif; }
-.global-theme-runtime .global-theme-picker option { background: var(--global-surface); color: var(--global-text); }
-.global-theme-runtime .global-theme-picker small { color: var(--global-accent); font-size: 8px; }
-@media (max-width: 767px) { .global-theme-runtime .global-theme-picker { max-width: 46vw; } .global-theme-runtime .global-theme-picker span, .global-theme-runtime .global-theme-picker small { display: none; } .global-theme-runtime .global-theme-picker select { max-width: 7rem; } }
-
-/* Global Theme Runtime · shared by ST and BB through ROOM 04 app_themes */
-.global-theme-runtime { --global-shadow: 0 0 var(--global-glow) color-mix(in srgb, var(--global-primary) 24%, transparent); min-height: 100%; color: inherit; font-family: inherit; background: transparent; }
-.global-theme-runtime .singto-cyber-edge { min-height: 100%; background: transparent !important; color: inherit; }
-.global-theme-runtime [data-slot="sidebar-inner"], .global-theme-runtime [data-slot="sidebar-container"] { background-color: color-mix(in srgb, var(--global-surface) 92%, #000 8%) !important; color: var(--global-text) !important; border-color: color-mix(in srgb, var(--global-primary) 28%, transparent) !important; }
-.global-theme-runtime [data-slot="sidebar-inset"] { background: color-mix(in srgb, var(--global-bg) 88%, transparent) !important; }
-.global-theme-runtime .global-theme-picker { display: inline-flex; align-items: center; gap: .4rem; min-height: 2rem; padding: .25rem .5rem; border: 1px solid color-mix(in srgb, var(--global-primary) 35%, transparent); border-radius: var(--global-radius); background: color-mix(in srgb, var(--global-surface) 78%, transparent); color: var(--global-text-muted); font: 600 9px var(--global-font-heading), system-ui, sans-serif; letter-spacing: .08em; box-shadow: var(--global-shadow); }
-.global-theme-runtime .global-theme-picker select { max-width: 9rem; border: 0; outline: 0; background: transparent; color: var(--global-text); font: 600 10px var(--global-font-body), system-ui, sans-serif; }
-.global-theme-runtime .global-theme-picker option { background: var(--global-surface); color: var(--global-text); }
-.global-theme-runtime .global-theme-picker small { color: var(--global-accent); font-size: 8px; }
-@media (max-width: 767px) { .global-theme-runtime .global-theme-picker { max-width: 46vw; } .global-theme-runtime .global-theme-picker span, .global-theme-runtime .global-theme-picker small { display: none; } .global-theme-runtime .global-theme-picker select { max-width: 7rem; } }
+/* Central Visual System owns the desktop shell from this checkpoint. */
 
 /* Theme Runtime priority layer: the legacy Order Control skin uses !important. */
 .global-theme-runtime .order-control-room,
@@ -2261,11 +2234,7 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
   opacity: .8;
 }
 
-/* CHAT ROOM RUNTIME PASS · visual shell only; message and channel logic remain untouched */
-.global-theme-runtime [data-slot="sidebar-inset"] {
-  background-color: transparent !important;
-  background-image: none !important;
-}
+/* CHAT ROOM RUNTIME PASS · room-specific rules continue below. */
 .global-theme-runtime .chat-cosmos-shell {
   /* Let the native cosmic stage/body show through; theme colours still style panels below. */
   background-color: transparent !important;

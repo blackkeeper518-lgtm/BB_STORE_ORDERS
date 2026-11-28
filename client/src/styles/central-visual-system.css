@@ -221,3 +221,82 @@
 :where([data-visual-scope="mobile-inbox"]) .central-visual-button {
   all: revert;
 }
+
+@layer central-visual.structure {
+  :where([data-visual-scope="desktop-app"] .central-visual-shell) {
+    min-height: 100%;
+    isolation: isolate;
+    background: var(--app-canvas);
+    color: var(--text-primary);
+  }
+
+  :where([data-visual-scope="desktop-app"] .central-visual-sidebar) {
+    background: var(--room-surface-muted) !important;
+    border-right: var(--frame-width) var(--frame-style) color-mix(in srgb, var(--frame-color) 38%, transparent) !important;
+    color: var(--text-primary) !important;
+  }
+
+  :where([data-visual-scope="desktop-app"] .central-visual-sidebar [data-slot="sidebar-inner"],
+    [data-visual-scope="desktop-app"] .central-visual-sidebar [data-slot="sidebar-container"]) {
+    background: var(--room-surface-muted) !important;
+    color: var(--text-primary) !important;
+  }
+
+  :where([data-visual-scope="desktop-app"] .central-visual-sidebar-header) {
+    border-bottom: var(--frame-width) var(--frame-style) color-mix(in srgb, var(--frame-color) 24%, transparent) !important;
+  }
+
+  :where([data-visual-scope="desktop-app"] .central-visual-sidebar-menu) {
+    color: var(--text-secondary);
+  }
+
+  :where([data-visual-scope="desktop-app"] .central-visual-sidebar-footer) {
+    border-top: var(--frame-width) var(--frame-style) color-mix(in srgb, var(--frame-color) 24%, transparent) !important;
+  }
+
+  :where([data-visual-scope="desktop-app"] .central-visual-inset) {
+    background: transparent !important;
+    color: var(--text-primary) !important;
+  }
+
+  :where([data-visual-scope="desktop-app"] .central-visual-utility-strip) {
+    border: var(--frame-width) var(--frame-style) var(--panel-border) !important;
+    background: var(--panel-surface) !important;
+    color: var(--text-secondary) !important;
+    box-shadow: var(--card-shadow);
+    padding: var(--space-2) var(--space-3) !important;
+    backdrop-filter: blur(var(--card-blur));
+  }
+
+  :where([data-visual-scope="desktop-app"] .global-theme-picker) {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: var(--control-height-sm);
+    padding: 0 var(--space-2);
+    border: 1px solid var(--control-border);
+    border-radius: var(--control-radius);
+    background: var(--control-surface);
+    color: var(--text-secondary);
+    font: 600 9px var(--font-mono);
+  }
+
+  :where([data-visual-scope="desktop-app"] .global-theme-picker select) {
+    max-width: 9rem;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--text-primary);
+    font: 600 10px var(--font-body);
+  }
+
+  :where([data-visual-scope="desktop-app"] .global-theme-picker option) {
+    background: var(--dark-base-2);
+    color: var(--text-primary);
+  }
+
+  :where([data-visual-scope="desktop-app"] .global-theme-picker small) {
+    color: var(--accent-secondary);
+    font-size: 8px;
+  }
+}
