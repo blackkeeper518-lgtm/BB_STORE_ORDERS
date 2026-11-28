@@ -3104,3 +3104,52 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
   background: color-mix(in srgb, var(--global-primary) 18%, var(--global-surface)) !important;
   border-color: color-mix(in srgb, var(--global-accent) 72%, transparent) !important;
 }
+/* WARP DRIVE SPACE CANVAS · quiet dark field with moving stars and a shooting star. */
+.global-theme-runtime .warp-drive-room {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background-color: color-mix(in srgb, var(--global-bg) 94%, #000) !important;
+  background-image:
+    radial-gradient(ellipse at 50% -18%, color-mix(in srgb, var(--global-accent) 9%, transparent), transparent 42%),
+    radial-gradient(ellipse at 86% 112%, color-mix(in srgb, var(--global-primary) 8%, transparent), transparent 46%) !important;
+}
+.global-theme-runtime .warp-drive-room > main { position: relative; z-index: 1; }
+.global-theme-runtime .warp-drive-room::before {
+  content: "";
+  display: block !important;
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  pointer-events: none;
+  opacity: .42;
+  background-image:
+    radial-gradient(circle at 8% 18%, color-mix(in srgb, var(--global-text) 78%, transparent) 0 1px, transparent 1.6px),
+    radial-gradient(circle at 31% 42%, color-mix(in srgb, var(--global-accent) 72%, transparent) 0 1px, transparent 1.7px),
+    radial-gradient(circle at 72% 24%, color-mix(in srgb, var(--global-primary) 64%, transparent) 0 1px, transparent 1.7px),
+    radial-gradient(circle at 86% 76%, color-mix(in srgb, var(--global-text) 58%, transparent) 0 1px, transparent 1.5px);
+  background-size: 173px 151px, 257px 219px, 311px 283px, 197px 241px;
+  animation: warp-space-drift 55s linear infinite;
+}
+.global-theme-runtime .warp-drive-room::after {
+  content: "";
+  display: block !important;
+  position: absolute;
+  z-index: 0;
+  top: 17%;
+  right: -22%;
+  width: 300px;
+  height: 2px;
+  pointer-events: none;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--global-text) 80%, transparent), var(--global-accent), transparent);
+  box-shadow: 0 0 5px color-mix(in srgb, var(--global-accent) 75%, transparent), 0 0 16px color-mix(in srgb, var(--global-primary) 44%, transparent);
+  transform: rotate(-24deg);
+  animation: warp-shooting-star 8s ease-in-out infinite;
+}
+@keyframes warp-space-drift { from { background-position: 0 0, 0 0, 0 0, 0 0; } to { background-position: -173px 151px, 257px -219px, -311px 283px, 197px -241px; } }
+@keyframes warp-shooting-star { 0%, 52% { opacity: 0; transform: translate3d(110px, -30px, 0) rotate(-24deg); } 60% { opacity: 1; } 78%, 100% { opacity: 0; transform: translate3d(-720px, 430px, 0) rotate(-24deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .global-theme-runtime .warp-drive-room::before,
+  .global-theme-runtime .warp-drive-room::after { animation: none; }
+}
