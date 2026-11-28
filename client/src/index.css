@@ -3109,10 +3109,11 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  background-color: color-mix(in srgb, var(--global-bg) 94%, #000) !important;
+  /* Canvas is intentionally independent from app_themes surface/background tokens. */
+  background-color: #050814 !important;
   background-image:
-    radial-gradient(ellipse at 50% -18%, color-mix(in srgb, var(--global-accent) 9%, transparent), transparent 42%),
-    radial-gradient(ellipse at 86% 112%, color-mix(in srgb, var(--global-primary) 8%, transparent), transparent 46%) !important;
+    radial-gradient(ellipse at 50% -18%, rgba(77, 126, 255, .07), transparent 42%),
+    radial-gradient(ellipse at 86% 112%, rgba(183, 92, 255, .06), transparent 46%) !important;
 }
 .global-theme-runtime .warp-drive-room > main { position: relative; z-index: 1; }
 .global-theme-runtime .warp-drive-room::before {
@@ -3124,10 +3125,10 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
   pointer-events: none;
   opacity: .42;
   background-image:
-    radial-gradient(circle at 8% 18%, color-mix(in srgb, var(--global-text) 78%, transparent) 0 1px, transparent 1.6px),
-    radial-gradient(circle at 31% 42%, color-mix(in srgb, var(--global-accent) 72%, transparent) 0 1px, transparent 1.7px),
-    radial-gradient(circle at 72% 24%, color-mix(in srgb, var(--global-primary) 64%, transparent) 0 1px, transparent 1.7px),
-    radial-gradient(circle at 86% 76%, color-mix(in srgb, var(--global-text) 58%, transparent) 0 1px, transparent 1.5px);
+    radial-gradient(circle at 8% 18%, rgba(255, 255, 255, .72) 0 1px, transparent 1.6px),
+    radial-gradient(circle at 31% 42%, rgba(114, 224, 255, .62) 0 1px, transparent 1.7px),
+    radial-gradient(circle at 72% 24%, rgba(202, 153, 255, .58) 0 1px, transparent 1.7px),
+    radial-gradient(circle at 86% 76%, rgba(255, 255, 255, .52) 0 1px, transparent 1.5px);
   background-size: 173px 151px, 257px 219px, 311px 283px, 197px 241px;
   animation: warp-space-drift 55s linear infinite;
 }
@@ -3142,8 +3143,8 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
   height: 2px;
   pointer-events: none;
   border-radius: 999px;
-  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--global-text) 80%, transparent), var(--global-accent), transparent);
-  box-shadow: 0 0 5px color-mix(in srgb, var(--global-accent) 75%, transparent), 0 0 16px color-mix(in srgb, var(--global-primary) 44%, transparent);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .78), #8de9ff, rgba(207, 138, 255, .72), transparent);
+  box-shadow: 0 0 5px rgba(141, 233, 255, .75), 0 0 16px rgba(207, 138, 255, .38);
   transform: rotate(-24deg);
   animation: warp-shooting-star 8s ease-in-out infinite;
 }
