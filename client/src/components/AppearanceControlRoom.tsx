@@ -18,6 +18,7 @@ import {
   resetGlobalAppearance,
   resetRoomAppearance,
   saveDraftAppearance,
+  persistCanonicalAppearanceSettings,
   syncAppliedAppearances,
   syncBackgroundCatalog,
   appearanceRoomFromPath,
@@ -26,6 +27,7 @@ import {
   type AtmosphereKey,
   type CardStyleKey,
 } from "@/lib/appearance-runtime";
+import { centralVisualProfileFromAppearance, resolveDesktopVisualStyle } from "@/lib/central-visual-adapter";
 import { THEME_LAB_ROOMS, type ThemeLabRoom } from "@/lib/theme-lab";
 import "@/styles/cyber-frames.css";
 
@@ -111,8 +113,24 @@ export function AppearanceControlRoom() {
     if (!api) { setNotice("ยังเชื่อม ROOM 04 ไม่ได้ · ยังไม่ Apply ทั้งระบบ"); return; }
     setBusy(true);
     setNotice("กำลังบันทึก Applied state ให้ทั้งระบบ…");
-    const saved = await persistAppearance(api, "global", draft);
-    if (saved) { applyAppearance("global", draft); setNotice("Apply ทั้งระบบแล้ว · ห้องที่ไม่มีค่าเฉพาะจะใช้ profile นี้"); }
+    const themeKey = draft.themeKey ?? themes.find(item => item.themeKey === "DARKSIDE-PRIME")?.themeKey ?? themes[0]?.themeKey ?? "DARKSIDE-PRIME";
+    const centralProfile = centralVisualProfileFromAppearance(draft, themeKey, "desktop-app");
+    const canonicalSaved = await persistCanonicalAppearanceSettings(api, {
+      source: {
+        presetKey: themeKey,
+        darkBase: "central-default",
+        accentTheme: themeKey,
+        background: draft.backgroundKey,
+        cardMaterial: draft.cardStyleKey,
+        frame: draft.frameKey ?? "minimal",
+        state: "signal",
+        buttonStyle: "central-default",
+      },
+      controls: { cardRadiusPx: Number.parseFloat(CARD_STYLES.find(item => item.key === draft.cardStyleKey)?.vars["--appearance-card-radius"] ?? "14") },
+    }, themeKey, resolveDesktopVisualStyle(centralProfile));
+    const legacySaved = await persistAppearance(api, "global", draft);
+    const saved = canonicalSaved && legacySaved;
+    if (saved) { applyAppearance("global", draft); setNotice("Apply ทั้งระบบแล้ว · บันทึก canonical profile และ compatibility fallback แล้ว"); }
     else setNotice("บันทึก Supabase ไม่สำเร็จ · ทั้งระบบยังไม่ถูกเปลี่ยน");
     setBusy(false);
   };

@@ -11,6 +11,17 @@ const BACKGROUND_CATALOG_KEY = "bb-appearance-background-catalog-v1";
 type AppearanceApi = { from: (table: string) => any };
 type AppearanceAssetType = (typeof APPEARANCE_ASSET_TYPES)[number];
 type AppearanceSelectionRow = { app_key: string; scope_key: string; asset_type: AppearanceAssetType; asset_key: string; is_active: boolean };
+export type CanonicalAppearanceProfile = Readonly<{
+  tokens?: Readonly<Record<string, string>>;
+}>;
+export type CanonicalAppearanceSettings = Readonly<{
+  scopeKey: string;
+  sourcePresetKey: string | null;
+  schemaVersion: number;
+  appearance: Readonly<Record<string, unknown>>;
+  profile: CanonicalAppearanceProfile | null;
+  updatedAt: string | null;
+}>;
 export type BackgroundOption = { key: string; name: string; description: string; type: string; config: Record<string, unknown> };
 
 export type AtmosphereKey = "original-space" | "ops-blue" | "quiet-black" | "signal-amber";
@@ -150,6 +161,53 @@ export async function syncAppliedAppearances(api: AppearanceApi): Promise<boolea
   writeStore(APPEARANCE_APPLIED_KEY, store);
   emitAppearanceChange("global", readAppliedAppearance("global"));
   return true;
+}
+
+function normalizeCanonicalProfile(value: unknown): CanonicalAppearanceProfile | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const row = value as Record<string, unknown>;
+  const tokens = row.tokens;
+  if (!tokens || typeof tokens !== "object" || Array.isArray(tokens)) return null;
+  const safeTokens = Object.fromEntries(
+    Object.entries(tokens).filter(([key, token]) => key.startsWith("--") && typeof token === "string"),
+  ) as Record<string, string>;
+  return Object.keys(safeTokens).length ? { tokens: safeTokens } : null;
+}
+
+export async function readCanonicalAppearanceSettings(api: AppearanceApi, scopeKey = "bb-store"): Promise<CanonicalAppearanceSettings | null> {
+  const result = await api.from("appearance_settings")
+    .select("scope_key,source_preset_key,schema_version,appearance,updated_at")
+    .eq("scope_key", scopeKey)
+    .limit(1);
+  if (result.error || !Array.isArray(result.data) || !result.data[0]) return null;
+  const row = result.data[0] as Record<string, unknown>;
+  const appearance = row.appearance && typeof row.appearance === "object" && !Array.isArray(row.appearance)
+    ? row.appearance as Record<string, unknown>
+    : {};
+  return {
+    scopeKey: String(row.scope_key ?? scopeKey),
+    sourcePresetKey: typeof row.source_preset_key === "string" ? row.source_preset_key : null,
+    schemaVersion: Number(row.schema_version) || 1,
+    appearance,
+    profile: normalizeCanonicalProfile(appearance.profile),
+    updatedAt: typeof row.updated_at === "string" ? row.updated_at : null,
+  };
+}
+
+export async function persistCanonicalAppearanceSettings(
+  api: AppearanceApi,
+  appearance: Record<string, unknown>,
+  sourcePresetKey: string,
+  profileTokens: Readonly<Record<string, string>>,
+): Promise<boolean> {
+  const result = await api.from("appearance_settings").upsert({
+    scope_key: "bb-store",
+    source_preset_key: sourcePresetKey,
+    schema_version: 2,
+    appearance: { ...appearance, profile: { tokens: profileTokens } },
+    updated_at: new Date().toISOString(),
+  }, { onConflict: "scope_key" });
+  return !result.error;
 }
 
 export async function persistAppearance(api: AppearanceApi, room: ThemeLabRoom | "global", selection: AppearanceSelection): Promise<boolean> {

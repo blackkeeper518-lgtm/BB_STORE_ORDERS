@@ -4,7 +4,7 @@ import { getSupabase } from "@/lib/canonical";
 import { refreshServerProjectStatus } from "@/lib/server-project-client";
 import { CYBER_THEME_PRESETS, DEFAULT_CYBER_THEME, type CyberTheme } from "@/lib/theme-lab";
 import { injectSkin, normalizeSkinRow, tacticalAudio, type SkinConfig, type SkinRow } from "@/lib/darkside-skin-engine";
-import { APPEARANCE_ARCHITECTURE_ENABLED, APPEARANCE_EVENT, appearanceCssVars, appearanceRoomFromPath, readAppliedAppearance, syncAppliedAppearances, syncBackgroundCatalog } from "@/lib/appearance-runtime";
+import { APPEARANCE_ARCHITECTURE_ENABLED, APPEARANCE_EVENT, appearanceCssVars, appearanceRoomFromPath, readAppliedAppearance, readCanonicalAppearanceSettings, syncAppliedAppearances, syncBackgroundCatalog, type CanonicalAppearanceSettings } from "@/lib/appearance-runtime";
 import { centralVisualProfileFromAppearance, resolveDesktopVisualStyle } from "@/lib/central-visual-adapter";
 
 const GLOBAL_THEME_KEY = "st-bb-global-theme-key-v1";
@@ -63,6 +63,7 @@ export function GlobalThemeRuntime({ children }: { children: React.ReactNode }) 
   const [loading, setLoading] = useState(true);
   const [connected, setConnected] = useState(false);
   const [appearanceVersion, setAppearanceVersion] = useState(0);
+  const [canonicalAppearance, setCanonicalAppearance] = useState<CanonicalAppearanceSettings | null>(null);
   const [muted, setMutedState] = useState(() => { try { return localStorage.getItem("darkside-audio-muted-v1") === "true"; } catch { return false; } });
 
   const refreshThemes = async () => {
@@ -75,6 +76,7 @@ export function GlobalThemeRuntime({ children }: { children: React.ReactNode }) 
       if (APPEARANCE_ARCHITECTURE_ENABLED) {
         const synced = await syncAppliedAppearances(api);
         await syncBackgroundCatalog(api);
+        setCanonicalAppearance(await readCanonicalAppearanceSettings(api));
         if (synced) setAppearanceVersion(value => value + 1);
       }
       const base = await api.from("app_themes").select("theme_key,name,description,background_color,surface_color,primary_color,accent_color,border_style,button_style,radius,glow,motion_enabled,is_enabled,sort_order,version").eq("is_enabled", true).order("sort_order", { ascending: true }).limit(100);
@@ -111,16 +113,18 @@ export function GlobalThemeRuntime({ children }: { children: React.ReactNode }) 
         const previousKeys = (runtimeRoot.dataset.visualTokenKeys ?? "").split(",").filter(Boolean);
         previousKeys.forEach(key => runtimeRoot.style.removeProperty(key));
         const profile = centralVisualProfileFromAppearance(selection, theme.themeKey, isMobileInbox ? "mobile-inbox" : "desktop-app");
-        const nextTokens = resolveDesktopVisualStyle(profile);
+        const nextTokens = !isMobileInbox && canonicalAppearance?.profile?.tokens
+          ? canonicalAppearance.profile.tokens
+          : resolveDesktopVisualStyle(profile);
         Object.entries(nextTokens).forEach(([key, value]) => runtimeRoot.style.setProperty(key, value));
         runtimeRoot.dataset.visualScope = profile.scope;
-        runtimeRoot.dataset.visualProfileVersion = profile.version;
+        runtimeRoot.dataset.visualProfileVersion = canonicalAppearance?.schemaVersion ? `settings-v${canonicalAppearance.schemaVersion}` : profile.version;
         runtimeRoot.dataset.visualRoom = isMobileInbox ? "mobile-inbox" : room;
         runtimeRoot.dataset.visualTokenKeys = Object.keys(nextTokens).join(",");
       }
     }
     try { localStorage.setItem(GLOBAL_THEME_PAYLOAD_KEY, JSON.stringify(theme)); localStorage.removeItem("st-bb-global-public-config-v1"); } catch {}
-  }, [theme, room, location, appearanceVersion]);
+  }, [theme, room, location, appearanceVersion, canonicalAppearance]);
   const selectTheme = (next: GlobalTheme) => { setActiveKey(next.themeKey); tacticalAudio.play("switch", next); try { localStorage.setItem(GLOBAL_THEME_KEY, next.themeKey); window.dispatchEvent(new CustomEvent(GLOBAL_THEME_EVENT)); } catch {} };
   const setMuted = (value: boolean) => { setMutedState(value); tacticalAudio.setMuted(value); };
   return <GlobalThemeContext.Provider value={{ theme, themes, loading, connected, selectTheme, refreshThemes, muted, setMuted }}><div className="global-theme-runtime" data-global-theme={theme.themeKey} data-visual-scope={location === "/mobile-inbox" ? "mobile-inbox" : "desktop-app"}>{children}</div></GlobalThemeContext.Provider>;
