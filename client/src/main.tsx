@@ -7,6 +7,7 @@ import superjson from "superjson";
 import App from "./App";
 import { startLogin } from "./const";
 import "./index.css";
+import "./styles/central-visual-system.css";
 import "./styles/darkside-skin-engine.css";
 import "./styles/ops-console-desktop.css";
 

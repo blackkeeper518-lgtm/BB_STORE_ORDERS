@@ -1,0 +1,223 @@
+/*
+ * BB STORE · Central Visual System v1
+ *
+ * This stylesheet is intentionally opt-in. It does not target legacy classes
+ * such as .neon-card, .project-room-card, or [data-slot="card"]. Those
+ * consumers move only after a room-level migration checkpoint.
+ */
+
+@layer central-visual.tokens, central-visual.structure, central-visual.components, central-visual.states, central-visual.motion;
+
+@layer central-visual.tokens {
+  :where([data-visual-scope="desktop-app"]) {
+    /* Dark Base */
+    --app-canvas: #030508;
+    --app-background: #060913;
+    --app-gutter: #030508;
+    --app-background-opacity: 1;
+    --app-background-overlay: rgba(3, 5, 8, 0.18);
+
+    --dark-base-0: #030508;
+    --dark-base-1: #060913;
+    --dark-base-2: #0c1323;
+    --room-surface: rgba(7, 12, 24, 0.72);
+    --room-surface-muted: rgba(4, 8, 16, 0.62);
+    --room-surface-raised: rgba(12, 19, 35, 0.78);
+    --room-overlay: rgba(3, 5, 8, 0.24);
+
+    /* Panel/Card material */
+    --panel-surface: rgba(8, 14, 27, 0.78);
+    --panel-border: rgba(148, 163, 184, 0.2);
+    --panel-radius: 18px;
+    --panel-padding: 24px;
+    --card-surface: rgba(7, 12, 24, 0.82);
+    --card-surface-raised: rgba(13, 21, 39, 0.88);
+    --card-surface-muted: rgba(4, 8, 16, 0.62);
+    --card-border: rgba(148, 163, 184, 0.2);
+    --card-border-strong: rgba(148, 163, 184, 0.42);
+    --card-accent: rgba(148, 163, 184, 0.34);
+    --card-shadow: 0 18px 55px rgba(0, 0, 0, 0.32);
+    --card-radius: 14px;
+    --card-opacity: 0.82;
+    --card-blur: 14px;
+    --card-padding: var(--space-6);
+
+    /* Accent defaults are replaced by the runtime bridge when enabled. */
+    --accent-primary: #22d3ee;
+    --accent-secondary: #67e8f9;
+    --accent-soft: rgba(34, 211, 238, 0.16);
+    --accent-contrast: #041114;
+    --accent-glow: rgba(34, 211, 238, 0.3);
+
+    /* Semantic state */
+    --state-success: #5ee6a8;
+    --state-warning: #f6c453;
+    --state-danger: #ff6b7a;
+    --state-info: #61c7ff;
+    --state-neutral: #94a3b8;
+
+    /* Typography */
+    --text-primary: #f4f7fb;
+    --text-secondary: #b4c0d1;
+    --text-muted: #718096;
+    --text-on-accent: var(--accent-contrast);
+    --font-display: Inter, ui-sans-serif, system-ui, sans-serif;
+    --font-body: Inter, ui-sans-serif, system-ui, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+    /* Controls */
+    --control-surface: rgba(10, 17, 31, 0.86);
+    --control-surface-hover: rgba(18, 28, 49, 0.92);
+    --control-surface-active: rgba(24, 37, 63, 0.96);
+    --control-border: rgba(148, 163, 184, 0.28);
+    --control-focus: var(--accent-primary);
+    --control-disabled: rgba(113, 128, 150, 0.42);
+    --control-radius: 10px;
+    --control-height-sm: 32px;
+    --control-height-md: 40px;
+    --control-height-lg: 48px;
+
+    /* Scale */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+    --space-16: 64px;
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --radius-xl: 18px;
+    --radius-pill: 999px;
+
+    /* Frame/motion */
+    --frame-color: var(--accent-primary);
+    --frame-width: 1px;
+    --frame-opacity: 0.7;
+    --frame-style: solid;
+    --frame-glow: none;
+    --motion-duration: 180ms;
+    --motion-easing: ease-in-out;
+    --motion-background: none;
+    --motion-glow: none;
+  }
+}
+
+@layer central-visual.structure {
+  :where([data-visual-scope="desktop-app"]) {
+    background-color: var(--app-canvas);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+  }
+
+  :where([data-visual-scope="desktop-app"] [data-visual-surface="canvas"]) {
+    background-color: var(--app-gutter);
+    background-image: var(--app-background-layers, none);
+    background-position: center;
+    background-size: var(--app-background-size, auto);
+  }
+
+  :where([data-visual-scope="desktop-app"] [data-visual-surface="room"]) {
+    background: var(--room-surface);
+    border-radius: var(--panel-radius);
+  }
+
+  :where([data-visual-scope="desktop-app"] [data-visual-surface="panel"]) {
+    background: var(--panel-surface);
+    border: var(--frame-width) var(--frame-style) var(--panel-border);
+    border-radius: var(--panel-radius);
+    padding: var(--panel-padding);
+  }
+}
+
+@layer central-visual.components {
+  :where([data-visual-scope="desktop-app"] .central-visual-card) {
+    background: var(--card-surface);
+    border: var(--frame-width) var(--frame-style) color-mix(in srgb, var(--frame-color) calc(var(--frame-opacity) * 100%), transparent);
+    border-radius: var(--card-radius);
+    box-shadow: var(--card-shadow);
+    padding: var(--card-padding);
+    backdrop-filter: blur(var(--card-blur));
+  }
+
+  :where([data-visual-scope="desktop-app"] .central-visual-card[data-selected="true"]) {
+    border-color: var(--card-border-strong);
+    box-shadow: 0 0 0 1px var(--accent-primary), var(--card-shadow);
+  }
+
+  :where([data-visual-scope="desktop-app"] .central-visual-section-header) {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-4);
+    margin-bottom: var(--space-4);
+  }
+
+  :where([data-visual-scope="desktop-app"] .central-visual-eyebrow) {
+    color: var(--accent-secondary);
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  :where([data-visual-scope="desktop-app"] .central-visual-control) {
+    min-height: var(--control-height-md);
+    border: 1px solid var(--control-border);
+    border-radius: var(--control-radius);
+    background: var(--control-surface);
+    color: var(--text-primary);
+    padding: 0 var(--space-3);
+  }
+
+  :where([data-visual-scope="desktop-app"] .central-visual-button) {
+    min-height: var(--control-height-md);
+    border: 1px solid var(--accent-primary);
+    border-radius: var(--control-radius);
+    background: var(--accent-primary);
+    color: var(--text-on-accent);
+    cursor: pointer;
+    padding: 0 var(--space-4);
+  }
+}
+
+@layer central-visual.states {
+  :where([data-visual-scope="desktop-app"] .central-visual-control:hover) {
+    background: var(--control-surface-hover);
+    border-color: var(--accent-primary);
+  }
+
+  :where([data-visual-scope="desktop-app"] .central-visual-control:focus-visible,
+    [data-visual-scope="desktop-app"] .central-visual-button:focus-visible) {
+    outline: 2px solid var(--control-focus);
+    outline-offset: 2px;
+  }
+
+  :where([data-visual-scope="desktop-app"] [data-visual-state="success"]) { color: var(--state-success); }
+  :where([data-visual-scope="desktop-app"] [data-visual-state="warning"]) { color: var(--state-warning); }
+  :where([data-visual-scope="desktop-app"] [data-visual-state="danger"]) { color: var(--state-danger); }
+  :where([data-visual-scope="desktop-app"] [data-visual-state="info"]) { color: var(--state-info); }
+}
+
+@layer central-visual.motion {
+  @media (prefers-reduced-motion: reduce) {
+    :where([data-visual-scope="desktop-app"] *) {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      scroll-behavior: auto !important;
+      transition-duration: 0.001ms !important;
+    }
+  }
+}
+
+/* Explicitly keep the opt-in central layer out of the protected mobile root. */
+:where([data-visual-scope="mobile-inbox"]) .central-visual-card,
+:where([data-visual-scope="mobile-inbox"]) .central-visual-panel,
+:where([data-visual-scope="mobile-inbox"]) .central-visual-control,
+:where([data-visual-scope="mobile-inbox"]) .central-visual-button {
+  all: revert;
+}
