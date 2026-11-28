@@ -3166,3 +3166,29 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
   background: transparent !important;
   box-shadow: none !important;
 }
+
+
+/* APPEARANCE BACKGROUND CATALOG · additive and reversible. */
+.global-theme-runtime .warp-drive-room {
+  background-color: var(--appearance-background-base, #050814) !important;
+  background-image: var(--appearance-background-layers, none) !important;
+  background-size: var(--appearance-background-size, auto) !important;
+  background-position: center !important;
+}
+html[data-appearance-background-key="original-space"] .global-theme-runtime .warp-drive-room {
+  background-color: #050814 !important;
+  background-image:
+    radial-gradient(ellipse at 50% -18%, rgba(77, 126, 255, .07), transparent 42%),
+    radial-gradient(ellipse at 86% 112%, rgba(183, 92, 255, .06), transparent 46%) !important;
+  background-size: auto !important;
+}
+html:not([data-appearance-background-key="original-space"]) .global-theme-runtime .warp-drive-room {
+  animation: appearance-background-drift 36s ease-in-out infinite alternate;
+}
+@keyframes appearance-background-drift {
+  from { background-position: 0 0, 0 0, center; }
+  to { background-position: 28px -18px, -22px 20px, center; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .global-theme-runtime .warp-drive-room { animation: none !important; }
+}

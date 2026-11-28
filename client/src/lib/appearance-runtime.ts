@@ -5,11 +5,13 @@ export const APPEARANCE_EVENT = "bb-appearance-selection-change";
 const APPEARANCE_APPLIED_KEY = "bb-appearance-applied-v1";
 const APPEARANCE_DRAFT_KEY = "bb-appearance-draft-v1";
 const APPEARANCE_APP_KEY = "BB_STORE";
-const APPEARANCE_ASSET_TYPES = ["theme", "frame", "atmosphere", "card_style"] as const;
+const APPEARANCE_ASSET_TYPES = ["theme", "frame", "atmosphere", "card_style", "background"] as const;
+const BACKGROUND_CATALOG_KEY = "bb-appearance-background-catalog-v1";
 
 type AppearanceApi = { from: (table: string) => any };
 type AppearanceAssetType = (typeof APPEARANCE_ASSET_TYPES)[number];
 type AppearanceSelectionRow = { app_key: string; scope_key: string; asset_type: AppearanceAssetType; asset_key: string; is_active: boolean };
+export type BackgroundOption = { key: string; name: string; description: string; type: string; config: Record<string, unknown> };
 
 export type AtmosphereKey = "original-space" | "ops-blue" | "quiet-black" | "signal-amber";
 export type CardStyleKey = "balanced" | "glass" | "dense" | "solid";
@@ -19,6 +21,7 @@ export type AppearanceSelection = {
   themeKey: string | null;
   cardStyleKey: CardStyleKey;
   frameKey: string | null;
+  backgroundKey: string;
 };
 
 export type AppearanceStore = Record<string, AppearanceSelection>;
@@ -28,6 +31,7 @@ export const DEFAULT_APPEARANCE: AppearanceSelection = {
   themeKey: null,
   cardStyleKey: "balanced",
   frameKey: null,
+  backgroundKey: "original-space",
 };
 
 export const ATMOSPHERES: ReadonlyArray<{ key: AtmosphereKey; label: string; description: string; background: string }> = [
@@ -55,6 +59,7 @@ function normalizeSelection(value: unknown): AppearanceSelection {
     themeKey: typeof row.themeKey === "string" && row.themeKey.trim() ? row.themeKey : null,
     cardStyleKey: validCardStyle(row.cardStyleKey) ? row.cardStyleKey : DEFAULT_APPEARANCE.cardStyleKey,
     frameKey: typeof row.frameKey === "string" && row.frameKey.trim() ? row.frameKey : null,
+    backgroundKey: typeof row.backgroundKey === "string" && row.backgroundKey.trim() ? row.backgroundKey : DEFAULT_APPEARANCE.backgroundKey,
   };
 }
 
@@ -128,6 +133,7 @@ function rowsToStore(rows: AppearanceSelectionRow[]): AppearanceStore {
     if (row.asset_type === "frame") current.frameKey = row.asset_key;
     if (row.asset_type === "atmosphere" && validAtmosphere(row.asset_key)) current.atmosphereKey = row.asset_key;
     if (row.asset_type === "card_style" && validCardStyle(row.asset_key)) current.cardStyleKey = row.asset_key;
+    if (row.asset_type === "background") current.backgroundKey = row.asset_key;
     store[row.scope_key] = current;
   }
   return store;
@@ -153,6 +159,7 @@ export async function persistAppearance(api: AppearanceApi, room: ThemeLabRoom |
     ["frame", normalized.frameKey],
     ["atmosphere", normalized.atmosphereKey],
     ["card_style", normalized.cardStyleKey],
+    ["background", normalized.backgroundKey],
   ].filter((entry): entry is [AppearanceAssetType, string] => Boolean(entry[1]))
     .map(([asset_type, asset_key]) => ({ app_key: APPEARANCE_APP_KEY, scope_key: room, asset_type, asset_key, is_active: true, updated_by: "appearance-control-room" }));
   const upsert = await api.from("app_customization_selections").upsert(rows, { onConflict: "app_key,scope_key,asset_type" });
@@ -171,6 +178,28 @@ export async function resetAppearanceInSupabase(api: AppearanceApi, room: ThemeL
   return !result.error;
 }
 
+export function readBackgroundCatalog(): BackgroundOption[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const parsed = JSON.parse(localStorage.getItem(BACKGROUND_CATALOG_KEY) || "[]");
+    return Array.isArray(parsed) ? parsed.filter(item => item && typeof item.key === "string") as BackgroundOption[] : [];
+  } catch { return []; }
+}
+
+export async function syncBackgroundCatalog(api: AppearanceApi): Promise<BackgroundOption[]> {
+  const result = await api.from("app_backgrounds").select("background_key,name,description,background_type,config").eq("is_enabled", true).order("sort_order", { ascending: true }).limit(100);
+  if (result.error) return readBackgroundCatalog();
+  const catalog = ((result.data ?? []) as Array<Record<string, unknown>>).map(row => ({
+    key: String(row.background_key ?? ""),
+    name: String(row.name ?? row.background_key ?? "Background"),
+    description: String(row.description ?? ""),
+    type: String(row.background_type ?? "css-animated"),
+    config: row.config && typeof row.config === "object" ? row.config as Record<string, unknown> : {},
+  })).filter(item => item.key);
+  if (typeof window !== "undefined") localStorage.setItem(BACKGROUND_CATALOG_KEY, JSON.stringify(catalog));
+  return catalog;
+}
+
 export function appearanceRoomFromPath(path: string): ThemeLabRoom | "global" {
   const cleanPath = path.split(/[?#]/, 1)[0] || "/";
   return THEME_LAB_ROOMS.find(room => cleanPath === room.path || cleanPath.startsWith(`${room.path}/`))?.key ?? "global";
@@ -179,5 +208,8 @@ export function appearanceRoomFromPath(path: string): ThemeLabRoom | "global" {
 export function appearanceCssVars(selection: AppearanceSelection): Record<string, string> {
   const style = CARD_STYLES.find(item => item.key === selection.cardStyleKey) ?? CARD_STYLES[0];
   const atmosphere = ATMOSPHERES.find(item => item.key === selection.atmosphereKey) ?? ATMOSPHERES[0];
-  return { ...(style?.vars ?? {}), "--appearance-atmosphere": selection.atmosphereKey, "--appearance-room-background": atmosphere?.background ?? "#060913", "--appearance-frame-key": selection.frameKey ?? "none" };
+  const background = readBackgroundCatalog().find(item => item.key === selection.backgroundKey);
+  const config = background?.config ?? {};
+  const layers = Array.isArray(config.layers) ? config.layers.filter(value => typeof value === "string").join(",") : "none";
+  return { ...(style?.vars ?? {}), "--appearance-atmosphere": selection.atmosphereKey, "--appearance-room-background": atmosphere?.background ?? "#060913", "--appearance-frame-key": selection.frameKey ?? "none", "--appearance-background-key": selection.backgroundKey, "--appearance-background-base": typeof config.base === "string" ? config.base : "transparent", "--appearance-background-layers": layers, "--appearance-background-size": typeof config.backgroundSize === "string" ? config.backgroundSize : "auto" };
 }

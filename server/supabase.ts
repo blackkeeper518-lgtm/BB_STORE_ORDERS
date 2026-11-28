@@ -66,7 +66,7 @@ const PROJECT_TABLES: Record<SupabaseProject, ReadonlySet<string>> = {
   ]),
   vault: new Set([
     "🛒product_master", "inventory", "product_aliases", "product_map_master",
-    "app_chat_frames", "app_customization_selections", "app_sounds", "app_themes", "chat_product_highlights",
+    "app_chat_frames", "app_customization_selections", "app_backgrounds", "app_sounds", "app_themes", "chat_product_highlights",
     "sales_script_cards", "order_deck_customer_scripts", "thailand_address_master",
   ]),
   chat: new Set([
@@ -82,6 +82,7 @@ const STAFF_READ_COLUMNS: Record<string, ReadonlySet<string>> = {
   "vault:thailand_address_master": new Set(["district", "amphoe", "province", "zipcode"]),
   "vault:sales_script_cards": new Set(["id", "sku", "title", "subtitle", "script_text", "ai_context", "ai_instruction", "blocks_json", "status", "version", "updated_at"]),
   "vault:order_deck_customer_scripts": new Set(["id", "app_key", "legacy_id", "title", "script_text", "stage", "situation", "situation_tags", "product_sku", "status", "sort_order", "created_at", "updated_at"]),
+  "vault:app_backgrounds": new Set(["background_key", "name", "description", "background_type", "config", "is_enabled", "sort_order"]),
 };
 export function canStaffExecuteProjectQuery(input: { project: SupabaseProject; table: string; method: string; params?: Record<string, string> }) {
   if (input.method !== "GET" && input.method !== "HEAD") return false;
