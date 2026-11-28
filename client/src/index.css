@@ -3153,3 +3153,15 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
   .global-theme-runtime .warp-drive-room::before,
   .global-theme-runtime .warp-drive-room::after { animation: none; }
 }
+
+/* WARP DRIVE: let the space canvas show through rounded panels; borders remain as structure. */
+.global-theme-runtime .warp-drive-room .warp-drive-panel,
+.global-theme-runtime .warp-drive-room .warp-drop-zone {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.global-theme-runtime .warp-drive-room .warp-drop-zone:hover,
+.global-theme-runtime .warp-drive-room .warp-drop-zone.is-dragging {
+  background: transparent !important;
+  box-shadow: none !important;
+}
