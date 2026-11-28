@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CENTRAL_VISUAL_PROFILE } from "@/lib/central-visual-contract";
-import { resolveDesktopVisualStyle, visualStyleToCssText } from "@/lib/central-visual-adapter";
+import { centralVisualProfileFromAppearance, resolveDesktopVisualStyle, visualStyleToCssText } from "@/lib/central-visual-adapter";
 
 describe("central visual adapter", () => {
   it("resolves the default desktop profile into central tokens", () => {
@@ -53,5 +53,25 @@ describe("central visual adapter", () => {
     const css = visualStyleToCssText({ "--z": "last", "--a": "first" });
 
     expect(css).toBe("--a: first; --z: last;");
+  });
+
+  it("adapts existing appearance selections without changing the persistence shape", () => {
+    const profile = centralVisualProfileFromAppearance(
+      { backgroundKey: "quiet-black", cardStyleKey: "glass", frameKey: "corner" },
+      "PLASMA-ORCHID",
+    );
+
+    expect(profile.accent).toBe("violet");
+    expect(profile.background).toBe("quiet-black");
+    expect(profile.cardMaterial).toBe("glass");
+    expect(profile.frame).toBe("corner");
+    expect(profile.motion).toBe("still");
+  });
+
+  it("keeps the mobile scope explicit when adapting an existing selection", () => {
+    const profile = centralVisualProfileFromAppearance({}, "ROOM 04", "mobile-inbox");
+
+    expect(profile.scope).toBe("mobile-inbox");
+    expect(resolveDesktopVisualStyle(profile)).toEqual({});
   });
 });

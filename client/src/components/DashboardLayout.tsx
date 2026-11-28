@@ -43,7 +43,7 @@ const MAX_WIDTH = 480;
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarWidth, setSidebarWidth] = useState(() => { const saved = localStorage.getItem(SIDEBAR_WIDTH_KEY); return saved ? parseInt(saved, 10) : DEFAULT_WIDTH; });
   useEffect(() => { localStorage.setItem(SIDEBAR_WIDTH_KEY, sidebarWidth.toString()); }, [sidebarWidth]);
-  return <SidebarProvider className="ops-console-provider h-full min-h-0 w-full min-w-0 overflow-hidden bg-[#09070d] text-white" style={{ "--sidebar-width": `${sidebarWidth}px` } as CSSProperties}><DashboardLayoutContent setSidebarWidth={setSidebarWidth}>{children}</DashboardLayoutContent></SidebarProvider>;
+  return <SidebarProvider data-visual-surface="canvas" className="ops-console-provider h-full min-h-0 w-full min-w-0 overflow-hidden bg-[#09070d] text-white" style={{ "--sidebar-width": `${sidebarWidth}px` } as CSSProperties}><DashboardLayoutContent setSidebarWidth={setSidebarWidth}>{children}</DashboardLayoutContent></SidebarProvider>;
 }
 
 type DashboardLayoutContentProps = { children: React.ReactNode; setSidebarWidth: (width: number) => void };
