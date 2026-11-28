@@ -389,10 +389,45 @@
  * classes, but their material, frame and navigation state come from here. */
 @layer central-visual.structure {
   :where([data-visual-scope="desktop-app"].central-visual-shell) {
+    display: flex;
     min-height: 100dvh;
     height: 100%;
     overflow: hidden;
     background: var(--app-canvas) !important;
+  }
+
+  /* Desktop rail geometry: the fixed visual rail no longer relies on a
+   * second spacer whose width can drift from the actual rail. The shell owns
+   * the reserved width and SidebarInset receives the exact same width. */
+  @media (min-width: 768px) {
+    :where([data-visual-scope="desktop-app"].central-visual-shell > .relative) {
+      flex: 0 0 0;
+      width: 0;
+      min-width: 0;
+    }
+
+    :where([data-visual-scope="desktop-app"].central-visual-shell > .relative [data-slot="sidebar-gap"]) {
+      width: 0 !important;
+      flex-basis: 0 !important;
+    }
+
+    :where([data-visual-scope="desktop-app"].central-visual-shell > .relative > .absolute) {
+      left: var(--sidebar-width);
+      right: auto;
+    }
+
+    :where([data-visual-scope="desktop-app"].central-visual-shell > .central-visual-inset) {
+      margin-left: var(--sidebar-width) !important;
+      width: calc(100% - var(--sidebar-width)) !important;
+      max-width: calc(100% - var(--sidebar-width)) !important;
+      transition: margin-left 200ms ease-linear, width 200ms ease-linear, max-width 200ms ease-linear;
+    }
+
+    :where([data-visual-scope="desktop-app"].central-visual-shell > .relative:has(.central-visual-sidebar[data-state="collapsed"]) + .central-visual-inset) {
+      margin-left: var(--sidebar-width-icon) !important;
+      width: calc(100% - var(--sidebar-width-icon)) !important;
+      max-width: calc(100% - var(--sidebar-width-icon)) !important;
+    }
   }
 
   :where([data-visual-scope="desktop-app"] .central-visual-provider) {
