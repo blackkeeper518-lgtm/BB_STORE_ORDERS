@@ -180,10 +180,19 @@ function chatAttachmentPayload(row: any) {
     }
     if (typeof value === "object") values.push(value);
   };
-  add(row?.attachments_raw);
-  add(row?.attachment_urls);
-  add(row?.attachment_url);
-  add(row?.sticker_url);
+  // Chat tables have existed with several attachment column names.
+  // Normalize them together so Mobile Inbox does not lose images when the
+  // provider sends JSON, an array, or a direct URL in a different column.
+  for (const value of [
+    row?.attachments_raw,
+    row?.attachments_json,
+    row?.attachments,
+    row?.image_urls,
+    row?.image_url,
+    row?.attachment_urls,
+    row?.attachment_url,
+    row?.sticker_url,
+  ]) add(value);
   return JSON.stringify(values);
 }
 function hasChatAttachment(row: any) {
@@ -982,6 +991,7 @@ export function mapChatRowsToMessages(sourceRows: any[]) {
     senderType: row._speaker,
     source_lane: row.source_lane,
     customer_message_text: row.customer_message_text,
+    page_message_text: row.page_message_text,
     senderName: row._name,
     side: row._side,
     occurredAt: row._occurred,
@@ -995,7 +1005,7 @@ export function mapChatRowsToMessages(sourceRows: any[]) {
     pageLatestMessage: row._speaker === "page" ? row._text : null,
     pageMessageTimeTh: row._speaker === "page" ? row.time_th : null,
     attachmentsJson: chatAttachmentPayload(row),
-    imageUrls: Array.isArray(row.attachment_urls) ? row.attachment_urls : row.attachment_url ? [row.attachment_url] : [],
+    imageUrls: extractChatImageUrls(chatAttachmentPayload(row)),
   }));
 }
 export function reconcileOptimisticMessages(optimistic: any[], persisted: any[]) {
