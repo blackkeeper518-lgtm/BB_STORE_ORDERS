@@ -95,6 +95,31 @@ export function canStaffExecuteProjectQuery(input: { project: SupabaseProject; t
   const offset = Number(input.params?.offset ?? "0");
   return Number.isInteger(limit) && limit > 0 && limit <= 500 && Number.isInteger(offset) && offset >= 0 && offset <= 5000;
 }
+export function canStaffPersistAppearance(input: { project: SupabaseProject; table: string; method: string; params?: Record<string, string>; body?: unknown }) {
+  if (input.project !== "vault" || input.table !== "app_customization_selections") return false;
+  const params = input.params ?? {};
+  const allowedTypes = new Set(["theme", "frame", "atmosphere", "card_style", "background"]);
+  const allowedScopes = new Set(["global", "orders", "chats", "parcel-mapping", "warp-drive", "telegram-delivery", "alert-room", "blackbox", "stock-room", "order-history", "secret-gallery"]);
+  if (input.method === "POST") {
+    if (params.on_conflict !== "app_key,scope_key,asset_type") return false;
+    const rows = Array.isArray(input.body) ? input.body : [input.body];
+    return rows.length > 0 && rows.length <= 6 && rows.every(row => {
+      if (!row || typeof row !== "object") return false;
+      const value = row as Record<string, unknown>;
+      return value.app_key === "BB_STORE" && typeof value.scope_key === "string" && allowedScopes.has(value.scope_key)
+        && typeof value.asset_type === "string" && allowedTypes.has(value.asset_type)
+        && typeof value.asset_key === "string" && value.asset_key.length > 0 && value.asset_key.length <= 160
+        && value.is_active === true;
+    });
+  }
+  if (input.method === "DELETE") {
+    const scope = params.scope_key?.replace(/^eq\./, "");
+    const app = params.app_key?.replace(/^eq\./, "");
+    const type = params.asset_type?.replace(/^eq\./, "");
+    return app === "BB_STORE" && typeof scope === "string" && allowedScopes.has(scope) && typeof type === "string" && allowedTypes.has(type);
+  }
+  return false;
+}
 export function canStaffUploadVaultStorage(input: { operation: string; bucket: string; path?: string; contentBase64?: string; contentType?: string; upsert?: boolean }) {
   const path = (input.path ?? "").trim().replace(/^\/+/, "");
   const allowedPath = (input.bucket === "sales-script-images" && path.startsWith("script-art/chat/"))

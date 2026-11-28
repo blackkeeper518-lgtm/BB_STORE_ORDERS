@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { COOKIE_NAME } from "../shared/const";
 import { sendMetaMessage } from "./meta";
-import { assertChatPageEnabled, canStaffExecuteProjectQuery, canStaffUploadVaultStorage, checkChatConnection, checkServerProject, deleteChatPage, executeProjectQuery, executeVaultStorage, fetchChatMessageRows, fetchChatNotificationRows, fetchChatPages, fetchChatThreadRows, fetchParcelMappingQueue, getServerProjectStatus, lookupParcelByPhone, purgeOldParcels, recordOutgoingChatMessage, saveChatPage, setChatPageAppStatus, setChatPageWebStatus, supabaseDelete, supabaseGet, supabasePatch, supabasePost, fetchChatProductHighlights, saveChatProductHighlights } from "./supabase";
+import { assertChatPageEnabled, canStaffExecuteProjectQuery, canStaffPersistAppearance, canStaffUploadVaultStorage, checkChatConnection, checkServerProject, deleteChatPage, executeProjectQuery, executeVaultStorage, fetchChatMessageRows, fetchChatNotificationRows, fetchChatPages, fetchChatThreadRows, fetchParcelMappingQueue, getServerProjectStatus, lookupParcelByPhone, purgeOldParcels, recordOutgoingChatMessage, saveChatPage, setChatPageAppStatus, setChatPageWebStatus, supabaseDelete, supabaseGet, supabasePatch, supabasePost, fetchChatProductHighlights, saveChatProductHighlights } from "./supabase";
 import { checkLineConnection, fetchLineConversations, fetchLineMessages, sendLineText } from "./line";
 import * as db from "./db";
 import { generateOrderSummary } from "./order-summary";
@@ -56,7 +56,7 @@ export const appRouter = router({
       body: z.unknown().optional(),
       prefer: z.enum(["return=representation", "return=minimal", "resolution=merge-duplicates,return=representation", "resolution=merge-duplicates,return=minimal", "count=exact", "count=exact,return=representation", "count=exact,return=minimal", "resolution=merge-duplicates,return=representation,count=exact"]).optional(),
     }).refine(input => Object.keys(input.params ?? {}).length <= 32, "Too many query parameters")).mutation(({ input, ctx }) => {
-      if (ctx.user.role !== "admin" && !canStaffExecuteProjectQuery(input)) throw new TRPCError({ code: "FORBIDDEN", message: "This Supabase read is not enabled for staff" });
+      if (ctx.user.role !== "admin" && !canStaffExecuteProjectQuery(input) && !canStaffPersistAppearance(input)) throw new TRPCError({ code: "FORBIDDEN", message: "This Supabase operation is not enabled for staff" });
       return executeProjectQuery(input);
     }),
     storage: protectedProcedure.input(z.object({

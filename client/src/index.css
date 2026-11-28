@@ -3229,3 +3229,29 @@ html:not([data-appearance-background-key="original-space"]) .global-theme-runtim
 .global-theme-runtime .secret-gallery-page .neon-card [class*="border-cyan-"],
 .global-theme-runtime .secret-gallery-page .neon-card [class*="border-fuchsia-"],
 .global-theme-runtime .secret-gallery-page .appearance-control-room [class*="border-cyan-"] { border-color: color-mix(in srgb, var(--global-primary) 48%, transparent) !important; }
+
+
+/* SECRET GALLERY ALL-CARDS CONTRACT · every shadcn Card follows the active room profile. */
+.global-theme-runtime .secret-gallery-page [data-slot="card"],
+.global-theme-runtime .secret-gallery-page .project-room-card,
+.global-theme-runtime .secret-gallery-page .neon-card {
+  border-color: color-mix(in srgb, var(--global-primary) 48%, transparent) !important;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--global-surface) 92%, var(--global-primary)), color-mix(in srgb, var(--global-bg) 94%, var(--global-accent))) !important;
+  color: var(--global-text) !important;
+}
+.global-theme-runtime .secret-gallery-page [data-slot="card"] [data-slot="card-header"],
+.global-theme-runtime .secret-gallery-page [data-slot="card"] [data-slot="card-content"] {
+  border-color: color-mix(in srgb, var(--global-primary) 26%, transparent) !important;
+}
+.global-theme-runtime .secret-gallery-page [data-slot="card"] [class*="bg-black/"],
+.global-theme-runtime .secret-gallery-page [data-slot="card"] [class*="bg-[#"] {
+  background-color: color-mix(in srgb, var(--global-bg) 55%, transparent) !important;
+}
+.global-theme-runtime .secret-gallery-page [data-slot="card"] [class*="text-rose-"],
+.global-theme-runtime .secret-gallery-page [data-slot="card"] [class*="text-red-"],
+.global-theme-runtime .secret-gallery-page [data-slot="card"] [class*="text-amber-"],
+.global-theme-runtime .secret-gallery-page [data-slot="card"] [class*="text-blue-"],
+.global-theme-runtime .secret-gallery-page [data-slot="card"] [class*="text-fuchsia-"],
+.global-theme-runtime .secret-gallery-page [data-slot="card"] [class*="text-cyan-"] {
+  color: color-mix(in srgb, var(--global-accent) 76%, var(--global-text)) !important;
+}
