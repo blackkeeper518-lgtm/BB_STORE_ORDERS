@@ -24,7 +24,7 @@ function inferAccent(themeKey: string | null | undefined): AccentKey {
   if (/(crimson|ruby|red|mars|scarlet|ember)/.test(key)) return "crimson";
   if (/(amber|gold|copper|orange|solar|sand)/.test(key)) return "amber";
   if (/(moss|emerald|green|lime|matrix)/.test(key)) return "moss";
-  if (/(violet|purple|orchid|magenta|pink|ultraviolet)/.test(key)) return "violet";
+  if (/(violet|purple|orchid|magenta|pink|ultraviolet|darkside|prime)/.test(key)) return "violet";
   return "cyan";
 }
 

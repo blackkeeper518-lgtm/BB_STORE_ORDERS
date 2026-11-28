@@ -55,6 +55,14 @@ describe("central visual adapter", () => {
     expect(css).toBe("--a: first; --z: last;");
   });
 
+  it("uses the DARKSIDE Prime identity as the violet central fallback accent", () => {
+    const profile = centralVisualProfileFromAppearance({}, "DARKSIDE-PRIME");
+
+    expect(profile.accent).toBe("violet");
+    expect(profile.background).toBe(DEFAULT_CENTRAL_VISUAL_PROFILE.background);
+    expect(profile.cardMaterial).toBe(DEFAULT_CENTRAL_VISUAL_PROFILE.cardMaterial);
+  });
+
   it("adapts existing appearance selections without changing the persistence shape", () => {
     const profile = centralVisualProfileFromAppearance(
       { backgroundKey: "quiet-black", cardStyleKey: "glass", frameKey: "corner" },

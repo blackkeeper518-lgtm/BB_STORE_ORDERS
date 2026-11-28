@@ -10,14 +10,28 @@ import { centralVisualProfileFromAppearance, resolveDesktopVisualStyle } from "@
 const GLOBAL_THEME_KEY = "st-bb-global-theme-key-v1";
 const GLOBAL_THEME_EVENT = "st-bb-global-theme-change";
 const GLOBAL_THEME_PAYLOAD_KEY = "st-bb-global-theme-payload-v1";
+const GLOBAL_THEME_FALLBACK_KEY = "DARKSIDE-PRIME";
 
 export type GlobalTheme = CyberTheme & SkinConfig & { themeKey: string; description: string; textPrimary: string; textSecondary: string; fontBody: string; fontHeading: string; graphicUrl: string };
 type GlobalThemeContextValue = { theme: GlobalTheme; themes: GlobalTheme[]; loading: boolean; connected: boolean; muted: boolean; selectTheme: (theme: GlobalTheme) => void; refreshThemes: () => Promise<void>; setMuted: (value: boolean) => void };
 const GlobalThemeContext = createContext<GlobalThemeContextValue | null>(null);
 
 function fallbackTheme(): GlobalTheme {
-  const skin = normalizeSkinRow({ theme_key: "local-default", name: DEFAULT_CYBER_THEME.name, background_color: DEFAULT_CYBER_THEME.bg, surface_color: DEFAULT_CYBER_THEME.surface, primary_color: DEFAULT_CYBER_THEME.primary, accent_color: DEFAULT_CYBER_THEME.accent }, 0);
-  return { ...DEFAULT_CYBER_THEME, ...skin, preset: 0 } as GlobalTheme;
+  const prime = {
+    ...DEFAULT_CYBER_THEME,
+    name: "DARKSIDE Prime",
+    bg: "#08040f",
+    surface: "#13091f",
+    primary: "#ad5cff",
+    accent: "#5de9ff",
+    border: "neon" as CyberTheme["border"],
+    button: "gradient" as CyberTheme["button"],
+    radius: 10,
+    glow: 20,
+    motion: true,
+  };
+  const skin = normalizeSkinRow({ theme_key: GLOBAL_THEME_FALLBACK_KEY, name: prime.name, background_color: prime.bg, surface_color: prime.surface, primary_color: prime.primary, accent_color: prime.accent, border_style: prime.border, button_style: prime.button, radius: prime.radius, glow: prime.glow, motion_enabled: prime.motion }, 0);
+  return { ...prime, ...skin, themeKey: GLOBAL_THEME_FALLBACK_KEY, description: "DARKSIDE // Signature", preset: 0 } as GlobalTheme;
 }
 function validHex(value: unknown): value is string {
   return typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value);
@@ -45,7 +59,7 @@ function fromRow(row: SkinRow, index: number): GlobalTheme {
 export function GlobalThemeRuntime({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const [themes, setThemes] = useState<GlobalTheme[]>(() => [fallbackTheme()]);
-  const [activeKey, setActiveKey] = useState(() => { try { return localStorage.getItem(GLOBAL_THEME_KEY) || ""; } catch { return ""; } });
+  const [activeKey, setActiveKey] = useState(() => { try { return localStorage.getItem(GLOBAL_THEME_KEY) || GLOBAL_THEME_FALLBACK_KEY; } catch { return GLOBAL_THEME_FALLBACK_KEY; } });
   const [loading, setLoading] = useState(true);
   const [connected, setConnected] = useState(false);
   const [appearanceVersion, setAppearanceVersion] = useState(0);
@@ -66,13 +80,14 @@ export function GlobalThemeRuntime({ children }: { children: React.ReactNode }) 
       const base = await api.from("app_themes").select("theme_key,name,description,background_color,surface_color,primary_color,accent_color,border_style,button_style,radius,glow,motion_enabled,is_enabled,sort_order,version").eq("is_enabled", true).order("sort_order", { ascending: true }).limit(100);
       if (base.error) throw base.error;
       const rows = ((base.data ?? []) as SkinRow[]).filter(row => [row.background_color, row.surface_color, row.primary_color, row.accent_color].every(validHex));
-      const next = rows.length ? rows.map((row, index) => fromRow(row, index)) : [fallbackTheme()];
-      setThemes(next); setConnected(true); setActiveKey(current => next.some(item => item.themeKey === current) ? current : next[0].themeKey);
+      const catalogThemes = rows.map((row, index) => fromRow(row, index));
+      const next = catalogThemes.some(item => item.themeKey === GLOBAL_THEME_FALLBACK_KEY) ? catalogThemes : [fallbackTheme(), ...catalogThemes];
+      setThemes(next); setConnected(true); setActiveKey(current => next.some(item => item.themeKey === current) ? current : (next.some(item => item.themeKey === GLOBAL_THEME_FALLBACK_KEY) ? GLOBAL_THEME_FALLBACK_KEY : next[0].themeKey));
       next.forEach(item => tacticalAudio.preload(item));
     } catch { setConnected(false); } finally { setLoading(false); }
   };
   useEffect(() => { void refreshThemes(); }, []);
-  useEffect(() => { const sync = () => { try { setActiveKey(localStorage.getItem(GLOBAL_THEME_KEY) || ""); } catch {} }; window.addEventListener(GLOBAL_THEME_EVENT, sync); window.addEventListener("storage", sync); return () => { window.removeEventListener(GLOBAL_THEME_EVENT, sync); window.removeEventListener("storage", sync); }; }, []);
+  useEffect(() => { const sync = () => { try { setActiveKey(localStorage.getItem(GLOBAL_THEME_KEY) || GLOBAL_THEME_FALLBACK_KEY); } catch {} }; window.addEventListener(GLOBAL_THEME_EVENT, sync); window.addEventListener("storage", sync); return () => { window.removeEventListener(GLOBAL_THEME_EVENT, sync); window.removeEventListener("storage", sync); }; }, []);
   useEffect(() => { const syncAppearance = () => setAppearanceVersion(value => value + 1); window.addEventListener(APPEARANCE_EVENT, syncAppearance); window.addEventListener("storage", syncAppearance); return () => { window.removeEventListener(APPEARANCE_EVENT, syncAppearance); window.removeEventListener("storage", syncAppearance); }; }, []);
   const room = appearanceRoomFromPath(location);
   const roomThemeKey = APPEARANCE_ARCHITECTURE_ENABLED ? readAppliedAppearance(room).themeKey : null;
