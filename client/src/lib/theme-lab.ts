@@ -11,6 +11,7 @@ export const THEME_LAB_ROOMS = [
   { key: "blackbox", label: "BLACKBOX · DEATH NOTE", path: "/blackbox" },
   { key: "stock-room", label: "คลังสินค้า", path: "/stock-room" },
   { key: "order-history", label: "GENESIS · Log สุดท้าย", path: "/order-history" },
+  { key: "secret-gallery", label: "SECRET GALLERY · Appearance Control Room", path: "/secret-gallery" },
 ] as const;
 
 export type ThemeLabRoom = (typeof THEME_LAB_ROOMS)[number]["key"];

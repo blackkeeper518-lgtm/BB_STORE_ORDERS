@@ -3192,3 +3192,21 @@ html:not([data-appearance-background-key="original-space"]) .global-theme-runtim
 @media (prefers-reduced-motion: reduce) {
   .global-theme-runtime .warp-drive-room { animation: none !important; }
 }
+
+
+/* SECRET GALLERY ROOM BACKGROUND · uses the same applied catalog contract. */
+.global-theme-runtime .secret-gallery-page {
+  background-color: var(--appearance-background-base, #090611) !important;
+  background-image: var(--appearance-background-layers, none) !important;
+  background-size: var(--appearance-background-size, auto) !important;
+  background-position: center !important;
+}
+html[data-appearance-background-key="original-space"] .global-theme-runtime .secret-gallery-page {
+  background-color: #050814 !important;
+  background-image:
+    radial-gradient(ellipse at 18% 8%, rgba(70,120,255,.18), transparent 32rem),
+    radial-gradient(ellipse at 82% 22%, rgba(164,76,255,.16), transparent 30rem) !important;
+}
+html:not([data-appearance-background-key="original-space"]) .global-theme-runtime .secret-gallery-page {
+  animation: appearance-background-drift 36s ease-in-out infinite alternate;
+}
