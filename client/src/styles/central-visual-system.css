@@ -303,6 +303,10 @@
 
 @layer central-visual.structure {
   :where([data-visual-scope="desktop-app"] .central-visual-order-room) {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    margin-inline: 0;
     min-height: 100%;
     color: var(--text-primary);
   }
@@ -426,6 +430,9 @@
 
   :where([data-visual-scope="desktop-app"] .central-visual-inset > main) {
     min-height: 0;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
     overscroll-behavior: contain;
     scrollbar-width: thin;
     scrollbar-color: color-mix(in srgb, var(--accent-primary) 45%, transparent) transparent;
