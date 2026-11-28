@@ -106,6 +106,16 @@ export function AppearanceControlRoom() {
     } else setNotice("บันทึก Supabase ไม่สำเร็จ · ค่าปัจจุบันยังไม่ถูกเปลี่ยน");
     setBusy(false);
   };
+  const applyGlobal = async () => {
+    const api = getSupabase("vault");
+    if (!api) { setNotice("ยังเชื่อม ROOM 04 ไม่ได้ · ยังไม่ Apply ทั้งระบบ"); return; }
+    setBusy(true);
+    setNotice("กำลังบันทึก Applied state ให้ทั้งระบบ…");
+    const saved = await persistAppearance(api, "global", draft);
+    if (saved) { applyAppearance("global", draft); setNotice("Apply ทั้งระบบแล้ว · ห้องที่ไม่มีค่าเฉพาะจะใช้ profile นี้"); }
+    else setNotice("บันทึก Supabase ไม่สำเร็จ · ทั้งระบบยังไม่ถูกเปลี่ยน");
+    setBusy(false);
+  };
   const resetDraft = () => { resetDraftAppearance(room); setDraft(applied); setNotice("Reset Draft แล้ว · กลับไปค่าที่ใช้งานอยู่"); };
   const resetRoom = async () => {
     const api = getSupabase("vault");
@@ -125,14 +135,30 @@ export function AppearanceControlRoom() {
     else setNotice("Reset Supabase ไม่สำเร็จ · ค่าปัจจุบันยังไม่ถูกเปลี่ยน");
     setBusy(false);
   };
+  const resetAll = async () => {
+    const api = getSupabase("vault");
+    if (!api) { setNotice("ยังเชื่อม ROOM 04 ไม่ได้ · ยังไม่ Restore ทุกห้อง"); return; }
+    setBusy(true);
+    setNotice("กำลังคืนค่าปกติให้ทุกห้อง…");
+    const scopes: Array<ThemeLabRoom | "global"> = ["global", ...THEME_LAB_ROOMS.map(item => item.key)];
+    const results = await Promise.all(scopes.map(scope => resetAppearanceInSupabase(api, scope)));
+    if (results.every(Boolean)) {
+      resetGlobalAppearance();
+      scopes.filter((scope): scope is ThemeLabRoom => scope !== "global").forEach(scope => resetRoomAppearance(scope));
+      const next = readAppliedAppearance(room);
+      setApplied(next); setDraft(next);
+      setNotice("คืนค่าปกติครบทุกห้องแล้ว · ใช้ baseline/default fallback");
+    } else setNotice("คืนค่าปกติไม่ครบ · ตรวจ Supabase แล้วลองอีกครั้ง");
+    setBusy(false);
+  };
   return <section className="appearance-control-room overflow-hidden rounded-[28px] border border-cyan-300/20 bg-[#07101c]/90 shadow-[0_0_45px_rgba(34,211,238,.08)]">
-    <header className="border-b border-cyan-300/15 bg-cyan-400/[.04] p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[.28em] text-cyan-300/80">APPEARANCE ARCHITECTURE · DRAFT FIRST</p><h2 className="mt-1 text-xl font-semibold text-white">ศูนย์ควบคุมหน้าตาระบบ</h2><p className="mt-2 max-w-3xl text-xs leading-5 text-cyan-100/60">แยก Atmosphere, Theme, Card Style และ Frame ออกจากกัน · เลือกแล้ว Preview ได้ทันที แต่ระบบจริงเปลี่ยนเมื่อกด Apply เท่านั้น</p></div><span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300/25 bg-emerald-300/[.06] px-3 py-1.5 text-[10px] text-emerald-200"><ShieldCheck className="h-3.5 w-3.5" /> SUPABASE · DRAFT LOCAL</span></div></header>
+    <header className="sticky top-0 z-20 border-b border-cyan-300/15 bg-[#07101c]/95 p-5 backdrop-blur"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[.28em] text-cyan-300/80">ROOM 04 · SETTING CONTROL</p><h2 className="mt-1 text-xl font-semibold text-white">ศูนย์ควบคุมหน้าตาระบบ <span className="ml-2 text-sm font-normal text-cyan-200/75">· กำลังปรับ: {THEME_LAB_ROOMS.find(item => item.key === room)?.label ?? room}</span></h2><p className="mt-2 max-w-3xl text-xs leading-5 text-cyan-100/60">เลือกห้องจากแผงนี้ได้โดยตรง · Draft แยกจาก Applied · ระบบจริงเปลี่ยนเมื่อกด Apply เท่านั้น</p></div><span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300/25 bg-emerald-300/[.06] px-3 py-1.5 text-[10px] text-emerald-200"><ShieldCheck className="h-3.5 w-3.5" /> SUPABASE · DRAFT LOCAL</span></div></header>
     <div className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_minmax(320px,460px)]"><div className="space-y-4"><SelectField label="ห้องที่กำลังปรับ" value={room} onChange={value => changeRoom(value as ThemeLabRoom)}><option value="">เลือกห้อง</option>{THEME_LAB_ROOMS.map(item => <option key={item.key} value={item.key}>{item.label}</option>)}</SelectField>
       <div className="grid gap-3 sm:grid-cols-2"><SelectField label="Atmosphere · บรรยากาศ" value={draft.atmosphereKey} onChange={value => update("atmosphereKey", value as AtmosphereKey)}>{ATMOSPHERES.map(item => <option key={item.key} value={item.key}>{item.label}</option>)}</SelectField><SelectField label="Theme · สีและ identity" value={draft.themeKey ?? "inherit"} onChange={value => update("themeKey", value === "inherit" ? null : value)}><option value="inherit">ใช้ Theme fallback / global</option>{themes.map(theme => <option key={theme.themeKey} value={theme.themeKey}>{theme.name}</option>)}</SelectField><SelectField label="Background · พื้นหลังห้อง" value={draft.backgroundKey} onChange={value => update("backgroundKey", value)}><option value="original-space">Original Space · baseline เดิม</option>{backgrounds.filter(item => item.key !== "original-space").map(item => <option key={item.key} value={item.key}>{item.name} · {item.key}</option>)}</SelectField><SelectField label="Card Style · วัสดุการ์ด" value={draft.cardStyleKey} onChange={value => update("cardStyleKey", value as CardStyleKey)}>{CARD_STYLES.map(item => <option key={item.key} value={item.key}>{item.label}</option>)}</SelectField><SelectField label="Frame / Border · ขอบการ์ด" value={draft.frameKey ?? "none"} onChange={value => update("frameKey", value === "none" ? null : value)}><option value="none">ไม่กำหนด · ใช้ค่าเดิมของห้อง</option>{frameChoices.map(frame => <option key={frame.key} value={frame.key}>{frame.label} · {frame.key}</option>)}</SelectField></div>
       <div className="grid gap-2 sm:grid-cols-2">{CARD_STYLES.map(style => <button key={style.key} type="button" onClick={() => update("cardStyleKey", style.key)} className={`rounded-xl border p-3 text-left transition ${draft.cardStyleKey === style.key ? "border-cyan-200 bg-cyan-300/10" : "border-white/10 bg-black/15 hover:border-cyan-300/40"}`}><p className="text-xs font-semibold text-white">{style.label}</p><p className="mt-1 text-[10px] text-white/50">{style.description}</p></button>)}</div>
       <div className="rounded-xl border border-white/10 bg-black/20 p-3 text-[11px] text-white/55"><p><span className="text-cyan-200">Applied อยู่:</span> {applied.atmosphereKey} · {applied.backgroundKey} · {applied.themeKey ?? "inherit"} · {applied.cardStyleKey} · {applied.frameKey ?? "default"}</p><p className="mt-1"><span className="text-amber-200">Draft อยู่:</span> {draft.atmosphereKey} · {draft.backgroundKey} · {draft.themeKey ?? "inherit"} · {draft.cardStyleKey} · {draft.frameKey ?? "default"}</p></div>
       <div className="grid gap-2 sm:grid-cols-[1fr_auto]"><SelectField label="Copy Style → ห้องปลายทาง (Draft เท่านั้น)" value={copyTarget} onChange={value => setCopyTarget(value as ThemeLabRoom)}>{THEME_LAB_ROOMS.filter(item => item.key !== room).map(item => <option key={item.key} value={item.key}>{item.label}</option>)}</SelectField><Button type="button" variant="outline" onClick={copyStyleToDraft} disabled={busy} className="self-end border-violet-300/30 text-violet-100"><Copy className="mr-1.5 h-4 w-4" /> Copy Style</Button></div>
-      <div className="flex flex-wrap gap-2"><Button type="button" variant="outline" onClick={previewDraft} disabled={busy} className="border-cyan-300/30 text-cyan-100"><Eye className="mr-1.5 h-4 w-4" /> Preview Draft</Button><Button type="button" onClick={apply} disabled={busy} className="bg-emerald-400 text-[#04120d] hover:bg-emerald-300"><Check className="mr-1.5 h-4 w-4" /> Apply ให้ห้อง</Button><Button type="button" variant="outline" onClick={resetDraft} disabled={busy} className="border-amber-300/25 text-amber-100"><RotateCcw className="mr-1.5 h-4 w-4" /> Reset Draft</Button><Button type="button" variant="outline" onClick={resetRoom} disabled={busy} className="border-rose-300/25 text-rose-100">Restore Room Default</Button><Button type="button" variant="outline" onClick={resetGlobal} disabled={busy} className="border-fuchsia-300/25 text-fuchsia-100">Restore Global Default</Button></div>
+      <div className="flex flex-wrap gap-2"><Button type="button" variant="outline" onClick={previewDraft} disabled={busy} className="border-cyan-300/30 text-cyan-100"><Eye className="mr-1.5 h-4 w-4" /> Preview Draft</Button><Button type="button" onClick={apply} disabled={busy} className="bg-emerald-400 text-[#04120d] hover:bg-emerald-300"><Check className="mr-1.5 h-4 w-4" /> Apply ให้ห้อง</Button><Button type="button" onClick={applyGlobal} disabled={busy} className="bg-violet-400 text-[#11051d] hover:bg-violet-300"><Check className="mr-1.5 h-4 w-4" /> Apply ทั้งระบบ</Button><Button type="button" variant="outline" onClick={resetDraft} disabled={busy} className="border-amber-300/25 text-amber-100"><RotateCcw className="mr-1.5 h-4 w-4" /> Reset Draft</Button><Button type="button" variant="outline" onClick={resetRoom} disabled={busy} className="border-rose-300/25 text-rose-100">Restore Room Default</Button><Button type="button" variant="outline" onClick={resetGlobal} disabled={busy} className="border-fuchsia-300/25 text-fuchsia-100">Restore Global Default</Button><Button type="button" variant="outline" onClick={resetAll} disabled={busy} className="border-red-300/35 text-red-100">Restore ทุกห้อง</Button></div>
       <p role="status" className="min-h-5 text-xs text-cyan-100/70">{notice}</p></div><PreviewStage selection={draft} background={selectedBackground} theme={selectedTheme} themeName={selectedTheme?.name ?? "Theme fallback / global"} frameName={selectedFrame?.label ?? "Room default frame"} /></div>
   </section>;
 }
