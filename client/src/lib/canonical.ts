@@ -125,6 +125,48 @@ export const supabase = { from: (table: string) => { const api = getSupabase(); 
 function fail(error: any): never { throw new Error(error?.message || "Supabase connection failed"); }
 function num(v: any) { const n = Number(v); return v == null || v === "" || !Number.isFinite(n) ? null : n; }
 function asText(v: any) { return typeof v === "string" ? v : v == null ? "" : JSON.stringify(v); }
+export function extractChatImageUrls(value: unknown) {
+  const urls: string[] = [];
+  const seen = new Set<string>();
+  const addUrl = (candidate: unknown) => {
+    if (typeof candidate !== "string") return;
+    const url = candidate.trim();
+    if (!/^https?:\/\//i.test(url)) return;
+    let identity = url;
+    try {
+      const parsed = new URL(url);
+      identity = `${parsed.protocol}//${parsed.host}${parsed.pathname}`;
+    } catch { identity = url.split(/[?#]/, 1)[0]; }
+    if (seen.has(identity)) return;
+    seen.add(identity);
+    urls.push(url);
+  };
+  const walk = (item: unknown) => {
+    if (item == null || item === "") return;
+    if (typeof item === "string") {
+      const text = item.trim();
+      addUrl(text);
+      try { walk(JSON.parse(text)); } catch { /* plain non-JSON text */ }
+      return;
+    }
+    if (Array.isArray(item)) { item.forEach(walk); return; }
+    if (typeof item !== "object") return;
+    const record = item as Record<string, unknown>;
+    for (const key of ["url", "file_url", "image_url", "original_url", "source_url", "preview_url"]) {
+      const candidate = record[key];
+      if (typeof candidate === "string" && /^https?:\/\//i.test(candidate.trim())) {
+        addUrl(candidate);
+        break;
+      }
+    }
+    for (const [key, child] of Object.entries(record)) {
+      if (["payload", "image_data", "media", "shares"].includes(key)) continue;
+      if (Array.isArray(child) || (child && typeof child === "object")) walk(child);
+    }
+  };
+  walk(value);
+  return urls;
+}
 function chatAttachmentPayload(row: any) {
   const values: any[] = [];
   const add = (value: any) => {
