@@ -7,9 +7,11 @@ import superjson from "superjson";
 import App from "./App";
 import { startLogin } from "./const";
 import "./index.css";
-import "./styles/central-visual-system.css";
 import "./styles/darkside-skin-engine.css";
 import "./styles/ops-console-desktop.css";
+// Central Visual System is intentionally last: migrated desktop rooms must
+// have one visual owner while Mobile Inbox remains guarded by its own scope.
+import "./styles/central-visual-system.css";
 
 const queryClient = new QueryClient();
 const ADMIN_DEVICE_STORAGE_KEY = "bb-admin-device-id";

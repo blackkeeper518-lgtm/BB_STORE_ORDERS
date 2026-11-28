@@ -379,3 +379,143 @@
     background: var(--room-surface) !important;
   }
 }
+
+/* Full desktop migration bridge: the shell is now the single visual owner.
+ * Keep this scope out of Mobile Inbox; room JSX may retain business-specific
+ * classes, but their material, frame and navigation state come from here. */
+@layer central-visual.structure {
+  :where([data-visual-scope="desktop-app"].central-visual-shell) {
+    min-height: 100dvh;
+    height: 100%;
+    overflow: hidden;
+    background: var(--app-canvas) !important;
+  }
+
+  :where([data-visual-scope="desktop-app"] .central-visual-provider) {
+    min-height: 100dvh;
+    height: 100%;
+    background: var(--app-canvas) !important;
+  }
+
+  :where([data-visual-scope="desktop-app"] .central-visual-sidebar),
+  :where([data-visual-scope="desktop-app"] .central-visual-sidebar [data-slot="sidebar-container"]),
+  :where([data-visual-scope="desktop-app"] .central-visual-sidebar [data-slot="sidebar-inner"]) {
+    background: var(--dark-base-0) !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+
+  :where([data-visual-scope="desktop-app"] .central-visual-sidebar [data-slot="sidebar-container"]) {
+    border-right: 1px solid color-mix(in srgb, var(--frame-color) 26%, transparent) !important;
+  }
+
+  :where([data-visual-scope="desktop-app"] .central-visual-sidebar-menu) {
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--accent-primary) 45%, transparent) transparent;
+  }
+
+  :where([data-visual-scope="desktop-app"] .central-visual-inset) {
+    min-height: 0 !important;
+    height: 100% !important;
+    overflow: hidden !important;
+    background: transparent !important;
+  }
+
+  :where([data-visual-scope="desktop-app"] .central-visual-inset > main) {
+    min-height: 0;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--accent-primary) 45%, transparent) transparent;
+  }
+}
+
+@layer central-visual.components {
+  :where([data-visual-scope="desktop-app"] [data-slot="card"]),
+  :where([data-visual-scope="desktop-app"] .neon-card),
+  :where([data-visual-scope="desktop-app"] .project-room-card),
+  :where([data-visual-scope="desktop-app"] .room-list-card),
+  :where([data-visual-scope="desktop-app"] .chat-conversation-panel),
+  :where([data-visual-scope="desktop-app"] .chat-tools-panel),
+  :where([data-visual-scope="desktop-app"] .genesis-sent-card) {
+    background: var(--card-surface) !important;
+    background-image: none !important;
+    border-color: var(--card-border) !important;
+    border-radius: var(--card-radius) !important;
+    box-shadow: var(--card-shadow) !important;
+    color: var(--text-primary);
+    backdrop-filter: blur(var(--card-blur));
+  }
+
+  :where([data-visual-scope="desktop-app"] [data-slot="card"] [data-slot="card-header"]),
+  :where([data-visual-scope="desktop-app"] [data-slot="card"] [data-slot="card-footer"]) {
+    background: transparent !important;
+    background-image: none !important;
+    border-color: var(--card-border) !important;
+  }
+
+  :where([data-visual-scope="desktop-app"] .central-nav-toggle),
+  :where([data-visual-scope="desktop-app"] .central-nav-item),
+  :where([data-visual-scope="desktop-app"] .central-nav-account),
+  :where([data-visual-scope="desktop-app"] .central-utility-action),
+  :where([data-visual-scope="desktop-app"] .central-utility-search) {
+    color: var(--text-secondary) !important;
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+  }
+
+  :where([data-visual-scope="desktop-app"] .central-nav-toggle:hover),
+  :where([data-visual-scope="desktop-app"] .central-nav-item:hover),
+  :where([data-visual-scope="desktop-app"] .central-utility-action:hover),
+  :where([data-visual-scope="desktop-app"] .central-utility-search:hover) {
+    color: var(--accent-secondary) !important;
+    background: var(--accent-soft) !important;
+  }
+
+  :where([data-visual-scope="desktop-app"] .central-nav-item[data-active="true"]) {
+    color: var(--accent-secondary) !important;
+    background: color-mix(in srgb, var(--accent-primary) 12%, transparent) !important;
+    box-shadow: inset 2px 0 0 var(--accent-primary) !important;
+  }
+
+  :where([data-visual-scope="desktop-app"] .central-nav-icon),
+  :where([data-visual-scope="desktop-app"] .central-nav-item[data-active="true"] .central-nav-icon) {
+    color: var(--accent-secondary) !important;
+  }
+
+  :where([data-visual-scope="desktop-app"] .central-nav-brand-mark),
+  :where([data-visual-scope="desktop-app"] .central-nav-avatar) {
+    border: 1px solid color-mix(in srgb, var(--frame-color) 55%, transparent) !important;
+    background: color-mix(in srgb, var(--accent-primary) 10%, transparent) !important;
+    color: var(--accent-secondary) !important;
+  }
+
+  :where([data-visual-scope="desktop-app"] .central-nav-brand),
+  :where([data-visual-scope="desktop-app"] .central-nav-account) {
+    color: var(--text-primary) !important;
+  }
+
+  :where([data-visual-scope="desktop-app"] .central-nav-brand span:last-child),
+  :where([data-visual-scope="desktop-app"] .central-nav-account p:last-child) {
+    color: var(--text-muted) !important;
+  }
+
+  :where([data-visual-scope="desktop-app"] .central-nav-notice),
+  :where([data-visual-scope="desktop-app"] .central-nav-badge) {
+    border: 1px solid color-mix(in srgb, var(--state-danger) 35%, transparent) !important;
+    background: color-mix(in srgb, var(--state-danger) 10%, transparent) !important;
+    color: var(--state-danger) !important;
+  }
+
+  :where([data-visual-scope="desktop-app"] .central-utility-primary),
+  :where([data-visual-scope="desktop-app"] .central-utility-room) { color: var(--accent-secondary) !important; }
+  :where([data-visual-scope="desktop-app"] .central-utility-separator),
+  :where([data-visual-scope="desktop-app"] .central-utility-hint) { color: var(--text-muted) !important; }
+  :where([data-visual-scope="desktop-app"] .central-utility-live) { color: var(--state-success) !important; }
+  :where([data-visual-scope="desktop-app"] .central-utility-search) {
+    border: 1px solid color-mix(in srgb, var(--accent-primary) 38%, transparent) !important;
+  }
+}
