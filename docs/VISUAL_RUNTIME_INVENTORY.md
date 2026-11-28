@@ -53,7 +53,7 @@ Screenshots are clean browser captures from the current deployed app. They are r
 
 | Capture | Route | Purpose | File |
 |---|---|---|---|
-| Desktop shell/chat | `/chats` | Shared sidebar/top strip and chat cards | `/home/ubuntu/screenshots/bb-store-orders-iibr_2026-11-28_09-21-49_5943.webp` |
+| Desktop shell/chat | `/chats` | Shared sidebar/top strip and chat cards | `[`chats.webp`](baseline-screenshots/chats.webp)` |
 | Desktop orders | `/orders` | Metrics/card/table language | [`orders.webp`](baseline-screenshots/orders.webp) |
 | Room 04 | `/warp-drive` | Dark base + space background + operational panels | [`warp-drive.webp`](baseline-screenshots/warp-drive.webp) |
 | Secret Gallery lock | `/secret-gallery` | Current control-room entry surface | [`secret-gallery-lock.webp`](baseline-screenshots/secret-gallery-lock.webp) |
