@@ -8,8 +8,8 @@ import { extractChatImageUrls, getSupabase, mapChatRowsToMessages, mapChatRowsTo
 import { uploadChatImageToVault } from "@/lib/chat-image-upload";
 import { buildMetaConversationUrl } from "@/lib/meta-inbox";
 import { metaTransientSendNotice } from "@/lib/meta-send-notice";
-import { getImportableLatestCustomerMessage, getSelectedOrderMessageText, isSelectableCustomerMessage } from "@/lib/order-deck-context";
-import { applySharedDeckHighlights, selectFeaturedDeckImageProducts } from "@/lib/order-deck-product-index";
+import { getImportableLatestCustomerMessage, getSelectedOrderMessageText, isSelectableCustomerMessage } from "@/lib/desktop-order-deck-context";
+import { applySharedDeckHighlights, selectFeaturedDeckImageProducts } from "@/lib/desktop-order-deck-product-index";
 import { useChatProductHighlights } from "@/hooks/useChatProductHighlights";
 import { CYBER_FRAME_EVENT, CYBER_FRAME_OPTIONS, readCyberFrame, readCyberFrameRooms, saveCyberFrameRoom } from "@/lib/cyber-frame";
 import { trpc } from "@/lib/trpc";
