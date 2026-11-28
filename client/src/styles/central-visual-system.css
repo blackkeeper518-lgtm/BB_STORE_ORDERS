@@ -300,3 +300,82 @@
     font-size: 8px;
   }
 }
+
+@layer central-visual.structure {
+  :where([data-visual-scope="desktop-app"] .central-visual-order-room) {
+    min-height: 100%;
+    color: var(--text-primary);
+  }
+
+  :where([data-visual-scope="desktop-app"] .central-visual-order-hero,
+    [data-visual-scope="desktop-app"] .central-visual-order-list-panel,
+    [data-visual-scope="desktop-app"] .central-visual-order-detail-card,
+    [data-visual-scope="desktop-app"] .central-visual-order-search-drawer) {
+    border-color: var(--panel-border) !important;
+    background: var(--panel-surface) !important;
+    box-shadow: var(--card-shadow) !important;
+    backdrop-filter: blur(var(--card-blur));
+  }
+
+  :where([data-visual-scope="desktop-app"] .central-visual-order-hero) {
+    position: relative;
+    overflow: hidden;
+  }
+
+  :where([data-visual-scope="desktop-app"] .central-visual-order-hero::before,
+    [data-visual-scope="desktop-app"] .central-visual-order-hero::after) {
+    display: none;
+  }
+
+  :where([data-visual-scope="desktop-app"] .central-visual-order-list-panel,
+    [data-visual-scope="desktop-app"] .central-visual-order-detail-card) {
+    border-radius: var(--panel-radius) !important;
+  }
+
+  :where([data-visual-scope="desktop-app"] .central-visual-order-list-card) {
+    border-color: var(--card-border) !important;
+    background: var(--card-surface) !important;
+    box-shadow: var(--card-shadow) !important;
+    color: var(--text-primary);
+    backdrop-filter: blur(var(--card-blur));
+  }
+
+  :where([data-visual-scope="desktop-app"] .central-visual-order-list-card:hover,
+    [data-visual-scope="desktop-app"] .central-visual-order-list-card:focus-visible) {
+    border-color: var(--accent-primary) !important;
+    background: var(--card-surface-raised) !important;
+    box-shadow: 0 0 0 1px var(--accent-soft), var(--card-shadow) !important;
+  }
+
+  :where([data-visual-scope="desktop-app"] .central-visual-order-list-card-selected) {
+    border-color: var(--accent-primary) !important;
+    background: color-mix(in srgb, var(--card-surface-raised) 88%, var(--accent-primary)) !important;
+    box-shadow: 0 0 0 1px var(--accent-primary), var(--card-shadow) !important;
+  }
+
+  :where([data-visual-scope="desktop-app"] .central-visual-order-list-card-latest::after) {
+    display: none;
+  }
+
+  :where([data-visual-scope="desktop-app"] .central-visual-order-metric) {
+    border-color: color-mix(in srgb, var(--accent-primary) 42%, var(--card-border)) !important;
+    background: var(--card-surface) !important;
+    color: var(--accent-secondary);
+    box-shadow: var(--card-shadow) !important;
+    filter: none !important;
+  }
+
+  :where([data-visual-scope="desktop-app"] .central-visual-order-metric::before,
+    [data-visual-scope="desktop-app"] .central-visual-order-metric::after) {
+    display: none;
+  }
+
+  :where([data-visual-scope="desktop-app"] .central-visual-order-metric:hover) {
+    transform: translateY(-1px);
+    box-shadow: 0 0 0 1px var(--accent-soft), var(--card-shadow) !important;
+  }
+
+  :where([data-visual-scope="desktop-app"] .central-visual-order-search-drawer) {
+    background: var(--room-surface) !important;
+  }
+}

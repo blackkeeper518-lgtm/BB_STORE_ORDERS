@@ -275,9 +275,8 @@ export default function OrderControl() {
   }
 
   return (
-    <div className="cosmic-stage order-control-room min-h-full space-y-3 p-2 text-white sm:p-3 lg:p-4">
-      <span className="cosmic-corner tl" /><span className="cosmic-corner br" />
-      <header className="blackbox-hero cyber-glow relative flex flex-wrap items-center justify-between gap-3 overflow-hidden rounded-2xl border border-fuchsia-400/20 p-4 sm:p-5">
+    <div className="central-visual-order-room min-h-full space-y-3 p-2 text-white sm:p-3 lg:p-4">
+      <header className="central-visual-order-hero cyber-glow relative flex flex-wrap items-center justify-between gap-3 overflow-hidden rounded-2xl border border-fuchsia-400/20 p-4 sm:p-5">
         <div className="hero-scanline" />
         <div className="relative z-10 max-w-3xl">
           <p className="orbit-kicker flex items-center gap-2 text-cyan-200/80"><Database className="h-3.5 w-3.5 text-cyan-300" /> ศูนย์ควบคุมออเดอร์จาก n8n ·</p>
@@ -296,12 +295,12 @@ export default function OrderControl() {
 
       {/* SEARCH / FILTERS · แผงลิ้นชักสไลด์เข้าจากด้านขวา */}
       <Sheet open={searchPanelOpen} onOpenChange={setSearchPanelOpen}>
-        <SheetContent side="right" className="order-control-room flex w-[min(860px,100vw)] flex-col gap-0 overflow-hidden border-l border-cyan-300/25 bg-[#05070d] p-0 text-white shadow-[-18px_0_60px_rgba(34,211,238,.12)] sm:max-w-[860px]">
+        <SheetContent data-visual-scope="desktop-app" side="right" className="central-visual-order-room flex w-[min(860px,100vw)] flex-col gap-0 overflow-hidden border-l border-cyan-300/25 bg-[#05070d] p-0 text-white shadow-[-18px_0_60px_rgba(34,211,238,.12)] sm:max-w-[860px]">
           <SheetHeader className="border-b border-cyan-300/15 bg-gradient-to-r from-violet-500/[.10] via-cyan-400/[.05] to-transparent pr-14">
             <SheetTitle className="text-left text-sm font-bold tracking-[.14em] text-cyan-100">UNIVERSAL SEARCH · ORDER CONTROL</SheetTitle>
             <SheetDescription className="text-left text-xs leading-5 text-slate-300/70">ค้นด้วยเบอร์โทรหรือเลขออเดอร์ แล้วตรวจ HERMES · Chat · Parcel · Telegram ในแผงด้านขวานี้</SheetDescription>
           </SheetHeader>
-          <section className="order-search-drawer min-h-0 flex-1 overflow-y-auto rounded-none border-0">
+          <section className="central-visual-order-search-drawer min-h-0 flex-1 overflow-y-auto rounded-none border-0">
           <div className="order-search-head p-3 sm:p-4">
               <div className="order-search-topline mb-3 flex flex-wrap items-center gap-2">
                 <label htmlFor="order-universal-search" className="order-search-label flex min-w-0 flex-wrap items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em]">
@@ -443,14 +442,14 @@ export default function OrderControl() {
 
       {/* ⫘ WORKBENCH · ซ้ายรายการออเดอร์ / ขวารายละเอียดออเดอร์ */}
       <div className="grid gap-4 xl:grid-cols-[minmax(390px,0.96fr)_minmax(0,1.04fr)]">
-        <Card className="order-list-panel overflow-hidden border-violet-300/15 bg-[#08070e]/95 shadow-[0_0_24px_rgba(111,83,180,0.07)]">
+        <Card className="central-visual-order-list-panel overflow-hidden border-violet-300/15 bg-[#08070e]/95 shadow-[0_0_24px_rgba(111,83,180,0.07)]">
           <CardHeader className="border-b border-violet-300/15 bg-violet-500/[0.04]"><CardTitle className="flex items-center justify-between text-base text-violet-100"><span><span className="mr-2 text-emerald-300">✦</span>รายการออเดอร์</span><span className="rounded-full border border-emerald-300/25 bg-emerald-400/10 px-2 py-0.5 text-xs font-mono font-normal text-emerald-200">{orders.length} SIGNALS</span></CardTitle></CardHeader>
           {/* รายการการ์ดซ้าย: ลด/เพิ่มความสูงที่ max-h และระยะห่างที่ p-3 */}
           <CardContent className="max-h-[72vh] space-y-2 overflow-auto p-3">
             {query.isLoading ? <p className="p-8 text-center text-sm text-slate-500">กำลังอ่านข้อมูลจาก Supabase…</p> : null}
             {!query.isLoading && !query.error && orders.length === 0 ? <p className="p-8 text-center text-sm text-slate-500">ไม่พบข้อมูล</p> : null}
             {/* การ์ด 1 ใบ · คอลัมน์ที่ใช้: order_number, customer_name, phone, page_name, order_time_display, final_display_for_packer, delivery_status, sent_at */}
-            {orders.map((row, index) => { const rowWarnings = orderWarningsByKey.get(row.upsert_key) ?? []; return <button key={row.upsert_key} type="button" onClick={() => setSelectedKey(row.upsert_key)} className={`order-list-card ${index === 0 ? "order-list-card-latest" : ""} w-full rounded-2xl border p-3 text-left transition ${selectedOrder?.upsert_key === row.upsert_key ? "order-list-card-selected border-cyan-300/40" : "border-white/5 bg-black/15 hover:border-cyan-300/30 hover:bg-cyan-400/[0.04]"}`}>
+            {orders.map((row, index) => { const rowWarnings = orderWarningsByKey.get(row.upsert_key) ?? []; return <button key={row.upsert_key} type="button" onClick={() => setSelectedKey(row.upsert_key)} className={`central-visual-order-list-card ${index === 0 ? "central-visual-order-list-card-latest" : ""} w-full rounded-2xl border p-3 text-left transition ${selectedOrder?.upsert_key === row.upsert_key ? "central-visual-order-list-card-selected border-cyan-300/40" : "border-white/5 bg-black/15 hover:border-cyan-300/30 hover:bg-cyan-400/[0.04]"}`}>
               <div className="flex items-center justify-between gap-2"><span className="font-mono text-sm font-semibold text-cyan-200">{directText(row.order_number)}</span>{isSent(row) ? <span className="rounded-full border border-orange-300/30 bg-orange-400/10 px-2 py-0.5 text-[10px] font-semibold text-orange-200">🔥SENT</span> : <span className="rounded-full border border-cyan-300/20 px-2 py-0.5 text-[10px] text-cyan-200">รอส่ง</span>}</div>
               <div className="mt-2 text-xs"><span className="font-semibold text-white">{directText(row.customer_name)}</span><span role="button" tabIndex={0} title="กดเพื่อคัดลอกเบอร์โทร" aria-label={`คัดลอกเบอร์โทร ${directText(row.phone)}`} onClick={(event) => { event.stopPropagation(); const phone = String(row.phone ?? "").trim(); if (!phone) return; void navigator.clipboard.writeText(phone).then(() => { setCopiedPhone(row.upsert_key); window.setTimeout(() => setCopiedPhone((current) => current === row.upsert_key ? "" : current), 1400); }); }} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); event.stopPropagation(); const phone = String(row.phone ?? "").trim(); if (phone) void navigator.clipboard.writeText(phone).then(() => { setCopiedPhone(row.upsert_key); window.setTimeout(() => setCopiedPhone((current) => current === row.upsert_key ? "" : current), 1400); }); } }} className="ml-3 inline-flex cursor-copy items-center gap-1 rounded-md border border-emerald-300/25 bg-emerald-400/[0.06] px-1.5 py-0.5 font-mono text-emerald-200/90 transition hover:border-cyan-200/60 hover:bg-cyan-400/15 hover:text-cyan-100 focus:outline-none focus:ring-1 focus:ring-cyan-200/70">{copiedPhone === row.upsert_key ? "คัดลอกแล้ว" : directText(row.phone)}</span></div>
               <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-violet-200/70"><span>🍊 {directText(row.page_name)} · {directText(row.order_number)}</span><span>{row.order_time_display}</span></div>
@@ -462,7 +461,7 @@ export default function OrderControl() {
           </CardContent>
         </Card>
 
-        <Card className="order-detail-card border-cyan-300/15 bg-[#08070e]/95 shadow-[0_0_24px_rgba(88,225,255,0.045)]">
+        <Card className="central-visual-order-detail-card border-cyan-300/15 bg-[#08070e]/95 shadow-[0_0_24px_rgba(88,225,255,0.045)]">
           {/* DETAIL CARD · แก้หัวการ์ดตรง CardHeader / ขนาดเนื้อหาตรง CardContent */}
           <CardHeader className="order-detail-head border-b border-cyan-300/15"><CardTitle className="flex flex-wrap items-center justify-between gap-2 text-base text-cyan-100"><span><span className="mr-2 text-cyan-300">◈</span>ออเดอร์ที่เลือก <span className="ml-2 text-[10px] font-mono font-normal uppercase tracking-[0.18em] text-cyan-200/60">ORDER DECK · LIVE</span></span><span className="rounded-full border border-emerald-300/25 bg-emerald-400/[0.06] px-2 py-1 text-[9px] font-mono tracking-wider text-emerald-200">AUTO VIEW · READ ONLY</span></CardTitle></CardHeader>
           <CardContent className="space-y-5 p-5">
@@ -527,5 +526,5 @@ function Info({ label, value }: { label: string; value: unknown }) {
 }
 
 function Metric({ icon: Icon, label, value, suffix, tone }: { icon: typeof ShoppingCart; label: string; value: string | number; suffix?: string; tone: "pink" | "violet" | "cyan" | "green" | "fuchsia" | "amber" | "sky" | "rose" }) {
-  return <div className={`signal-metric signal-${tone}`}><div className="flex h-full items-start justify-between gap-3"><div className="min-w-0"><p className="min-h-7 text-[10px] font-semibold leading-4 tracking-[0.08em] text-slate-300/70">{label}</p><p className="mt-2 break-words text-xl font-semibold leading-tight tracking-tight text-white">{value} {suffix ? <span className="text-[10px] font-normal text-slate-300/60">{suffix}</span> : null}</p></div><span className="metric-icon shrink-0"><Icon /></span></div></div>;
+  return <div className={`central-visual-order-metric signal-${tone}`}><div className="flex h-full items-start justify-between gap-3"><div className="min-w-0"><p className="min-h-7 text-[10px] font-semibold leading-4 tracking-[0.08em] text-slate-300/70">{label}</p><p className="mt-2 break-words text-xl font-semibold leading-tight tracking-tight text-white">{value} {suffix ? <span className="text-[10px] font-normal text-slate-300/60">{suffix}</span> : null}</p></div><span className="metric-icon shrink-0"><Icon /></span></div></div>;
 }
