@@ -3004,3 +3004,103 @@ body { @apply bg-background text-foreground; font-family:'Space Grotesk',sans-se
 .global-theme-runtime .order-control-room .bg-violet-500\/\[\.04\] {
   background-color: color-mix(in srgb, var(--global-primary) 7%, transparent) !important;
 }
+/* ROOM 04 CARD SURFACE OVERRIDE
+   Page canvases stay quiet; operational cards inherit the active app_themes skin.
+   This is intentionally isolated at the end for a small, reversible rollback. */
+.global-theme-runtime .ops-console-shell,
+.global-theme-runtime .ops-console-inset,
+.global-theme-runtime .ops-console-inset > main,
+.global-theme-runtime .st-runtime-room,
+.global-theme-runtime .daily-order-summary-room,
+.global-theme-runtime .order-history-runtime-room,
+.global-theme-runtime .stock-room,
+.global-theme-runtime .warp-drive-room,
+.global-theme-runtime .blackbox-room,
+.global-theme-runtime .close-job-room,
+.global-theme-runtime .telegram-alert-room,
+.global-theme-runtime .blackbox-receive-room,
+.global-theme-runtime .chat-cosmos-shell,
+.global-theme-runtime .cosmic-stage {
+  background-color: transparent !important;
+  background-image: none !important;
+}
+.global-theme-runtime .ops-console-shell::before,
+.global-theme-runtime .ops-console-shell::after,
+.global-theme-runtime .warp-drive-room::before,
+.global-theme-runtime .warp-drive-room::after,
+.global-theme-runtime .close-job-room::before,
+.global-theme-runtime .close-job-room::after,
+.global-theme-runtime .telegram-alert-room::before,
+.global-theme-runtime .telegram-alert-room::after,
+.global-theme-runtime .blackbox-receive-room::before,
+.global-theme-runtime .blackbox-receive-room::after,
+.global-theme-runtime .cosmic-stage::before,
+.global-theme-runtime .cosmic-stage::after,
+.global-theme-runtime .chat-cosmos-timeline::before,
+.global-theme-runtime .chat-cosmos-timeline::after {
+  display: none !important;
+}
+
+.global-theme-runtime .st-runtime-room > header,
+.global-theme-runtime .st-runtime-room > section,
+.global-theme-runtime .st-runtime-room [data-slot="card"],
+.global-theme-runtime .warp-drive-panel,
+.global-theme-runtime .blackbox-queue,
+.global-theme-runtime .blackbox-console,
+.global-theme-runtime .close-job-room > header,
+.global-theme-runtime .close-job-room article,
+.global-theme-runtime .telegram-alert-room > header,
+.global-theme-runtime .telegram-alert-room > section,
+.global-theme-runtime .telegram-alert-room article,
+.global-theme-runtime .blackbox-receive-room > header,
+.global-theme-runtime .blackbox-receive-room > section,
+.global-theme-runtime .blackbox-receive-room article,
+.global-theme-runtime .chat-cosmos-shell > [data-slot="card"],
+.global-theme-runtime .chat-cosmos-shell .chat-conversation-panel,
+.global-theme-runtime .chat-cosmos-shell .chat-tools-panel,
+.global-theme-runtime .order-control-room .blackbox-hero,
+.global-theme-runtime .order-control-room .order-list-panel,
+.global-theme-runtime .order-control-room .order-detail-card,
+.global-theme-runtime .order-control-room .signal-metric,
+.global-theme-runtime .order-control-room .order-filter-bar {
+  border-color: color-mix(in srgb, var(--global-primary) 42%, transparent) !important;
+  background: linear-gradient(145deg,
+    color-mix(in srgb, var(--global-surface) 96%, var(--global-primary)),
+    color-mix(in srgb, var(--global-bg) 94%, var(--global-accent))) !important;
+  color: var(--global-text) !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .22), inset 0 1px rgba(255, 255, 255, .045) !important;
+}
+.global-theme-runtime .st-runtime-room [data-slot="card"] > [data-slot="card-header"],
+.global-theme-runtime .order-history-runtime-room table thead,
+.global-theme-runtime .chat-cosmos-shell [data-slot="card"] > [data-slot="card-header"] {
+  background: color-mix(in srgb, var(--global-primary) 8%, var(--global-surface)) !important;
+}
+.global-theme-runtime .st-runtime-room input,
+.global-theme-runtime .st-runtime-room textarea,
+.global-theme-runtime .st-runtime-room select,
+.global-theme-runtime .chat-cosmos-shell input,
+.global-theme-runtime .chat-cosmos-shell textarea,
+.global-theme-runtime .order-control-room input,
+.global-theme-runtime .order-control-room select {
+  background: color-mix(in srgb, var(--global-bg) 88%, var(--global-surface)) !important;
+  border-color: color-mix(in srgb, var(--global-primary) 38%, transparent) !important;
+  color: var(--global-text) !important;
+}
+.global-theme-runtime .order-control-room .order-list-card,
+.global-theme-runtime .order-control-room .order-parcel-result,
+.global-theme-runtime .order-control-room .order-chat-match,
+.global-theme-runtime .chat-cosmos-shell .room-list-card,
+.global-theme-runtime .chat-cosmos-shell .chat-message-bubble,
+.global-theme-runtime .warp-drive-room .warp-drop-zone {
+  border-color: color-mix(in srgb, var(--global-primary) 34%, transparent) !important;
+  background: color-mix(in srgb, var(--global-surface) 88%, var(--global-bg)) !important;
+}
+.global-theme-runtime .order-control-room .order-list-card:hover,
+.global-theme-runtime .order-control-room .order-list-card-selected,
+.global-theme-runtime .chat-cosmos-shell .room-list-card:hover,
+.global-theme-runtime .chat-cosmos-shell .room-list-card--selected,
+.global-theme-runtime .warp-drive-room .warp-drop-zone:hover,
+.global-theme-runtime .warp-drive-room .warp-drop-zone.is-dragging {
+  background: color-mix(in srgb, var(--global-primary) 18%, var(--global-surface)) !important;
+  border-color: color-mix(in srgb, var(--global-accent) 72%, transparent) !important;
+}
