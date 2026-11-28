@@ -3210,3 +3210,22 @@ html[data-appearance-background-key="original-space"] .global-theme-runtime .sec
 html:not([data-appearance-background-key="original-space"]) .global-theme-runtime .secret-gallery-page {
   animation: appearance-background-drift 36s ease-in-out infinite alternate;
 }
+
+
+/* SECRET GALLERY VISUAL BRIDGE · existing cards follow the applied room theme. */
+.global-theme-runtime .secret-gallery-page .neon-card,
+.global-theme-runtime .secret-gallery-page .appearance-control-room {
+  border-color: color-mix(in srgb, var(--global-primary) 48%, transparent) !important;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--global-surface) 92%, var(--global-primary)), color-mix(in srgb, var(--global-bg) 94%, var(--global-accent))) !important;
+  box-shadow: 0 14px 42px color-mix(in srgb, #000 34%, transparent), 0 0 24px color-mix(in srgb, var(--global-primary) 12%, transparent) !important;
+}
+.global-theme-runtime .secret-gallery-page .neon-card h1,
+.global-theme-runtime .secret-gallery-page .neon-card h2,
+.global-theme-runtime .secret-gallery-page .neon-card h3,
+.global-theme-runtime .secret-gallery-page .appearance-control-room h2 { color: var(--global-text) !important; }
+.global-theme-runtime .secret-gallery-page .neon-card [class*="text-cyan-"],
+.global-theme-runtime .secret-gallery-page .neon-card [class*="text-fuchsia-"],
+.global-theme-runtime .secret-gallery-page .appearance-control-room [class*="text-cyan-"] { color: color-mix(in srgb, var(--global-accent) 78%, #fff) !important; }
+.global-theme-runtime .secret-gallery-page .neon-card [class*="border-cyan-"],
+.global-theme-runtime .secret-gallery-page .neon-card [class*="border-fuchsia-"],
+.global-theme-runtime .secret-gallery-page .appearance-control-room [class*="border-cyan-"] { border-color: color-mix(in srgb, var(--global-primary) 48%, transparent) !important; }
