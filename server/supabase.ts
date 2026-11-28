@@ -83,6 +83,9 @@ const STAFF_READ_COLUMNS: Record<string, ReadonlySet<string>> = {
   "vault:sales_script_cards": new Set(["id", "sku", "title", "subtitle", "script_text", "ai_context", "ai_instruction", "blocks_json", "status", "version", "updated_at"]),
   "vault:order_deck_customer_scripts": new Set(["id", "app_key", "legacy_id", "title", "script_text", "stage", "situation", "situation_tags", "product_sku", "status", "sort_order", "created_at", "updated_at"]),
   "vault:app_backgrounds": new Set(["background_key", "name", "description", "background_type", "config", "is_enabled", "sort_order"]),
+  "vault:app_themes": new Set(["theme_key", "name", "description", "background_color", "surface_color", "primary_color", "accent_color", "border_style", "button_style", "radius", "glow", "motion_enabled", "is_enabled", "sort_order", "version"]),
+  "vault:app_chat_frames": new Set(["frame_key", "name", "description", "is_enabled", "sort_order"]),
+  "vault:app_customization_selections": new Set(["app_key", "scope_key", "asset_type", "asset_key", "is_active", "updated_by", "updated_at"]),
 };
 export function canStaffExecuteProjectQuery(input: { project: SupabaseProject; table: string; method: string; params?: Record<string, string> }) {
   if (input.method !== "GET" && input.method !== "HEAD") return false;
@@ -116,7 +119,8 @@ export function canStaffPersistAppearance(input: { project: SupabaseProject; tab
     const scope = params.scope_key?.replace(/^eq\./, "");
     const app = params.app_key?.replace(/^eq\./, "");
     const type = params.asset_type?.replace(/^eq\./, "");
-    return app === "BB_STORE" && typeof scope === "string" && allowedScopes.has(scope) && typeof type === "string" && allowedTypes.has(type);
+    return app === "BB_STORE" && typeof scope === "string" && allowedScopes.has(scope)
+      && (type === undefined || allowedTypes.has(type));
   }
   return false;
 }

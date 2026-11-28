@@ -79,7 +79,7 @@ export function AppearanceControlRoom() {
       }
     });
     void syncBackgroundCatalog(api).then(next => { if (!cancelled) setBackgrounds(next); });
-    void api.from("app_chat_frames").select("frame_key,name,description").eq("is_enabled", true).order("sort_order", { ascending: true }).then(result => {
+    void api.from("app_chat_frames").select("frame_key,name,description").eq("is_enabled", true).order("sort_order", { ascending: true }).limit(100).then(result => {
       if (!cancelled && !result.error) setCustomFrames((result.data ?? []).map(row => ({ key: String(row.frame_key), label: String(row.name), description: String(row.description ?? "") })));
     });
     return () => { cancelled = true; };

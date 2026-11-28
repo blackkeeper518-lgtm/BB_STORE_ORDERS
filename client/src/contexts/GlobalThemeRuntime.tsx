@@ -62,7 +62,7 @@ export function GlobalThemeRuntime({ children }: { children: React.ReactNode }) 
         await syncBackgroundCatalog(api);
         if (synced) setAppearanceVersion(value => value + 1);
       }
-      const base = await api.from("app_themes").select("theme_key,name,description,background_color,surface_color,primary_color,accent_color,border_style,button_style,radius,glow,motion_enabled,is_enabled,sort_order,version").eq("is_enabled", true).order("sort_order", { ascending: true });
+      const base = await api.from("app_themes").select("theme_key,name,description,background_color,surface_color,primary_color,accent_color,border_style,button_style,radius,glow,motion_enabled,is_enabled,sort_order,version").eq("is_enabled", true).order("sort_order", { ascending: true }).limit(100);
       if (base.error) throw base.error;
       const rows = ((base.data ?? []) as SkinRow[]).filter(row => [row.background_color, row.surface_color, row.primary_color, row.accent_color].every(validHex));
       const next = rows.length ? rows.map((row, index) => fromRow(row, index)) : [fallbackTheme()];
