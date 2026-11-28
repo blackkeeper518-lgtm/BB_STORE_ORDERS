@@ -29,6 +29,7 @@ import MobileInbox from "./pages/MobileInbox";
 import LineChat from "./pages/LineChat";
 import SkinPackPreview from "./pages/SkinPackPreview";
 import WarpDriveRoom from "./pages/WarpDriveRoom";
+import CentralVisualPreview from "./pages/CentralVisualPreview";
 import { GlobalThemeRuntime } from "./contexts/GlobalThemeRuntime";
 import { useEffect } from "react";
 
@@ -42,8 +43,8 @@ function HomeRoute() {
   }, [setLocation]);
   return null;
 }
-function Router() {
-  return <Switch>
+function Router() { return <Switch>
+    <Route path="/visual-contract-preview"><CentralVisualPreview /></Route>
     <Route path="/connect"><Redirect to="/secret-gallery/connect" /></Route>
     <Route path="/secret-gallery/connect"><SecretGallery /></Route>
     <Route path="/secret-gallery/images"><SecretGallery /></Route>
