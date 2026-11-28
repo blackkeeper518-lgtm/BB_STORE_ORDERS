@@ -1,8 +1,10 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { useLocation } from "wouter";
 import { getSupabase } from "@/lib/canonical";
 import { refreshServerProjectStatus } from "@/lib/server-project-client";
 import { CYBER_THEME_PRESETS, DEFAULT_CYBER_THEME, type CyberTheme } from "@/lib/theme-lab";
 import { injectSkin, normalizeSkinRow, tacticalAudio, type SkinConfig, type SkinRow } from "@/lib/darkside-skin-engine";
+import { APPEARANCE_ARCHITECTURE_ENABLED, APPEARANCE_EVENT, appearanceCssVars, appearanceRoomFromPath, readAppliedAppearance, syncAppliedAppearances } from "@/lib/appearance-runtime";
 
 const GLOBAL_THEME_KEY = "st-bb-global-theme-key-v1";
 const GLOBAL_THEME_EVENT = "st-bb-global-theme-change";
@@ -40,10 +42,12 @@ function fromRow(row: SkinRow, index: number): GlobalTheme {
 }
 
 export function GlobalThemeRuntime({ children }: { children: React.ReactNode }) {
+  const [location] = useLocation();
   const [themes, setThemes] = useState<GlobalTheme[]>(() => [fallbackTheme()]);
   const [activeKey, setActiveKey] = useState(() => { try { return localStorage.getItem(GLOBAL_THEME_KEY) || ""; } catch { return ""; } });
   const [loading, setLoading] = useState(true);
   const [connected, setConnected] = useState(false);
+  const [appearanceVersion, setAppearanceVersion] = useState(0);
   const [muted, setMutedState] = useState(() => { try { return localStorage.getItem("darkside-audio-muted-v1") === "true"; } catch { return false; } });
 
   const refreshThemes = async () => {
@@ -53,6 +57,10 @@ export function GlobalThemeRuntime({ children }: { children: React.ReactNode }) 
       if (!status.vault) { setConnected(false); return; }
       const api = getSupabase("vault");
       if (!api) { setConnected(false); return; }
+      if (APPEARANCE_ARCHITECTURE_ENABLED) {
+        const synced = await syncAppliedAppearances(api);
+        if (synced) setAppearanceVersion(value => value + 1);
+      }
       const base = await api.from("app_themes").select("theme_key,name,description,background_color,surface_color,primary_color,accent_color,border_style,button_style,radius,glow,motion_enabled,is_enabled,sort_order,version").eq("is_enabled", true).order("sort_order", { ascending: true });
       if (base.error) throw base.error;
       const rows = ((base.data ?? []) as SkinRow[]).filter(row => [row.background_color, row.surface_color, row.primary_color, row.accent_color].every(validHex));
@@ -63,8 +71,12 @@ export function GlobalThemeRuntime({ children }: { children: React.ReactNode }) 
   };
   useEffect(() => { void refreshThemes(); }, []);
   useEffect(() => { const sync = () => { try { setActiveKey(localStorage.getItem(GLOBAL_THEME_KEY) || ""); } catch {} }; window.addEventListener(GLOBAL_THEME_EVENT, sync); window.addEventListener("storage", sync); return () => { window.removeEventListener(GLOBAL_THEME_EVENT, sync); window.removeEventListener("storage", sync); }; }, []);
-  const theme = useMemo(() => themes.find(item => item.themeKey === activeKey) ?? themes[0] ?? fallbackTheme(), [activeKey, themes]);
-  useEffect(() => { injectSkin(theme); tacticalAudio.preload(theme); try { localStorage.setItem(GLOBAL_THEME_PAYLOAD_KEY, JSON.stringify(theme)); localStorage.removeItem("st-bb-global-public-config-v1"); } catch {} }, [theme]);
+  useEffect(() => { const syncAppearance = () => setAppearanceVersion(value => value + 1); window.addEventListener(APPEARANCE_EVENT, syncAppearance); window.addEventListener("storage", syncAppearance); return () => { window.removeEventListener(APPEARANCE_EVENT, syncAppearance); window.removeEventListener("storage", syncAppearance); }; }, []);
+  const room = appearanceRoomFromPath(location);
+  const roomThemeKey = APPEARANCE_ARCHITECTURE_ENABLED ? readAppliedAppearance(room).themeKey : null;
+  const effectiveThemeKey = roomThemeKey ?? activeKey;
+  const theme = useMemo(() => themes.find(item => item.themeKey === effectiveThemeKey) ?? themes[0] ?? fallbackTheme(), [effectiveThemeKey, themes, appearanceVersion]);
+  useEffect(() => { injectSkin(theme); tacticalAudio.preload(theme); if (APPEARANCE_ARCHITECTURE_ENABLED) { const selection = readAppliedAppearance(room); const root = document.documentElement; Object.entries(appearanceCssVars(selection)).forEach(([key, value]) => root.style.setProperty(key, value)); root.dataset.appearanceRoom = room; root.dataset.appearanceAtmosphere = selection.atmosphereKey; root.dataset.appearanceCardStyle = selection.cardStyleKey; root.dataset.appearanceFrame = selection.frameKey ?? "default"; } try { localStorage.setItem(GLOBAL_THEME_PAYLOAD_KEY, JSON.stringify(theme)); localStorage.removeItem("st-bb-global-public-config-v1"); } catch {} }, [theme, room, appearanceVersion]);
   const selectTheme = (next: GlobalTheme) => { setActiveKey(next.themeKey); tacticalAudio.play("switch", next); try { localStorage.setItem(GLOBAL_THEME_KEY, next.themeKey); window.dispatchEvent(new CustomEvent(GLOBAL_THEME_EVENT)); } catch {} };
   const setMuted = (value: boolean) => { setMutedState(value); tacticalAudio.setMuted(value); };
   return <GlobalThemeContext.Provider value={{ theme, themes, loading, connected, selectTheme, refreshThemes, muted, setMuted }}><div className="global-theme-runtime" data-global-theme={theme.themeKey}>{children}</div></GlobalThemeContext.Provider>;

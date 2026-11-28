@@ -45,6 +45,7 @@ import { trpc } from "@/lib/trpc";
 import { CHAT_NOTIFICATION_SETTINGS_EVENT, readChatNotificationPageSettings, readChatNotificationPageSounds, setChatNotificationPageEnabled, setChatNotificationPageSound } from "@/lib/chat-notifications";
 import { CyberFrameVault } from "@/components/CyberFrameVault";
 import { CustomizationAdmin } from "@/components/CustomizationAdmin";
+import { AppearanceControlRoom } from "@/components/AppearanceControlRoom";
 
 type CodeLanguage = "sql" | "java" | "md";
 type VaultDoc = {
@@ -633,6 +634,7 @@ export default function SecretGallery() {
         </div>
         {view === "theme" ? (
           <>
+          <AppearanceControlRoom />
           <Card className="overflow-hidden rounded-[28px] border-red-500/30 bg-[radial-gradient(circle_at_90%_0%,rgba(239,68,68,.2),transparent_38%),linear-gradient(135deg,#09070d,#160b13_55%,#08090f)] shadow-[0_0_55px_rgba(239,68,68,.12)]">
             <CardHeader className="border-b border-red-300/15 bg-black/20"><div className="flex items-center justify-between gap-3"><div><p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.28em] text-red-300/75">DARKSIDE // THEME CONTROL ROOM</p><CardTitle className="flex items-center gap-2 text-lg text-white"><Palette className="h-5 w-5 text-red-300" /> APP THEME ARCHITECT</CardTitle><p className="mt-2 max-w-2xl text-xs leading-5 text-red-100/60">แก้ไขธีมได้อิสระจากห้องนี้โดยตรง ข้อมูลถูกบันทึกที่ <code className="rounded bg-red-950/60 px-1 text-red-200">app_themes</code> และ Mobile Inbox จะอ่านค่าชุดเดียวกันแบบ dynamic</p></div><div className="hidden rounded-xl border border-red-300/20 bg-red-950/30 px-3 py-2 text-right sm:block"><span className="block text-[9px] uppercase tracking-[0.2em] text-red-200/50">SOURCE OF TRUTH</span><strong className="font-mono text-xs text-red-200">SUPABASE · VAULT</strong></div></div></CardHeader>
           </Card>

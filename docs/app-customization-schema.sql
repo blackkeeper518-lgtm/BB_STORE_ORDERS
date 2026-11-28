@@ -60,6 +60,20 @@ create table if not exists public.app_chat_frames (
   created_at timestamptz not null default now(), updated_at timestamptz not null default now()
 );
 
+create table if not exists public.app_customization_selections (
+  id uuid primary key default gen_random_uuid(),
+  app_key text not null default 'BB_STORE',
+  scope_key text not null default 'global',
+  asset_type text not null check (asset_type in ('theme','frame','sound','image','background','atmosphere','card_style','other')),
+  asset_key text not null,
+  is_active boolean not null default true,
+  updated_by text,
+  created_at timestamptz not null default now()
+);
+
+create unique index if not exists app_customization_selection_unique
+  on public.app_customization_selections (app_key, scope_key, asset_type);
+
 create or replace function public.touch_app_customization_updated_at() returns trigger language plpgsql as $$ begin new.updated_at = now(); new.version = old.version + 1; return new; end; $$;
 drop trigger if exists app_themes_touch_updated_at on public.app_themes;
 create trigger app_themes_touch_updated_at before update on public.app_themes for each row execute function public.touch_app_customization_updated_at();
@@ -72,12 +86,18 @@ create trigger app_chat_frames_touch_updated_at before update on public.app_chat
 alter table public.app_themes enable row level security;
 alter table public.app_sounds enable row level security;
 alter table public.app_chat_frames enable row level security;
+alter table public.app_customization_selections enable row level security;
 drop policy if exists app_themes_service_role_only on public.app_themes;
 create policy app_themes_service_role_only on public.app_themes for all to service_role using (true) with check (true);
 drop policy if exists app_sounds_service_role_only on public.app_sounds;
 create policy app_sounds_service_role_only on public.app_sounds for all to service_role using (true) with check (true);
 drop policy if exists app_chat_frames_service_role_only on public.app_chat_frames;
 create policy app_chat_frames_service_role_only on public.app_chat_frames for all to service_role using (true) with check (true);
+drop policy if exists app_customization_selections_public_read on public.app_customization_selections;
+drop policy if exists app_customization_selections_secret_write on public.app_customization_selections;
+drop policy if exists app_customization_selections_service_role_write on public.app_customization_selections;
+drop policy if exists app_customization_selections_service_role_access on public.app_customization_selections;
+create policy app_customization_selections_service_role_access on public.app_customization_selections for all to service_role using (true) with check (true);
 
 -- Private audio bucket. Upload/read through the server service-role route.
 insert into storage.buckets (id, name, public) values ('chat-sounds','chat-sounds',false) on conflict (id) do nothing;
